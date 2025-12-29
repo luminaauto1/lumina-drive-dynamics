@@ -8,93 +8,84 @@ import KineticText, { RevealText } from '@/components/KineticText';
 import ParallaxCar from '@/components/ParallaxCar';
 import VehicleCard from '@/components/VehicleCard';
 import { vehicles } from '@/data/vehicles';
-
 const Index = () => {
   const heroRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
+  const {
+    scrollYProgress
+  } = useScroll({
     target: heroRef,
-    offset: ['start start', 'end start'],
+    offset: ['start start', 'end start']
   });
-
   const heroOpacity = useTransform(scrollYProgress, [0, 1], [1, 0]);
   const heroScale = useTransform(scrollYProgress, [0, 1], [1, 1.1]);
   const heroY = useTransform(scrollYProgress, [0, 1], [0, 100]);
-
-  const featuredVehicles = vehicles.filter((v) => v.status === 'available').slice(0, 4);
-
-  const stats = [
-    { value: '500+', label: 'Vehicles Sold' },
-    { value: '98%', label: 'Client Satisfaction' },
-    { value: '15+', label: 'Years Experience' },
-    { value: '24/7', label: 'Support' },
-  ];
-
-  const features = [
-    {
-      icon: Shield,
-      title: 'Quality Assured',
-      description: 'Every vehicle undergoes a rigorous 150-point inspection.',
-    },
-    {
-      icon: Award,
-      title: 'Premium Selection',
-      description: 'Curated collection of the finest pre-owned luxury vehicles.',
-    },
-    {
-      icon: Clock,
-      title: 'Fast Financing',
-      description: 'Approval in minutes, not days. Competitive rates guaranteed.',
-    },
-    {
-      icon: Car,
-      title: 'Trade-In Experts',
-      description: 'Get the best value for your current vehicle.',
-    },
-  ];
-
-  return (
-    <>
+  const featuredVehicles = vehicles.filter(v => v.status === 'available').slice(0, 4);
+  const stats = [{
+    value: '500+',
+    label: 'Vehicles Sold'
+  }, {
+    value: '98%',
+    label: 'Client Satisfaction'
+  }, {
+    value: '15+',
+    label: 'Years Experience'
+  }, {
+    value: '24/7',
+    label: 'Support'
+  }];
+  const features = [{
+    icon: Shield,
+    title: 'Quality Assured',
+    description: 'Every vehicle undergoes a rigorous 150-point inspection.'
+  }, {
+    icon: Award,
+    title: 'Premium Selection',
+    description: 'Curated collection of the finest pre-owned luxury vehicles.'
+  }, {
+    icon: Clock,
+    title: 'Fast Financing',
+    description: 'Approval in minutes, not days. Competitive rates guaranteed.'
+  }, {
+    icon: Car,
+    title: 'Trade-In Experts',
+    description: 'Get the best value for your current vehicle.'
+  }];
+  return <>
       <Helmet>
         <title>Lumina Auto | Premium Pre-Owned Luxury Vehicles</title>
-        <meta
-          name="description"
-          content="Discover South Africa's finest collection of pre-owned luxury vehicles. BMW, Mercedes, Porsche, Lamborghini & more. Premium quality, competitive financing."
-        />
+        <meta name="description" content="Discover South Africa's finest collection of pre-owned luxury vehicles. BMW, Mercedes, Porsche, Lamborghini & more. Premium quality, competitive financing." />
         <script type="application/ld+json">
           {JSON.stringify({
-            '@context': 'https://schema.org',
-            '@type': 'AutoDealer',
-            name: 'Lumina Auto',
-            description: 'Premium Pre-Owned Luxury Vehicles',
-            url: 'https://luminaauto.co.za',
-          })}
+          '@context': 'https://schema.org',
+          '@type': 'AutoDealer',
+          name: 'Lumina Auto',
+          description: 'Premium Pre-Owned Luxury Vehicles',
+          url: 'https://luminaauto.co.za'
+        })}
         </script>
       </Helmet>
 
       {/* Hero Section */}
       <section ref={heroRef} className="relative h-screen overflow-hidden">
-        <motion.div
-          style={{ opacity: heroOpacity, scale: heroScale, y: heroY }}
-          className="absolute inset-0"
-        >
+        <motion.div style={{
+        opacity: heroOpacity,
+        scale: heroScale,
+        y: heroY
+      }} className="absolute inset-0">
           <div className="absolute inset-0 bg-gradient-to-b from-background/50 via-background/30 to-background z-10" />
-          <img
-            src="https://images.unsplash.com/photo-1544636331-e26879cd4d9b?w=1920&q=80"
-            alt="Luxury Car"
-            className="w-full h-full object-cover"
-          />
+          <img src="https://images.unsplash.com/photo-1544636331-e26879cd4d9b?w=1920&q=80" alt="Luxury Car" className="w-full h-full object-cover" />
         </motion.div>
 
         <div className="relative z-20 h-full flex flex-col items-center justify-center text-center px-6">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1, delay: 0.5 }}
-            className="mb-6"
-          >
-            <span className="text-primary text-sm font-semibold uppercase tracking-[0.3em]">
-              Premium Pre-Owned
-            </span>
+          <motion.div initial={{
+          opacity: 0
+        }} animate={{
+          opacity: 1
+        }} transition={{
+          duration: 1,
+          delay: 0.5
+        }} className="mb-6">
+            <span className="text-primary text-sm font-semibold uppercase tracking-[0.3em]">CAR FINANCING LIKE YOU WANT IT</span>
           </motion.div>
 
           <h1 className="font-display text-5xl md:text-7xl lg:text-8xl font-bold mb-6 max-w-5xl">
@@ -114,12 +105,16 @@ const Index = () => {
             for those who refuse to compromise.
           </RevealText>
 
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 1.2 }}
-            className="flex flex-col sm:flex-row items-center gap-4"
-          >
+          <motion.div initial={{
+          opacity: 0,
+          y: 30
+        }} animate={{
+          opacity: 1,
+          y: 0
+        }} transition={{
+          duration: 0.6,
+          delay: 1.2
+        }} className="flex flex-col sm:flex-row items-center gap-4">
             <Link to="/inventory">
               <Button size="lg" className="bg-gradient-gold text-primary-foreground hover:opacity-90 group">
                 Explore Inventory
@@ -134,17 +129,19 @@ const Index = () => {
           </motion.div>
 
           {/* Scroll Indicator */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 2 }}
-            className="absolute bottom-10 left-1/2 -translate-x-1/2"
-          >
-            <motion.div
-              animate={{ y: [0, 10, 0] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="flex flex-col items-center gap-2 text-muted-foreground"
-            >
+          <motion.div initial={{
+          opacity: 0
+        }} animate={{
+          opacity: 1
+        }} transition={{
+          delay: 2
+        }} className="absolute bottom-10 left-1/2 -translate-x-1/2">
+            <motion.div animate={{
+            y: [0, 10, 0]
+          }} transition={{
+            duration: 2,
+            repeat: Infinity
+          }} className="flex flex-col items-center gap-2 text-muted-foreground">
               <span className="text-xs uppercase tracking-widest">Scroll</span>
               <ChevronDown className="w-5 h-5" />
             </motion.div>
@@ -159,23 +156,24 @@ const Index = () => {
       <section className="py-20 bg-card border-y border-border">
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className="text-center"
-              >
+            {stats.map((stat, index) => <motion.div key={stat.label} initial={{
+            opacity: 0,
+            y: 20
+          }} whileInView={{
+            opacity: 1,
+            y: 0
+          }} viewport={{
+            once: true
+          }} transition={{
+            delay: index * 0.1
+          }} className="text-center">
                 <div className="font-display text-4xl md:text-5xl font-bold gradient-text mb-2">
                   {stat.value}
                 </div>
                 <div className="text-muted-foreground text-sm uppercase tracking-wider">
                   {stat.label}
                 </div>
-              </motion.div>
-            ))}
+              </motion.div>)}
           </div>
         </div>
       </section>
@@ -185,12 +183,13 @@ const Index = () => {
         <div className="container mx-auto px-6">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
             <div>
-              <motion.span
-                initial={{ opacity: 0 }}
-                whileInView={{ opacity: 1 }}
-                viewport={{ once: true }}
-                className="text-primary text-sm font-semibold uppercase tracking-widest mb-4 block"
-              >
+              <motion.span initial={{
+              opacity: 0
+            }} whileInView={{
+              opacity: 1
+            }} viewport={{
+              once: true
+            }} className="text-primary text-sm font-semibold uppercase tracking-widest mb-4 block">
                 Featured Collection
               </motion.span>
               <h2 className="font-display text-4xl md:text-5xl font-bold">
@@ -206,9 +205,7 @@ const Index = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredVehicles.map((vehicle) => (
-              <VehicleCard key={vehicle.id} vehicle={vehicle} />
-            ))}
+            {featuredVehicles.map(vehicle => <VehicleCard key={vehicle.id} vehicle={vehicle} />)}
           </div>
         </div>
       </section>
@@ -217,12 +214,13 @@ const Index = () => {
       <section className="py-24 bg-card">
         <div className="container mx-auto px-6">
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <motion.span
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              className="text-primary text-sm font-semibold uppercase tracking-widest mb-4 block"
-            >
+            <motion.span initial={{
+            opacity: 0
+          }} whileInView={{
+            opacity: 1
+          }} viewport={{
+            once: true
+          }} className="text-primary text-sm font-semibold uppercase tracking-widest mb-4 block">
               Why Lumina
             </motion.span>
             <h2 className="font-display text-4xl md:text-5xl font-bold mb-6">
@@ -235,15 +233,17 @@ const Index = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {features.map((feature, index) => (
-              <motion.div
-                key={feature.title}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className="group p-8 rounded-lg bg-background border border-border hover:border-primary/50 transition-all duration-300"
-              >
+            {features.map((feature, index) => <motion.div key={feature.title} initial={{
+            opacity: 0,
+            y: 30
+          }} whileInView={{
+            opacity: 1,
+            y: 0
+          }} viewport={{
+            once: true
+          }} transition={{
+            delay: index * 0.1
+          }} className="group p-8 rounded-lg bg-background border border-border hover:border-primary/50 transition-all duration-300">
                 <div className="w-14 h-14 rounded-lg bg-primary/10 flex items-center justify-center mb-6 group-hover:bg-primary/20 transition-colors">
                   <feature.icon className="w-7 h-7 text-primary" />
                 </div>
@@ -253,8 +253,7 @@ const Index = () => {
                 <p className="text-muted-foreground text-sm leading-relaxed">
                   {feature.description}
                 </p>
-              </motion.div>
-            ))}
+              </motion.div>)}
           </div>
         </div>
       </section>
@@ -286,8 +285,6 @@ const Index = () => {
           </div>
         </div>
       </section>
-    </>
-  );
+    </>;
 };
-
 export default Index;
