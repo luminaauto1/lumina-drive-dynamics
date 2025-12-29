@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { useWishlist } from '@/hooks/useWishlist';
 import { vehicles, formatPrice, formatMileage, calculateMonthlyPayment } from '@/data/vehicles';
 import KineticText from '@/components/KineticText';
+import FinanceCalculator from '@/components/FinanceCalculator';
 
 const VehicleDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -240,7 +241,7 @@ const VehicleDetail = () => {
                 {specs.map((spec) => (
                   <div
                     key={spec.label}
-                    className="p-4 bg-card rounded-lg border border-border"
+                    className="p-4 glass-card rounded-lg"
                   >
                     <spec.icon className="w-5 h-5 text-primary mb-2" />
                     <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
@@ -263,7 +264,7 @@ const VehicleDetail = () => {
 
               {/* VIN & Engine Code */}
               {(vehicle.vin || vehicle.engineCode) && (
-                <div className="p-6 bg-card rounded-lg border border-border space-y-3">
+                <div className="p-6 glass-card rounded-lg space-y-3">
                   {vehicle.vin && (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">VIN</span>
@@ -284,9 +285,9 @@ const VehicleDetail = () => {
             <div className="lg:col-span-1">
               <div className="sticky top-28 space-y-6">
                 {/* Price Card */}
-                <div className="p-6 bg-card rounded-xl border border-border space-y-4">
+                <div className="p-6 glass-card rounded-xl space-y-4">
                   <div>
-                    <p className="font-display text-3xl font-bold">
+                    <p className="text-3xl font-bold">
                       {formatPrice(vehicle.price)}
                     </p>
                     {monthlyPayment && !isSold && (
@@ -303,13 +304,13 @@ const VehicleDetail = () => {
                   {!isSold && !isIncoming && (
                     <div className="space-y-3">
                       <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="block">
-                        <Button className="w-full bg-gradient-gold text-primary-foreground hover:opacity-90 gap-2">
+                        <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90 gap-2">
                           <MessageCircle className="w-5 h-5" />
                           Enquire on WhatsApp
                         </Button>
                       </a>
                       <a href="tel:+27110001234" className="block">
-                        <Button variant="outline" className="w-full gap-2">
+                        <Button variant="outline" className="w-full gap-2 border-white/20 hover:bg-white/5">
                           <Phone className="w-5 h-5" />
                           Call Now
                         </Button>
@@ -318,7 +319,7 @@ const VehicleDetail = () => {
                   )}
 
                   {isIncoming && (
-                    <Button className="w-full gap-2 bg-gradient-gold text-primary-foreground">
+                    <Button className="w-full gap-2 bg-primary text-primary-foreground">
                       <Bell className="w-5 h-5" />
                       Notify Me When Available
                     </Button>
@@ -328,16 +329,16 @@ const VehicleDetail = () => {
                     <div className="text-center py-4">
                       <p className="text-muted-foreground mb-3">This vehicle has been sold</p>
                       <Link to="/inventory">
-                        <Button variant="outline">View Similar Vehicles</Button>
+                        <Button variant="outline" className="border-white/20 hover:bg-white/5">View Similar Vehicles</Button>
                       </Link>
                     </div>
                   )}
 
                   {/* Secondary Actions */}
-                  <div className="flex gap-3 pt-4 border-t border-border">
+                  <div className="flex gap-3 pt-4 border-t border-white/10">
                     <Button
                       variant="outline"
-                      className="flex-1 gap-2"
+                      className="flex-1 gap-2 border-white/20 hover:bg-white/5"
                       onClick={() => toggleWishlist(vehicle.id)}
                     >
                       <Heart
@@ -347,7 +348,7 @@ const VehicleDetail = () => {
                     </Button>
                     <Button
                       variant="outline"
-                      className="flex-1 gap-2"
+                      className="flex-1 gap-2 border-white/20 hover:bg-white/5"
                       onClick={handleShare}
                     >
                       <Share2 className="w-4 h-4" />
@@ -356,36 +357,9 @@ const VehicleDetail = () => {
                   </div>
                 </div>
 
-                {/* Finance Calculator Preview */}
+                {/* Interactive Finance Calculator */}
                 {vehicle.financeAvailable && !isSold && (
-                  <div className="p-6 bg-primary/5 rounded-xl border border-primary/20 space-y-4">
-                    <h3 className="font-display font-semibold">Finance Estimate</h3>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Vehicle Price</span>
-                        <span>{formatPrice(vehicle.price)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Deposit (10%)</span>
-                        <span>{formatPrice(vehicle.price * 0.1)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Interest Rate</span>
-                        <span>13%</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Term</span>
-                        <span>72 months</span>
-                      </div>
-                      <div className="pt-2 border-t border-primary/20 flex justify-between font-semibold">
-                        <span>Est. Monthly</span>
-                        <span className="text-primary">{formatPrice(monthlyPayment!)}/pm</span>
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      *Subject to credit approval. Terms and conditions apply.
-                    </p>
-                  </div>
+                  <FinanceCalculator vehiclePrice={vehicle.price} />
                 )}
               </div>
             </div>
@@ -397,13 +371,13 @@ const VehicleDetail = () => {
           <div className="sticky-action-bar">
             <div className="flex gap-3">
               <a href="tel:+27110001234" className="flex-1">
-                <Button variant="outline" className="w-full gap-2 h-12">
+                <Button variant="outline" className="w-full gap-2 h-12 border-white/20 bg-background/80 backdrop-blur-sm">
                   <Phone className="w-5 h-5" />
                   Call
                 </Button>
               </a>
               <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
-                <Button className="w-full gap-2 h-12 bg-gradient-gold text-primary-foreground">
+                <Button className="w-full gap-2 h-12 bg-primary text-primary-foreground">
                   <MessageCircle className="w-5 h-5" />
                   WhatsApp
                 </Button>

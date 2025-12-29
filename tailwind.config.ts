@@ -14,7 +14,6 @@ export default {
     },
     extend: {
       fontFamily: {
-        display: ['Playfair Display', 'serif'],
         body: ['Inter', 'sans-serif'],
       },
       colors: {
@@ -23,18 +22,18 @@ export default {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
-        gold: {
-          DEFAULT: "hsl(var(--gold))",
-          light: "hsl(var(--gold-light))",
-          dark: "hsl(var(--gold-dark))",
+        platinum: {
+          DEFAULT: "hsl(var(--platinum))",
+          light: "hsl(var(--platinum-light))",
+          dark: "hsl(var(--platinum-dark))",
         },
         charcoal: {
           DEFAULT: "hsl(var(--charcoal))",
           light: "hsl(var(--charcoal-light))",
         },
         obsidian: "hsl(var(--obsidian))",
-        platinum: "hsl(var(--platinum))",
         chrome: "hsl(var(--chrome))",
+        "electric-white": "hsl(var(--electric-white))",
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
@@ -116,9 +115,9 @@ export default {
           "0%": { transform: "translateX(-100%)" },
           "100%": { transform: "translateX(100vw)" },
         },
-        "pulse-gold": {
-          "0%, 100%": { boxShadow: "0 0 0 0 hsl(43 74% 49% / 0.4)" },
-          "50%": { boxShadow: "0 0 0 20px hsl(43 74% 49% / 0)" },
+        "pulse-platinum": {
+          "0%, 100%": { boxShadow: "0 0 0 0 hsl(0 0% 90% / 0.4)" },
+          "50%": { boxShadow: "0 0 0 20px hsl(0 0% 90% / 0)" },
         },
         "float": {
           "0%, 100%": { transform: "translateY(0)" },
@@ -127,6 +126,10 @@ export default {
         shimmer: {
           "0%": { transform: "translateX(-100%)" },
           "100%": { transform: "translateX(100%)" },
+        },
+        "glow-pulse": {
+          "0%, 100%": { opacity: "0.5" },
+          "50%": { opacity: "1" },
         },
       },
       animation: {
@@ -139,15 +142,16 @@ export default {
         "slide-up": "slide-up 0.5s ease-out forwards",
         "slide-down": "slide-down 0.5s ease-out forwards",
         "car-drive": "car-drive 3s linear forwards",
-        "pulse-gold": "pulse-gold 2s infinite",
+        "pulse-platinum": "pulse-platinum 2s infinite",
         "float": "float 3s ease-in-out infinite",
         shimmer: "shimmer 2s infinite",
+        "glow-pulse": "glow-pulse 2s ease-in-out infinite",
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-        'gradient-gold': 'linear-gradient(135deg, hsl(43 74% 49%), hsl(43 80% 65%))',
+        'gradient-platinum': 'linear-gradient(135deg, hsl(0 0% 90%), hsl(0 0% 100%))',
         'gradient-dark': 'linear-gradient(180deg, hsl(0 0% 7%), hsl(0 0% 4%))',
-        'gradient-card': 'linear-gradient(145deg, hsl(0 0% 10%), hsl(0 0% 6%))',
+        'gradient-card': 'linear-gradient(145deg, hsl(0 0% 8%), hsl(0 0% 5%))',
       },
     },
   },
