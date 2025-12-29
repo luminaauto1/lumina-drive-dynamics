@@ -13,6 +13,7 @@ import VehicleDetail from "./pages/VehicleDetail";
 import SellYourCar from "./pages/SellYourCar";
 import Wishlist from "./pages/Wishlist";
 import Compare from "./pages/Compare";
+import AdminInventory from "./pages/AdminInventory";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ const App = () => (
               <Route path="/sell-your-car" element={<SellYourCar />} />
               <Route path="/wishlist" element={<Wishlist />} />
               <Route path="/compare" element={<Compare />} />
+              <Route path="/admin/inventory" element={<AdminInventory />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
