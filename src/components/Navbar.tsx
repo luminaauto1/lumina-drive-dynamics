@@ -58,8 +58,8 @@ const Navbar = () => {
         <div className="container mx-auto px-6">
           <div className="flex items-center justify-between h-20">
             {/* Logo */}
-            <Link to="/" className="flex items-center -ml-2">
-              <img alt="Lumina Auto" className="h-20 md:h-24 w-auto object-contain" src="/lovable-uploads/62a02875-dd4d-4e20-b4ca-4effc97d7e4b.png" />
+            <Link to="/" className="flex items-center ml-4 md:ml-8">
+              <img alt="Lumina Auto" className="h-16 md:h-20 w-auto object-contain" src={luminaLogo} />
             </Link>
 
             {/* Desktop Navigation */}
