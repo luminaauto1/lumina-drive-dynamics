@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Heart, FileText, User, LogOut, Car, AlertTriangle } from 'lucide-react';
+import { Heart, FileText, User, LogOut, Car, AlertTriangle, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +14,8 @@ import SkeletonCard from '@/components/SkeletonCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useVehicles } from '@/hooks/useVehicles';
+import { useUserApplicationMatches } from '@/hooks/useApplicationMatches';
+import { USER_STATUS_LABELS, STATUS_STYLES } from '@/lib/statusConfig';
 import { toast } from 'sonner';
 
 const Dashboard = () => {
@@ -25,6 +27,10 @@ const Dashboard = () => {
   const [isUpdating, setIsUpdating] = useState(false);
 
   const { data: vehicles = [], isLoading: vehiclesLoading } = useVehicles();
+  const { data: matchedVehicles = [], isLoading: matchesLoading } = useUserApplicationMatches(user?.id || '');
+
+  // Check if user has an approved application
+  const hasApprovedApplication = applications.some(app => app.status === 'approved');
 
   useEffect(() => {
     if (!user) {
@@ -110,6 +116,11 @@ const Dashboard = () => {
     wishlistIds.includes(v.id)
   );
 
+  // Get curated vehicles from matches
+  const curatedVehicles = matchedVehicles
+    .filter((m: any) => m.vehicles)
+    .map((m: any) => m.vehicles);
+
   if (!user) return null;
 
   return (
@@ -135,21 +146,124 @@ const Dashboard = () => {
             </Button>
           </div>
 
-          <Tabs defaultValue="saved" className="space-y-8">
+          {/* Curated Vehicles Section - Show when user has approved application and matched vehicles */}
+          {hasApprovedApplication && curatedVehicles.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-12"
+            >
+              <div className="glass-card rounded-xl p-6 border-2 border-primary/30 bg-primary/5">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                    <Sparkles className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold">Your Curated Options</h2>
+                    <p className="text-sm text-muted-foreground">
+                      These vehicles have been specially selected to match your confirmed budget
+                    </p>
+                  </div>
+                </div>
+
+                {matchesLoading ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <SkeletonCard count={3} />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {curatedVehicles.map((vehicle: any) => (
+                      <VehicleCard key={vehicle.id} vehicle={vehicle} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          <Tabs defaultValue="applications" className="space-y-8">
             <TabsList className="glass-card">
-              <TabsTrigger value="saved" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                <Heart className="w-4 h-4 mr-2" />
-                Saved Cars
-              </TabsTrigger>
               <TabsTrigger value="applications" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                 <FileText className="w-4 h-4 mr-2" />
                 Applications
+              </TabsTrigger>
+              <TabsTrigger value="saved" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                <Heart className="w-4 h-4 mr-2" />
+                Saved Cars
               </TabsTrigger>
               <TabsTrigger value="profile" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                 <User className="w-4 h-4 mr-2" />
                 Profile
               </TabsTrigger>
             </TabsList>
+
+            <TabsContent value="applications">
+              {applications.length > 0 ? (
+                <div className="space-y-4">
+                  {applications.map((app) => (
+                    <motion.div
+                      key={app.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="glass-card rounded-xl p-6"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-semibold">Finance Application</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Submitted: {new Date(app.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <span
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium border ${STATUS_STYLES[app.status] || STATUS_STYLES.pending}`}
+                        >
+                          {USER_STATUS_LABELS[app.status] || app.status}
+                        </span>
+                      </div>
+                      
+                      {/* Show curated options message when approved */}
+                      {app.status === 'approved' && curatedVehicles.length > 0 && (
+                        <Alert className="mt-4 bg-primary/10 border-primary/30">
+                          <Sparkles className="h-4 w-4 text-primary" />
+                          <AlertTitle className="text-primary">Vehicle Options Ready</AlertTitle>
+                          <AlertDescription>
+                            We have selected {curatedVehicles.length} vehicle{curatedVehicles.length === 1 ? '' : 's'} that match your budget perfectly. View them above!
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                      
+                      {/* Show declined reason if application was declined */}
+                      {app.status === 'declined' && app.declined_reason && (
+                        <Alert variant="destructive" className="mt-4 bg-red-500/10 border-red-500/30">
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertTitle>Reason for Decline</AlertTitle>
+                          <AlertDescription>
+                            {app.declined_reason}
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-center py-20 glass-card rounded-xl"
+                >
+                  <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+                  <h2 className="text-2xl font-semibold mb-2">No applications yet</h2>
+                  <p className="text-muted-foreground mb-6">
+                    Apply for finance to unlock your buying power
+                  </p>
+                  <Link to="/finance-application">
+                    <Button className="bg-accent text-accent-foreground">
+                      Start Application
+                    </Button>
+                  </Link>
+                </motion.div>
+              )}
+            </TabsContent>
 
             <TabsContent value="saved">
               {vehiclesLoading ? (
@@ -179,66 +293,6 @@ const Dashboard = () => {
                       Browse Inventory
                     </Button>
                   </Link>
-                </motion.div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="applications">
-              {applications.length > 0 ? (
-                <div className="space-y-4">
-                  {applications.map((app) => (
-                    <motion.div
-                      key={app.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="glass-card rounded-xl p-6"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-semibold">Finance Application</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Submitted: {new Date(app.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${
-                            app.status === 'approved'
-                              ? 'bg-green-500/20 text-green-400'
-                              : app.status === 'declined'
-                              ? 'bg-red-500/20 text-red-400'
-                              : app.status === 'validations_pending'
-                              ? 'bg-blue-500/20 text-blue-400'
-                              : 'bg-yellow-500/20 text-yellow-400'
-                          }`}
-                        >
-                          {app.status === 'validations_pending' ? 'Validations Pending' : app.status}
-                        </span>
-                      </div>
-                      
-                      {/* Show declined reason if application was declined */}
-                      {app.status === 'declined' && app.declined_reason && (
-                        <Alert variant="destructive" className="mt-4 bg-red-500/10 border-red-500/30">
-                          <AlertTriangle className="h-4 w-4" />
-                          <AlertTitle>Reason for Decline</AlertTitle>
-                          <AlertDescription>
-                            {app.declined_reason}
-                          </AlertDescription>
-                        </Alert>
-                      )}
-                    </motion.div>
-                  ))}
-                </div>
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-center py-20 glass-card rounded-xl"
-                >
-                  <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                  <h2 className="text-2xl font-semibold mb-2">No applications yet</h2>
-                  <p className="text-muted-foreground">
-                    Apply for finance on any vehicle to get started
-                  </p>
                 </motion.div>
               )}
             </TabsContent>

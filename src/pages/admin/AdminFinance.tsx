@@ -1,38 +1,23 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Search, Phone, Mail, FileText, MessageCircle, User, MapPin, Wallet, Users, Building, AlertTriangle } from 'lucide-react';
+import { Search, FileText, MessageCircle, ExternalLink } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Separator } from '@/components/ui/separator';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useFinanceApplications, useUpdateFinanceApplication, FinanceApplication } from '@/hooks/useFinanceApplications';
+import { useFinanceApplications, FinanceApplication } from '@/hooks/useFinanceApplications';
 import { formatPrice } from '@/hooks/useVehicles';
-
-const STATUS_OPTIONS = [
-  { value: 'pending', label: 'Pending' },
-  { value: 'validations_pending', label: 'Validations Pending' },
-  { value: 'approved', label: 'Approved' },
-  { value: 'declined', label: 'Declined' },
-];
+import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, getWhatsAppMessage } from '@/lib/statusConfig';
 
 const AdminFinance = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [selectedApplication, setSelectedApplication] = useState<FinanceApplication | null>(null);
-  const [declineDialogOpen, setDeclineDialogOpen] = useState(false);
-  const [declineReason, setDeclineReason] = useState('');
-  const [pendingDeclineApp, setPendingDeclineApp] = useState<{ id: string } | null>(null);
 
   const { data: applications = [], isLoading } = useFinanceApplications();
-  const updateApplication = useUpdateFinanceApplication();
 
   const filteredApplications = applications.filter(app => {
     const searchLower = searchQuery.toLowerCase();
@@ -49,98 +34,13 @@ const AdminFinance = () => {
     return matchesSearch && matchesStatus;
   });
 
-  const handleStatusChange = async (appId: string, newStatus: string) => {
-    if (newStatus === 'declined') {
-      setPendingDeclineApp({ id: appId });
-      setDeclineReason('');
-      setDeclineDialogOpen(true);
-      return;
-    }
-    
-    try {
-      await updateApplication.mutateAsync({ id: appId, updates: { status: newStatus } });
-      if (selectedApplication?.id === appId) {
-        setSelectedApplication(prev => prev ? { ...prev, status: newStatus } : null);
-      }
-    } catch (error) {
-      console.error('Failed to update status:', error);
-    }
-  };
-
-  const handleConfirmDecline = async () => {
-    if (!pendingDeclineApp) return;
-    
-    try {
-      await updateApplication.mutateAsync({ 
-        id: pendingDeclineApp.id, 
-        updates: { 
-          status: 'declined',
-          declined_reason: declineReason || null
-        } 
-      });
-      if (selectedApplication?.id === pendingDeclineApp.id) {
-        setSelectedApplication(prev => prev ? { ...prev, status: 'declined', declined_reason: declineReason } : null);
-      }
-      setDeclineDialogOpen(false);
-      setPendingDeclineApp(null);
-      setDeclineReason('');
-    } catch (error) {
-      console.error('Failed to decline application:', error);
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    const styles: Record<string, string> = {
-      pending: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-      approved: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-      declined: 'bg-red-500/20 text-red-400 border-red-500/30',
-      validations_pending: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-    };
-
-    const labels: Record<string, string> = {
-      pending: 'Pending',
-      approved: 'Approved',
-      declined: 'Declined',
-      validations_pending: 'Validations Pending',
-    };
-
-    return (
-      <span className={`px-2 py-1 text-xs uppercase tracking-wider rounded border ${styles[status] || styles.pending}`}>
-        {labels[status] || status}
-      </span>
-    );
-  };
-
-  const getWhatsAppMessage = (app: FinanceApplication): string => {
-    const name = app.first_name || app.full_name?.split(' ')[0] || 'Customer';
-    
-    switch (app.status) {
-      case 'pending':
-        return `Hi ${name}, we have received your finance application and are currently reviewing it. We will be in touch shortly.`;
-      case 'validations_pending':
-        return `Hi ${name}, great news! You are pre-approved for vehicle finance. Please send us the following documents to proceed:\n\n• 3 months bank statements\n• Copy of ID\n• Valid Driver's License\n• 3 months payslips\n\nReply to this message with your documents.`;
-      case 'approved':
-        return `Hi ${name}, congratulations! Your finance application has been approved. Please contact us to discuss the next steps and finalize your vehicle purchase.`;
-      case 'declined':
-        return `Hi ${name}, unfortunately we were unable to approve your finance application at this time. Please feel free to contact us to discuss alternative options.`;
-      default:
-        return `Hi ${name}, regarding your finance application...`;
-    }
-  };
-
   const openWhatsApp = (app: FinanceApplication) => {
     const phone = app.phone?.replace(/\D/g, '') || '';
     const formattedPhone = phone.startsWith('0') ? `27${phone.slice(1)}` : phone;
-    const message = getWhatsAppMessage(app);
+    const name = app.first_name || app.full_name?.split(' ')[0] || 'Customer';
+    const message = getWhatsAppMessage(app.status, name);
     window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
-
-  const DetailItem = ({ label, value }: { label: string; value: string | number | null | undefined }) => (
-    <div className="space-y-1">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-sm font-medium">{value || 'N/A'}</p>
-    </div>
-  );
 
   return (
     <AdminLayout>
@@ -206,7 +106,7 @@ const AdminFinance = () => {
           </div>
           <div className="glass-card rounded-lg p-4">
             <p className="text-2xl font-bold text-emerald-400">{applications.filter(a => a.status === 'approved').length}</p>
-            <p className="text-sm text-muted-foreground">Approved</p>
+            <p className="text-sm text-muted-foreground">Budget Confirmed</p>
           </div>
           <div className="glass-card rounded-lg p-4">
             <p className="text-2xl font-bold text-red-400">{applications.filter(a => a.status === 'declined').length}</p>
@@ -248,7 +148,7 @@ const AdminFinance = () => {
                   <TableRow 
                     key={app.id} 
                     className="border-white/10 hover:bg-white/5 cursor-pointer"
-                    onClick={() => setSelectedApplication(app)}
+                    onClick={() => navigate(`/admin/finance/${app.id}`)}
                   >
                     <TableCell>
                       <div>
@@ -262,20 +162,10 @@ const AdminFinance = () => {
                     <TableCell className="text-sm">
                       {app.net_salary ? formatPrice(app.net_salary) : 'N/A'}
                     </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Select 
-                        value={app.status} 
-                        onValueChange={(value) => handleStatusChange(app.id, value)}
-                      >
-                        <SelectTrigger className="w-36 h-8 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {STATUS_OPTIONS.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <TableCell>
+                      <span className={`px-2 py-1 text-xs uppercase tracking-wider rounded border ${STATUS_STYLES[app.status] || STATUS_STYLES.pending}`}>
+                        {ADMIN_STATUS_LABELS[app.status] || app.status}
+                      </span>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {new Date(app.created_at).toLocaleDateString()}
@@ -294,9 +184,10 @@ const AdminFinance = () => {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => setSelectedApplication(app)}
+                          onClick={() => navigate(`/admin/finance/${app.id}`)}
+                          title="Open Deal Room"
                         >
-                          <FileText className="w-4 h-4" />
+                          <ExternalLink className="w-4 h-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -307,211 +198,6 @@ const AdminFinance = () => {
           )}
         </motion.div>
       </div>
-
-      {/* Application Details Sheet */}
-      <Sheet open={!!selectedApplication} onOpenChange={() => setSelectedApplication(null)}>
-        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              <User className="w-5 h-5" />
-              Application Details
-            </SheetTitle>
-          </SheetHeader>
-          
-          {selectedApplication && (
-            <div className="mt-6 space-y-6">
-              {/* Status & Actions */}
-              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Current Status</p>
-                  {getStatusBadge(selectedApplication.status)}
-                </div>
-                <Button
-                  onClick={() => openWhatsApp(selectedApplication)}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  Send Update
-                </Button>
-              </div>
-
-              {/* Update Status */}
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Change Status</p>
-                <Select 
-                  value={selectedApplication.status} 
-                  onValueChange={(value) => handleStatusChange(selectedApplication.id, value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUS_OPTIONS.map(opt => (
-                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Separator />
-
-              {/* Personal Details */}
-              <div>
-                <h3 className="flex items-center gap-2 font-semibold mb-3">
-                  <User className="w-4 h-4" />
-                  Personal Details
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <DetailItem label="First Name" value={selectedApplication.first_name} />
-                  <DetailItem label="Surname" value={selectedApplication.last_name} />
-                  <DetailItem label="ID Number" value={selectedApplication.id_number} />
-                  <DetailItem label="Gender" value={selectedApplication.gender} />
-                  <DetailItem label="Marital Status" value={selectedApplication.marital_status} />
-                  <DetailItem label="Qualification" value={selectedApplication.qualification} />
-                  <DetailItem label="Email" value={selectedApplication.email} />
-                  <DetailItem label="Phone" value={selectedApplication.phone} />
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Address */}
-              <div>
-                <h3 className="flex items-center gap-2 font-semibold mb-3">
-                  <MapPin className="w-4 h-4" />
-                  Address
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2">
-                    <DetailItem label="Physical Address" value={selectedApplication.street_address} />
-                  </div>
-                  <DetailItem label="Area/Postal Code" value={selectedApplication.area_code} />
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Employment */}
-              <div>
-                <h3 className="flex items-center gap-2 font-semibold mb-3">
-                  <Building className="w-4 h-4" />
-                  Employment
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <DetailItem label="Employer" value={selectedApplication.employer_name} />
-                  <DetailItem label="Job Title" value={selectedApplication.job_title} />
-                  <DetailItem label="Period at Employer" value={selectedApplication.employment_period} />
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Next of Kin */}
-              <div>
-                <h3 className="flex items-center gap-2 font-semibold mb-3">
-                  <Users className="w-4 h-4" />
-                  Next of Kin
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <DetailItem label="Name" value={selectedApplication.kin_name} />
-                  <DetailItem label="Contact" value={selectedApplication.kin_contact} />
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Financials */}
-              <div>
-                <h3 className="flex items-center gap-2 font-semibold mb-3">
-                  <Wallet className="w-4 h-4" />
-                  Financial Details
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <DetailItem label="Bank" value={selectedApplication.bank_name?.toUpperCase()} />
-                  <DetailItem label="Account Type" value={selectedApplication.account_type} />
-                  <DetailItem label="Account Number" value={selectedApplication.account_number} />
-                  <DetailItem label="Gross Salary" value={selectedApplication.gross_salary ? formatPrice(selectedApplication.gross_salary) : null} />
-                  <DetailItem label="Net Salary" value={selectedApplication.net_salary ? formatPrice(selectedApplication.net_salary) : null} />
-                  <div className="col-span-2">
-                    <DetailItem label="Expenses Summary" value={selectedApplication.expenses_summary} />
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Consent & Meta */}
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-muted-foreground">POPIA Consent</p>
-                  <p className={selectedApplication.popia_consent ? 'text-green-400' : 'text-red-400'}>
-                    {selectedApplication.popia_consent ? 'Yes' : 'No'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Submitted</p>
-                  <p>{new Date(selectedApplication.created_at).toLocaleString()}</p>
-                </div>
-              </div>
-
-              {/* Quick Contact */}
-              <div className="flex gap-2 pt-4">
-                <Button 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={() => window.open(`tel:${selectedApplication.phone}`, '_self')}
-                >
-                  <Phone className="w-4 h-4 mr-2" />
-                  Call
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={() => window.open(`mailto:${selectedApplication.email}`, '_blank')}
-                >
-                  <Mail className="w-4 h-4 mr-2" />
-                  Email
-                </Button>
-              </div>
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
-
-      {/* Decline Reason Dialog */}
-      <Dialog open={declineDialogOpen} onOpenChange={setDeclineDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-red-500" />
-              Decline Application
-            </DialogTitle>
-            <DialogDescription>
-              Please provide a reason for declining this application. This will be shown to the applicant.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="decline-reason">Reason for decline</Label>
-              <Textarea
-                id="decline-reason"
-                value={declineReason}
-                onChange={(e) => setDeclineReason(e.target.value)}
-                placeholder="e.g., Insufficient income, credit history issues, etc."
-                rows={3}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeclineDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleConfirmDecline}>
-              Confirm Decline
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </AdminLayout>
   );
 };
