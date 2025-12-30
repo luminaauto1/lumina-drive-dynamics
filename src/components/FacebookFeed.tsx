@@ -57,14 +57,14 @@ const FacebookFeed = () => {
         {/* Facebook Feed Iframe */}
         <motion.div 
           variants={itemVariants}
-          className="flex justify-center"
+          className="flex justify-center w-full max-w-[100vw] overflow-hidden"
         >
           <div className="overflow-hidden rounded-xl bg-white shadow-[0_0_40px_rgba(255,255,255,0.1)] w-full max-w-[500px]">
             <iframe
               src={IFRAME_SRC}
               width="100%"
               height="600"
-              style={{ border: 'none', overflow: 'hidden', maxWidth: '100%' }}
+              style={{ border: 'none', overflow: 'hidden', width: '100%' }}
               scrolling="no"
               frameBorder="0"
               allowFullScreen

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
@@ -19,12 +19,14 @@ const Auth = () => {
 
   const { user, signIn, signUp } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = (location.state as { returnTo?: string })?.returnTo || '/';
 
   useEffect(() => {
     if (user) {
-      navigate('/');
+      navigate(returnTo);
     }
-  }, [user, navigate]);
+  }, [user, navigate, returnTo]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +43,7 @@ const Auth = () => {
           }
         } else {
           toast.success('Welcome back!');
-          navigate('/');
+          navigate(returnTo);
         }
       } else {
         if (password.length < 6) {
@@ -59,7 +61,7 @@ const Auth = () => {
           }
         } else {
           toast.success('Account created successfully!');
-          navigate('/');
+          navigate(returnTo);
         }
       }
     } catch (error: any) {
