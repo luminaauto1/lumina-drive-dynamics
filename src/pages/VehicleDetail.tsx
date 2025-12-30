@@ -62,7 +62,11 @@ const VehicleDetail = () => {
 
   const images = vehicle.images || [];
   const vehicleTitle = `${vehicle.year} ${vehicle.make} ${vehicle.model} ${vehicle.variant || ''}`.trim();
-  const whatsappMessage = `Hi, I am interested in the [${vehicleTitle}] listed for [${formatPrice(vehicle.price)}]. Is it still available?`;
+  
+  // WhatsApp message based on finance availability
+  const whatsappMessage = vehicle.finance_available && monthlyPayment
+    ? `Hi, I'm interested in the ${vehicleTitle} for approx ${formatPrice(monthlyPayment)}/pm. Is it still available?`
+    : `Hi, I'm interested in the cash deal for ${vehicleTitle} at ${formatPrice(vehicle.price)}. Is it still available?`;
   const whatsappUrl = `https://wa.me/27686017462?text=${encodeURIComponent(whatsappMessage)}`;
 
   const handleShare = async () => {
@@ -312,8 +316,8 @@ const VehicleDetail = () => {
                   <div>
                     {/* Monthly Payment - PROMINENT */}
                     {monthlyPayment && !isSold && (
-                      <p className="font-display text-4xl font-bold text-foreground mb-1">
-                        {formatPrice(monthlyPayment)}<span className="text-lg">/pm</span>
+                      <p className="font-display text-4xl font-bold text-foreground mb-1" title="Est. only. Subject to bank approval & interest rates.">
+                        {formatPrice(monthlyPayment)}<span className="text-lg">/pm*</span>
                       </p>
                     )}
                     {/* Cash Price - De-emphasized */}
@@ -322,6 +326,9 @@ const VehicleDetail = () => {
                     </p>
                     {!vehicle.finance_available && !isSold && (
                       <p className="text-muted-foreground text-sm mt-1">Cash/EFT Only</p>
+                    )}
+                    {monthlyPayment && !isSold && (
+                      <p className="text-xs text-muted-foreground/60 mt-1">*Est. only. Subject to bank approval & interest rates.</p>
                     )}
                   </div>
 

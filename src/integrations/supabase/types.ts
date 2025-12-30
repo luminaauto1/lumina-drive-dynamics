@@ -85,6 +85,7 @@ export type Database = {
           notes: string | null
           phone: string
           popia_consent: boolean | null
+          preferred_vehicle_text: string | null
           qualification: string | null
           source_of_funds: string | null
           status: string
@@ -124,6 +125,7 @@ export type Database = {
           notes?: string | null
           phone: string
           popia_consent?: boolean | null
+          preferred_vehicle_text?: string | null
           qualification?: string | null
           source_of_funds?: string | null
           status?: string
@@ -163,6 +165,7 @@ export type Database = {
           notes?: string | null
           phone?: string
           popia_consent?: boolean | null
+          preferred_vehicle_text?: string | null
           qualification?: string | null
           source_of_funds?: string | null
           status?: string
@@ -341,6 +344,7 @@ export type Database = {
           fuel_type: string
           id: string
           images: string[] | null
+          is_generic_listing: boolean | null
           make: string
           mileage: number
           model: string
@@ -364,6 +368,7 @@ export type Database = {
           fuel_type: string
           id?: string
           images?: string[] | null
+          is_generic_listing?: boolean | null
           make: string
           mileage: number
           model: string
@@ -387,6 +392,7 @@ export type Database = {
           fuel_type?: string
           id?: string
           images?: string[] | null
+          is_generic_listing?: boolean | null
           make?: string
           mileage?: number
           model?: string

@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Heart, FileText, User, LogOut, Car, AlertTriangle, Sparkles } from 'lucide-react';
+import { Heart, FileText, User, LogOut, Car, AlertTriangle, Sparkles, HelpCircle, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import VehicleCard from '@/components/VehicleCard';
 import KineticText from '@/components/KineticText';
 import SkeletonCard from '@/components/SkeletonCard';
@@ -235,14 +236,52 @@ const Dashboard = () => {
                       )}
                       
                       {/* Show declined reason if application was declined */}
-                      {app.status === 'declined' && app.declined_reason && (
-                        <Alert variant="destructive" className="mt-4 bg-red-500/10 border-red-500/30">
-                          <AlertTriangle className="h-4 w-4" />
-                          <AlertTitle>Reason for Decline</AlertTitle>
-                          <AlertDescription>
-                            {app.declined_reason}
-                          </AlertDescription>
-                        </Alert>
+                      {app.status === 'declined' && (
+                        <>
+                          {app.declined_reason && (
+                            <Alert variant="destructive" className="mt-4 bg-red-500/10 border-red-500/30">
+                              <AlertTriangle className="h-4 w-4" />
+                              <AlertTitle>Reason for Decline</AlertTitle>
+                              <AlertDescription>
+                                {app.declined_reason}
+                              </AlertDescription>
+                            </Alert>
+                          )}
+                          
+                          {/* Road to Recovery Card */}
+                          <Collapsible className="mt-4">
+                            <div className="glass-card rounded-lg p-4 border border-amber-500/30 bg-amber-500/5">
+                              <CollapsibleTrigger className="w-full flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <HelpCircle className="w-5 h-5 text-amber-400" />
+                                  <span className="font-semibold text-amber-400">Road to Recovery</span>
+                                </div>
+                                <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform data-[state=open]:rotate-180" />
+                              </CollapsibleTrigger>
+                              <CollapsibleContent className="pt-4">
+                                <p className="text-sm text-muted-foreground mb-3">What to do now:</p>
+                                <ol className="space-y-2 text-sm text-muted-foreground">
+                                  <li className="flex items-start gap-2">
+                                    <span className="font-bold text-foreground">1.</span>
+                                    <span>Do not apply for more credit for at least 3 months.</span>
+                                  </li>
+                                  <li className="flex items-start gap-2">
+                                    <span className="font-bold text-foreground">2.</span>
+                                    <span>Ensure all current accounts are up to date with payments.</span>
+                                  </li>
+                                  <li className="flex items-start gap-2">
+                                    <span className="font-bold text-foreground">3.</span>
+                                    <span>Check your credit report for errors at <a href="https://www.clearscore.com" target="_blank" rel="noopener noreferrer" className="text-primary underline">ClearScore</a>.</span>
+                                  </li>
+                                  <li className="flex items-start gap-2">
+                                    <span className="font-bold text-foreground">4.</span>
+                                    <span>Consider a cash purchase or larger deposit in the future.</span>
+                                  </li>
+                                </ol>
+                              </CollapsibleContent>
+                            </div>
+                          </Collapsible>
+                        </>
                       )}
                     </motion.div>
                   ))}

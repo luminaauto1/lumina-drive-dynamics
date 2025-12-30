@@ -38,13 +38,15 @@ export const getWhatsAppMessage = (
   name: string,
   matchedVehiclesCount?: number
 ): string => {
+  const dashboardUrl = 'https://lumina-auto.lovable.app/dashboard';
+  
   switch (status) {
     case 'pending':
       return `Hi ${name}, we have received your finance application and are currently analyzing your profile. We will be in touch shortly with an update.`;
     case 'validations_pending':
       return `Hi ${name}, great news! Your profile checks out. We just need to validate your documents to confirm the final budget. Please send us the following:\n\n• 3 months bank statements\n• Copy of ID\n• Valid Driver's License\n• 3 months payslips\n\nReply to this message with your documents.`;
     case 'approved':
-      return `Hi ${name}, your budget is confirmed! We have selected ${matchedVehiclesCount || 'several'} vehicle${matchedVehiclesCount === 1 ? '' : 's'} that match your profile perfectly. Log in to your dashboard to view your curated options.`;
+      return `Great news ${name}! Your budget is confirmed. We have selected ${matchedVehiclesCount || 'several'} vehicle${matchedVehiclesCount === 1 ? '' : 's'} that match your profile perfectly.\n\nView your exclusive options here: ${dashboardUrl}`;
     case 'declined':
       return `Hi ${name}, unfortunately we were unable to approve your finance application at this time. Please feel free to contact us to discuss alternative options or reapply in the future.`;
     default:
