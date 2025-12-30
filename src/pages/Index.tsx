@@ -102,7 +102,7 @@ const Index = () => {
       <section ref={heroRef} className="relative h-[60vh] md:h-screen overflow-hidden">
         <motion.div
           style={{ opacity: heroOpacity, scale: heroScale }}
-          className="absolute inset-0"
+          className="absolute inset-0 overflow-hidden"
         >
           {/* Video Background - Pure, no overlays */}
           <video
@@ -110,7 +110,7 @@ const Index = () => {
             muted
             loop
             playsInline
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover object-center"
           >
             <source src="/videos/hero-drift.mp4" type="video/mp4" />
           </video>
