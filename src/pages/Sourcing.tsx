@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Search, CheckCircle, Truck, Send, ArrowRight, CreditCard, Wallet, ChevronRight } from 'lucide-react';
+import { Search, CheckCircle, Truck, Send, ArrowRight, CreditCard, Wallet, Lock, Unlock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/components/ui/use-toast';
 import KineticText from '@/components/KineticText';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
@@ -21,16 +22,22 @@ const Sourcing = () => {
   const whatsappNumber = settings?.whatsapp_number || '27686017462';
 
   const [paymentMethod, setPaymentMethod] = useState<'finance' | 'cash' | null>(null);
-  const [showVehicleForm, setShowVehicleForm] = useState(false);
+  const [budgetRange, setBudgetRange] = useState([300000]);
+  const [budgetUnlocked, setBudgetUnlocked] = useState(false);
 
-  const [formData, setFormData] = useState({
+  // Mini finance form for quick check
+  const [miniFinanceData, setMiniFinanceData] = useState({
     name: '',
-    phone: '',
-    email: '',
+    id_number: '',
+    net_income: '',
+  });
+
+  // Vehicle request form
+  const [vehicleData, setVehicleData] = useState({
     make: '',
     model: '',
     year: '',
-    maxBudget: '',
+    color: '',
     additionalDetails: '',
   });
 
@@ -44,11 +51,55 @@ const Sourcing = () => {
     }
   };
 
-  const handleCashSubmit = async (e: React.FormEvent) => {
+  const handleMiniFinanceSubmit = () => {
+    if (!miniFinanceData.name || !miniFinanceData.id_number || !miniFinanceData.net_income) {
+      toast({
+        title: 'Missing Information',
+        description: 'Please fill in all fields to unlock vehicle selection.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setBudgetUnlocked(true);
+    toast({
+      title: 'Budget Check Complete',
+      description: 'You can now specify the vehicle you\'re looking for.',
+    });
+  };
+
+  const handleCashBudgetSet = () => {
+    if (budgetRange[0] < 50000) {
+      toast({
+        title: 'Budget Too Low',
+        description: 'Please select a budget of at least R50,000.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setBudgetUnlocked(true);
+    toast({
+      title: 'Budget Confirmed',
+      description: 'You can now specify the vehicle you\'re looking for.',
+    });
+  };
+
+  const handleVehicleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!vehicleData.make || !vehicleData.model) {
+      toast({
+        title: 'Missing Vehicle Details',
+        description: 'Please specify at least the make and model.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setIsSubmitting(true);
 
-    const message = `🔍 *New Sourcing Request (Cash Buyer)*\n\n👤 Name: ${formData.name}\n📞 Phone: ${formData.phone}\n📧 Email: ${formData.email}\n\n🚗 *Vehicle Details*\nMake: ${formData.make}\nModel: ${formData.model}\nYear: ${formData.year || 'Any'}\nMax Budget: R${formData.maxBudget}\n\n📝 Additional Info:\n${formData.additionalDetails || 'N/A'}`;
+    const budgetText = paymentMethod === 'cash' 
+      ? `R${budgetRange[0].toLocaleString()}` 
+      : `Net Income: R${miniFinanceData.net_income}`;
+
+    const message = `🔍 *New Sourcing Request*\n\n*Buyer Type:* ${paymentMethod === 'cash' ? 'Cash Buyer' : 'Finance Buyer'}\n*Budget:* ${budgetText}\n${paymentMethod === 'finance' ? `*Name:* ${miniFinanceData.name}\n*ID:* ${miniFinanceData.id_number}` : ''}\n\n🚗 *Vehicle Details*\nMake: ${vehicleData.make}\nModel: ${vehicleData.model}\nYear: ${vehicleData.year || 'Any'}\nColor: ${vehicleData.color || 'Any'}\n\n📝 Additional Info:\n${vehicleData.additionalDetails || 'N/A'}`;
 
     window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`, '_blank');
 
@@ -57,16 +108,6 @@ const Sourcing = () => {
       description: 'Our team will begin sourcing your vehicle immediately.',
     });
 
-    setFormData({
-      name: '',
-      phone: '',
-      email: '',
-      make: '',
-      model: '',
-      year: '',
-      maxBudget: '',
-      additionalDetails: '',
-    });
     setIsSubmitting(false);
   };
 
@@ -92,9 +133,7 @@ const Sourcing = () => {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      transition: {
-        staggerChildren: 0.15,
-      },
+      transition: { staggerChildren: 0.15 },
     },
   };
 
@@ -118,7 +157,7 @@ const Sourcing = () => {
       </Helmet>
 
       <div className="min-h-screen pt-24 pb-32">
-        {/* Hero Section - Budget First */}
+        {/* Hero Section */}
         <motion.section
           variants={containerVariants}
           initial="hidden"
@@ -144,16 +183,6 @@ const Sourcing = () => {
             >
               Let's secure your budget first. Know exactly what you can spend before we source your perfect vehicle.
             </motion.p>
-            <motion.div variants={itemVariants}>
-              <Button 
-                size="lg" 
-                onClick={handleCheckBuyingPower}
-                className="text-lg px-8 py-6"
-              >
-                Check Buying Power
-                <ChevronRight className="w-5 h-5 ml-2" />
-              </Button>
-            </motion.div>
           </div>
         </motion.section>
 
@@ -196,7 +225,7 @@ const Sourcing = () => {
           </div>
         </motion.section>
 
-        {/* Payment Method Selection */}
+        {/* STEP 1: Payment Method & Budget Check */}
         <motion.section
           variants={containerVariants}
           initial="hidden"
@@ -208,22 +237,22 @@ const Sourcing = () => {
             <div className="max-w-2xl mx-auto">
               <motion.div variants={itemVariants} className="text-center mb-12">
                 <span className="text-primary text-sm font-semibold uppercase tracking-widest mb-4 block">
-                  Step 1
+                  Step 1: The Budget Check
                 </span>
                 <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">
                   How Are You Buying?
                 </h2>
                 <p className="text-muted-foreground">
-                  Select your payment method to proceed with your vehicle search.
+                  Select your payment method to proceed.
                 </p>
               </motion.div>
 
-              <motion.div variants={itemVariants} className="space-y-4">
+              <motion.div variants={itemVariants} className="space-y-6">
                 <RadioGroup
                   value={paymentMethod || ''}
                   onValueChange={(value) => {
                     setPaymentMethod(value as 'finance' | 'cash');
-                    setShowVehicleForm(value === 'cash');
+                    setBudgetUnlocked(false);
                   }}
                   className="grid grid-cols-1 md:grid-cols-2 gap-4"
                 >
@@ -255,139 +284,203 @@ const Sourcing = () => {
                   </div>
                 </RadioGroup>
 
-                {/* Finance Path - CTA */}
-                {paymentMethod === 'finance' && (
+                {/* Finance Path - Mini Form */}
+                {paymentMethod === 'finance' && !budgetUnlocked && (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="mt-8 p-6 bg-primary/10 rounded-xl border border-primary/30 text-center"
+                    className="mt-8 p-6 bg-card rounded-xl border border-border space-y-4"
                   >
-                    <p className="text-lg mb-4">
-                      Great choice! Let's check your buying power first.
+                    <h3 className="font-semibold text-lg mb-4">Quick Budget Check</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Provide basic details to unlock vehicle selection. For a full application, click below.
                     </p>
-                    <Button size="lg" onClick={handleCheckBuyingPower}>
-                      Start Finance Application
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                    <p className="text-sm text-muted-foreground mt-4">
-                      Once your budget is confirmed, we'll source vehicles that match your profile.
-                    </p>
-                  </motion.div>
-                )}
-
-                {/* Cash Path - Vehicle Wishlist Form */}
-                {showVehicleForm && paymentMethod === 'cash' && (
-                  <motion.form
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    onSubmit={handleCashSubmit}
-                    className="mt-8 space-y-6 bg-card border border-border rounded-xl p-8"
-                  >
-                    <div className="text-center mb-6">
-                      <h3 className="font-display text-xl font-semibold mb-2">Vehicle Wishlist</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Tell us what you're looking for and your budget.
-                      </p>
-                    </div>
-
+                    
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="name">Full Name *</Label>
+                        <Label htmlFor="mini_name">Full Name *</Label>
                         <Input
-                          id="name"
-                          value={formData.name}
-                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          id="mini_name"
+                          value={miniFinanceData.name}
+                          onChange={(e) => setMiniFinanceData({ ...miniFinanceData, name: e.target.value })}
                           placeholder="John Doe"
-                          required
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="phone">Phone Number *</Label>
+                        <Label htmlFor="mini_id">ID Number *</Label>
                         <Input
-                          id="phone"
-                          value={formData.phone}
-                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                          placeholder="083 123 4567"
-                          required
+                          id="mini_id"
+                          value={miniFinanceData.id_number}
+                          onChange={(e) => setMiniFinanceData({ ...miniFinanceData, id_number: e.target.value })}
+                          placeholder="9001015009087"
                         />
                       </div>
                     </div>
-
                     <div className="space-y-2">
-                      <Label htmlFor="email">Email Address</Label>
+                      <Label htmlFor="mini_income">Net Monthly Income (R) *</Label>
                       <Input
-                        id="email"
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        placeholder="john@email.com"
+                        id="mini_income"
+                        type="number"
+                        value={miniFinanceData.net_income}
+                        onChange={(e) => setMiniFinanceData({ ...miniFinanceData, net_income: e.target.value })}
+                        placeholder="e.g. 35000"
                       />
                     </div>
 
-                    <div className="border-t border-border pt-6">
-                      <h4 className="font-semibold mb-4">Vehicle Requirements</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="make">Make *</Label>
-                          <Input
-                            id="make"
-                            value={formData.make}
-                            onChange={(e) => setFormData({ ...formData, make: e.target.value })}
-                            placeholder="e.g. BMW"
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="model">Model *</Label>
-                          <Input
-                            id="model"
-                            value={formData.model}
-                            onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                            placeholder="e.g. 320d"
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="year">Year (Optional)</Label>
-                          <Input
-                            id="year"
-                            value={formData.year}
-                            onChange={(e) => setFormData({ ...formData, year: e.target.value })}
-                            placeholder="e.g. 2020"
-                          />
-                        </div>
-                      </div>
+                    <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                      <Button onClick={handleMiniFinanceSubmit} className="flex-1">
+                        <Unlock className="w-4 h-4 mr-2" />
+                        Unlock Vehicle Selection
+                      </Button>
+                      <Button variant="outline" onClick={handleCheckBuyingPower}>
+                        Full Finance Application
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    </div>
+                  </motion.div>
+                )}
 
-                      <div className="space-y-2 mt-4">
-                        <Label htmlFor="maxBudget">Maximum Budget (R) *</Label>
-                        <Input
-                          id="maxBudget"
-                          type="number"
-                          value={formData.maxBudget}
-                          onChange={(e) => setFormData({ ...formData, maxBudget: e.target.value })}
-                          placeholder="e.g. 450000"
-                          required
-                        />
+                {/* Cash Path - Budget Slider */}
+                {paymentMethod === 'cash' && !budgetUnlocked && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-8 p-6 bg-card rounded-xl border border-border space-y-6"
+                  >
+                    <h3 className="font-semibold text-lg">Set Your Budget</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Drag the slider to set your maximum budget.
+                    </p>
+                    
+                    <div className="space-y-4">
+                      <div className="text-center">
+                        <span className="text-4xl font-bold text-primary">
+                          R{budgetRange[0].toLocaleString()}
+                        </span>
                       </div>
-
-                      <div className="space-y-2 mt-4">
-                        <Label htmlFor="additionalDetails">Additional Details</Label>
-                        <Textarea
-                          id="additionalDetails"
-                          value={formData.additionalDetails}
-                          onChange={(e) => setFormData({ ...formData, additionalDetails: e.target.value })}
-                          placeholder="Color preferences, features, mileage limit, etc."
-                          rows={4}
-                        />
+                      <Slider
+                        value={budgetRange}
+                        onValueChange={setBudgetRange}
+                        min={50000}
+                        max={2000000}
+                        step={25000}
+                        className="py-4"
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>R50,000</span>
+                        <span>R2,000,000</span>
                       </div>
                     </div>
 
-                    <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
-                      <Send className="w-4 h-4 mr-2" />
-                      Submit Sourcing Request
+                    <Button onClick={handleCashBudgetSet} className="w-full">
+                      <Unlock className="w-4 h-4 mr-2" />
+                      Confirm Budget & Continue
                     </Button>
-                  </motion.form>
+                  </motion.div>
                 )}
+              </motion.div>
+            </div>
+          </div>
+        </motion.section>
+
+        {/* STEP 2: Vehicle Request (Locked until budget set) */}
+        <motion.section
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          className="py-20 bg-muted/30"
+        >
+          <div className="container mx-auto px-6">
+            <div className="max-w-2xl mx-auto">
+              <motion.div variants={itemVariants} className="text-center mb-12">
+                <span className="text-primary text-sm font-semibold uppercase tracking-widest mb-4 block">
+                  Step 2: Vehicle Request
+                </span>
+                <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">
+                  What Are You Looking For?
+                </h2>
+              </motion.div>
+
+              <motion.div 
+                variants={itemVariants}
+                className={`relative ${!budgetUnlocked ? 'pointer-events-none' : ''}`}
+              >
+                {/* Locked overlay */}
+                {!budgetUnlocked && (
+                  <div className="absolute inset-0 z-10 backdrop-blur-sm bg-background/60 rounded-xl flex flex-col items-center justify-center">
+                    <Lock className="w-12 h-12 text-muted-foreground mb-4" />
+                    <p className="text-lg font-semibold text-muted-foreground">Complete Step 1 to Unlock</p>
+                    <p className="text-sm text-muted-foreground">Set your budget first</p>
+                  </div>
+                )}
+
+                <form onSubmit={handleVehicleSubmit} className="bg-card rounded-xl border border-border p-8 space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="make">Make *</Label>
+                      <Input
+                        id="make"
+                        value={vehicleData.make}
+                        onChange={(e) => setVehicleData({ ...vehicleData, make: e.target.value })}
+                        placeholder="e.g. BMW"
+                        disabled={!budgetUnlocked}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="model">Model *</Label>
+                      <Input
+                        id="model"
+                        value={vehicleData.model}
+                        onChange={(e) => setVehicleData({ ...vehicleData, model: e.target.value })}
+                        placeholder="e.g. 320d M Sport"
+                        disabled={!budgetUnlocked}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="year">Year (Optional)</Label>
+                      <Input
+                        id="year"
+                        value={vehicleData.year}
+                        onChange={(e) => setVehicleData({ ...vehicleData, year: e.target.value })}
+                        placeholder="e.g. 2020-2023"
+                        disabled={!budgetUnlocked}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="color">Color Preference</Label>
+                      <Input
+                        id="color"
+                        value={vehicleData.color}
+                        onChange={(e) => setVehicleData({ ...vehicleData, color: e.target.value })}
+                        placeholder="e.g. Black, White"
+                        disabled={!budgetUnlocked}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="additionalDetails">Additional Requirements</Label>
+                    <Textarea
+                      id="additionalDetails"
+                      value={vehicleData.additionalDetails}
+                      onChange={(e) => setVehicleData({ ...vehicleData, additionalDetails: e.target.value })}
+                      placeholder="Features, mileage limit, sunroof, leather seats, etc."
+                      rows={4}
+                      disabled={!budgetUnlocked}
+                    />
+                  </div>
+
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    size="lg" 
+                    disabled={isSubmitting || !budgetUnlocked}
+                  >
+                    <Send className="w-4 h-4 mr-2" />
+                    Submit Sourcing Request
+                  </Button>
+                </form>
               </motion.div>
             </div>
           </div>

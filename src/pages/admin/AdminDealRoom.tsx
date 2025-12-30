@@ -287,26 +287,42 @@ const AdminDealRoom = () => {
               </div>
             </div>
 
-            {/* Financials */}
-            <div className="glass-card rounded-xl p-6">
-              <h3 className="flex items-center gap-2 font-semibold mb-4">
-                <Wallet className="w-4 h-4 text-primary" />
-                Financials
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <DetailItem label="Gross Salary" value={application.gross_salary ? formatPrice(application.gross_salary) : null} />
-                <DetailItem label="Net Salary" value={application.net_salary ? formatPrice(application.net_salary) : null} />
-                <DetailItem label="Bank" value={application.bank_name} />
-                <DetailItem label="Account Type" value={application.account_type} />
-                <DetailItem label="Account Number" value={application.account_number} />
-              </div>
-              {application.expenses_summary && (
-                <div className="mt-4">
-                  <p className="text-xs text-muted-foreground mb-1">Expenses Summary</p>
-                  <p className="text-sm bg-muted/50 p-3 rounded">{application.expenses_summary}</p>
+            {/* Financials - Hide for cash buyers */}
+            {(application as any).buyer_type !== 'cash' && (
+              <div className="glass-card rounded-xl p-6">
+                <h3 className="flex items-center gap-2 font-semibold mb-4">
+                  <Wallet className="w-4 h-4 text-primary" />
+                  Financials
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <DetailItem label="Gross Salary" value={application.gross_salary ? formatPrice(application.gross_salary) : null} />
+                  <DetailItem label="Net Salary" value={application.net_salary ? formatPrice(application.net_salary) : null} />
+                  <DetailItem label="Bank" value={application.bank_name} />
+                  <DetailItem label="Account Type" value={application.account_type} />
+                  <DetailItem label="Account Number" value={application.account_number} />
                 </div>
-              )}
-            </div>
+                {application.expenses_summary && (
+                  <div className="mt-4">
+                    <p className="text-xs text-muted-foreground mb-1">Expenses Summary</p>
+                    <p className="text-sm bg-muted/50 p-3 rounded">{application.expenses_summary}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Cash Buyer Info */}
+            {(application as any).buyer_type === 'cash' && (
+              <div className="glass-card rounded-xl p-6">
+                <h3 className="flex items-center gap-2 font-semibold mb-4">
+                  <Wallet className="w-4 h-4 text-primary" />
+                  Cash Buyer
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <DetailItem label="Buyer Type" value="Cash / EFT" />
+                  <DetailItem label="Source of Funds" value={(application as any).source_of_funds} />
+                </div>
+              </div>
+            )}
 
             {/* Next of Kin */}
             <div className="glass-card rounded-xl p-6">
