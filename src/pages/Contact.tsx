@@ -6,15 +6,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import KineticText from '@/components/KineticText';
 import { toast } from 'sonner';
 
 const Contact = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCashBuyer, setIsCashBuyer] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
+    employer: '',
+    salary: '',
     message: '',
   });
 
@@ -26,7 +30,8 @@ const Contact = () => {
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     toast.success('Message sent successfully! We will get back to you soon.');
-    setFormData({ name: '', email: '', phone: '', message: '' });
+    setFormData({ name: '', email: '', phone: '', employer: '', salary: '', message: '' });
+    setIsCashBuyer(false);
     setIsSubmitting(false);
   };
 
@@ -156,6 +161,50 @@ const Contact = () => {
                     />
                   </div>
                 </div>
+
+                {/* Cash Buyer Toggle */}
+                <div className="flex items-center space-x-2 p-3 bg-muted/50 rounded-lg">
+                  <Checkbox
+                    id="cashBuyer"
+                    checked={isCashBuyer}
+                    onCheckedChange={(checked) => setIsCashBuyer(checked as boolean)}
+                  />
+                  <Label htmlFor="cashBuyer" className="text-sm cursor-pointer">
+                    I am a Cash Buyer (no finance required)
+                  </Label>
+                </div>
+
+                {/* Employment fields - only show for finance buyers */}
+                {!isCashBuyer && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                  >
+                    <div className="space-y-2">
+                      <Label htmlFor="employer">Employer (Optional)</Label>
+                      <Input
+                        id="employer"
+                        value={formData.employer}
+                        onChange={(e) => setFormData({ ...formData, employer: e.target.value })}
+                        placeholder="Company name"
+                        className="glass-card border-border"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="salary">Monthly Salary (Optional)</Label>
+                      <Input
+                        id="salary"
+                        type="number"
+                        value={formData.salary}
+                        onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
+                        placeholder="e.g. 25000"
+                        className="glass-card border-border"
+                      />
+                    </div>
+                  </motion.div>
+                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="message">Message</Label>
