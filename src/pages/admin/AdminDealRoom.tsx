@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import { 
   ArrowLeft, User, MapPin, Building, Wallet, Users, Phone, Mail, 
-  MessageCircle, Car, Plus, X, Search, FileText, CheckCircle, AlertTriangle
+  MessageCircle, Car, Plus, X, Search, FileText, CheckCircle, AlertTriangle, Copy, Check
 } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
@@ -131,10 +131,38 @@ const AdminDealRoom = () => {
       )
     : availableVehicles;
 
-  const DetailItem = ({ label, value }: { label: string; value: string | number | null | undefined }) => (
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const copyToClipboard = async (text: string, fieldName: string) => {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(fieldName);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  const DetailItem = ({ label, value, copyable = false }: { label: string; value: string | number | null | undefined; copyable?: boolean }) => (
     <div className="space-y-1">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-sm font-medium">{value || 'N/A'}</p>
+      <div className="flex items-center gap-2">
+        <p className="text-sm font-medium">{value || 'N/A'}</p>
+        {copyable && value && (
+          <button
+            onClick={() => copyToClipboard(String(value), label)}
+            className="p-1 rounded hover:bg-muted/50 transition-colors"
+            title={`Copy ${label}`}
+          >
+            {copiedField === label ? (
+              <Check className="w-3 h-3 text-green-500" />
+            ) : (
+              <Copy className="w-3 h-3 text-muted-foreground hover:text-foreground" />
+            )}
+          </button>
+        )}
+      </div>
     </div>
   );
 
@@ -218,14 +246,14 @@ const AdminDealRoom = () => {
                 Personal Details
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <DetailItem label="First Name" value={application.first_name} />
-                <DetailItem label="Surname" value={application.last_name} />
-                <DetailItem label="ID Number" value={application.id_number} />
+                <DetailItem label="First Name" value={application.first_name} copyable />
+                <DetailItem label="Surname" value={application.last_name} copyable />
+                <DetailItem label="ID Number" value={application.id_number} copyable />
                 <DetailItem label="Gender" value={application.gender} />
                 <DetailItem label="Marital Status" value={application.marital_status} />
                 <DetailItem label="Qualification" value={application.qualification} />
-                <DetailItem label="Email" value={application.email} />
-                <DetailItem label="Phone" value={application.phone} />
+                <DetailItem label="Email" value={application.email} copyable />
+                <DetailItem label="Phone" value={application.phone} copyable />
               </div>
             </div>
 
