@@ -33,7 +33,7 @@ const STEPS = [
 ];
 
 const FinanceApplication = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const vehicleId = searchParams.get('vehicle');
@@ -77,12 +77,15 @@ const FinanceApplication = () => {
   });
 
   useEffect(() => {
+    // Don't redirect while loading - wait for auth state to resolve
+    if (loading) return;
+    
     if (!user) {
       navigate('/auth?redirect=/finance-application' + (vehicleId ? `?vehicle=${vehicleId}` : ''));
       return;
     }
     fetchProfile();
-  }, [user, navigate, vehicleId]);
+  }, [user, navigate, vehicleId, loading]);
 
   const fetchProfile = async () => {
     if (!user) return;
@@ -242,7 +245,7 @@ const FinanceApplication = () => {
     window.open(`https://wa.me/27686017462?text=${encodeURIComponent(message)}`, '_blank');
   };
 
-  if (!user) return null;
+  if (loading || !user) return null;
 
   if (isSubmitted) {
     return (
