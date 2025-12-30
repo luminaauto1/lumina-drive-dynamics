@@ -59,12 +59,12 @@ const FacebookFeed = () => {
           variants={itemVariants}
           className="flex justify-center"
         >
-          <div className="overflow-hidden rounded-xl bg-white shadow-[0_0_40px_rgba(255,255,255,0.1)]">
+          <div className="overflow-hidden rounded-xl bg-white shadow-[0_0_40px_rgba(255,255,255,0.1)] w-full max-w-[500px]">
             <iframe
               src={IFRAME_SRC}
-              width="500"
+              width="100%"
               height="600"
-              style={{ border: 'none', overflow: 'hidden' }}
+              style={{ border: 'none', overflow: 'hidden', maxWidth: '100%' }}
               scrolling="no"
               frameBorder="0"
               allowFullScreen
