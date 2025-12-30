@@ -5,11 +5,14 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import VehicleCard from '@/components/VehicleCard';
 import { useWishlist } from '@/hooks/useWishlist';
-import { vehicles } from '@/data/vehicles';
+import { useVehicles } from '@/hooks/useVehicles';
 import KineticText from '@/components/KineticText';
+import SkeletonCard from '@/components/SkeletonCard';
 
 const Wishlist = () => {
   const { wishlist, clearWishlist } = useWishlist();
+  const { data: vehicles = [], isLoading } = useVehicles();
+  
   const wishlistVehicles = vehicles.filter((v) => wishlist.includes(v.id));
 
   return (
@@ -36,7 +39,11 @@ const Wishlist = () => {
             )}
           </div>
 
-          {wishlistVehicles.length > 0 ? (
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <SkeletonCard count={3} />
+            </div>
+          ) : wishlistVehicles.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {wishlistVehicles.map((vehicle) => (
                 <VehicleCard key={vehicle.id} vehicle={vehicle} />

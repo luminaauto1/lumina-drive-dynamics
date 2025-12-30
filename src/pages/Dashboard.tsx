@@ -9,9 +9,10 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import VehicleCard from '@/components/VehicleCard';
 import KineticText from '@/components/KineticText';
+import SkeletonCard from '@/components/SkeletonCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { vehicles as localVehicles } from '@/data/vehicles';
+import { useVehicles } from '@/hooks/useVehicles';
 import { toast } from 'sonner';
 
 const Dashboard = () => {
@@ -21,6 +22,8 @@ const Dashboard = () => {
   const [wishlistIds, setWishlistIds] = useState<string[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  const { data: vehicles = [], isLoading: vehiclesLoading } = useVehicles();
 
   useEffect(() => {
     if (!user) {
@@ -39,7 +42,7 @@ const Dashboard = () => {
       .from('profiles')
       .select('*')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
     if (data) {
       setProfile({
@@ -101,9 +104,9 @@ const Dashboard = () => {
     navigate('/');
   };
 
-  // Get wishlist vehicles from local data (since DB vehicles may not match)
-  const wishlistVehicles = localVehicles.filter((v) =>
-    wishlistIds.some((id) => id === v.id)
+  // Get wishlist vehicles from database
+  const wishlistVehicles = vehicles.filter((v) =>
+    wishlistIds.includes(v.id)
   );
 
   if (!user) return null;
@@ -148,7 +151,11 @@ const Dashboard = () => {
             </TabsList>
 
             <TabsContent value="saved">
-              {wishlistVehicles.length > 0 ? (
+              {vehiclesLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <SkeletonCard count={3} />
+                </div>
+              ) : wishlistVehicles.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {wishlistVehicles.map((vehicle) => (
                     <VehicleCard key={vehicle.id} vehicle={vehicle} />

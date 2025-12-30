@@ -19,8 +19,7 @@ const Footer = () => {
               </span>
             </Link>
             <p className="text-muted-foreground text-sm leading-relaxed">
-              Premium pre-owned vehicles curated for the discerning driver. Every car tells a story
-              of excellence.
+              The New Era of Vehicle Sourcing. Premium pre-owned vehicles curated for the discerning driver.
             </p>
             <div className="flex items-center gap-4">
               <a
@@ -54,6 +53,7 @@ const Footer = () => {
             <ul className="space-y-3">
               {[
                 { label: 'Inventory', path: '/inventory' },
+                { label: 'Calculator', path: '/calculator' },
                 { label: 'Sell Your Car', path: '/sell-your-car' },
                 { label: 'About Us', path: '/about' },
                 { label: 'Contact', path: '/contact' },
@@ -96,10 +96,10 @@ const Footer = () => {
               <li className="flex items-center gap-3">
                 <Mail className="w-5 h-5 text-primary" />
                 <a
-                  href="mailto:hello@luminaauto.co.za"
+                  href="mailto:lumina.auto1@gmail.com"
                   className="text-muted-foreground hover:text-primary transition-colors text-sm"
                 >
-                  hello@luminaauto.co.za
+                  lumina.auto1@gmail.com
                 </a>
               </li>
             </ul>
