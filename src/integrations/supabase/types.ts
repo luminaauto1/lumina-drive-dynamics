@@ -213,6 +213,57 @@ export type Database = {
         }
         Relationships: []
       }
+      site_settings: {
+        Row: {
+          contact_email: string
+          contact_phone: string
+          created_at: string
+          default_interest_rate: number
+          facebook_url: string
+          hero_headline: string
+          hero_subheadline: string
+          id: string
+          instagram_url: string
+          is_maintenance_mode: boolean
+          max_balloon_percent: number
+          min_balloon_percent: number
+          updated_at: string
+          whatsapp_number: string
+        }
+        Insert: {
+          contact_email?: string
+          contact_phone?: string
+          created_at?: string
+          default_interest_rate?: number
+          facebook_url?: string
+          hero_headline?: string
+          hero_subheadline?: string
+          id?: string
+          instagram_url?: string
+          is_maintenance_mode?: boolean
+          max_balloon_percent?: number
+          min_balloon_percent?: number
+          updated_at?: string
+          whatsapp_number?: string
+        }
+        Update: {
+          contact_email?: string
+          contact_phone?: string
+          created_at?: string
+          default_interest_rate?: number
+          facebook_url?: string
+          hero_headline?: string
+          hero_subheadline?: string
+          id?: string
+          instagram_url?: string
+          is_maintenance_mode?: boolean
+          max_balloon_percent?: number
+          min_balloon_percent?: number
+          updated_at?: string
+          whatsapp_number?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string

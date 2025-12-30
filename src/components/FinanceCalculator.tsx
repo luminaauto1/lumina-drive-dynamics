@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { formatPrice, calculateMaxBalloon } from '@/lib/formatters';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSiteSettings } from '@/hooks/useSiteSettings';
 
 interface FinanceCalculatorProps {
   vehiclePrice: number;
@@ -14,16 +15,33 @@ interface FinanceCalculatorProps {
 
 const FinanceCalculator = ({ vehiclePrice, vehicleYear }: FinanceCalculatorProps) => {
   const { user } = useAuth();
+  const { data: settings } = useSiteSettings();
+  const navigate = useNavigate();
+
   const currentYear = new Date().getFullYear();
   const year = vehicleYear || currentYear;
-  const maxBalloon = calculateMaxBalloon(year);
+  
+  // Get dynamic settings or fallback to defaults
+  const defaultInterestRate = settings?.default_interest_rate || 13.5;
+  const globalMaxBalloon = settings?.max_balloon_percent || 40;
+  
+  // Calculate vehicle-specific max balloon (based on age) but cap at global max
+  const vehicleMaxBalloon = calculateMaxBalloon(year);
+  const maxBalloon = Math.min(vehicleMaxBalloon, globalMaxBalloon);
   const vehicleAge = currentYear - year;
 
   const [deposit, setDeposit] = useState(10);
   const [balloon, setBalloon] = useState(0);
   const [months, setMonths] = useState(72);
-  const [interest, setInterest] = useState(13.5);
+  const [interest, setInterest] = useState(defaultInterestRate);
   const [monthlyPayment, setMonthlyPayment] = useState(0);
+
+  // Update interest when settings load
+  useEffect(() => {
+    if (settings?.default_interest_rate) {
+      setInterest(settings.default_interest_rate);
+    }
+  }, [settings?.default_interest_rate]);
 
   // Clamp balloon if maxBalloon changes
   useEffect(() => {
@@ -53,8 +71,6 @@ const FinanceCalculator = ({ vehiclePrice, vehicleYear }: FinanceCalculatorProps
   const depositAmount = vehiclePrice * (deposit / 100);
   const balloonAmount = vehiclePrice * (balloon / 100);
   const financeAmount = vehiclePrice - depositAmount;
-
-  const navigate = useNavigate();
 
   const handleCheckBuyingPower = () => {
     if (user) {

@@ -1,9 +1,13 @@
 import { motion } from 'framer-motion';
+import { useSiteSettings } from '@/hooks/useSiteSettings';
 
 const FloatingWhatsApp = () => {
+  const { data: settings } = useSiteSettings();
+  const whatsappNumber = settings?.whatsapp_number || '27686017462';
+
   return (
     <motion.a
-      href="https://wa.me/27686017462"
+      href={`https://wa.me/${whatsappNumber}`}
       target="_blank"
       rel="noopener noreferrer"
       initial={{ scale: 0 }}

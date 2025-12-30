@@ -10,10 +10,12 @@ import FacebookFeed from '@/components/FacebookFeed';
 import VehicleCard from '@/components/VehicleCard';
 import SkeletonCard from '@/components/SkeletonCard';
 import { useVehicles } from '@/hooks/useVehicles';
+import { useSiteSettings } from '@/hooks/useSiteSettings';
 
 const Index = () => {
   const heroRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const { data: settings } = useSiteSettings();
   
   const { scrollYProgress: heroScrollProgress } = useScroll({
     target: heroRef,
@@ -33,6 +35,16 @@ const Index = () => {
 
   const { data: vehicles = [], isLoading } = useVehicles();
   const featuredVehicles = vehicles.filter((v) => v.status === 'available').slice(0, 4);
+
+  // Dynamic headline from settings
+  const heroHeadline = settings?.hero_headline || 'Drive Your Aspirations';
+  const heroSubheadline = settings?.hero_subheadline || 'The New Era of Vehicle Sourcing';
+  const whatsappNumber = settings?.whatsapp_number || '27686017462';
+
+  // Split headline for styling (assumes format "Word Word Word")
+  const headlineParts = heroHeadline.split(' ');
+  const lastWord = headlineParts.pop() || '';
+  const firstWords = headlineParts.join(' ');
 
   const stats = [
     { value: '120+', label: 'Brands Sourced' },
@@ -157,16 +169,16 @@ const Index = () => {
               variants={itemVariants}
               className="text-primary text-sm font-semibold uppercase tracking-[0.3em] mb-6 block"
             >
-              The New Era of Vehicle Sourcing
+              {heroSubheadline}
             </motion.span>
 
             <motion.h1 
               variants={itemVariants}
               className="font-display text-5xl md:text-7xl lg:text-8xl font-bold mb-6 max-w-5xl mx-auto"
             >
-              <span>Drive Your</span>
+              <span>{firstWords}</span>
               <br />
-              <span className="gradient-text">Aspirations</span>
+              <span className="gradient-text">{lastWord}</span>
             </motion.h1>
 
             <motion.p 
@@ -349,7 +361,7 @@ const Index = () => {
                     Browse Inventory
                   </Button>
                 </Link>
-                <a href="https://wa.me/27686017462" target="_blank" rel="noopener noreferrer">
+                <a href={`https://wa.me/${whatsappNumber}`} target="_blank" rel="noopener noreferrer">
                   <Button size="lg" variant="outline">
                     WhatsApp Us
                   </Button>
