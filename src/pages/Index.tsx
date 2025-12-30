@@ -6,6 +6,7 @@ import { Helmet } from 'react-helmet-async';
 import { Button } from '@/components/ui/button';
 import KineticText from '@/components/KineticText';
 import GolfGTIAnimation from '@/components/GolfGTIAnimation';
+import FacebookFeed from '@/components/FacebookFeed';
 import VehicleCard from '@/components/VehicleCard';
 import SkeletonCard from '@/components/SkeletonCard';
 import { useVehicles } from '@/hooks/useVehicles';
@@ -98,7 +99,7 @@ const Index = () => {
       </Helmet>
 
       {/* Fullscreen Hero Video Section - Standalone */}
-      <section ref={heroRef} className="relative h-screen overflow-hidden">
+      <section ref={heroRef} className="relative h-[60vh] md:h-screen overflow-hidden">
         <motion.div
           style={{ opacity: heroOpacity, scale: heroScale }}
           className="absolute inset-0"
@@ -318,6 +319,9 @@ const Index = () => {
             </div>
           </div>
         </motion.section>
+
+        {/* Facebook Feed Section */}
+        <FacebookFeed />
 
         {/* CTA Section */}
         <motion.section 

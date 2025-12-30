@@ -28,11 +28,9 @@ const About = () => {
   ];
 
   const milestones = [
-    { year: '2010', event: 'Lumina Auto founded in Johannesburg' },
-    { year: '2015', event: 'Expanded to 120+ brand partnerships' },
-    { year: '2018', event: 'Approved by 6 major South African banks' },
-    { year: '2020', event: 'Achieved zero return record' },
-    { year: '2023', event: 'Introduced 101-point certified inspection' },
+    { year: '2023', event: 'Concept Born – The vision for modern vehicle sourcing' },
+    { year: '2024', event: 'Digital Platform Launch – Revolutionizing the car buying experience' },
+    { year: '2025', event: '120+ Brand Partnerships Established' },
   ];
 
   return (
@@ -57,10 +55,10 @@ const About = () => {
               About Lumina Auto
             </motion.span>
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              <KineticText>Driven by Passion</KineticText>
+              <KineticText>The Future of Buying</KineticText>
             </h1>
             <p className="text-muted-foreground text-lg leading-relaxed">
-              Since 2010, Lumina Auto has been South Africa's trusted destination for premium
+              Lumina Auto is South Africa's trusted destination for premium
               pre-owned luxury vehicles. We believe that owning an exceptional car should be an
               exceptional experience.
             </p>

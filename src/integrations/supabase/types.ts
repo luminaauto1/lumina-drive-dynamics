@@ -179,6 +179,7 @@ export type Database = {
       }
       vehicles: {
         Row: {
+          body_type: string | null
           color: string | null
           created_at: string
           description: string | null
@@ -201,6 +202,7 @@ export type Database = {
           youtube_url: string | null
         }
         Insert: {
+          body_type?: string | null
           color?: string | null
           created_at?: string
           description?: string | null
@@ -223,6 +225,7 @@ export type Database = {
           youtube_url?: string | null
         }
         Update: {
+          body_type?: string | null
           color?: string | null
           created_at?: string
           description?: string | null

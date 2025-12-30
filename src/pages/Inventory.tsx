@@ -76,10 +76,10 @@ const Inventory = () => {
       const matchesMake =
         selectedMakes.length === 0 || selectedMakes.includes(vehicle.make);
 
-      // Body type filter (using variant field as proxy)
+      // Body type filter (using body_type column from database)
       const matchesBodyType =
         selectedBodyType === 'all' || 
-        (vehicle.variant?.toLowerCase().includes(selectedBodyType.toLowerCase()) ?? false);
+        ((vehicle as any).body_type?.toLowerCase() === selectedBodyType.toLowerCase());
 
       return matchesSearch && matchesPrice && matchesMonthly && matchesMake && matchesBodyType;
     });
