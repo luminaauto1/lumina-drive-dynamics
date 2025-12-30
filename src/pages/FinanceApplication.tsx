@@ -14,6 +14,15 @@ import KineticText from '@/components/KineticText';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import {
+  financeApplicationStep1Schema,
+  financeApplicationStep2Schema,
+  financeApplicationStep3Schema,
+  financeApplicationStep4Schema,
+  financeApplicationStep5Schema,
+  financeApplicationFullSchema,
+  getFirstZodError,
+} from '@/lib/validationSchemas';
 
 const STEPS = [
   { id: 1, title: 'Personal Details', icon: User },
@@ -99,39 +108,61 @@ const FinanceApplication = () => {
   };
 
   const validateStep = (step: number): boolean => {
-    switch (step) {
-      case 1:
-        if (!formData.first_name || !formData.last_name || !formData.email || !formData.phone) {
-          toast.error('Please fill in all required fields');
-          return false;
-        }
-        return true;
-      case 2:
-        if (!formData.street_address || !formData.employer_name) {
-          toast.error('Please fill in address and employer details');
-          return false;
-        }
-        return true;
-      case 3:
-        if (!formData.kin_name || !formData.kin_contact) {
-          toast.error('Please provide next of kin details');
-          return false;
-        }
-        return true;
-      case 4:
-        if (!formData.bank_name || !formData.gross_salary || !formData.net_salary) {
-          toast.error('Please fill in all financial details');
-          return false;
-        }
-        return true;
-      case 5:
-        if (!formData.popia_consent) {
-          toast.error('You must consent to POPIA to proceed');
-          return false;
-        }
-        return true;
-      default:
-        return true;
+    try {
+      switch (step) {
+        case 1:
+          financeApplicationStep1Schema.parse({
+            first_name: formData.first_name,
+            last_name: formData.last_name,
+            id_number: formData.id_number,
+            marital_status: formData.marital_status,
+            gender: formData.gender,
+            qualification: formData.qualification,
+            email: formData.email,
+            phone: formData.phone,
+          });
+          return true;
+        case 2:
+          financeApplicationStep2Schema.parse({
+            street_address: formData.street_address,
+            area_code: formData.area_code,
+            employer_name: formData.employer_name,
+            job_title: formData.job_title,
+            employment_period: formData.employment_period,
+          });
+          return true;
+        case 3:
+          financeApplicationStep3Schema.parse({
+            kin_name: formData.kin_name,
+            kin_contact: formData.kin_contact,
+          });
+          return true;
+        case 4:
+          financeApplicationStep4Schema.parse({
+            bank_name: formData.bank_name,
+            account_type: formData.account_type,
+            account_number: formData.account_number,
+            gross_salary: formData.gross_salary,
+            net_salary: formData.net_salary,
+            expenses_summary: formData.expenses_summary,
+          });
+          return true;
+        case 5:
+          financeApplicationStep5Schema.parse({
+            preferred_vehicle_text: formData.preferred_vehicle_text,
+            popia_consent: formData.popia_consent,
+          });
+          return true;
+        default:
+          return true;
+      }
+    } catch (error) {
+      if (error instanceof Error && 'errors' in error) {
+        toast.error(getFirstZodError(error as any));
+      } else {
+        toast.error('Please check your input and try again');
+      }
+      return false;
     }
   };
 
@@ -146,39 +177,54 @@ const FinanceApplication = () => {
   };
 
   const handleSubmit = async () => {
-    if (!user || !validateStep(5)) return;
+    if (!user) return;
+
+    // Full schema validation before submission
+    try {
+      financeApplicationFullSchema.parse(formData);
+    } catch (error) {
+      if (error instanceof Error && 'errors' in error) {
+        toast.error(getFirstZodError(error as any));
+      } else {
+        toast.error('Please check your input and try again');
+      }
+      return;
+    }
 
     setIsSubmitting(true);
 
-    const { error } = await supabase.from('finance_applications').insert({
+    // Sanitize and prepare data for insertion
+    const sanitizedData = {
       user_id: user.id,
       vehicle_id: vehicleId || null,
-      full_name: `${formData.first_name} ${formData.last_name}`,
-      first_name: formData.first_name,
-      last_name: formData.last_name,
-      email: formData.email,
-      phone: formData.phone,
-      id_number: formData.id_number,
-      marital_status: formData.marital_status,
-      gender: formData.gender,
-      qualification: formData.qualification,
-      street_address: formData.street_address,
-      area_code: formData.area_code,
-      employer_name: formData.employer_name,
-      job_title: formData.job_title,
-      employment_period: formData.employment_period,
-      kin_name: formData.kin_name,
-      kin_contact: formData.kin_contact,
+      full_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
+      first_name: formData.first_name.trim(),
+      last_name: formData.last_name.trim(),
+      email: formData.email.trim().toLowerCase(),
+      phone: formData.phone.trim(),
+      id_number: formData.id_number?.trim() || null,
+      marital_status: formData.marital_status || null,
+      gender: formData.gender || null,
+      qualification: formData.qualification || null,
+      street_address: formData.street_address.trim(),
+      area_code: formData.area_code?.trim() || null,
+      employer_name: formData.employer_name.trim(),
+      job_title: formData.job_title?.trim() || null,
+      employment_period: formData.employment_period?.trim() || null,
+      kin_name: formData.kin_name.trim(),
+      kin_contact: formData.kin_contact.trim(),
       bank_name: formData.bank_name,
-      account_type: formData.account_type,
-      account_number: formData.account_number,
+      account_type: formData.account_type || null,
+      account_number: formData.account_number?.trim() || null,
       gross_salary: formData.gross_salary ? parseFloat(formData.gross_salary) : null,
       net_salary: formData.net_salary ? parseFloat(formData.net_salary) : null,
-      expenses_summary: formData.expenses_summary,
+      expenses_summary: formData.expenses_summary?.trim() || null,
       popia_consent: formData.popia_consent,
-      preferred_vehicle_text: formData.preferred_vehicle_text || null,
+      preferred_vehicle_text: formData.preferred_vehicle_text?.trim() || null,
       status: 'pending',
-    } as any);
+    };
+
+    const { error } = await supabase.from('finance_applications').insert(sanitizedData as any);
 
     if (error) {
       toast.error('Failed to submit application. Please try again.');
