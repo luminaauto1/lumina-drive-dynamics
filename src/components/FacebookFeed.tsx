@@ -1,28 +1,20 @@
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Facebook } from 'lucide-react';
-
-const MOCK_POSTS = [
-  {
-    id: 1,
-    image: 'https://images.unsplash.com/photo-1555215695-3004980ad54e?w=600&h=400&fit=crop',
-    caption: 'Another happy client joining the Lumina family! Congrats on your new M4.',
-    date: '2 days ago',
-  },
-  {
-    id: 2,
-    image: 'https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?w=600&h=400&fit=crop',
-    caption: 'Just Landed: 2023 GT3 RS. This won\'t last long.',
-    date: '5 days ago',
-  },
-  {
-    id: 3,
-    image: 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=600&h=400&fit=crop',
-    caption: 'Quality checks in progress. We don\'t compromise.',
-    date: '1 week ago',
-  },
-];
+import { Facebook, ExternalLink } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 const FACEBOOK_PAGE_URL = 'https://www.facebook.com/profile.php?id=61573796805868';
+
+declare global {
+  interface Window {
+    FB: {
+      XFBML: {
+        parse: (element?: HTMLElement) => void;
+      };
+    };
+    fbAsyncInit: () => void;
+  }
+}
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -48,9 +40,34 @@ const itemVariants = {
 };
 
 const FacebookFeed = () => {
+  useEffect(() => {
+    // Initialize Facebook SDK
+    window.fbAsyncInit = function () {
+      window.FB.XFBML.parse();
+    };
+
+    // Load the SDK asynchronously
+    if (!document.getElementById('facebook-jssdk')) {
+      const script = document.createElement('script');
+      script.id = 'facebook-jssdk';
+      script.src = 'https://connect.facebook.net/en_GB/sdk.js#xfbml=1&version=v18.0';
+      script.async = true;
+      script.defer = true;
+      script.crossOrigin = 'anonymous';
+      document.body.appendChild(script);
+    } else if (window.FB) {
+      // If SDK already loaded, re-parse
+      window.FB.XFBML.parse();
+    }
+
+    return () => {
+      // Cleanup if needed
+    };
+  }, []);
+
   return (
     <motion.section
-      className="py-24"
+      className="py-24 bg-card"
       variants={containerVariants}
       initial="hidden"
       whileInView="visible"
@@ -65,52 +82,48 @@ const FacebookFeed = () => {
           <h2 className="font-display text-4xl md:text-5xl font-bold">Lumina Life</h2>
         </motion.div>
 
-        {/* Posts Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {MOCK_POSTS.map((post) => (
-            <motion.a
-              key={post.id}
-              href={FACEBOOK_PAGE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              variants={itemVariants}
-              className="group block"
+        {/* Facebook Page Plugin */}
+        <motion.div 
+          variants={itemVariants} 
+          className="flex justify-center"
+        >
+          <div className="rounded-xl overflow-hidden shadow-2xl bg-white">
+            <div
+              className="fb-page"
+              data-href={FACEBOOK_PAGE_URL}
+              data-tabs="timeline"
+              data-width="500"
+              data-height="600"
+              data-small-header="false"
+              data-adapt-container-width="true"
+              data-hide-cover="false"
+              data-show-facepile="true"
             >
-              <div className="glass-card rounded-xl overflow-hidden border border-border/50 hover:border-primary/50 transition-all duration-300">
-                {/* Image */}
-                <div className="aspect-[4/3] overflow-hidden">
-                  <img
-                    src={post.image}
-                    alt={post.caption}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                </div>
+              <blockquote
+                cite={FACEBOOK_PAGE_URL}
+                className="fb-xfbml-parse-ignore"
+              >
+                <a href={FACEBOOK_PAGE_URL}>Lumina Auto</a>
+              </blockquote>
+            </div>
+          </div>
+        </motion.div>
 
-                {/* Content */}
-                <div className="p-5 bg-card/80 backdrop-blur-sm">
-                  <p className="text-foreground text-sm leading-relaxed mb-3 line-clamp-2">
-                    {post.caption}
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">{post.date}</span>
-                    <Facebook className="w-4 h-4 text-primary opacity-70 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                </div>
-              </div>
-            </motion.a>
-          ))}
-        </div>
-
-        {/* Follow CTA */}
+        {/* Fallback CTA */}
         <motion.div variants={itemVariants} className="text-center mt-10">
+          <p className="text-muted-foreground text-sm mb-4">
+            Can't see the feed? Visit us directly on Facebook.
+          </p>
           <a
             href={FACEBOOK_PAGE_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-primary hover:text-primary/80 transition-colors font-medium"
           >
-            <Facebook className="w-5 h-5" />
-            Follow us on Facebook
+            <Button variant="outline" className="group">
+              <Facebook className="w-5 h-5 mr-2" />
+              View on Facebook
+              <ExternalLink className="w-4 h-4 ml-2 opacity-50 group-hover:opacity-100 transition-opacity" />
+            </Button>
           </a>
         </motion.div>
       </div>
