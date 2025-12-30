@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { ArrowRight, ArrowLeft, CheckCircle, User, MapPin, Users, Wallet, Shield, MessageCircle } from 'lucide-react';
+import { ArrowRight, ArrowLeft, CheckCircle, User, MapPin, Users, Wallet, Shield, MessageCircle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import KineticText from '@/components/KineticText';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,6 +32,7 @@ const FinanceApplication = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [showTrustModal, setShowTrustModal] = useState(true);
   const [formData, setFormData] = useState({
     // Personal
     first_name: '',
@@ -235,6 +237,31 @@ const FinanceApplication = () => {
       <Helmet>
         <title>Finance Application | Lumina Auto</title>
       </Helmet>
+
+      {/* Trust Modal */}
+      <Dialog open={showTrustModal} onOpenChange={setShowTrustModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Info className="w-5 h-5 text-primary" />
+              How Our Finance Process Works
+            </DialogTitle>
+            <DialogDescription className="text-left pt-4 space-y-3">
+              <p className="text-foreground">We value your privacy. This application checks your pre-approval status only.</p>
+              <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
+                <li>Submit this form (No docs needed yet)</li>
+                <li>We verify your budget</li>
+                <li>We match you with vehicles you definitely qualify for</li>
+              </ol>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setShowTrustModal(false)} className="w-full">
+              Understood - Let's Start
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="min-h-screen pt-24 pb-16">
         <div className="container mx-auto px-6 max-w-3xl">

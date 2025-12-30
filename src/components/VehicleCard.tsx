@@ -66,14 +66,21 @@ const VehicleCard = ({ vehicle, onCompare, isComparing }: VehicleCardProps) => {
 
   const images = vehicle.images || [];
 
+  const handleCardClick = () => {
+    if (!isSold) {
+      window.location.href = `/vehicle/${vehicle.id}`;
+    }
+  };
+
   return (
     <motion.div
       ref={cardRef}
-      className={`vehicle-card relative group ${isSold ? 'sold-overlay' : ''}`}
+      className={`vehicle-card relative group cursor-pointer ${isSold ? 'sold-overlay' : ''}`}
       style={{ rotateX, rotateY, transformStyle: 'preserve-3d' }}
       onMouseMove={handleMouseMove}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onClick={handleCardClick}
       initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-50px' }}

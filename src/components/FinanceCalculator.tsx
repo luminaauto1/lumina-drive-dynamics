@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Info } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -54,7 +54,15 @@ const FinanceCalculator = ({ vehiclePrice, vehicleYear }: FinanceCalculatorProps
   const balloonAmount = vehiclePrice * (balloon / 100);
   const financeAmount = vehiclePrice - depositAmount;
 
-  const buyingPowerLink = user ? '/finance-application' : '/auth';
+  const navigate = useNavigate();
+
+  const handleCheckBuyingPower = () => {
+    if (user) {
+      navigate('/finance-application');
+    } else {
+      navigate('/auth', { state: { returnTo: '/finance-application' } });
+    }
+  };
 
   return (
     <div className="p-6 glass-card rounded-xl space-y-6">
@@ -174,11 +182,12 @@ const FinanceCalculator = ({ vehiclePrice, vehicleYear }: FinanceCalculatorProps
         *Estimate only. Subject to credit approval. Terms and conditions apply.
       </p>
 
-      <Link to={buyingPowerLink} className="block">
-        <button className="w-full py-3 rounded-lg bg-accent text-accent-foreground font-semibold hover:bg-accent/90 transition-colors">
-          Check My Buying Power
-        </button>
-      </Link>
+      <button 
+        onClick={handleCheckBuyingPower}
+        className="w-full py-3 rounded-lg bg-accent text-accent-foreground font-semibold hover:bg-accent/90 transition-colors"
+      >
+        Check My Buying Power
+      </button>
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Search, Phone, Mail, FileText, MessageCircle, User, MapPin, Wallet, Users, Building } from 'lucide-react';
+import { Search, Phone, Mail, FileText, MessageCircle, User, MapPin, Wallet, Users, Building, AlertTriangle } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,13 +9,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useFinanceApplications, useUpdateFinanceApplication, FinanceApplication } from '@/hooks/useFinanceApplications';
 import { formatPrice } from '@/hooks/useVehicles';
 
 const STATUS_OPTIONS = [
   { value: 'pending', label: 'Pending' },
-  { value: 'pre-approved', label: 'Pre-Approved' },
-  { value: 'validations_needed', label: 'Validations Needed' },
+  { value: 'validations_pending', label: 'Validations Pending' },
+  { value: 'approved', label: 'Approved' },
   { value: 'declined', label: 'Declined' },
 ];
 
@@ -23,6 +27,9 @@ const AdminFinance = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedApplication, setSelectedApplication] = useState<FinanceApplication | null>(null);
+  const [declineDialogOpen, setDeclineDialogOpen] = useState(false);
+  const [declineReason, setDeclineReason] = useState('');
+  const [pendingDeclineApp, setPendingDeclineApp] = useState<{ id: string } | null>(null);
 
   const { data: applications = [], isLoading } = useFinanceApplications();
   const updateApplication = useUpdateFinanceApplication();
@@ -43,25 +50,58 @@ const AdminFinance = () => {
   });
 
   const handleStatusChange = async (appId: string, newStatus: string) => {
-    await updateApplication.mutateAsync({ id: appId, updates: { status: newStatus } });
-    if (selectedApplication?.id === appId) {
-      setSelectedApplication(prev => prev ? { ...prev, status: newStatus } : null);
+    if (newStatus === 'declined') {
+      setPendingDeclineApp({ id: appId });
+      setDeclineReason('');
+      setDeclineDialogOpen(true);
+      return;
+    }
+    
+    try {
+      await updateApplication.mutateAsync({ id: appId, updates: { status: newStatus } });
+      if (selectedApplication?.id === appId) {
+        setSelectedApplication(prev => prev ? { ...prev, status: newStatus } : null);
+      }
+    } catch (error) {
+      console.error('Failed to update status:', error);
+    }
+  };
+
+  const handleConfirmDecline = async () => {
+    if (!pendingDeclineApp) return;
+    
+    try {
+      await updateApplication.mutateAsync({ 
+        id: pendingDeclineApp.id, 
+        updates: { 
+          status: 'declined',
+          declined_reason: declineReason || null
+        } 
+      });
+      if (selectedApplication?.id === pendingDeclineApp.id) {
+        setSelectedApplication(prev => prev ? { ...prev, status: 'declined', declined_reason: declineReason } : null);
+      }
+      setDeclineDialogOpen(false);
+      setPendingDeclineApp(null);
+      setDeclineReason('');
+    } catch (error) {
+      console.error('Failed to decline application:', error);
     }
   };
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
       pending: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-      'pre-approved': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+      approved: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
       declined: 'bg-red-500/20 text-red-400 border-red-500/30',
-      validations_needed: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+      validations_pending: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
     };
 
     const labels: Record<string, string> = {
       pending: 'Pending',
-      'pre-approved': 'Pre-Approved',
+      approved: 'Approved',
       declined: 'Declined',
-      validations_needed: 'Validations Needed',
+      validations_pending: 'Validations Pending',
     };
 
     return (
@@ -77,10 +117,10 @@ const AdminFinance = () => {
     switch (app.status) {
       case 'pending':
         return `Hi ${name}, we have received your finance application and are currently reviewing it. We will be in touch shortly.`;
-      case 'validations_needed':
+      case 'validations_pending':
         return `Hi ${name}, great news! You are pre-approved for vehicle finance. Please send us the following documents to proceed:\n\n• 3 months bank statements\n• Copy of ID\n• Valid Driver's License\n• 3 months payslips\n\nReply to this message with your documents.`;
-      case 'pre-approved':
-        return `Hi ${name}, congratulations! Your finance application has been pre-approved. Please contact us to discuss the next steps and finalize your vehicle purchase.`;
+      case 'approved':
+        return `Hi ${name}, congratulations! Your finance application has been approved. Please contact us to discuss the next steps and finalize your vehicle purchase.`;
       case 'declined':
         return `Hi ${name}, unfortunately we were unable to approve your finance application at this time. Please feel free to contact us to discuss alternative options.`;
       default:
@@ -161,12 +201,12 @@ const AdminFinance = () => {
             <p className="text-sm text-muted-foreground">Pending</p>
           </div>
           <div className="glass-card rounded-lg p-4">
-            <p className="text-2xl font-bold text-blue-400">{applications.filter(a => a.status === 'validations_needed').length}</p>
+            <p className="text-2xl font-bold text-blue-400">{applications.filter(a => a.status === 'validations_pending').length}</p>
             <p className="text-sm text-muted-foreground">Validations</p>
           </div>
           <div className="glass-card rounded-lg p-4">
-            <p className="text-2xl font-bold text-emerald-400">{applications.filter(a => a.status === 'pre-approved').length}</p>
-            <p className="text-sm text-muted-foreground">Pre-Approved</p>
+            <p className="text-2xl font-bold text-emerald-400">{applications.filter(a => a.status === 'approved').length}</p>
+            <p className="text-sm text-muted-foreground">Approved</p>
           </div>
           <div className="glass-card rounded-lg p-4">
             <p className="text-2xl font-bold text-red-400">{applications.filter(a => a.status === 'declined').length}</p>
@@ -437,6 +477,41 @@ const AdminFinance = () => {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Decline Reason Dialog */}
+      <Dialog open={declineDialogOpen} onOpenChange={setDeclineDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-500" />
+              Decline Application
+            </DialogTitle>
+            <DialogDescription>
+              Please provide a reason for declining this application. This will be shown to the applicant.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="decline-reason">Reason for decline</Label>
+              <Textarea
+                id="decline-reason"
+                value={declineReason}
+                onChange={(e) => setDeclineReason(e.target.value)}
+                placeholder="e.g., Insufficient income, credit history issues, etc."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeclineDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmDecline}>
+              Confirm Decline
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 };

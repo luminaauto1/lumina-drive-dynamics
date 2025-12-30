@@ -21,6 +21,7 @@ export type Database = {
           area_code: string | null
           bank_name: string | null
           created_at: string
+          declined_reason: string | null
           deposit_amount: number | null
           email: string
           employer_name: string | null
@@ -57,6 +58,7 @@ export type Database = {
           area_code?: string | null
           bank_name?: string | null
           created_at?: string
+          declined_reason?: string | null
           deposit_amount?: number | null
           email: string
           employer_name?: string | null
@@ -93,6 +95,7 @@ export type Database = {
           area_code?: string | null
           bank_name?: string | null
           created_at?: string
+          declined_reason?: string | null
           deposit_amount?: number | null
           email?: string
           employer_name?: string | null

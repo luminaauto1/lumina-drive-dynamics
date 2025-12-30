@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Heart, FileText, User, LogOut, Car } from 'lucide-react';
+import { Heart, FileText, User, LogOut, Car, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import VehicleCard from '@/components/VehicleCard';
 import KineticText from '@/components/KineticText';
 import SkeletonCard from '@/components/SkeletonCard';
@@ -205,12 +206,25 @@ const Dashboard = () => {
                               ? 'bg-green-500/20 text-green-400'
                               : app.status === 'declined'
                               ? 'bg-red-500/20 text-red-400'
+                              : app.status === 'validations_pending'
+                              ? 'bg-blue-500/20 text-blue-400'
                               : 'bg-yellow-500/20 text-yellow-400'
                           }`}
                         >
-                          {app.status}
+                          {app.status === 'validations_pending' ? 'Validations Pending' : app.status}
                         </span>
                       </div>
+                      
+                      {/* Show declined reason if application was declined */}
+                      {app.status === 'declined' && app.declined_reason && (
+                        <Alert variant="destructive" className="mt-4 bg-red-500/10 border-red-500/30">
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertTitle>Reason for Decline</AlertTitle>
+                          <AlertDescription>
+                            {app.declined_reason}
+                          </AlertDescription>
+                        </Alert>
+                      )}
                     </motion.div>
                   ))}
                 </div>
