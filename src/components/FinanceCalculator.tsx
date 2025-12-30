@@ -1,19 +1,36 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { Info } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { formatPrice } from '@/data/vehicles';
+import { formatPrice, calculateMaxBalloon } from '@/lib/formatters';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface FinanceCalculatorProps {
   vehiclePrice: number;
+  vehicleYear?: number;
 }
 
-const FinanceCalculator = ({ vehiclePrice }: FinanceCalculatorProps) => {
-  const [deposit, setDeposit] = useState(10); // percentage
-  const [balloon, setBalloon] = useState(0); // percentage
+const FinanceCalculator = ({ vehiclePrice, vehicleYear }: FinanceCalculatorProps) => {
+  const { user } = useAuth();
+  const currentYear = new Date().getFullYear();
+  const year = vehicleYear || currentYear;
+  const maxBalloon = calculateMaxBalloon(year);
+  const vehicleAge = currentYear - year;
+
+  const [deposit, setDeposit] = useState(10);
+  const [balloon, setBalloon] = useState(0);
   const [months, setMonths] = useState(72);
   const [interest, setInterest] = useState(13.5);
   const [monthlyPayment, setMonthlyPayment] = useState(0);
+
+  // Clamp balloon if maxBalloon changes
+  useEffect(() => {
+    if (balloon > maxBalloon) {
+      setBalloon(maxBalloon);
+    }
+  }, [maxBalloon, balloon]);
 
   // PMT formula calculation
   useEffect(() => {
@@ -27,8 +44,6 @@ const FinanceCalculator = ({ vehiclePrice }: FinanceCalculatorProps) => {
       return;
     }
 
-    // PMT formula with balloon payment
-    // PMT = (PV - FV/(1+r)^n) * r / (1 - (1+r)^-n)
     const pvMinusFv = principal - balloonAmount / Math.pow(1 + monthlyRate, months);
     const payment = (pvMinusFv * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -months));
 
@@ -38,6 +53,8 @@ const FinanceCalculator = ({ vehiclePrice }: FinanceCalculatorProps) => {
   const depositAmount = vehiclePrice * (deposit / 100);
   const balloonAmount = vehiclePrice * (balloon / 100);
   const financeAmount = vehiclePrice - depositAmount;
+
+  const buyingPowerLink = user ? '/finance-application' : '/auth';
 
   return (
     <div className="p-6 glass-card rounded-xl space-y-6">
@@ -66,34 +83,43 @@ const FinanceCalculator = ({ vehiclePrice }: FinanceCalculatorProps) => {
         </div>
       </div>
 
-      {/* Balloon Payment Slider */}
+      {/* Balloon Payment Slider - with Smart Cap */}
       <div className="space-y-3">
         <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Balloon Payment</span>
+          <span className="text-muted-foreground flex items-center gap-1">
+            Balloon Payment
+            <span className="text-xs text-primary">(Max {maxBalloon}%)</span>
+          </span>
           <span className="font-medium">{balloon}% ({formatPrice(balloonAmount)})</span>
         </div>
         <Slider
           value={[balloon]}
           onValueChange={(value) => setBalloon(value[0])}
           min={0}
-          max={40}
+          max={maxBalloon}
           step={5}
           className="w-full"
         />
         <div className="flex justify-between text-xs text-muted-foreground">
           <span>0%</span>
-          <span>40%</span>
+          <span>{maxBalloon}%</span>
         </div>
+        {vehicleAge > 0 && (
+          <div className="flex items-start gap-2 p-2 bg-primary/5 rounded text-xs text-muted-foreground">
+            <Info className="w-3 h-3 text-primary flex-shrink-0 mt-0.5" />
+            <span>{year} model = max {maxBalloon}% balloon</span>
+          </div>
+        )}
       </div>
 
       {/* Term Select */}
       <div className="space-y-2">
         <label className="text-sm text-muted-foreground">Loan Term</label>
         <Select value={months.toString()} onValueChange={(val) => setMonths(Number(val))}>
-          <SelectTrigger className="w-full glass-card border-white/10">
+          <SelectTrigger className="w-full glass-card border-border">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="bg-card border-white/10">
+          <SelectContent className="bg-card border-border">
             <SelectItem value="12">12 months</SelectItem>
             <SelectItem value="24">24 months</SelectItem>
             <SelectItem value="36">36 months</SelectItem>
@@ -114,12 +140,12 @@ const FinanceCalculator = ({ vehiclePrice }: FinanceCalculatorProps) => {
           min={0}
           max={30}
           step={0.5}
-          className="glass-card border-white/10"
+          className="glass-card border-border"
         />
       </div>
 
       {/* Summary */}
-      <div className="pt-4 border-t border-white/10 space-y-3">
+      <div className="pt-4 border-t border-border space-y-3">
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Vehicle Price</span>
           <span>{formatPrice(vehiclePrice)}</span>
@@ -138,7 +164,7 @@ const FinanceCalculator = ({ vehiclePrice }: FinanceCalculatorProps) => {
             <span>{formatPrice(balloonAmount)}</span>
           </div>
         )}
-        <div className="flex justify-between text-lg font-semibold pt-2 border-t border-white/10">
+        <div className="flex justify-between text-lg font-semibold pt-2 border-t border-border">
           <span>Monthly Repayment</span>
           <span className="text-primary">{formatPrice(monthlyPayment)}/pm</span>
         </div>
@@ -148,11 +174,11 @@ const FinanceCalculator = ({ vehiclePrice }: FinanceCalculatorProps) => {
         *Estimate only. Subject to credit approval. Terms and conditions apply.
       </p>
 
-      <a href="/finance-application" className="block">
+      <Link to={buyingPowerLink} className="block">
         <button className="w-full py-3 rounded-lg bg-accent text-accent-foreground font-semibold hover:bg-accent/90 transition-colors">
           Check My Buying Power
         </button>
-      </a>
+      </Link>
     </div>
   );
 };

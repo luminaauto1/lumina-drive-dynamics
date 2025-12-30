@@ -2,8 +2,9 @@ import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { Heart, GitCompare, ChevronRight } from 'lucide-react';
-import { Vehicle, useWishlist } from '@/hooks/useWishlist';
-import { formatPrice, formatMileage, calculateMonthlyPayment } from '@/data/vehicles';
+import { useWishlist } from '@/hooks/useWishlist';
+import { formatPrice, formatMileage, calculateMonthlyPayment } from '@/lib/formatters';
+import type { Vehicle } from '@/hooks/useVehicles';
 
 interface VehicleCardProps {
   vehicle: Vehicle;
@@ -47,9 +48,10 @@ const VehicleCard = ({ vehicle, onCompare, isComparing }: VehicleCardProps) => {
 
   // Cycle through images on hover
   const handleImageHover = () => {
-    if (vehicle.images.length > 1) {
+    const images = vehicle.images || [];
+    if (images.length > 1) {
       const interval = setInterval(() => {
-        setCurrentImageIndex((prev) => (prev + 1) % vehicle.images.length);
+        setCurrentImageIndex((prev) => (prev + 1) % images.length);
       }, 800);
       return () => clearInterval(interval);
     }
@@ -58,9 +60,11 @@ const VehicleCard = ({ vehicle, onCompare, isComparing }: VehicleCardProps) => {
   const isSold = vehicle.status === 'sold';
   const isIncoming = vehicle.status === 'incoming';
   const inWishlist = isInWishlist(vehicle.id);
-  const monthlyPayment = vehicle.financeAvailable
+  const monthlyPayment = vehicle.finance_available
     ? calculateMonthlyPayment(vehicle.price)
     : null;
+
+  const images = vehicle.images || [];
 
   return (
     <motion.div
@@ -81,22 +85,28 @@ const VehicleCard = ({ vehicle, onCompare, isComparing }: VehicleCardProps) => {
           className="relative aspect-[16/10] overflow-hidden"
           onMouseEnter={handleImageHover}
         >
-          {vehicle.images.map((image, index) => (
-            <motion.img
-              key={index}
-              src={image}
-              alt={`${vehicle.make} ${vehicle.model} - Image ${index + 1}`}
-              className="absolute inset-0 w-full h-full object-cover"
-              initial={{ opacity: index === 0 ? 1 : 0 }}
-              animate={{ opacity: index === currentImageIndex ? 1 : 0 }}
-              transition={{ duration: 0.3 }}
-            />
-          ))}
+          {images.length > 0 ? (
+            images.map((image, index) => (
+              <motion.img
+                key={index}
+                src={image}
+                alt={`${vehicle.make} ${vehicle.model} - Image ${index + 1}`}
+                className="absolute inset-0 w-full h-full object-cover"
+                initial={{ opacity: index === 0 ? 1 : 0 }}
+                animate={{ opacity: index === currentImageIndex ? 1 : 0 }}
+                transition={{ duration: 0.3 }}
+              />
+            ))
+          ) : (
+            <div className="absolute inset-0 bg-secondary flex items-center justify-center">
+              <span className="text-muted-foreground text-sm">No image</span>
+            </div>
+          )}
 
           {/* Image Indicators */}
-          {vehicle.images.length > 1 && isHovered && (
+          {images.length > 1 && isHovered && (
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
-              {vehicle.images.map((_, index) => (
+              {images.map((_, index) => (
                 <div
                   key={index}
                   className={`w-1.5 h-1.5 rounded-full transition-all ${
@@ -171,22 +181,24 @@ const VehicleCard = ({ vehicle, onCompare, isComparing }: VehicleCardProps) => {
             <span className="w-1 h-1 rounded-full bg-muted-foreground" />
             <span>{vehicle.transmission}</span>
             <span className="w-1 h-1 rounded-full bg-muted-foreground" />
-            <span>{vehicle.fuelType}</span>
+            <span>{vehicle.fuel_type}</span>
           </div>
 
-          {/* Price */}
+          {/* Price - FINANCE FIRST */}
           <div className="flex items-end justify-between">
             <div>
-              <p className="font-display text-2xl font-bold text-foreground">
-                {formatPrice(vehicle.price)}
-              </p>
+              {/* Monthly Payment - LARGEST & BRIGHTEST */}
               {monthlyPayment && !isSold && (
-                <p className="text-sm text-primary">
-                  Est. {formatPrice(monthlyPayment)}/pm
+                <p className="font-display text-2xl font-bold text-foreground">
+                  {formatPrice(monthlyPayment)}<span className="text-sm">/pm</span>
                 </p>
               )}
-              {!vehicle.financeAvailable && !isSold && (
-                <p className="text-sm text-muted-foreground">Cash/EFT Only</p>
+              {/* Cash Price - Smaller & Greyed */}
+              <p className="text-sm text-muted-foreground">
+                {formatPrice(vehicle.price)} cash
+              </p>
+              {!vehicle.finance_available && !isSold && (
+                <p className="text-xs text-muted-foreground">Cash/EFT Only</p>
               )}
             </div>
 
