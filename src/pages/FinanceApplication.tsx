@@ -63,6 +63,8 @@ const FinanceApplication = () => {
     expenses_summary: '',
     // Consent
     popia_consent: false,
+    // Preferred Vehicle
+    preferred_vehicle_text: '',
   });
 
   useEffect(() => {
@@ -174,8 +176,9 @@ const FinanceApplication = () => {
       net_salary: formData.net_salary ? parseFloat(formData.net_salary) : null,
       expenses_summary: formData.expenses_summary,
       popia_consent: formData.popia_consent,
+      preferred_vehicle_text: formData.preferred_vehicle_text || null,
       status: 'pending',
-    });
+    } as any);
 
     if (error) {
       toast.error('Failed to submit application. Please try again.');
@@ -612,7 +615,22 @@ const FinanceApplication = () => {
                   exit={{ opacity: 0, x: -20 }}
                   className="space-y-6"
                 >
-                  <h2 className="text-xl font-semibold mb-4">Consent & Permission</h2>
+                  <h2 className="text-xl font-semibold mb-4">Consent & Preferences</h2>
+                  
+                  {/* Preferred Vehicle Section */}
+                  <div className="glass-card rounded-lg p-6 border border-border mb-6">
+                    <h3 className="font-medium mb-3">Do you have a specific car in mind? (Optional)</h3>
+                    <p className="text-sm text-muted-foreground mb-4">Tell us what you're looking for and we'll try to match it to your budget.</p>
+                    <Textarea
+                      id="preferred_vehicle_text"
+                      value={formData.preferred_vehicle_text}
+                      onChange={(e) => handleInputChange('preferred_vehicle_text', e.target.value)}
+                      placeholder="e.g., BMW 320d, 2020 or newer, white or black, M Sport preferred..."
+                      rows={3}
+                    />
+                  </div>
+
+                  {/* POPIA Consent */}
                   <div className="glass-card rounded-lg p-6 border border-border">
                     <div className="flex items-start space-x-4">
                       <Checkbox

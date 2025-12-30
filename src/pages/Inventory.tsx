@@ -24,6 +24,7 @@ const Inventory = () => {
   const [monthlyPaymentMax, setMonthlyPaymentMax] = useState(150000);
   const [selectedMakes, setSelectedMakes] = useState<string[]>([]);
   const [selectedBodyType, setSelectedBodyType] = useState<string>('all');
+  const [variantSearch, setVariantSearch] = useState('');
 
   const { data: vehicles = [], isLoading } = useVehicles();
   const { compareList, toggleCompare, removeFromCompare, clearCompare, isInCompare } = useCompare();
@@ -82,9 +83,17 @@ const Inventory = () => {
         selectedBodyType === 'all' || 
         ((vehicle as any).body_type?.toLowerCase() === selectedBodyType.toLowerCase());
 
-      return matchesSearch && matchesPrice && matchesMonthly && matchesMake && matchesBodyType;
+      // Variant search filter
+      const matchesVariant = 
+        !variantSearch || 
+        (vehicle.variant?.toLowerCase().includes(variantSearch.toLowerCase()) ?? false);
+
+      // Exclude generic listings from main inventory
+      const isNotGeneric = !(vehicle as any).is_generic_listing;
+
+      return matchesSearch && matchesPrice && matchesMonthly && matchesMake && matchesBodyType && matchesVariant && isNotGeneric;
     });
-  }, [searchQuery, priceRange, monthlyPaymentMax, selectedMakes, selectedBodyType, vehicles]);
+  }, [searchQuery, priceRange, monthlyPaymentMax, selectedMakes, selectedBodyType, variantSearch, vehicles]);
 
   const toggleMake = (make: string) => {
     setSelectedMakes((prev) =>
@@ -98,6 +107,7 @@ const Inventory = () => {
     setMonthlyPaymentMax(150000);
     setSelectedMakes([]);
     setSelectedBodyType('all');
+    setVariantSearch('');
   };
 
   const hasActiveFilters =
@@ -106,7 +116,8 @@ const Inventory = () => {
     priceRange[1] < 6000000 ||
     monthlyPaymentMax < 150000 ||
     selectedMakes.length > 0 ||
-    selectedBodyType !== 'all';
+    selectedBodyType !== 'all' ||
+    variantSearch;
 
   return (
     <>
@@ -296,6 +307,17 @@ const Inventory = () => {
                       </button>
                     ))}
                   </div>
+                </div>
+
+                {/* Variant Search */}
+                <div>
+                  <label className="block text-sm font-medium mb-4">Variant Search</label>
+                  <Input
+                    placeholder="e.g., 320d, GTI, Competition..."
+                    value={variantSearch}
+                    onChange={(e) => setVariantSearch(e.target.value)}
+                    className="max-w-md"
+                  />
                 </div>
               </motion.div>
             )}

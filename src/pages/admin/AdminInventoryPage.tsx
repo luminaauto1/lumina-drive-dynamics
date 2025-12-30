@@ -16,6 +16,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useVehicles, useCreateVehicle, useUpdateVehicle, useDeleteVehicle, formatPrice, Vehicle, VehicleInsert } from '@/hooks/useVehicles';
 import { supabase } from '@/integrations/supabase/client';
@@ -41,6 +43,7 @@ const vehicleSchema = z.object({
   service_history: z.string().optional(),
   youtube_url: z.string().optional(),
   body_type: z.string().optional(),
+  is_generic_listing: z.boolean().optional(),
 });
 
 type VehicleFormData = z.infer<typeof vehicleSchema>;
@@ -52,6 +55,7 @@ const AdminInventoryPage = () => {
   const [deleteVehicle, setDeleteVehicle] = useState<Vehicle | null>(null);
   const [images, setImages] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [activeTab, setActiveTab] = useState('live');
 
   const { data: vehicles = [], isLoading } = useVehicles();
   const createVehicle = useCreateVehicle();
@@ -83,11 +87,14 @@ const AdminInventoryPage = () => {
 
   const filteredVehicles = vehicles.filter(v => {
     const search = searchQuery.toLowerCase();
-    return (
+    const matchesSearch = (
       v.make.toLowerCase().includes(search) ||
       v.model.toLowerCase().includes(search) ||
       v.variant?.toLowerCase().includes(search)
     );
+    const isGeneric = (v as any).is_generic_listing === true;
+    const matchesTab = activeTab === 'live' ? !isGeneric : isGeneric;
+    return matchesSearch && matchesTab;
   });
 
   const openAddSheet = () => {
@@ -110,6 +117,7 @@ const AdminInventoryPage = () => {
       service_history: '',
       youtube_url: '',
       body_type: '',
+      is_generic_listing: activeTab === 'sourcing',
     });
     setImages([]);
     setIsSheetOpen(true);
@@ -135,6 +143,7 @@ const AdminInventoryPage = () => {
       service_history: vehicle.service_history || '',
       youtube_url: vehicle.youtube_url || '',
       body_type: (vehicle as any).body_type || '',
+      is_generic_listing: (vehicle as any).is_generic_listing || false,
     });
     setImages(vehicle.images || []);
     setIsSheetOpen(true);
@@ -208,6 +217,7 @@ const AdminInventoryPage = () => {
       youtube_url: data.youtube_url || null,
       images,
       body_type: data.body_type || null,
+      is_generic_listing: data.is_generic_listing || false,
     };
 
     if (editingVehicle) {
@@ -263,13 +273,24 @@ const AdminInventoryPage = () => {
           </Button>
         </motion.div>
 
-        {/* Search */}
+        {/* Search & Tabs */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="mb-6"
+          className="mb-6 space-y-4"
         >
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="glass-card">
+              <TabsTrigger value="live" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                Live Stock
+              </TabsTrigger>
+              <TabsTrigger value="sourcing" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                Sourcing Examples
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+          
           <div className="relative max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -733,6 +754,25 @@ const AdminInventoryPage = () => {
                       <div>
                         <FormLabel>Finance Available</FormLabel>
                         <p className="text-sm text-muted-foreground">Allow customers to apply for finance</p>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="is_generic_listing"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+                      <div>
+                        <FormLabel className="text-amber-400">Sourcing Example</FormLabel>
+                        <p className="text-sm text-muted-foreground">Mark as a generic/sourcing example (not actual stock)</p>
                       </div>
                       <FormControl>
                         <Switch

@@ -210,12 +210,12 @@ const FinanceCalculator = ({ vehiclePrice, vehicleYear }: FinanceCalculatorProps
             )}
             <div className="flex justify-between text-lg font-semibold pt-2 border-t border-border">
               <span>Monthly Repayment</span>
-              <span className="text-primary">{formatPrice(monthlyPayment)}/pm</span>
+              <span className="text-primary" title="Est. only. Subject to bank approval & interest rates.">{formatPrice(monthlyPayment)}/pm*</span>
             </div>
           </div>
 
           <p className="text-xs text-muted-foreground mb-4">
-            *Estimate only. Subject to credit approval. Terms and conditions apply.
+            *Est. only. Subject to bank approval & interest rates.
           </p>
         </>
       )}

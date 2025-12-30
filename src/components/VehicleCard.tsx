@@ -196,8 +196,8 @@ const VehicleCard = ({ vehicle, onCompare, isComparing }: VehicleCardProps) => {
             <div>
               {/* Monthly Payment - LARGEST & BRIGHTEST */}
               {monthlyPayment && !isSold && (
-                <p className="font-display text-2xl font-bold text-foreground">
-                  {formatPrice(monthlyPayment)}<span className="text-sm">/pm</span>
+                <p className="font-display text-2xl font-bold text-foreground" title="Est. only. Subject to bank approval & interest rates.">
+                  {formatPrice(monthlyPayment)}<span className="text-sm">/pm*</span>
                 </p>
               )}
               {/* Cash Price - Smaller & Greyed */}
@@ -220,6 +220,10 @@ const VehicleCard = ({ vehicle, onCompare, isComparing }: VehicleCardProps) => {
               </Link>
             )}
           </div>
+          {/* Disclaimer */}
+          {monthlyPayment && !isSold && (
+            <p className="text-[10px] text-muted-foreground/60 mt-1">*Est. only. Subject to bank approval.</p>
+          )}
         </div>
       </div>
     </motion.div>
