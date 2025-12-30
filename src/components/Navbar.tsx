@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Heart, Search, User, Settings } from 'lucide-react';
+import { Menu, X, Heart, Search, User, Settings, Calculator } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWishlist } from '@/hooks/useWishlist';
 import { useAuth } from '@/contexts/AuthContext';
@@ -28,6 +28,7 @@ const Navbar = () => {
   const navLinks = [
     { path: '/', label: 'Home' },
     { path: '/inventory', label: 'Inventory' },
+    { path: '/calculator', label: 'Calculator' },
     { path: '/sell-your-car', label: 'Sell Your Car' },
     { path: '/about', label: 'About' },
     { path: '/contact', label: 'Contact' },

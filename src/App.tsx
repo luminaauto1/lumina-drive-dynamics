@@ -20,6 +20,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
+import Calculator from "./pages/Calculator";
 import FinanceApplication from "./pages/FinanceApplication";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminInventoryPage from "./pages/admin/AdminInventoryPage";
@@ -51,6 +52,7 @@ const AppLayout = () => {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/calculator" element={<Calculator />} />
           <Route path="/finance-application" element={<FinanceApplication />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/inventory" element={<AdminInventoryPage />} />

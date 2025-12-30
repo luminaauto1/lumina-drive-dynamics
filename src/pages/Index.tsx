@@ -4,10 +4,11 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import { ArrowRight, ChevronDown, Shield, Award, Clock, Car } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { Button } from '@/components/ui/button';
-import KineticText, { RevealText } from '@/components/KineticText';
-import ParallaxCar from '@/components/ParallaxCar';
+import KineticText from '@/components/KineticText';
+import GolfGTIAnimation from '@/components/GolfGTIAnimation';
 import VehicleCard from '@/components/VehicleCard';
-import { vehicles } from '@/data/vehicles';
+import SkeletonCard from '@/components/SkeletonCard';
+import { useVehicles } from '@/hooks/useVehicles';
 
 const Index = () => {
   const heroRef = useRef<HTMLDivElement>(null);
@@ -29,6 +30,7 @@ const Index = () => {
   const contentY = useTransform(contentScrollProgress, [0, 1], [100, 0]);
   const contentOpacity = useTransform(contentScrollProgress, [0, 1], [0, 1]);
 
+  const { data: vehicles = [], isLoading } = useVehicles();
   const featuredVehicles = vehicles.filter((v) => v.status === 'available').slice(0, 4);
 
   const stats = [
@@ -154,7 +156,7 @@ const Index = () => {
               variants={itemVariants}
               className="text-primary text-sm font-semibold uppercase tracking-[0.3em] mb-6 block"
             >
-              CAR FINANCING LIKE YOU WANT IT
+              The New Era of Vehicle Sourcing
             </motion.span>
 
             <motion.h1 
@@ -193,7 +195,8 @@ const Index = () => {
           </div>
         </motion.section>
 
-        <ParallaxCar />
+        {/* Golf GTI Animation - replaces ParallaxCar */}
+        <GolfGTIAnimation />
 
         {/* Stats Section */}
         <motion.section 
@@ -205,7 +208,7 @@ const Index = () => {
         >
           <div className="container mx-auto px-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-              {stats.map((stat, index) => (
+              {stats.map((stat) => (
                 <motion.div
                   key={stat.label}
                   variants={itemVariants}
@@ -252,17 +255,23 @@ const Index = () => {
               </Link>
             </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {featuredVehicles.map((vehicle, index) => (
-                <motion.div
-                  key={vehicle.id}
-                  variants={itemVariants}
-                  custom={index}
-                >
-                  <VehicleCard vehicle={vehicle} />
-                </motion.div>
-              ))}
-            </div>
+            {isLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <SkeletonCard count={4} />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {featuredVehicles.map((vehicle, index) => (
+                  <motion.div
+                    key={vehicle.id}
+                    variants={itemVariants}
+                    custom={index}
+                  >
+                    <VehicleCard vehicle={vehicle} />
+                  </motion.div>
+                ))}
+              </div>
+            )}
           </div>
         </motion.section>
 
