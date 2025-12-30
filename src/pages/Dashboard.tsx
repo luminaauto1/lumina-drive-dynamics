@@ -153,16 +153,18 @@ const Dashboard = () => {
               animate={{ opacity: 1, y: 0 }}
               className="mb-12"
             >
-              <div className="glass-card rounded-xl p-6 border-2 border-primary/30 bg-primary/5">
+              <div className="glass-card rounded-xl p-6 border-2 border-amber-500/40 bg-gradient-to-br from-amber-500/10 to-amber-600/5">
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                    <Sparkles className="w-5 h-5 text-primary" />
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
+                    <Sparkles className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold">Your Curated Options</h2>
-                    <p className="text-sm text-muted-foreground">
-                      These vehicles have been specially selected to match your confirmed budget
-                    </p>
+                    <span className="inline-block px-3 py-1 mb-1 text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-full">
+                      Budget Confirmed - Viewing Options
+                    </span>
+                    <h2 className="text-2xl font-bold bg-gradient-to-r from-amber-400 to-amber-200 bg-clip-text text-transparent">
+                      Exclusively Selected For You
+                    </h2>
                   </div>
                 </div>
 
