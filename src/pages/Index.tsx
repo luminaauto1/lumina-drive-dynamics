@@ -36,8 +36,8 @@ const Index = () => {
   const { data: vehicles = [], isLoading } = useVehicles();
   const featuredVehicles = vehicles.filter((v) => v.status === 'available').slice(0, 4);
 
-  // Dynamic headline from settings
-  const heroHeadline = settings?.hero_headline || 'Drive Your Aspirations';
+  // Dynamic headline from settings - updated for sourcing emphasis
+  const heroHeadline = settings?.hero_headline || 'Premium Stock & Bespoke Sourcing';
   const heroSubheadline = settings?.hero_subheadline || 'The New Era of Vehicle Sourcing';
   const whatsappNumber = settings?.whatsapp_number || '27686017462';
 
@@ -193,18 +193,70 @@ const Index = () => {
               variants={itemVariants}
               className="flex flex-col sm:flex-row items-center justify-center gap-4"
             >
-              <Link to="/inventory">
-                <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90 group shadow-xl">
-                  Explore Inventory
+              <Link to="/sourcing">
+                <Button size="lg" className="bg-foreground text-background hover:bg-foreground/90 group shadow-xl">
+                  Start Sourcing
                   <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
-              <Link to="/sell-your-car">
-                <Button size="lg" variant="outline" className="border-primary/50 text-foreground hover:bg-secondary/80">
-                  Sell Your Car
+              <Link to="/inventory">
+                <Button size="lg" variant="outline" className="border-foreground/30 text-foreground hover:bg-foreground/10">
+                  View Stock
                 </Button>
               </Link>
             </motion.div>
+          </div>
+        </motion.section>
+
+        {/* How We Work Section */}
+        <motion.section 
+          className="py-20 bg-card border-y border-border"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+        >
+          <div className="container mx-auto px-6">
+            <motion.div variants={itemVariants} className="text-center mb-12">
+              <span className="text-primary text-sm font-semibold uppercase tracking-widest mb-4 block">
+                How It Works
+              </span>
+              <h2 className="font-display text-3xl md:text-4xl font-bold">
+                Don't Settle. We Find It.
+              </h2>
+            </motion.div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {[
+                {
+                  step: 1,
+                  title: 'Application',
+                  description: 'Secure your finance budget first.',
+                },
+                {
+                  step: 2,
+                  title: 'Selection',
+                  description: 'We source vehicles that match your exact specs from 120+ partners.',
+                },
+                {
+                  step: 3,
+                  title: 'Delivery',
+                  description: 'Verified, tested, and delivered to your door.',
+                },
+              ].map((item) => (
+                <motion.div
+                  key={item.step}
+                  variants={itemVariants}
+                  className="relative text-center p-8 bg-background rounded-xl border border-border"
+                >
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
+                    {item.step}
+                  </div>
+                  <h3 className="font-display text-xl font-semibold mb-3 mt-2">{item.title}</h3>
+                  <p className="text-muted-foreground text-sm">{item.description}</p>
+                </motion.div>
+              ))}
+            </div>
           </div>
         </motion.section>
 
