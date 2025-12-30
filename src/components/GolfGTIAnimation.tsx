@@ -51,7 +51,7 @@ const GolfGTIAnimation = () => {
           {/* GTI Image */}
           <img alt="Volkswagen Golf GTI" className="w-64 h-auto object-contain" style={{
           filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.3))'
-        }} src="/lovable-uploads/65ad07e9-ed14-4da9-bb47-1ca661c39453.png" />
+        }} src="/lovable-uploads/2c1e61bb-b03a-4471-acb6-6c97cfdfcb54.png" />
         </div>
       </motion.div>
 
