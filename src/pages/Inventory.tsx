@@ -5,12 +5,16 @@ import { Helmet } from 'react-helmet-async';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import VehicleCard from '@/components/VehicleCard';
 import CompareTray from '@/components/CompareTray';
 import SkeletonCard from '@/components/SkeletonCard';
 import KineticText from '@/components/KineticText';
 import { useCompare } from '@/hooks/useCompare';
-import { vehicles, formatPrice, calculateMonthlyPayment } from '@/data/vehicles';
+import { useVehicles } from '@/hooks/useVehicles';
+import { formatPrice, calculateMonthlyPayment } from '@/lib/formatters';
+
+const BODY_TYPES = ['SUV', 'Hatchback', 'Sedan', 'Bakkie', 'Coupe', 'Convertible', 'Wagon'];
 
 const Inventory = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -18,14 +22,15 @@ const Inventory = () => {
   const [priceRange, setPriceRange] = useState([0, 6000000]);
   const [monthlyPaymentMax, setMonthlyPaymentMax] = useState(150000);
   const [selectedMakes, setSelectedMakes] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [selectedBodyType, setSelectedBodyType] = useState<string>('all');
 
+  const { data: vehicles = [], isLoading } = useVehicles();
   const { compareList, toggleCompare, removeFromCompare, clearCompare, isInCompare } = useCompare();
 
-  // Get unique makes
+  // Get unique makes from DB
   const allMakes = useMemo(() => {
     return [...new Set(vehicles.map((v) => v.make))].sort();
-  }, []);
+  }, [vehicles]);
 
   // Predictive search suggestions
   const searchSuggestions = useMemo(() => {
@@ -43,7 +48,7 @@ const Inventory = () => {
     });
 
     return suggestions.slice(0, 5);
-  }, [searchQuery]);
+  }, [searchQuery, vehicles]);
 
   // Filter vehicles
   const filteredVehicles = useMemo(() => {
@@ -54,26 +59,31 @@ const Inventory = () => {
         !searchQuery ||
         vehicle.make.toLowerCase().includes(searchLower) ||
         vehicle.model.toLowerCase().includes(searchLower) ||
-        vehicle.variant.toLowerCase().includes(searchLower);
+        (vehicle.variant?.toLowerCase().includes(searchLower) ?? false);
 
       // Price filter
       const matchesPrice =
         vehicle.price >= priceRange[0] && vehicle.price <= priceRange[1];
 
       // Monthly payment filter
-      const monthlyPayment = vehicle.financeAvailable
+      const monthlyPayment = vehicle.finance_available
         ? calculateMonthlyPayment(vehicle.price)
         : 0;
       const matchesMonthly =
-        !vehicle.financeAvailable || monthlyPayment <= monthlyPaymentMax;
+        !vehicle.finance_available || monthlyPayment <= monthlyPaymentMax;
 
       // Make filter
       const matchesMake =
         selectedMakes.length === 0 || selectedMakes.includes(vehicle.make);
 
-      return matchesSearch && matchesPrice && matchesMonthly && matchesMake;
+      // Body type filter (using variant field as proxy)
+      const matchesBodyType =
+        selectedBodyType === 'all' || 
+        (vehicle.variant?.toLowerCase().includes(selectedBodyType.toLowerCase()) ?? false);
+
+      return matchesSearch && matchesPrice && matchesMonthly && matchesMake && matchesBodyType;
     });
-  }, [searchQuery, priceRange, monthlyPaymentMax, selectedMakes]);
+  }, [searchQuery, priceRange, monthlyPaymentMax, selectedMakes, selectedBodyType, vehicles]);
 
   const toggleMake = (make: string) => {
     setSelectedMakes((prev) =>
@@ -86,6 +96,7 @@ const Inventory = () => {
     setPriceRange([0, 6000000]);
     setMonthlyPaymentMax(150000);
     setSelectedMakes([]);
+    setSelectedBodyType('all');
   };
 
   const hasActiveFilters =
@@ -93,7 +104,8 @@ const Inventory = () => {
     priceRange[0] > 0 ||
     priceRange[1] < 6000000 ||
     monthlyPaymentMax < 150000 ||
-    selectedMakes.length > 0;
+    selectedMakes.length > 0 ||
+    selectedBodyType !== 'all';
 
   return (
     <>
@@ -174,6 +186,21 @@ const Inventory = () => {
                   <span className="w-2 h-2 rounded-full bg-primary" />
                 )}
               </Button>
+
+              {/* Body Type Filter */}
+              <Select value={selectedBodyType} onValueChange={setSelectedBodyType}>
+                <SelectTrigger className="w-40 bg-card border-border">
+                  <SelectValue placeholder="Body Type" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="all">All Types</SelectItem>
+                  {BODY_TYPES.map((type) => (
+                    <SelectItem key={type} value={type.toLowerCase()}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
               {hasActiveFilters && (
                 <Button
