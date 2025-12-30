@@ -59,6 +59,7 @@ export type Database = {
           account_type: string | null
           area_code: string | null
           bank_name: string | null
+          buyer_type: string | null
           created_at: string
           declined_reason: string | null
           deposit_amount: number | null
@@ -85,6 +86,7 @@ export type Database = {
           phone: string
           popia_consent: boolean | null
           qualification: string | null
+          source_of_funds: string | null
           status: string
           street_address: string | null
           updated_at: string
@@ -96,6 +98,7 @@ export type Database = {
           account_type?: string | null
           area_code?: string | null
           bank_name?: string | null
+          buyer_type?: string | null
           created_at?: string
           declined_reason?: string | null
           deposit_amount?: number | null
@@ -122,6 +125,7 @@ export type Database = {
           phone: string
           popia_consent?: boolean | null
           qualification?: string | null
+          source_of_funds?: string | null
           status?: string
           street_address?: string | null
           updated_at?: string
@@ -133,6 +137,7 @@ export type Database = {
           account_type?: string | null
           area_code?: string | null
           bank_name?: string | null
+          buyer_type?: string | null
           created_at?: string
           declined_reason?: string | null
           deposit_amount?: number | null
@@ -159,6 +164,7 @@ export type Database = {
           phone?: string
           popia_consent?: boolean | null
           qualification?: string | null
+          source_of_funds?: string | null
           status?: string
           street_address?: string | null
           updated_at?: string
