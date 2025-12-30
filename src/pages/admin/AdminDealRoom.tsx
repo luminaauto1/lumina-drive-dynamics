@@ -102,6 +102,11 @@ const AdminDealRoom = () => {
   const openWhatsApp = () => {
     if (!application) return;
     const phone = application.phone?.replace(/\D/g, '') || '';
+    if (!phone) {
+      // Show error if no phone
+      alert('No phone number available for this client');
+      return;
+    }
     const formattedPhone = phone.startsWith('0') ? `27${phone.slice(1)}` : phone;
     const name = application.first_name || application.full_name?.split(' ')[0] || 'Customer';
     const message = getWhatsAppMessage(application.status, name, matches.length);

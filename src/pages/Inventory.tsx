@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import VehicleCard from '@/components/VehicleCard';
+import SourcingCard from '@/components/SourcingCard';
 import CompareTray from '@/components/CompareTray';
 import SkeletonCard from '@/components/SkeletonCard';
 import KineticText from '@/components/KineticText';
@@ -322,6 +323,8 @@ const Inventory = () => {
                   isComparing={isInCompare(vehicle.id)}
                 />
               ))}
+              {/* Always show sourcing card at the end */}
+              <SourcingCard />
             </div>
           ) : (
             <div className="text-center py-20">

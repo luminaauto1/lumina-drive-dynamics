@@ -22,6 +22,7 @@ import About from "./pages/About";
 import Contact from "./pages/Contact";
 import Calculator from "./pages/Calculator";
 import FinanceApplication from "./pages/FinanceApplication";
+import Sourcing from "./pages/Sourcing";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminInventoryPage from "./pages/admin/AdminInventoryPage";
 import AdminLeads from "./pages/admin/AdminLeads";
@@ -55,6 +56,7 @@ const AppLayout = () => {
           <Route path="/contact" element={<Contact />} />
           <Route path="/calculator" element={<Calculator />} />
           <Route path="/finance-application" element={<FinanceApplication />} />
+          <Route path="/sourcing" element={<Sourcing />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/inventory" element={<AdminInventoryPage />} />
           <Route path="/admin/leads" element={<AdminLeads />} />
