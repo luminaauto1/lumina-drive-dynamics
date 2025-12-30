@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Heart, Search, User, Settings, Calculator } from 'lucide-react';
+import { Menu, X, Heart, Search, User, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWishlist } from '@/hooks/useWishlist';
 import { useAuth } from '@/contexts/AuthContext';
+import luminaLogo from '@/assets/lumina-logo.png';
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -47,13 +48,12 @@ const Navbar = () => {
         <div className="container mx-auto px-6">
           <div className="flex items-center justify-between h-20">
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center">
-                <span className="font-display font-bold text-accent-foreground text-lg">L</span>
-              </div>
-              <span className="font-display text-xl font-semibold tracking-wide text-foreground">
-                LUMINA<span className="text-primary"> AUTO</span>
-              </span>
+            <Link to="/" className="flex items-center">
+              <img 
+                src={luminaLogo} 
+                alt="Lumina Auto" 
+                className="h-10 md:h-12 w-auto object-contain"
+              />
             </Link>
 
             {/* Desktop Navigation */}
