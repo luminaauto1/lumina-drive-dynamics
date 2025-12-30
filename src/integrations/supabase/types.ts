@@ -16,55 +16,109 @@ export type Database = {
     Tables: {
       finance_applications: {
         Row: {
+          account_number: string | null
+          account_type: string | null
+          area_code: string | null
+          bank_name: string | null
           created_at: string
           deposit_amount: number | null
           email: string
           employer_name: string | null
+          employment_period: string | null
           employment_status: string | null
+          expenses_summary: string | null
+          first_name: string | null
           full_name: string
+          gender: string | null
+          gross_salary: number | null
           id: string
           id_number: string | null
+          job_title: string | null
+          kin_contact: string | null
+          kin_name: string | null
+          last_name: string | null
           loan_term_months: number | null
+          marital_status: string | null
           monthly_income: number | null
+          net_salary: number | null
           notes: string | null
           phone: string
+          popia_consent: boolean | null
+          qualification: string | null
           status: string
+          street_address: string | null
           updated_at: string
           user_id: string
           vehicle_id: string | null
         }
         Insert: {
+          account_number?: string | null
+          account_type?: string | null
+          area_code?: string | null
+          bank_name?: string | null
           created_at?: string
           deposit_amount?: number | null
           email: string
           employer_name?: string | null
+          employment_period?: string | null
           employment_status?: string | null
+          expenses_summary?: string | null
+          first_name?: string | null
           full_name: string
+          gender?: string | null
+          gross_salary?: number | null
           id?: string
           id_number?: string | null
+          job_title?: string | null
+          kin_contact?: string | null
+          kin_name?: string | null
+          last_name?: string | null
           loan_term_months?: number | null
+          marital_status?: string | null
           monthly_income?: number | null
+          net_salary?: number | null
           notes?: string | null
           phone: string
+          popia_consent?: boolean | null
+          qualification?: string | null
           status?: string
+          street_address?: string | null
           updated_at?: string
           user_id: string
           vehicle_id?: string | null
         }
         Update: {
+          account_number?: string | null
+          account_type?: string | null
+          area_code?: string | null
+          bank_name?: string | null
           created_at?: string
           deposit_amount?: number | null
           email?: string
           employer_name?: string | null
+          employment_period?: string | null
           employment_status?: string | null
+          expenses_summary?: string | null
+          first_name?: string | null
           full_name?: string
+          gender?: string | null
+          gross_salary?: number | null
           id?: string
           id_number?: string | null
+          job_title?: string | null
+          kin_contact?: string | null
+          kin_name?: string | null
+          last_name?: string | null
           loan_term_months?: number | null
+          marital_status?: string | null
           monthly_income?: number | null
+          net_salary?: number | null
           notes?: string | null
           phone?: string
+          popia_consent?: boolean | null
+          qualification?: string | null
           status?: string
+          street_address?: string | null
           updated_at?: string
           user_id?: string
           vehicle_id?: string | null

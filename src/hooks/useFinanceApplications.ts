@@ -33,7 +33,7 @@ export const useUpdateFinanceApplication = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: Partial<FinanceApplication> }) => {
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<Tables<'finance_applications'>> }) => {
       const { data, error } = await supabase
         .from('finance_applications')
         .update(updates)
