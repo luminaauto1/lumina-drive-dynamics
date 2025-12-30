@@ -95,13 +95,13 @@ const Index = () => {
         />
       </Helmet>
 
-      {/* Fullscreen Hero Video Section */}
+      {/* Fullscreen Hero Video Section - Standalone */}
       <section ref={heroRef} className="relative h-screen overflow-hidden">
         <motion.div
           style={{ opacity: heroOpacity, scale: heroScale }}
           className="absolute inset-0"
         >
-          {/* Video Background */}
+          {/* Video Background - Pure, no overlays */}
           <video
             autoPlay
             muted
@@ -111,9 +111,6 @@ const Index = () => {
           >
             <source src="/videos/hero-drift.mp4" type="video/mp4" />
           </video>
-          
-          {/* Subtle gradient overlay for readability */}
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
         </motion.div>
 
         {/* Fade to black overlay on scroll */}
@@ -122,67 +119,21 @@ const Index = () => {
           className="absolute inset-0 bg-background z-10 pointer-events-none"
         />
 
-        {/* Hero Content */}
-        <div className="relative z-20 h-full flex flex-col items-center justify-center text-center px-6">
+        {/* Minimal scroll indicator */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 2 }}
+          className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20"
+        >
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.5 }}
-            className="mb-6"
+            animate={{ y: [0, 10, 0] }}
+            transition={{ duration: 2, repeat: Infinity }}
+            className="flex flex-col items-center gap-2 text-foreground/80"
           >
-            <span className="text-primary text-sm font-semibold uppercase tracking-[0.3em] drop-shadow-lg">
-              CAR FINANCING LIKE YOU WANT IT
-            </span>
+            <ChevronDown className="w-6 h-6 drop-shadow-lg" />
           </motion.div>
-
-          <h1 className="font-display text-5xl md:text-7xl lg:text-8xl font-bold mb-6 max-w-5xl drop-shadow-2xl">
-            <KineticText delay={0.3}>Drive Your</KineticText>
-            <br />
-            <span className="gradient-text">
-              <KineticText delay={0.6}>Aspirations</KineticText>
-            </span>
-          </h1>
-
-          <RevealText delay={0.9} className="text-foreground/90 text-lg md:text-xl max-w-2xl mb-10 drop-shadow-lg">
-            Curated excellence. Every vehicle in our collection has been selected for those who
-            refuse to compromise.
-          </RevealText>
-
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 1.2 }}
-            className="flex flex-col sm:flex-row items-center gap-4"
-          >
-            <Link to="/inventory">
-              <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90 group shadow-xl">
-                Explore Inventory
-                <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </Link>
-            <Link to="/sell-your-car">
-              <Button size="lg" variant="outline" className="border-primary/50 text-foreground hover:bg-secondary/80 backdrop-blur-sm">
-                Sell Your Car
-              </Button>
-            </Link>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 2 }}
-            className="absolute bottom-10 left-1/2 -translate-x-1/2"
-          >
-            <motion.div
-              animate={{ y: [0, 10, 0] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="flex flex-col items-center gap-2 text-foreground/80"
-            >
-              <span className="text-xs uppercase tracking-widest drop-shadow-lg">Scroll to Explore</span>
-              <ChevronDown className="w-5 h-5" />
-            </motion.div>
-          </motion.div>
-        </div>
+        </motion.div>
       </section>
 
       {/* Content Reveal Section */}
@@ -190,6 +141,58 @@ const Index = () => {
         ref={contentRef}
         style={{ y: contentY, opacity: contentOpacity }}
       >
+        {/* Hero Text Section - Reveals on Scroll */}
+        <motion.section 
+          className="py-24 md:py-32 text-center"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-50px" }}
+        >
+          <div className="container mx-auto px-6">
+            <motion.span 
+              variants={itemVariants}
+              className="text-primary text-sm font-semibold uppercase tracking-[0.3em] mb-6 block"
+            >
+              CAR FINANCING LIKE YOU WANT IT
+            </motion.span>
+
+            <motion.h1 
+              variants={itemVariants}
+              className="font-display text-5xl md:text-7xl lg:text-8xl font-bold mb-6 max-w-5xl mx-auto"
+            >
+              <span>Drive Your</span>
+              <br />
+              <span className="gradient-text">Aspirations</span>
+            </motion.h1>
+
+            <motion.p 
+              variants={itemVariants}
+              className="text-muted-foreground text-lg md:text-xl max-w-2xl mx-auto mb-10"
+            >
+              Curated excellence. Every vehicle in our collection has been selected for those who
+              refuse to compromise.
+            </motion.p>
+
+            <motion.div
+              variants={itemVariants}
+              className="flex flex-col sm:flex-row items-center justify-center gap-4"
+            >
+              <Link to="/inventory">
+                <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90 group shadow-xl">
+                  Explore Inventory
+                  <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
+              <Link to="/sell-your-car">
+                <Button size="lg" variant="outline" className="border-primary/50 text-foreground hover:bg-secondary/80">
+                  Sell Your Car
+                </Button>
+              </Link>
+            </motion.div>
+          </div>
+        </motion.section>
+
         <ParallaxCar />
 
         {/* Stats Section */}
