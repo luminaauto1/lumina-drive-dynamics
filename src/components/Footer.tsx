@@ -1,8 +1,15 @@
 import { Link } from 'react-router-dom';
 import { Instagram, Facebook, Youtube, Mail, Phone, MapPin } from 'lucide-react';
+import { useSiteSettings } from '@/hooks/useSiteSettings';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
+  const { data: settings } = useSiteSettings();
+
+  const contactPhone = settings?.contact_phone || '+27 68 601 7462';
+  const contactEmail = settings?.contact_email || 'lumina.auto1@gmail.com';
+  const facebookUrl = settings?.facebook_url || 'https://www.facebook.com/profile.php?id=61573796805868';
+  const instagramUrl = settings?.instagram_url || 'https://www.instagram.com/lumina.auto/';
 
   return (
     <footer className="bg-card border-t border-border">
@@ -23,7 +30,7 @@ const Footer = () => {
             </p>
             <div className="flex items-center gap-4">
               <a
-                href="https://www.instagram.com/lumina.auto/"
+                href={instagramUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
@@ -31,7 +38,7 @@ const Footer = () => {
                 <Instagram className="w-5 h-5" />
               </a>
               <a
-                href="https://www.facebook.com/profile.php?id=61573796805868"
+                href={facebookUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
@@ -87,19 +94,19 @@ const Footer = () => {
               <li className="flex items-center gap-3">
                 <Phone className="w-5 h-5 text-primary" />
                 <a
-                  href="tel:+27686017462"
+                  href={`tel:${contactPhone.replace(/\s/g, '')}`}
                   className="text-muted-foreground hover:text-primary transition-colors text-sm"
                 >
-                  +27 68 601 7462
+                  {contactPhone}
                 </a>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="w-5 h-5 text-primary" />
                 <a
-                  href="mailto:lumina.auto1@gmail.com"
+                  href={`mailto:${contactEmail}`}
                   className="text-muted-foreground hover:text-primary transition-colors text-sm"
                 >
-                  lumina.auto1@gmail.com
+                  {contactEmail}
                 </a>
               </li>
             </ul>
