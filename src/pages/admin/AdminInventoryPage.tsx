@@ -21,6 +21,8 @@ import { useVehicles, useCreateVehicle, useUpdateVehicle, useDeleteVehicle, form
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+const BODY_TYPE_OPTIONS = ['Hatchback', 'Sedan', 'SUV', 'Coupe', 'Convertible', 'Bakkie/Pickup', 'MPV'] as const;
+
 const vehicleSchema = z.object({
   make: z.string().min(1, 'Make is required'),
   model: z.string().min(1, 'Model is required'),
@@ -38,6 +40,7 @@ const vehicleSchema = z.object({
   engine_code: z.string().optional(),
   service_history: z.string().optional(),
   youtube_url: z.string().optional(),
+  body_type: z.string().optional(),
 });
 
 type VehicleFormData = z.infer<typeof vehicleSchema>;
@@ -74,6 +77,7 @@ const AdminInventoryPage = () => {
       engine_code: '',
       service_history: '',
       youtube_url: '',
+      body_type: '',
     },
   });
 
@@ -105,6 +109,7 @@ const AdminInventoryPage = () => {
       engine_code: '',
       service_history: '',
       youtube_url: '',
+      body_type: '',
     });
     setImages([]);
     setIsSheetOpen(true);
@@ -129,6 +134,7 @@ const AdminInventoryPage = () => {
       engine_code: vehicle.engine_code || '',
       service_history: vehicle.service_history || '',
       youtube_url: vehicle.youtube_url || '',
+      body_type: (vehicle as any).body_type || '',
     });
     setImages(vehicle.images || []);
     setIsSheetOpen(true);
@@ -183,7 +189,7 @@ const AdminInventoryPage = () => {
   };
 
   const onSubmit = async (data: VehicleFormData) => {
-    const vehicleData: VehicleInsert = {
+    const vehicleData: any = {
       make: data.make,
       model: data.model,
       variant: data.variant || null,
@@ -201,6 +207,7 @@ const AdminInventoryPage = () => {
       service_history: data.service_history || null,
       youtube_url: data.youtube_url || null,
       images,
+      body_type: data.body_type || null,
     };
 
     if (editingVehicle) {
@@ -549,6 +556,32 @@ const AdminInventoryPage = () => {
                     )}
                   />
                 </div>
+
+                {/* Body Type Dropdown */}
+                <FormField
+                  control={form.control}
+                  name="body_type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Body Type</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select body type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {BODY_TYPE_OPTIONS.map((type) => (
+                            <SelectItem key={type} value={type}>
+                              {type}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
               {/* Pricing */}
