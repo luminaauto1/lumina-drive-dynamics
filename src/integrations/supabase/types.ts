@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      application_matches: {
+        Row: {
+          application_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          vehicle_id: string
+        }
+        Insert: {
+          application_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          vehicle_id: string
+        }
+        Update: {
+          application_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "application_matches_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "finance_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "application_matches_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       finance_applications: {
         Row: {
           account_number: string | null

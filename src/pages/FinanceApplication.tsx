@@ -212,7 +212,7 @@ const FinanceApplication = () => {
             </div>
             <h1 className="text-4xl font-bold mb-4">Application Received!</h1>
             <p className="text-xl text-muted-foreground mb-8">
-              We will process your pre-approval and contact you shortly.
+              We are analyzing your profile and will confirm your budget shortly. Check your dashboard for updates.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button 
@@ -247,11 +247,14 @@ const FinanceApplication = () => {
               How Our Finance Process Works
             </DialogTitle>
             <DialogDescription className="text-left pt-4 space-y-3">
-              <p className="text-foreground">We value your privacy. This application checks your pre-approval status only.</p>
-              <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
-                <li>Submit this form (No docs needed yet)</li>
-                <li>We verify your budget</li>
-                <li>We match you with vehicles you definitely qualify for</li>
+              <p className="text-foreground font-medium">We secure your verified budget first.</p>
+              <p className="text-muted-foreground">
+                Once your buying power is confirmed, we unlock exclusive vehicle options matched to your profile.
+              </p>
+              <ol className="list-decimal list-inside space-y-2 text-muted-foreground mt-4">
+                <li>Submit this form (No documents needed yet)</li>
+                <li>We analyze and verify your budget</li>
+                <li>View your curated vehicle options in your dashboard</li>
               </ol>
             </DialogDescription>
           </DialogHeader>

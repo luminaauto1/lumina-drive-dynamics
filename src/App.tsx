@@ -26,6 +26,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminInventoryPage from "./pages/admin/AdminInventoryPage";
 import AdminLeads from "./pages/admin/AdminLeads";
 import AdminFinance from "./pages/admin/AdminFinance";
+import AdminDealRoom from "./pages/admin/AdminDealRoom";
 import AdminSettings from "./pages/admin/AdminSettings";
 import NotFound from "./pages/NotFound";
 
@@ -58,6 +59,7 @@ const AppLayout = () => {
           <Route path="/admin/inventory" element={<AdminInventoryPage />} />
           <Route path="/admin/leads" element={<AdminLeads />} />
           <Route path="/admin/finance" element={<AdminFinance />} />
+          <Route path="/admin/finance/:id" element={<AdminDealRoom />} />
           <Route path="/admin/settings" element={<AdminSettings />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
