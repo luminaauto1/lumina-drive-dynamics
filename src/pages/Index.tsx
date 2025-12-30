@@ -6,7 +6,7 @@ import { Helmet } from 'react-helmet-async';
 import { Button } from '@/components/ui/button';
 import KineticText from '@/components/KineticText';
 import GolfGTIAnimation from '@/components/GolfGTIAnimation';
-import InstagramFeed from '@/components/InstagramFeed';
+import FacebookFeed from '@/components/FacebookFeed';
 import VehicleCard from '@/components/VehicleCard';
 import SkeletonCard from '@/components/SkeletonCard';
 import { useVehicles } from '@/hooks/useVehicles';
@@ -359,8 +359,8 @@ const Index = () => {
           </div>
         </motion.section>
 
-        {/* Instagram Feed Section */}
-        <InstagramFeed />
+        {/* Facebook Feed Section */}
+        <FacebookFeed />
       </motion.div>
     </>
   );
