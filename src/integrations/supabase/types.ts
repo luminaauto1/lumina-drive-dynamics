@@ -14,16 +14,235 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      finance_applications: {
+        Row: {
+          created_at: string
+          deposit_amount: number | null
+          email: string
+          employer_name: string | null
+          employment_status: string | null
+          full_name: string
+          id: string
+          id_number: string | null
+          loan_term_months: number | null
+          monthly_income: number | null
+          notes: string | null
+          phone: string
+          status: string
+          updated_at: string
+          user_id: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          deposit_amount?: number | null
+          email: string
+          employer_name?: string | null
+          employment_status?: string | null
+          full_name: string
+          id?: string
+          id_number?: string | null
+          loan_term_months?: number | null
+          monthly_income?: number | null
+          notes?: string | null
+          phone: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          deposit_amount?: number | null
+          email?: string
+          employer_name?: string | null
+          employment_status?: string | null
+          full_name?: string
+          id?: string
+          id_number?: string | null
+          loan_term_months?: number | null
+          monthly_income?: number | null
+          notes?: string | null
+          phone?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_applications_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      vehicles: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          engine_code: string | null
+          finance_available: boolean | null
+          fuel_type: string
+          id: string
+          images: string[] | null
+          make: string
+          mileage: number
+          model: string
+          price: number
+          service_history: string | null
+          status: string
+          transmission: string
+          updated_at: string
+          variant: string | null
+          vin: string | null
+          year: number
+          youtube_url: string | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          engine_code?: string | null
+          finance_available?: boolean | null
+          fuel_type: string
+          id?: string
+          images?: string[] | null
+          make: string
+          mileage: number
+          model: string
+          price: number
+          service_history?: string | null
+          status?: string
+          transmission: string
+          updated_at?: string
+          variant?: string | null
+          vin?: string | null
+          year: number
+          youtube_url?: string | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          engine_code?: string | null
+          finance_available?: boolean | null
+          fuel_type?: string
+          id?: string
+          images?: string[] | null
+          make?: string
+          mileage?: number
+          model?: string
+          price?: number
+          service_history?: string | null
+          status?: string
+          transmission?: string
+          updated_at?: string
+          variant?: string | null
+          vin?: string | null
+          year?: number
+          youtube_url?: string | null
+        }
+        Relationships: []
+      }
+      wishlists: {
+        Row: {
+          created_at: string
+          id: string
+          user_id: string
+          vehicle_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user_id: string
+          vehicle_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user_id?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wishlists_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +369,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const

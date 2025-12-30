@@ -144,9 +144,15 @@ const FinanceCalculator = ({ vehiclePrice }: FinanceCalculatorProps) => {
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-muted-foreground mb-4">
         *Estimate only. Subject to credit approval. Terms and conditions apply.
       </p>
+
+      <a href="/finance-application" className="block">
+        <button className="w-full py-3 rounded-lg bg-accent text-accent-foreground font-semibold hover:bg-accent/90 transition-colors">
+          Check My Buying Power
+        </button>
+      </a>
     </div>
   );
 };

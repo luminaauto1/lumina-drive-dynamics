@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { Instagram, Facebook, Youtube, Mail, Phone, MapPin } from 'lucide-react';
 
 const Footer = () => {
@@ -12,36 +11,37 @@ const Footer = () => {
           {/* Brand */}
           <div className="space-y-6">
             <Link to="/" className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-gold flex items-center justify-center">
-                <span className="font-display font-bold text-background text-lg">L</span>
+              <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center">
+                <span className="font-display font-bold text-accent-foreground text-lg">L</span>
               </div>
               <span className="font-display text-xl font-semibold tracking-wide">
                 LUMINA<span className="text-primary"> AUTO</span>
               </span>
             </Link>
             <p className="text-muted-foreground text-sm leading-relaxed">
-              Premium pre-owned vehicles curated for the discerning driver. 
-              Every car tells a story of excellence.
+              Premium pre-owned vehicles curated for the discerning driver. Every car tells a story
+              of excellence.
             </p>
             <div className="flex items-center gap-4">
               <a
-                href="#"
+                href="https://www.instagram.com/lumina.auto/"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
-                data-cursor-hover
               >
                 <Instagram className="w-5 h-5" />
               </a>
               <a
-                href="#"
+                href="https://www.facebook.com/profile.php?id=61573796805868"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
-                data-cursor-hover
               >
                 <Facebook className="w-5 h-5" />
               </a>
               <a
                 href="#"
                 className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
-                data-cursor-hover
               >
                 <Youtube className="w-5 h-5" />
               </a>
@@ -52,14 +52,18 @@ const Footer = () => {
           <div>
             <h4 className="font-display text-lg font-semibold mb-6">Explore</h4>
             <ul className="space-y-3">
-              {['Inventory', 'Sell Your Car', 'Finance Options', 'About Us', 'Contact'].map((link) => (
-                <li key={link}>
+              {[
+                { label: 'Inventory', path: '/inventory' },
+                { label: 'Sell Your Car', path: '/sell-your-car' },
+                { label: 'About Us', path: '/about' },
+                { label: 'Contact', path: '/contact' },
+              ].map((link) => (
+                <li key={link.label}>
                   <Link
-                    to={`/${link.toLowerCase().replace(/\s+/g, '-')}`}
+                    to={link.path}
                     className="text-muted-foreground hover:text-primary transition-colors text-sm"
-                    data-cursor-hover
                   >
-                    {link}
+                    {link.label}
                   </Link>
                 </li>
               ))}
@@ -73,19 +77,20 @@ const Footer = () => {
               <li className="flex items-start gap-3">
                 <MapPin className="w-5 h-5 text-primary mt-0.5" />
                 <span className="text-muted-foreground text-sm">
-                  123 Automotive Drive<br />
-                  Sandton, Johannesburg<br />
+                  123 Automotive Drive
+                  <br />
+                  Sandton, Johannesburg
+                  <br />
                   South Africa
                 </span>
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="w-5 h-5 text-primary" />
                 <a
-                  href="tel:+27110001234"
+                  href="tel:+27686017462"
                   className="text-muted-foreground hover:text-primary transition-colors text-sm"
-                  data-cursor-hover
                 >
-                  +27 11 000 1234
+                  +27 68 601 7462
                 </a>
               </li>
               <li className="flex items-center gap-3">
@@ -93,7 +98,6 @@ const Footer = () => {
                 <a
                   href="mailto:hello@luminaauto.co.za"
                   className="text-muted-foreground hover:text-primary transition-colors text-sm"
-                  data-cursor-hover
                 >
                   hello@luminaauto.co.za
                 </a>
@@ -127,10 +131,10 @@ const Footer = () => {
             © {currentYear} Lumina Auto. All rights reserved.
           </p>
           <div className="flex items-center gap-6 text-sm text-muted-foreground">
-            <Link to="/privacy" className="hover:text-primary transition-colors" data-cursor-hover>
+            <Link to="/privacy" className="hover:text-primary transition-colors">
               Privacy Policy
             </Link>
-            <Link to="/terms" className="hover:text-primary transition-colors" data-cursor-hover>
+            <Link to="/terms" className="hover:text-primary transition-colors">
               Terms of Service
             </Link>
           </div>
