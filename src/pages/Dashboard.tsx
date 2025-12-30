@@ -20,7 +20,7 @@ import { USER_STATUS_LABELS, STATUS_STYLES } from '@/lib/statusConfig';
 import { toast } from 'sonner';
 
 const Dashboard = () => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, loading } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState({ full_name: '', email: '', phone: '' });
   const [wishlistIds, setWishlistIds] = useState<string[]>([]);
@@ -34,6 +34,9 @@ const Dashboard = () => {
   const hasApprovedApplication = applications.some(app => app.status === 'approved');
 
   useEffect(() => {
+    // Don't redirect while loading - wait for auth state to resolve
+    if (loading) return;
+    
     if (!user) {
       navigate('/auth');
       return;
@@ -42,7 +45,7 @@ const Dashboard = () => {
     fetchProfile();
     fetchWishlist();
     fetchApplications();
-  }, [user, navigate]);
+  }, [user, navigate, loading]);
 
   const fetchProfile = async () => {
     if (!user) return;
@@ -122,7 +125,7 @@ const Dashboard = () => {
     .filter((m: any) => m.vehicles)
     .map((m: any) => m.vehicles);
 
-  if (!user) return null;
+  if (loading || !user) return null;
 
   return (
     <>

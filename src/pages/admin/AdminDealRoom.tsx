@@ -21,6 +21,7 @@ import { useVehicles, formatPrice } from '@/hooks/useVehicles';
 import { useUpdateFinanceApplication, FinanceApplication } from '@/hooks/useFinanceApplications';
 import { useApplicationMatches, useAddApplicationMatch, useRemoveApplicationMatch } from '@/hooks/useApplicationMatches';
 import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, getWhatsAppMessage } from '@/lib/statusConfig';
+import { toast } from 'sonner';
 
 const AdminDealRoom = () => {
   const { id } = useParams<{ id: string }>();
@@ -405,12 +406,37 @@ const AdminDealRoom = () => {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="flex items-center gap-2 font-semibold">
                     <Car className="w-4 h-4 text-primary" />
-                    Suggested Vehicles
+                    Curated Vehicles
                   </h3>
-                  <Button size="sm" onClick={() => setVehicleModalOpen(true)}>
-                    <Plus className="w-4 h-4 mr-1" />
-                    Add
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => {
+                        // Auto-match: Add top 3 available vehicles within budget
+                        const budget = application.net_salary ? application.net_salary * 0.3 * 72 : 500000;
+                        const matchedVehicles = vehicles
+                          .filter(v => v.status === 'available' && v.price <= budget && !matches.some((m: any) => m.vehicle_id === v.id))
+                          .slice(0, 3);
+                        
+                        if (matchedVehicles.length === 0) {
+                          toast.error('No vehicles found within estimated budget');
+                          return;
+                        }
+                        
+                        matchedVehicles.forEach(v => {
+                          addMatch.mutateAsync({ applicationId: application.id, vehicleId: v.id });
+                        });
+                      }}
+                      className="text-primary border-primary/30 hover:bg-primary/10"
+                    >
+                      ⚡ Auto-Match
+                    </Button>
+                    <Button size="sm" onClick={() => setVehicleModalOpen(true)}>
+                      <Plus className="w-4 h-4 mr-1" />
+                      Add
+                    </Button>
+                  </div>
                 </div>
 
                 {matchesLoading ? (

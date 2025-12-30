@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import { Search, CheckCircle, Truck, Send, ArrowRight, CreditCard, Wallet, Lock, Unlock } from 'lucide-react';
@@ -13,13 +13,19 @@ import { useToast } from '@/components/ui/use-toast';
 import KineticText from '@/components/KineticText';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { useAuth } from '@/contexts/AuthContext';
-
+import { useVehicles, formatPrice } from '@/hooks/useVehicles';
 const Sourcing = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data: settings } = useSiteSettings();
+  const { data: allVehicles = [] } = useVehicles();
   const whatsappNumber = settings?.whatsapp_number || '27686017462';
+
+  // Filter for generic/sourcing example vehicles only
+  const sourcingExamples = useMemo(() => {
+    return allVehicles.filter(v => v.is_generic_listing === true);
+  }, [allVehicles]);
 
   const [paymentMethod, setPaymentMethod] = useState<'finance' | 'cash' | null>(null);
   const [budgetRange, setBudgetRange] = useState([300000]);
@@ -486,6 +492,72 @@ const Sourcing = () => {
           </div>
         </motion.section>
 
+        {/* Sourcing Examples Grid */}
+        {sourcingExamples.length > 0 && (
+          <motion.section
+            variants={containerVariants}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            className="py-16 bg-muted/30"
+          >
+            <div className="container mx-auto px-6">
+              <motion.div variants={itemVariants} className="text-center mb-12">
+                <span className="text-primary text-sm font-semibold uppercase tracking-widest mb-4 block">
+                  Past Sourcing Wins
+                </span>
+                <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">
+                  Examples of What We Source
+                </h2>
+                <p className="text-muted-foreground max-w-2xl mx-auto">
+                  Here are some examples of vehicles we've successfully sourced for clients. We can find something similar for you.
+                </p>
+              </motion.div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {sourcingExamples.map((vehicle) => (
+                  <motion.div
+                    key={vehicle.id}
+                    variants={itemVariants}
+                    className="group relative overflow-hidden rounded-xl bg-card border border-border hover:border-primary/50 transition-all duration-300"
+                  >
+                    {/* Vehicle Image */}
+                    <div className="aspect-[16/10] overflow-hidden bg-muted">
+                      {vehicle.images?.[0] ? (
+                        <img
+                          src={vehicle.images[0]}
+                          alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Search className="w-12 h-12 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Vehicle Info */}
+                    <div className="p-4 space-y-2">
+                      <h3 className="font-semibold text-lg">
+                        {vehicle.year} {vehicle.make} {vehicle.model}
+                      </h3>
+                      {vehicle.variant && (
+                        <p className="text-sm text-muted-foreground">{vehicle.variant}</p>
+                      )}
+                      <div className="flex items-center justify-between pt-2">
+                        <span className="text-primary font-bold">{formatPrice(vehicle.price)}</span>
+                        <span className="text-xs text-muted-foreground bg-primary/10 px-2 py-1 rounded">
+                          Sourced
+                        </span>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </motion.section>
+        )}
+
         {/* CTA */}
         <motion.section
           variants={containerVariants}
@@ -506,10 +578,10 @@ const Sourcing = () => {
                 Check out our hand-picked selection of premium vehicles available for immediate purchase.
               </p>
               <Button asChild size="lg" variant="outline">
-                <a href="/inventory">
+                <Link to="/inventory">
                   View Inventory
                   <ArrowRight className="w-4 h-4 ml-2" />
-                </a>
+                </Link>
               </Button>
             </motion.div>
           </div>
