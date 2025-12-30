@@ -99,7 +99,7 @@ const Index = () => {
       </Helmet>
 
       {/* Fullscreen Hero Video Section - Standalone */}
-      <section ref={heroRef} className="relative h-[60vh] md:h-screen overflow-hidden">
+      <section ref={heroRef} className="relative h-[42vh] sm:h-[50vh] md:h-screen overflow-hidden">
         <motion.div
           style={{ opacity: heroOpacity, scale: heroScale }}
           className="absolute inset-0 overflow-hidden"
@@ -110,7 +110,7 @@ const Index = () => {
             muted
             loop
             playsInline
-            className="w-full h-full object-cover object-center"
+            className="w-full h-full object-contain md:object-cover object-center"
           >
             <source src="/videos/hero-drift.mp4" type="video/mp4" />
           </video>
