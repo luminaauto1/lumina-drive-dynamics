@@ -57,6 +57,7 @@ export type Database = {
         Row: {
           account_number: string | null
           account_type: string | null
+          approved_budget: number | null
           area_code: string | null
           bank_name: string | null
           buyer_type: string | null
@@ -87,6 +88,7 @@ export type Database = {
           popia_consent: boolean | null
           preferred_vehicle_text: string | null
           qualification: string | null
+          selected_vehicle_id: string | null
           source_of_funds: string | null
           status: string
           street_address: string | null
@@ -97,6 +99,7 @@ export type Database = {
         Insert: {
           account_number?: string | null
           account_type?: string | null
+          approved_budget?: number | null
           area_code?: string | null
           bank_name?: string | null
           buyer_type?: string | null
@@ -127,6 +130,7 @@ export type Database = {
           popia_consent?: boolean | null
           preferred_vehicle_text?: string | null
           qualification?: string | null
+          selected_vehicle_id?: string | null
           source_of_funds?: string | null
           status?: string
           street_address?: string | null
@@ -137,6 +141,7 @@ export type Database = {
         Update: {
           account_number?: string | null
           account_type?: string | null
+          approved_budget?: number | null
           area_code?: string | null
           bank_name?: string | null
           buyer_type?: string | null
@@ -167,6 +172,7 @@ export type Database = {
           popia_consent?: boolean | null
           preferred_vehicle_text?: string | null
           qualification?: string | null
+          selected_vehicle_id?: string | null
           source_of_funds?: string | null
           status?: string
           street_address?: string | null
@@ -175,6 +181,13 @@ export type Database = {
           vehicle_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "finance_applications_selected_vehicle_id_fkey"
+            columns: ["selected_vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "finance_applications_vehicle_id_fkey"
             columns: ["vehicle_id"]
