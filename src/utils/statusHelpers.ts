@@ -10,6 +10,7 @@ export const getClientStatusLabel = (status: string): string => {
     pending: 'Application Received',
     validations_pending: 'Validation Documents Pending',
     approved: 'Budget Confirmed',
+    vehicle_selected: 'Vehicle Reserved',
     declined: 'Application Unsuccessful',
   };
   
@@ -24,6 +25,7 @@ export const getClientStatusDescription = (status: string): string => {
     pending: 'Application Received - Analyzing Profile',
     validations_pending: 'Validation Documents Required',
     approved: 'Budget Confirmed - Preparing Vehicle Options',
+    vehicle_selected: 'Vehicle Reserved - Preparing Contract',
     declined: 'Application Unsuccessful',
   };
   
@@ -38,6 +40,7 @@ export const getStatusBadgeStyle = (status: string): string => {
     pending: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
     validations_pending: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
     approved: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+    vehicle_selected: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
     declined: 'bg-red-500/20 text-red-400 border-red-500/30',
   };
   

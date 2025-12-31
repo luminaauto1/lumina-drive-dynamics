@@ -26,12 +26,18 @@ const Dashboard = () => {
   const [wishlistIds, setWishlistIds] = useState<string[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isSelectingVehicle, setIsSelectingVehicle] = useState(false);
 
   const { data: vehicles = [], isLoading: vehiclesLoading } = useVehicles();
-  const { data: matchedVehicles = [], isLoading: matchesLoading } = useUserApplicationMatches(user?.id || '');
+  const { data: matchedVehicles = [], isLoading: matchesLoading, refetch: refetchMatches } = useUserApplicationMatches(user?.id || '');
 
   // Check if user has an approved application
-  const hasApprovedApplication = applications.some(app => app.status === 'approved');
+  const approvedApplication = applications.find(app => app.status === 'approved');
+  const hasApprovedApplication = !!approvedApplication;
+  
+  // Check if user has already selected a vehicle
+  const vehicleSelectedApplication = applications.find(app => app.status === 'vehicle_selected');
+  const hasSelectedVehicle = !!vehicleSelectedApplication;
 
   useEffect(() => {
     // Don't redirect while loading - wait for auth state to resolve
@@ -115,6 +121,29 @@ const Dashboard = () => {
     navigate('/');
   };
 
+  const handleSelectVehicle = async (vehicleId: string) => {
+    if (!approvedApplication) return;
+    
+    setIsSelectingVehicle(true);
+    const { error } = await supabase
+      .from('finance_applications')
+      .update({ 
+        selected_vehicle_id: vehicleId,
+        status: 'vehicle_selected'
+      })
+      .eq('id', approvedApplication.id);
+
+    if (error) {
+      toast.error('Failed to select vehicle. Please try again.');
+      console.error('Selection error:', error);
+    } else {
+      toast.success('Vehicle reserved! We are preparing your contract.');
+      // Refresh applications to show updated status
+      fetchApplications();
+    }
+    setIsSelectingVehicle(false);
+  };
+
   // Get wishlist vehicles from database
   const wishlistVehicles = vehicles.filter((v) =>
     wishlistIds.includes(v.id)
@@ -124,6 +153,11 @@ const Dashboard = () => {
   const curatedVehicles = matchedVehicles
     .filter((m: any) => m.vehicles)
     .map((m: any) => m.vehicles);
+  
+  // Get the selected vehicle details if any
+  const selectedVehicle = vehicleSelectedApplication?.selected_vehicle_id 
+    ? vehicles.find(v => v.id === vehicleSelectedApplication.selected_vehicle_id)
+    : null;
 
   if (loading || !user) return null;
 
@@ -150,8 +184,57 @@ const Dashboard = () => {
             </Button>
           </div>
 
-          {/* Curated Vehicles Section - Show when user has approved application and matched vehicles */}
-          {hasApprovedApplication && curatedVehicles.length > 0 && (
+          {/* Vehicle Reserved Section - Show when user has selected a vehicle */}
+          {hasSelectedVehicle && selectedVehicle && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-12"
+            >
+              <div className="glass-card rounded-xl p-6 border-2 border-purple-500/40 bg-gradient-to-br from-purple-500/10 to-purple-600/5">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/20">
+                    <Car className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <span className="inline-block px-3 py-1 mb-1 text-xs font-bold uppercase tracking-wider bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-full">
+                      Vehicle Reserved
+                    </span>
+                    <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-purple-200 bg-clip-text text-transparent">
+                      Preparing Your Contract
+                    </h2>
+                  </div>
+                </div>
+
+                <div className="bg-background/50 rounded-lg p-4 flex items-center gap-4">
+                  {selectedVehicle.images?.[0] && (
+                    <img 
+                      src={selectedVehicle.images[0]} 
+                      alt={`${selectedVehicle.make} ${selectedVehicle.model}`}
+                      className="w-24 h-16 rounded object-cover"
+                    />
+                  )}
+                  <div>
+                    <p className="font-semibold text-lg">
+                      {selectedVehicle.year} {selectedVehicle.make} {selectedVehicle.model}
+                    </p>
+                    <p className="text-muted-foreground">{selectedVehicle.variant}</p>
+                  </div>
+                </div>
+
+                <Alert className="mt-4 bg-purple-500/10 border-purple-500/30">
+                  <Car className="h-4 w-4 text-purple-400" />
+                  <AlertTitle className="text-purple-400">Next Steps</AlertTitle>
+                  <AlertDescription>
+                    Our team is preparing your contract and will contact you shortly via WhatsApp to finalize the deal.
+                  </AlertDescription>
+                </Alert>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Curated Vehicles Section - Show when user has approved application but hasn't selected yet */}
+          {hasApprovedApplication && !hasSelectedVehicle && curatedVehicles.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -164,7 +247,7 @@ const Dashboard = () => {
                   </div>
                   <div>
                     <span className="inline-block px-3 py-1 mb-1 text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-full">
-                      Budget Confirmed - Viewing Options
+                      Budget Confirmed - Select Your Vehicle
                     </span>
                     <h2 className="text-2xl font-bold bg-gradient-to-r from-amber-400 to-amber-200 bg-clip-text text-transparent">
                       Exclusively Selected For You
@@ -179,7 +262,16 @@ const Dashboard = () => {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {curatedVehicles.map((vehicle: any) => (
-                      <VehicleCard key={vehicle.id} vehicle={vehicle} />
+                      <div key={vehicle.id} className="relative">
+                        <VehicleCard vehicle={vehicle} />
+                        <Button
+                          onClick={() => handleSelectVehicle(vehicle.id)}
+                          disabled={isSelectingVehicle}
+                          className="w-full mt-2 bg-primary hover:bg-primary/90"
+                        >
+                          {isSelectingVehicle ? 'Selecting...' : 'Select This Car'}
+                        </Button>
+                      </div>
                     ))}
                   </div>
                 )}
