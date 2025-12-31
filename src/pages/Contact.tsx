@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import KineticText from '@/components/KineticText';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const Contact = () => {
@@ -26,13 +27,54 @@ const Contact = () => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate form submission
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      // Send email via edge function
+      const { error } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: ['lumina.auto1@gmail.com'],
+          subject: `New Contact Enquiry from ${formData.name}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <h1 style="color: #1a1a1a; border-bottom: 2px solid #d4af37; padding-bottom: 10px;">New Contact Enquiry</h1>
+              
+              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <p style="margin: 0 0 10px 0;"><strong>Name:</strong> ${formData.name}</p>
+                <p style="margin: 0 0 10px 0;"><strong>Email:</strong> ${formData.email}</p>
+                <p style="margin: 0 0 10px 0;"><strong>Phone:</strong> ${formData.phone || 'Not provided'}</p>
+                <p style="margin: 0 0 10px 0;"><strong>Buyer Type:</strong> ${isCashBuyer ? 'Cash Buyer' : 'Finance Buyer'}</p>
+                ${!isCashBuyer ? `
+                  <p style="margin: 0 0 10px 0;"><strong>Employer:</strong> ${formData.employer || 'Not provided'}</p>
+                  <p style="margin: 0 0 10px 0;"><strong>Monthly Salary:</strong> R${formData.salary || 'Not provided'}</p>
+                ` : ''}
+              </div>
+              
+              <div style="background: #fff; border: 1px solid #eee; padding: 20px; border-radius: 8px;">
+                <h3 style="margin: 0 0 10px 0; color: #333;">Message:</h3>
+                <p style="margin: 0; color: #666; white-space: pre-wrap;">${formData.message}</p>
+              </div>
+              
+              <p style="color: #999; font-size: 12px; margin-top: 30px;">
+                This enquiry was submitted via the Lumina Auto website.
+              </p>
+            </div>
+          `,
+        },
+      });
 
-    toast.success('Message sent successfully! We will get back to you soon.');
-    setFormData({ name: '', email: '', phone: '', employer: '', salary: '', message: '' });
-    setIsCashBuyer(false);
-    setIsSubmitting(false);
+      if (error) {
+        console.error('Email send error:', error);
+        toast.error('Failed to send message. Please try again.');
+      } else {
+        toast.success('Message sent successfully! We will get back to you soon.');
+        setFormData({ name: '', email: '', phone: '', employer: '', salary: '', message: '' });
+        setIsCashBuyer(false);
+      }
+    } catch (error) {
+      console.error('Contact form error:', error);
+      toast.error('An error occurred. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const contactInfo = [
