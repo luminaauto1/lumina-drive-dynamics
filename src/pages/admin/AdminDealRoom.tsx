@@ -414,13 +414,13 @@ const AdminDealRoom = () => {
                 </h3>
               </div>
 
-              {/* Approved Finance Amount Input */}
+              {/* Max Monthly Installment Input */}
               <div className="mb-4">
-                <Label className="text-sm text-muted-foreground mb-2 block">Approved Finance Amount (R)</Label>
+                <Label className="text-sm text-muted-foreground mb-2 block">Max Monthly Installment (R/pm)</Label>
                 <div className="flex gap-2">
                   <Input
                     type="number"
-                    placeholder="e.g., 250000"
+                    placeholder="e.g., 5000"
                     value={approvedBudget}
                     onChange={(e) => setApprovedBudget(e.target.value)}
                     className="text-lg font-semibold"
@@ -434,12 +434,17 @@ const AdminDealRoom = () => {
                         id: application.id, 
                         updates: { approved_budget: parseFloat(approvedBudget) } as any
                       });
-                      toast.success('Budget saved');
+                      toast.success('Monthly budget saved');
                     }}
                   >
                     Save
                   </Button>
                 </div>
+                {approvedBudget && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    ≈ R{Math.round((parseFloat(approvedBudget) * (1 - Math.pow(1 + (0.1375 / 12), -72))) / (0.1375 / 12)).toLocaleString()} buying power
+                  </p>
+                )}
               </div>
 
               <Separator className="my-4" />
@@ -452,21 +457,36 @@ const AdminDealRoom = () => {
                     size="sm" 
                     variant="outline"
                     onClick={() => {
-                      // Auto-match: Add top 3 available vehicles within budget
-                      const budget = approvedBudget ? parseFloat(approvedBudget) : (application.net_salary ? application.net_salary * 0.3 * 72 : 500000);
+                      // Finance calculation constants
+                      const RATE = 0.1375; // 13.75% Interest
+                      const MONTHS = 72;   // Standard Term
+                      const MONTHLY_RATE = RATE / 12;
+                      
+                      // Get monthly budget - fallback to 30% of net salary if not set
+                      const monthlyBudget = approvedBudget 
+                        ? parseFloat(approvedBudget) 
+                        : (application.net_salary ? application.net_salary * 0.3 : 5000);
+                      
+                      // Formula: PV = PMT * (1 - (1 + r)^-n) / r
+                      const maxPrice = (monthlyBudget * (1 - Math.pow(1 + MONTHLY_RATE, -MONTHS))) / MONTHLY_RATE;
+                      
+                      console.log(`User Budget: R${monthlyBudget}/pm -> Buying Power: R${Math.round(maxPrice)}`);
+                      
+                      // Filter and sort by price descending (best value first)
                       const matchedVehicles = vehicles
-                        .filter(v => v.status === 'available' && v.price <= budget && !matches.some((m: any) => m.vehicle_id === v.id))
+                        .filter(v => v.status === 'available' && v.price <= maxPrice && !matches.some((m: any) => m.vehicle_id === v.id))
+                        .sort((a, b) => b.price - a.price)
                         .slice(0, 3);
                       
                       if (matchedVehicles.length === 0) {
-                        toast.error('No vehicles found within budget');
+                        toast.error(`No vehicles found under R${monthlyBudget.toLocaleString()}/pm`);
                         return;
                       }
                       
                       matchedVehicles.forEach(v => {
                         addMatch.mutateAsync({ applicationId: application.id, vehicleId: v.id });
                       });
-                      toast.success(`Auto-matched ${matchedVehicles.length} vehicles`);
+                      toast.success(`Found ${matchedVehicles.length} vehicles under R${monthlyBudget.toLocaleString()}/pm (≈ R${Math.round(maxPrice).toLocaleString()} cash)`);
                     }}
                     className="text-primary border-primary/30 hover:bg-primary/10"
                   >
