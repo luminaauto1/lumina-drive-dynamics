@@ -33,6 +33,7 @@ const AdminDealRoom = () => {
   const [declineReason, setDeclineReason] = useState('');
   const [vehicleModalOpen, setVehicleModalOpen] = useState(false);
   const [vehicleSearch, setVehicleSearch] = useState('');
+  const [approvedBudget, setApprovedBudget] = useState<string>('');
 
   const { data: vehicles = [] } = useVehicles();
   const { data: matches = [], isLoading: matchesLoading } = useApplicationMatches(id || '');
@@ -61,6 +62,10 @@ const AdminDealRoom = () => {
       navigate('/admin/finance');
     } else {
       setApplication(data as FinanceApplication);
+      // Set approved budget from database
+      if ((data as any).approved_budget) {
+        setApprovedBudget(String((data as any).approved_budget));
+      }
     }
     setIsLoading(false);
   };
@@ -400,88 +405,122 @@ const AdminDealRoom = () => {
               </div>
             )}
 
-            {/* Vehicle Matchmaking - Show when approved */}
-            {application.status === 'approved' && (
-              <div className="glass-card rounded-xl p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="flex items-center gap-2 font-semibold">
-                    <Car className="w-4 h-4 text-primary" />
-                    Curated Vehicles
-                  </h3>
-                  <div className="flex items-center gap-2">
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      onClick={() => {
-                        // Auto-match: Add top 3 available vehicles within budget
-                        const budget = application.net_salary ? application.net_salary * 0.3 * 72 : 500000;
-                        const matchedVehicles = vehicles
-                          .filter(v => v.status === 'available' && v.price <= budget && !matches.some((m: any) => m.vehicle_id === v.id))
-                          .slice(0, 3);
-                        
-                        if (matchedVehicles.length === 0) {
-                          toast.error('No vehicles found within estimated budget');
-                          return;
-                        }
-                        
-                        matchedVehicles.forEach(v => {
-                          addMatch.mutateAsync({ applicationId: application.id, vehicleId: v.id });
-                        });
-                      }}
-                      className="text-primary border-primary/30 hover:bg-primary/10"
-                    >
-                      ⚡ Auto-Match
-                    </Button>
-                    <Button size="sm" onClick={() => setVehicleModalOpen(true)}>
-                      <Plus className="w-4 h-4 mr-1" />
-                      Add
-                    </Button>
-                  </div>
-                </div>
-
-                {matchesLoading ? (
-                  <p className="text-sm text-muted-foreground">Loading...</p>
-                ) : matches.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No vehicles matched yet. Add vehicles to show the client their curated options.
-                  </p>
-                ) : (
-                  <div className="space-y-3">
-                    {matches.map((match: any) => (
-                      <Card key={match.id} className="bg-muted/30">
-                        <CardContent className="p-3 flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            {match.vehicles?.images?.[0] && (
-                              <img 
-                                src={match.vehicles.images[0]} 
-                                alt="" 
-                                className="w-12 h-12 rounded object-cover"
-                              />
-                            )}
-                            <div>
-                              <p className="font-medium text-sm">
-                                {match.vehicles?.year} {match.vehicles?.make} {match.vehicles?.model}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {formatPrice(match.vehicles?.price)}
-                              </p>
-                            </div>
-                          </div>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                            onClick={() => handleRemoveVehicle(match.id)}
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
+            {/* Vehicle Matchmaking - Always visible */}
+            <div className="glass-card rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="flex items-center gap-2 font-semibold">
+                  <Car className="w-4 h-4 text-primary" />
+                  Matchmaking Engine
+                </h3>
               </div>
-            )}
+
+              {/* Approved Budget Input */}
+              <div className="mb-4">
+                <Label className="text-sm text-muted-foreground mb-2 block">Max Approved Budget (R)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    placeholder="e.g., 250000"
+                    value={approvedBudget}
+                    onChange={(e) => setApprovedBudget(e.target.value)}
+                    className="text-lg font-semibold"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      if (!approvedBudget) return;
+                      await updateApplication.mutateAsync({ 
+                        id: application.id, 
+                        updates: { approved_budget: parseFloat(approvedBudget) } as any
+                      });
+                      toast.success('Budget saved');
+                    }}
+                  >
+                    Save
+                  </Button>
+                </div>
+              </div>
+
+              <Separator className="my-4" />
+
+              {/* Curated Vehicles Header */}
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-sm font-medium">Curated Vehicles</h4>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => {
+                      // Auto-match: Add top 3 available vehicles within budget
+                      const budget = approvedBudget ? parseFloat(approvedBudget) : (application.net_salary ? application.net_salary * 0.3 * 72 : 500000);
+                      const matchedVehicles = vehicles
+                        .filter(v => v.status === 'available' && v.price <= budget && !matches.some((m: any) => m.vehicle_id === v.id))
+                        .slice(0, 3);
+                      
+                      if (matchedVehicles.length === 0) {
+                        toast.error('No vehicles found within budget');
+                        return;
+                      }
+                      
+                      matchedVehicles.forEach(v => {
+                        addMatch.mutateAsync({ applicationId: application.id, vehicleId: v.id });
+                      });
+                      toast.success(`Auto-matched ${matchedVehicles.length} vehicles`);
+                    }}
+                    className="text-primary border-primary/30 hover:bg-primary/10"
+                  >
+                    ⚡ Auto-Match
+                  </Button>
+                  <Button size="sm" onClick={() => setVehicleModalOpen(true)}>
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add
+                  </Button>
+                </div>
+              </div>
+
+              {matchesLoading ? (
+                <p className="text-sm text-muted-foreground">Loading...</p>
+              ) : matches.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No vehicles matched yet. Add vehicles to show the client their curated options.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {matches.map((match: any) => (
+                    <Card key={match.id} className="bg-muted/30">
+                      <CardContent className="p-3 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          {match.vehicles?.images?.[0] && (
+                            <img 
+                              src={match.vehicles.images[0]} 
+                              alt="" 
+                              className="w-12 h-12 rounded object-cover"
+                            />
+                          )}
+                          <div>
+                            <p className="font-medium text-sm">
+                              {match.vehicles?.year} {match.vehicles?.make} {match.vehicles?.model}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatPrice(match.vehicles?.price)}
+                            </p>
+                          </div>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                          onClick={() => handleRemoveVehicle(match.id)}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Quick Contact */}
             <div className="glass-card rounded-xl p-6">

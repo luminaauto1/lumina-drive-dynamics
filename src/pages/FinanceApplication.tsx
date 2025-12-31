@@ -227,12 +227,31 @@ const FinanceApplication = () => {
       status: 'pending',
     };
 
-    const { error } = await supabase.from('finance_applications').insert(sanitizedData as any);
+    const { data: insertedApp, error } = await supabase
+      .from('finance_applications')
+      .insert(sanitizedData as any)
+      .select('id')
+      .single();
 
     if (error) {
       toast.error('Failed to submit application. Please try again.');
       console.error('Submission error:', error);
     } else {
+      // Send email notifications via edge function
+      try {
+        await supabase.functions.invoke('send-finance-alert', {
+          body: {
+            applicationId: insertedApp.id,
+            clientName: `${formData.first_name} ${formData.last_name}`,
+            clientEmail: formData.email,
+            netSalary: formData.net_salary ? parseFloat(formData.net_salary) : null,
+          },
+        });
+      } catch (emailError) {
+        console.error('Email notification failed:', emailError);
+        // Don't block the success flow if email fails
+      }
+      
       setIsSubmitted(true);
       toast.success('Application submitted successfully!');
     }

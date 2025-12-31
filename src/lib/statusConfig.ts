@@ -5,6 +5,7 @@ export const STATUS_OPTIONS = [
   { value: 'pending', label: 'Pending' },
   { value: 'validations_pending', label: 'Validations Pending' },
   { value: 'approved', label: 'Budget Confirmed' },
+  { value: 'vehicle_selected', label: 'Vehicle Selected' },
   { value: 'declined', label: 'Declined' },
 ];
 
@@ -13,6 +14,7 @@ export const USER_STATUS_LABELS: Record<string, string> = {
   pending: 'Application Received - Analyzing Profile',
   validations_pending: 'Validation Documents Required',
   approved: 'Budget Confirmed - Preparing Vehicle Options',
+  vehicle_selected: 'Vehicle Reserved - Preparing Contract',
   declined: 'Application Unsuccessful',
 };
 
@@ -21,6 +23,7 @@ export const STATUS_STYLES: Record<string, string> = {
   pending: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
   validations_pending: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
   approved: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+  vehicle_selected: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
   declined: 'bg-red-500/20 text-red-400 border-red-500/30',
 };
 
@@ -29,6 +32,7 @@ export const ADMIN_STATUS_LABELS: Record<string, string> = {
   pending: 'Pending',
   validations_pending: 'Validations Pending',
   approved: 'Budget Confirmed',
+  vehicle_selected: 'Vehicle Selected',
   declined: 'Declined',
 };
 
