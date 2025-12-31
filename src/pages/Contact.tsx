@@ -27,30 +27,48 @@ const Contact = () => {
     e.preventDefault();
     setIsSubmitting(true);
 
+    // HTML escape function to prevent XSS in emails
+    const escapeHtml = (unsafe: string): string => {
+      return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    };
+
     try {
+      // Sanitize all user inputs
+      const safeName = escapeHtml(formData.name);
+      const safeEmail = escapeHtml(formData.email);
+      const safePhone = escapeHtml(formData.phone || 'Not provided');
+      const safeEmployer = escapeHtml(formData.employer || 'Not provided');
+      const safeSalary = escapeHtml(formData.salary || 'Not provided');
+      const safeMessage = escapeHtml(formData.message);
+
       // Send email via edge function
       const { error } = await supabase.functions.invoke('send-email', {
         body: {
           to: ['lumina.auto1@gmail.com'],
-          subject: `New Contact Enquiry from ${formData.name}`,
+          subject: `New Contact Enquiry from ${safeName}`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
               <h1 style="color: #1a1a1a; border-bottom: 2px solid #d4af37; padding-bottom: 10px;">New Contact Enquiry</h1>
               
               <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <p style="margin: 0 0 10px 0;"><strong>Name:</strong> ${formData.name}</p>
-                <p style="margin: 0 0 10px 0;"><strong>Email:</strong> ${formData.email}</p>
-                <p style="margin: 0 0 10px 0;"><strong>Phone:</strong> ${formData.phone || 'Not provided'}</p>
+                <p style="margin: 0 0 10px 0;"><strong>Name:</strong> ${safeName}</p>
+                <p style="margin: 0 0 10px 0;"><strong>Email:</strong> ${safeEmail}</p>
+                <p style="margin: 0 0 10px 0;"><strong>Phone:</strong> ${safePhone}</p>
                 <p style="margin: 0 0 10px 0;"><strong>Buyer Type:</strong> ${isCashBuyer ? 'Cash Buyer' : 'Finance Buyer'}</p>
                 ${!isCashBuyer ? `
-                  <p style="margin: 0 0 10px 0;"><strong>Employer:</strong> ${formData.employer || 'Not provided'}</p>
-                  <p style="margin: 0 0 10px 0;"><strong>Monthly Salary:</strong> R${formData.salary || 'Not provided'}</p>
+                  <p style="margin: 0 0 10px 0;"><strong>Employer:</strong> ${safeEmployer}</p>
+                  <p style="margin: 0 0 10px 0;"><strong>Monthly Salary:</strong> R${safeSalary}</p>
                 ` : ''}
               </div>
               
               <div style="background: #fff; border: 1px solid #eee; padding: 20px; border-radius: 8px;">
                 <h3 style="margin: 0 0 10px 0; color: #333;">Message:</h3>
-                <p style="margin: 0; color: #666; white-space: pre-wrap;">${formData.message}</p>
+                <p style="margin: 0; color: #666; white-space: pre-wrap;">${safeMessage}</p>
               </div>
               
               <p style="color: #999; font-size: 12px; margin-top: 30px;">
