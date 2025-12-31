@@ -19,7 +19,7 @@ export const useFinanceApplications = () => {
         .from('finance_applications')
         .select(`
           *,
-          vehicle:vehicles(make, model, year)
+          vehicle:vehicles!finance_applications_vehicle_id_fkey(make, model, year)
         `)
         .order('created_at', { ascending: false });
       
