@@ -414,9 +414,9 @@ const AdminDealRoom = () => {
                 </h3>
               </div>
 
-              {/* Approved Budget Input */}
+              {/* Approved Finance Amount Input */}
               <div className="mb-4">
-                <Label className="text-sm text-muted-foreground mb-2 block">Max Approved Budget (R)</Label>
+                <Label className="text-sm text-muted-foreground mb-2 block">Approved Finance Amount (R)</Label>
                 <div className="flex gap-2">
                   <Input
                     type="number"
