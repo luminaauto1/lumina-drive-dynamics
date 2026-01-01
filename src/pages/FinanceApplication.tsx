@@ -266,15 +266,14 @@ const FinanceApplication = () => {
           SERVICE_ID,
           TEMPLATE_ID,
           {
-            // CHANGE 1: Send Client Name here so it shows in the "Name:" field
-            to_name: `${formData.first_name} ${formData.last_name}`,
-
-            // CHANGE 2: Match the variable names exactly to your template
-            phone: formData.phone,
-            reply_to: formData.email, // Template expects {{reply_to}}, not 'email'
-            salary: formData.net_salary, // Template expects {{salary}}, not 'net_salary'
+            // WE ARE USING CLEAR NAMES NOW:
+            admin_name: "Lumina Admin", // Who the email is for
+            client_name: `${formData.first_name} ${formData.last_name}`, // Who sent it
+            client_email: formData.email,
+            client_phone: formData.phone,
+            net_salary: formData.net_salary,
             id_number: formData.id_number,
-            preference: formData.preferred_vehicle_text || "No preference listed", // Template expects {{preference}}
+            vehicle_preference: formData.preferred_vehicle_text || "No preference listed",
           },
           PUBLIC_KEY,
         );
