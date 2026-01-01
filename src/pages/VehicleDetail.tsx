@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -23,14 +23,53 @@ import { useVehicle } from '@/hooks/useVehicles';
 import { formatPrice, formatMileage, calculateMonthlyPayment } from '@/lib/formatters';
 import KineticText from '@/components/KineticText';
 import FinanceCalculator from '@/components/FinanceCalculator';
+import { useTrackEvent } from '@/hooks/useAnalytics';
 
 const VehicleDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const { isInWishlist, toggleWishlist } = useWishlist();
+  const trackEvent = useTrackEvent();
 
   const { data: vehicle, isLoading } = useVehicle(id || '');
+
+  // Track vehicle page view and time on page
+  useEffect(() => {
+    if (!vehicle || !id) return;
+    
+    const startTime = Date.now();
+    
+    // Track page view with vehicle details
+    trackEvent.mutate({
+      event_type: 'vehicle_view',
+      page_path: `/vehicle/${id}`,
+      event_data: {
+        vehicle_id: id,
+        make: vehicle.make,
+        model: vehicle.model,
+        year: vehicle.year,
+        price: vehicle.price,
+      },
+    });
+
+    // Track time on page when leaving
+    return () => {
+      const timeSpent = Math.round((Date.now() - startTime) / 1000);
+      if (timeSpent > 2) {
+        trackEvent.mutate({
+          event_type: 'vehicle_time_spent',
+          page_path: `/vehicle/${id}`,
+          event_data: {
+            vehicle_id: id,
+            seconds: timeSpent,
+            make: vehicle.make,
+            model: vehicle.model,
+          },
+        });
+      }
+    };
+  }, [vehicle?.id]);
 
   if (isLoading) {
     return (
