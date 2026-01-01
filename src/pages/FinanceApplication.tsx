@@ -197,7 +197,7 @@ const FinanceApplication = () => {
   const handleSubmit = async () => {
     if (!user) return;
 
-    // Full schema validation before submission
+    // 1. Validation
     try {
       financeApplicationFullSchema.parse(formData);
     } catch (error) {
@@ -211,7 +211,7 @@ const FinanceApplication = () => {
 
     setIsSubmitting(true);
 
-    // Sanitize and prepare data for insertion
+    // 2. Prepare Data
     const sanitizedData = {
       user_id: user.id,
       vehicle_id: vehicleId || null,
@@ -242,6 +242,7 @@ const FinanceApplication = () => {
       status: "pending",
     };
 
+    // 3. Save to Database
     const { data: insertedApp, error } = await supabase
       .from("finance_applications")
       .insert(sanitizedData as any)
@@ -252,19 +253,32 @@ const FinanceApplication = () => {
       toast.error("Failed to submit application. Please try again.");
       console.error("Submission error:", error);
     } else {
-      // Send email notifications via edge function
+      // 4. SEND EMAIL (Manual Fix via EmailJS)
+      // REPLACE THESE 3 STRINGS WITH YOUR COPIED KEYS
+      const SERVICE_ID = "service_myacl2m";
+      const TEMPLATE_ID = "template_ftu8rix";
+      const PUBLIC_KEY = "pWT3blntfZk-_syL4";
+
       try {
-        await supabase.functions.invoke("send-finance-alert", {
-          body: {
-            applicationId: insertedApp.id,
-            clientName: `${formData.first_name} ${formData.last_name}`,
-            clientEmail: formData.email,
-            netSalary: formData.net_salary ? parseFloat(formData.net_salary) : null,
+        await emailjs.send(
+          SERVICE_ID,
+          TEMPLATE_ID,
+          {
+            to_name: "Lumina Admin", // Who receives it
+            client_name: `${formData.first_name} ${formData.last_name}`,
+            phone: formData.phone,
+            email: formData.email,
+            net_salary: formData.net_salary,
+            id_number: formData.id_number,
+            vehicle: formData.preferred_vehicle_text || "No preference listed",
           },
-        });
+          PUBLIC_KEY,
+        );
+        console.log("Email sent successfully");
       } catch (emailError) {
-        console.error("Email notification failed:", emailError);
-        // Don't block the success flow if email fails
+        console.error("Email failed:", emailError);
+        // We do not stop the success flow if email fails,
+        // because the database save was successful.
       }
 
       setIsSubmitted(true);
