@@ -1,19 +1,38 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Helmet } from 'react-helmet-async';
-import { ArrowRight, ArrowLeft, CheckCircle, User, MapPin, Users, Wallet, Shield, MessageCircle, Info } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import KineticText from '@/components/KineticText';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import emailjs from "@emailjs/browser";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { Helmet } from "react-helmet-async";
+import {
+  ArrowRight,
+  ArrowLeft,
+  CheckCircle,
+  User,
+  MapPin,
+  Users,
+  Wallet,
+  Shield,
+  MessageCircle,
+  Info,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import KineticText from "@/components/KineticText";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import {
   financeApplicationStep1Schema,
   financeApplicationStep2Schema,
@@ -22,21 +41,21 @@ import {
   financeApplicationStep5Schema,
   financeApplicationFullSchema,
   getFirstZodError,
-} from '@/lib/validationSchemas';
+} from "@/lib/validationSchemas";
 
 const STEPS = [
-  { id: 1, title: 'Personal Details', icon: User },
-  { id: 2, title: 'Address & Employment', icon: MapPin },
-  { id: 3, title: 'Next of Kin', icon: Users },
-  { id: 4, title: 'Financials', icon: Wallet },
-  { id: 5, title: 'Permission', icon: Shield },
+  { id: 1, title: "Personal Details", icon: User },
+  { id: 2, title: "Address & Employment", icon: MapPin },
+  { id: 3, title: "Next of Kin", icon: Users },
+  { id: 4, title: "Financials", icon: Wallet },
+  { id: 5, title: "Permission", icon: Shield },
 ];
 
 const FinanceApplication = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const vehicleId = searchParams.get('vehicle');
+  const vehicleId = searchParams.get("vehicle");
 
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -44,44 +63,44 @@ const FinanceApplication = () => {
   const [showTrustModal, setShowTrustModal] = useState(true);
   const [formData, setFormData] = useState({
     // Personal
-    first_name: '',
-    last_name: '',
-    id_number: '',
-    marital_status: '',
-    gender: '',
-    qualification: '',
-    email: '',
-    phone: '',
+    first_name: "",
+    last_name: "",
+    id_number: "",
+    marital_status: "",
+    gender: "",
+    qualification: "",
+    email: "",
+    phone: "",
     // Address
-    street_address: '',
-    area_code: '',
+    street_address: "",
+    area_code: "",
     // Employment
-    employer_name: '',
-    job_title: '',
-    employment_period: '',
+    employer_name: "",
+    job_title: "",
+    employment_period: "",
     // Next of Kin
-    kin_name: '',
-    kin_contact: '',
+    kin_name: "",
+    kin_contact: "",
     // Banking
-    bank_name: '',
-    account_type: '',
-    account_number: '',
+    bank_name: "",
+    account_type: "",
+    account_number: "",
     // Financials
-    gross_salary: '',
-    net_salary: '',
-    expenses_summary: '',
+    gross_salary: "",
+    net_salary: "",
+    expenses_summary: "",
     // Consent
     popia_consent: false,
     // Preferred Vehicle
-    preferred_vehicle_text: '',
+    preferred_vehicle_text: "",
   });
 
   useEffect(() => {
     // Don't redirect while loading - wait for auth state to resolve
     if (loading) return;
-    
+
     if (!user) {
-      navigate('/auth?redirect=/finance-application' + (vehicleId ? `?vehicle=${vehicleId}` : ''));
+      navigate("/auth?redirect=/finance-application" + (vehicleId ? `?vehicle=${vehicleId}` : ""));
       return;
     }
     fetchProfile();
@@ -89,25 +108,21 @@ const FinanceApplication = () => {
 
   const fetchProfile = async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
+    const { data } = await supabase.from("profiles").select("*").eq("user_id", user.id).single();
 
     if (data) {
       setFormData((prev) => ({
         ...prev,
-        email: data.email || user.email || '',
-        phone: data.phone || '',
-        first_name: data.full_name?.split(' ')[0] || '',
-        last_name: data.full_name?.split(' ').slice(1).join(' ') || '',
+        email: data.email || user.email || "",
+        phone: data.phone || "",
+        first_name: data.full_name?.split(" ")[0] || "",
+        last_name: data.full_name?.split(" ").slice(1).join(" ") || "",
       }));
     }
   };
 
   const handleInputChange = (field: string, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const validateStep = (step: number): boolean => {
@@ -160,10 +175,10 @@ const FinanceApplication = () => {
           return true;
       }
     } catch (error) {
-      if (error instanceof Error && 'errors' in error) {
+      if (error instanceof Error && "errors" in error) {
         toast.error(getFirstZodError(error as any));
       } else {
-        toast.error('Please check your input and try again');
+        toast.error("Please check your input and try again");
       }
       return false;
     }
@@ -171,12 +186,12 @@ const FinanceApplication = () => {
 
   const nextStep = () => {
     if (validateStep(currentStep)) {
-      setCurrentStep(prev => Math.min(prev + 1, 5));
+      setCurrentStep((prev) => Math.min(prev + 1, 5));
     }
   };
 
   const prevStep = () => {
-    setCurrentStep(prev => Math.max(prev - 1, 1));
+    setCurrentStep((prev) => Math.max(prev - 1, 1));
   };
 
   const handleSubmit = async () => {
@@ -186,10 +201,10 @@ const FinanceApplication = () => {
     try {
       financeApplicationFullSchema.parse(formData);
     } catch (error) {
-      if (error instanceof Error && 'errors' in error) {
+      if (error instanceof Error && "errors" in error) {
         toast.error(getFirstZodError(error as any));
       } else {
-        toast.error('Please check your input and try again');
+        toast.error("Please check your input and try again");
       }
       return;
     }
@@ -224,22 +239,22 @@ const FinanceApplication = () => {
       expenses_summary: formData.expenses_summary?.trim() || null,
       popia_consent: formData.popia_consent,
       preferred_vehicle_text: formData.preferred_vehicle_text?.trim() || null,
-      status: 'pending',
+      status: "pending",
     };
 
     const { data: insertedApp, error } = await supabase
-      .from('finance_applications')
+      .from("finance_applications")
       .insert(sanitizedData as any)
-      .select('id')
+      .select("id")
       .single();
 
     if (error) {
-      toast.error('Failed to submit application. Please try again.');
-      console.error('Submission error:', error);
+      toast.error("Failed to submit application. Please try again.");
+      console.error("Submission error:", error);
     } else {
       // Send email notifications via edge function
       try {
-        await supabase.functions.invoke('send-finance-alert', {
+        await supabase.functions.invoke("send-finance-alert", {
           body: {
             applicationId: insertedApp.id,
             clientName: `${formData.first_name} ${formData.last_name}`,
@@ -248,20 +263,20 @@ const FinanceApplication = () => {
           },
         });
       } catch (emailError) {
-        console.error('Email notification failed:', emailError);
+        console.error("Email notification failed:", emailError);
         // Don't block the success flow if email fails
       }
-      
+
       setIsSubmitted(true);
-      toast.success('Application submitted successfully!');
+      toast.success("Application submitted successfully!");
     }
 
     setIsSubmitting(false);
   };
 
   const openWhatsApp = () => {
-    const message = `Hi, I have just submitted my finance application (ID: ${formData.id_number || 'Not Provided'}).`;
-    window.open(`https://wa.me/27686017462?text=${encodeURIComponent(message)}`, '_blank');
+    const message = `Hi, I have just submitted my finance application (ID: ${formData.id_number || "Not Provided"}).`;
+    window.open(`https://wa.me/27686017462?text=${encodeURIComponent(message)}`, "_blank");
   };
 
   if (loading || !user) return null;
@@ -286,14 +301,11 @@ const FinanceApplication = () => {
               We are analyzing your profile and will confirm your budget shortly. Check your dashboard for updates.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
-                onClick={openWhatsApp}
-                className="bg-green-600 hover:bg-green-700 text-white"
-              >
+              <Button onClick={openWhatsApp} className="bg-green-600 hover:bg-green-700 text-white">
                 <MessageCircle className="mr-2 w-5 h-5" />
                 Finalize on WhatsApp
               </Button>
-              <Button variant="outline" onClick={() => navigate('/dashboard')}>
+              <Button variant="outline" onClick={() => navigate("/dashboard")}>
                 View My Applications
               </Button>
             </div>
@@ -364,15 +376,17 @@ const FinanceApplication = () => {
                   <div
                     className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
                       isComplete
-                        ? 'bg-green-500 text-white'
+                        ? "bg-green-500 text-white"
                         : isActive
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-muted-foreground'
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground"
                     }`}
                   >
                     {isComplete ? <CheckCircle className="w-5 h-5" /> : <Icon className="w-5 h-5" />}
                   </div>
-                  <span className={`text-xs mt-2 hidden sm:block ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>
+                  <span
+                    className={`text-xs mt-2 hidden sm:block ${isActive ? "text-foreground" : "text-muted-foreground"}`}
+                  >
                     {step.title}
                   </span>
                 </div>
@@ -403,7 +417,7 @@ const FinanceApplication = () => {
                       <Input
                         id="first_name"
                         value={formData.first_name}
-                        onChange={(e) => handleInputChange('first_name', e.target.value)}
+                        onChange={(e) => handleInputChange("first_name", e.target.value)}
                         required
                       />
                     </div>
@@ -412,7 +426,7 @@ const FinanceApplication = () => {
                       <Input
                         id="last_name"
                         value={formData.last_name}
-                        onChange={(e) => handleInputChange('last_name', e.target.value)}
+                        onChange={(e) => handleInputChange("last_name", e.target.value)}
                         required
                       />
                     </div>
@@ -421,14 +435,19 @@ const FinanceApplication = () => {
                       <Input
                         id="id_number"
                         value={formData.id_number}
-                        onChange={(e) => handleInputChange('id_number', e.target.value)}
+                        onChange={(e) => handleInputChange("id_number", e.target.value)}
                         placeholder="e.g., 9001015009087"
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="marital_status">Marital Status</Label>
-                      <Select value={formData.marital_status} onValueChange={(v) => handleInputChange('marital_status', v)}>
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <Select
+                        value={formData.marital_status}
+                        onValueChange={(v) => handleInputChange("marital_status", v)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="single">Single</SelectItem>
                           <SelectItem value="married">Married</SelectItem>
@@ -439,8 +458,10 @@ const FinanceApplication = () => {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="gender">Gender</Label>
-                      <Select value={formData.gender} onValueChange={(v) => handleInputChange('gender', v)}>
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <Select value={formData.gender} onValueChange={(v) => handleInputChange("gender", v)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="male">Male</SelectItem>
                           <SelectItem value="female">Female</SelectItem>
@@ -450,8 +471,13 @@ const FinanceApplication = () => {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="qualification">Highest Qualification</Label>
-                      <Select value={formData.qualification} onValueChange={(v) => handleInputChange('qualification', v)}>
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <Select
+                        value={formData.qualification}
+                        onValueChange={(v) => handleInputChange("qualification", v)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="matric">Matric</SelectItem>
                           <SelectItem value="diploma">Diploma</SelectItem>
@@ -467,7 +493,7 @@ const FinanceApplication = () => {
                         id="email"
                         type="email"
                         value={formData.email}
-                        onChange={(e) => handleInputChange('email', e.target.value)}
+                        onChange={(e) => handleInputChange("email", e.target.value)}
                         required
                       />
                     </div>
@@ -477,7 +503,7 @@ const FinanceApplication = () => {
                         id="phone"
                         type="tel"
                         value={formData.phone}
-                        onChange={(e) => handleInputChange('phone', e.target.value)}
+                        onChange={(e) => handleInputChange("phone", e.target.value)}
                         required
                         placeholder="+27 00 000 0000"
                       />
@@ -502,7 +528,7 @@ const FinanceApplication = () => {
                       <Textarea
                         id="street_address"
                         value={formData.street_address}
-                        onChange={(e) => handleInputChange('street_address', e.target.value)}
+                        onChange={(e) => handleInputChange("street_address", e.target.value)}
                         placeholder="Street address, suburb, city"
                         required
                       />
@@ -512,7 +538,7 @@ const FinanceApplication = () => {
                       <Input
                         id="area_code"
                         value={formData.area_code}
-                        onChange={(e) => handleInputChange('area_code', e.target.value)}
+                        onChange={(e) => handleInputChange("area_code", e.target.value)}
                         placeholder="e.g., 2000"
                       />
                     </div>
@@ -525,7 +551,7 @@ const FinanceApplication = () => {
                         <Input
                           id="employer_name"
                           value={formData.employer_name}
-                          onChange={(e) => handleInputChange('employer_name', e.target.value)}
+                          onChange={(e) => handleInputChange("employer_name", e.target.value)}
                           required
                         />
                       </div>
@@ -534,7 +560,7 @@ const FinanceApplication = () => {
                         <Input
                           id="job_title"
                           value={formData.job_title}
-                          onChange={(e) => handleInputChange('job_title', e.target.value)}
+                          onChange={(e) => handleInputChange("job_title", e.target.value)}
                         />
                       </div>
                       <div className="space-y-2 md:col-span-2">
@@ -542,7 +568,7 @@ const FinanceApplication = () => {
                         <Input
                           id="employment_period"
                           value={formData.employment_period}
-                          onChange={(e) => handleInputChange('employment_period', e.target.value)}
+                          onChange={(e) => handleInputChange("employment_period", e.target.value)}
                           placeholder="e.g., 2 years 6 months"
                         />
                       </div>
@@ -568,7 +594,7 @@ const FinanceApplication = () => {
                       <Input
                         id="kin_name"
                         value={formData.kin_name}
-                        onChange={(e) => handleInputChange('kin_name', e.target.value)}
+                        onChange={(e) => handleInputChange("kin_name", e.target.value)}
                         required
                       />
                     </div>
@@ -578,7 +604,7 @@ const FinanceApplication = () => {
                         id="kin_contact"
                         type="tel"
                         value={formData.kin_contact}
-                        onChange={(e) => handleInputChange('kin_contact', e.target.value)}
+                        onChange={(e) => handleInputChange("kin_contact", e.target.value)}
                         required
                         placeholder="+27 00 000 0000"
                       />
@@ -600,8 +626,10 @@ const FinanceApplication = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="bank_name">Bank Name *</Label>
-                      <Select value={formData.bank_name} onValueChange={(v) => handleInputChange('bank_name', v)}>
-                        <SelectTrigger><SelectValue placeholder="Select bank" /></SelectTrigger>
+                      <Select value={formData.bank_name} onValueChange={(v) => handleInputChange("bank_name", v)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select bank" />
+                        </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="absa">ABSA</SelectItem>
                           <SelectItem value="african_bank">African Bank</SelectItem>
@@ -622,8 +650,10 @@ const FinanceApplication = () => {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="account_type">Account Type</Label>
-                      <Select value={formData.account_type} onValueChange={(v) => handleInputChange('account_type', v)}>
-                        <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                      <Select value={formData.account_type} onValueChange={(v) => handleInputChange("account_type", v)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="savings">Savings</SelectItem>
                           <SelectItem value="cheque">Cheque/Current</SelectItem>
@@ -636,7 +666,7 @@ const FinanceApplication = () => {
                       <Input
                         id="account_number"
                         value={formData.account_number}
-                        onChange={(e) => handleInputChange('account_number', e.target.value.replace(/\D/g, ''))}
+                        onChange={(e) => handleInputChange("account_number", e.target.value.replace(/\D/g, ""))}
                         placeholder="Enter account number"
                       />
                     </div>
@@ -650,7 +680,7 @@ const FinanceApplication = () => {
                           id="gross_salary"
                           type="number"
                           value={formData.gross_salary}
-                          onChange={(e) => handleInputChange('gross_salary', e.target.value)}
+                          onChange={(e) => handleInputChange("gross_salary", e.target.value)}
                           placeholder="e.g., 50000"
                           required
                         />
@@ -661,7 +691,7 @@ const FinanceApplication = () => {
                           id="net_salary"
                           type="number"
                           value={formData.net_salary}
-                          onChange={(e) => handleInputChange('net_salary', e.target.value)}
+                          onChange={(e) => handleInputChange("net_salary", e.target.value)}
                           placeholder="e.g., 38000"
                           required
                         />
@@ -671,7 +701,7 @@ const FinanceApplication = () => {
                         <Textarea
                           id="expenses_summary"
                           value={formData.expenses_summary}
-                          onChange={(e) => handleInputChange('expenses_summary', e.target.value)}
+                          onChange={(e) => handleInputChange("expenses_summary", e.target.value)}
                           placeholder="e.g., Rent R5000, Phone R500, Insurance R1200"
                           rows={3}
                         />
@@ -691,15 +721,17 @@ const FinanceApplication = () => {
                   className="space-y-6"
                 >
                   <h2 className="text-xl font-semibold mb-4">Consent & Preferences</h2>
-                  
+
                   {/* Preferred Vehicle Section */}
                   <div className="glass-card rounded-lg p-6 border border-border mb-6">
                     <h3 className="font-medium mb-3">Do you have a specific car in mind? (Optional)</h3>
-                    <p className="text-sm text-muted-foreground mb-4">Tell us what you're looking for and we'll try to match it to your budget.</p>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Tell us what you're looking for and we'll try to match it to your budget.
+                    </p>
                     <Textarea
                       id="preferred_vehicle_text"
                       value={formData.preferred_vehicle_text}
-                      onChange={(e) => handleInputChange('preferred_vehicle_text', e.target.value)}
+                      onChange={(e) => handleInputChange("preferred_vehicle_text", e.target.value)}
                       placeholder="e.g., BMW 320d, 2020 or newer, white or black, M Sport preferred..."
                       rows={3}
                     />
@@ -711,18 +743,21 @@ const FinanceApplication = () => {
                       <Checkbox
                         id="popia_consent"
                         checked={formData.popia_consent}
-                        onCheckedChange={(checked) => handleInputChange('popia_consent', checked as boolean)}
+                        onCheckedChange={(checked) => handleInputChange("popia_consent", checked as boolean)}
                         className="mt-1"
                       />
                       <Label htmlFor="popia_consent" className="text-sm leading-relaxed cursor-pointer">
-                        I give permission to Lumina Auto to process my finance application on my behalf in line with POPIA 
-                        (Protection of Personal Information Act). I understand that my personal information will be shared 
-                        with financial institutions for the purpose of obtaining vehicle finance.
+                        I give permission to Lumina Auto to process my finance application on my behalf in line with
+                        POPIA (Protection of Personal Information Act). I understand that my personal information will
+                        be shared with financial institutions for the purpose of obtaining vehicle finance.
                       </Label>
                     </div>
                   </div>
                   <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground">
-                    <p>By submitting this application, you confirm that all information provided is accurate and complete.</p>
+                    <p>
+                      By submitting this application, you confirm that all information provided is accurate and
+                      complete.
+                    </p>
                   </div>
                 </motion.div>
               )}
@@ -742,11 +777,7 @@ const FinanceApplication = () => {
               </Button>
 
               {currentStep < 5 ? (
-                <Button
-                  type="button"
-                  onClick={nextStep}
-                  className="min-w-[120px] bg-accent text-accent-foreground"
-                >
+                <Button type="button" onClick={nextStep} className="min-w-[120px] bg-accent text-accent-foreground">
                   Next
                   <ArrowRight className="ml-2 w-4 h-4" />
                 </Button>
@@ -757,7 +788,7 @@ const FinanceApplication = () => {
                   disabled={isSubmitting || !formData.popia_consent}
                   className="min-w-[160px] bg-accent text-accent-foreground"
                 >
-                  {isSubmitting ? 'Submitting...' : 'Submit Application'}
+                  {isSubmitting ? "Submitting..." : "Submit Application"}
                   <CheckCircle className="ml-2 w-4 h-4" />
                 </Button>
               )}
