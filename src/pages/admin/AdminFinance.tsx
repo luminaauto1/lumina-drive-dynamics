@@ -177,7 +177,7 @@ const AdminFinance = () => {
               <TableHeader>
                 <TableRow className="border-white/10 hover:bg-white/5">
                   <TableHead className="text-muted-foreground">Name</TableHead>
-                  <TableHead className="text-muted-foreground">ID Number</TableHead>
+                  <TableHead className="text-muted-foreground">Mobile</TableHead>
                   <TableHead className="text-muted-foreground">Net Salary</TableHead>
                   <TableHead className="text-muted-foreground">Status</TableHead>
                   <TableHead className="text-muted-foreground">Date</TableHead>
@@ -185,7 +185,11 @@ const AdminFinance = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredApplications.map((app) => (
+                {filteredApplications.map((app) => {
+                  const cleanedPhone = app.phone?.replace(/\D/g, '') || '';
+                  const whatsAppPhone = cleanedPhone.startsWith('0') ? `27${cleanedPhone.slice(1)}` : cleanedPhone;
+                  
+                  return (
                   <TableRow 
                     key={app.id} 
                     className="border-white/10 hover:bg-white/5 cursor-pointer"
@@ -197,8 +201,21 @@ const AdminFinance = () => {
                         <p className="text-xs text-muted-foreground">{app.email}</p>
                       </div>
                     </TableCell>
-                    <TableCell className="text-sm">
-                      {app.id_number || 'N/A'}
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      {app.phone ? (
+                        <a
+                          href={`https://wa.me/${whatsAppPhone}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 text-sm text-green-500 hover:text-green-400 transition-colors"
+                          title="Open WhatsApp"
+                        >
+                          <MessageCircle className="w-4 h-4 fill-green-500/20" />
+                          {app.phone}
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">N/A</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm">
                       {app.net_salary ? formatPrice(app.net_salary) : 'N/A'}
@@ -273,7 +290,8 @@ const AdminFinance = () => {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           )}
