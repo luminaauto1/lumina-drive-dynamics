@@ -116,13 +116,15 @@ const Index = () => {
           style={{ opacity: heroOpacity, scale: heroScale }}
           className="absolute inset-0 overflow-hidden"
         >
-          {/* Video Background - Pure, no overlays */}
+          {/* Video Background - Optimized positioning */}
           <video
             autoPlay
             muted
             loop
             playsInline
-            className="w-full h-full object-contain md:object-cover object-center"
+            preload="metadata"
+            className="w-full h-full object-contain md:object-cover"
+            style={{ objectPosition: 'center 10%' }}
           >
             <source src="/videos/hero-drift.mp4" type="video/mp4" />
           </video>

@@ -260,20 +260,49 @@ const Dashboard = () => {
                     <SkeletonCard count={3} />
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {curatedVehicles.map((vehicle: any) => (
-                      <div key={vehicle.id} className="relative">
-                        <VehicleCard vehicle={vehicle} />
-                        <Button
-                          onClick={() => handleSelectVehicle(vehicle.id)}
-                          disabled={isSelectingVehicle}
-                          className="w-full mt-2 bg-primary hover:bg-primary/90"
-                        >
-                          {isSelectingVehicle ? 'Selecting...' : 'Select This Car'}
-                        </Button>
+                  <>
+                    {/* Ready to Drive Section */}
+                    {curatedVehicles.filter((v: any) => !v.is_generic_listing).length > 0 && (
+                      <div className="mb-8">
+                        <h3 className="text-lg font-semibold mb-4 text-emerald-400">Ready to Drive</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {curatedVehicles.filter((v: any) => !v.is_generic_listing).map((vehicle: any) => (
+                            <div key={vehicle.id} className="relative">
+                              <VehicleCard vehicle={vehicle} />
+                              <Button
+                                onClick={() => handleSelectVehicle(vehicle.id)}
+                                disabled={isSelectingVehicle}
+                                className="w-full mt-2 bg-primary hover:bg-primary/90"
+                              >
+                                {isSelectingVehicle ? 'Selecting...' : 'Select This Car'}
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    ))}
-                  </div>
+                    )}
+
+                    {/* Sourcing Opportunities Section */}
+                    {curatedVehicles.filter((v: any) => v.is_generic_listing).length > 0 && (
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4 text-amber-400">Sourcing Opportunities</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {curatedVehicles.filter((v: any) => v.is_generic_listing).map((vehicle: any) => (
+                            <div key={vehicle.id} className="relative">
+                              <VehicleCard vehicle={vehicle} />
+                              <Button
+                                onClick={() => handleSelectVehicle(vehicle.id)}
+                                disabled={isSelectingVehicle}
+                                className="w-full mt-2 bg-primary hover:bg-primary/90"
+                              >
+                                {isSelectingVehicle ? 'Selecting...' : 'Select This Car'}
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </motion.div>

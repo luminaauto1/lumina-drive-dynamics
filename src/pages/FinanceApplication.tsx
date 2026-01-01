@@ -603,12 +603,19 @@ const FinanceApplication = () => {
                       <Select value={formData.bank_name} onValueChange={(v) => handleInputChange('bank_name', v)}>
                         <SelectTrigger><SelectValue placeholder="Select bank" /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="fnb">FNB</SelectItem>
-                          <SelectItem value="standard_bank">Standard Bank</SelectItem>
                           <SelectItem value="absa">ABSA</SelectItem>
-                          <SelectItem value="nedbank">Nedbank</SelectItem>
-                          <SelectItem value="capitec">Capitec</SelectItem>
                           <SelectItem value="african_bank">African Bank</SelectItem>
+                          <SelectItem value="bidvest_bank">Bidvest Bank</SelectItem>
+                          <SelectItem value="capitec">Capitec</SelectItem>
+                          <SelectItem value="discovery_bank">Discovery Bank</SelectItem>
+                          <SelectItem value="fnb">FNB</SelectItem>
+                          <SelectItem value="grindrod_bank">Grindrod Bank</SelectItem>
+                          <SelectItem value="investec">Investec</SelectItem>
+                          <SelectItem value="nedbank">Nedbank</SelectItem>
+                          <SelectItem value="sasfin">Sasfin</SelectItem>
+                          <SelectItem value="standard_bank">Standard Bank</SelectItem>
+                          <SelectItem value="tymebank">TymeBank</SelectItem>
+                          <SelectItem value="wesbank">WesBank</SelectItem>
                           <SelectItem value="other">Other</SelectItem>
                         </SelectContent>
                       </Select>

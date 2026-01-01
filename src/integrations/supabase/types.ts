@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      analytics_events: {
+        Row: {
+          created_at: string
+          event_data: Json | null
+          event_type: string
+          id: string
+          page_path: string | null
+          session_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_data?: Json | null
+          event_type: string
+          id?: string
+          page_path?: string | null
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_data?: Json | null
+          event_type?: string
+          id?: string
+          page_path?: string | null
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       application_matches: {
         Row: {
           application_id: string
@@ -281,6 +311,7 @@ export type Database = {
           created_at: string
           default_interest_rate: number
           facebook_url: string
+          finance_email: string
           hero_headline: string
           hero_subheadline: string
           id: string
@@ -288,6 +319,11 @@ export type Database = {
           is_maintenance_mode: boolean
           max_balloon_percent: number
           min_balloon_percent: number
+          physical_address: string | null
+          primary_email: string
+          primary_phone: string
+          secondary_phone: string | null
+          show_physical_location: boolean
           updated_at: string
           whatsapp_number: string
         }
@@ -297,6 +333,7 @@ export type Database = {
           created_at?: string
           default_interest_rate?: number
           facebook_url?: string
+          finance_email?: string
           hero_headline?: string
           hero_subheadline?: string
           id?: string
@@ -304,6 +341,11 @@ export type Database = {
           is_maintenance_mode?: boolean
           max_balloon_percent?: number
           min_balloon_percent?: number
+          physical_address?: string | null
+          primary_email?: string
+          primary_phone?: string
+          secondary_phone?: string | null
+          show_physical_location?: boolean
           updated_at?: string
           whatsapp_number?: string
         }
@@ -313,6 +355,7 @@ export type Database = {
           created_at?: string
           default_interest_rate?: number
           facebook_url?: string
+          finance_email?: string
           hero_headline?: string
           hero_subheadline?: string
           id?: string
@@ -320,6 +363,11 @@ export type Database = {
           is_maintenance_mode?: boolean
           max_balloon_percent?: number
           min_balloon_percent?: number
+          physical_address?: string | null
+          primary_email?: string
+          primary_phone?: string
+          secondary_phone?: string | null
+          show_physical_location?: boolean
           updated_at?: string
           whatsapp_number?: string
         }

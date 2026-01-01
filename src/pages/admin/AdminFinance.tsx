@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Search, FileText, MessageCircle, ExternalLink } from 'lucide-react';
+import { Search, MessageCircle, ExternalLink, Trash2, Archive } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useFinanceApplications, FinanceApplication } from '@/hooks/useFinanceApplications';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { useFinanceApplications, useUpdateFinanceApplication, useDeleteFinanceApplication, FinanceApplication } from '@/hooks/useFinanceApplications';
 import { formatPrice } from '@/hooks/useVehicles';
 import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, getWhatsAppMessage } from '@/lib/statusConfig';
 
@@ -16,8 +18,11 @@ const AdminFinance = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'active' | 'archived'>('active');
 
   const { data: applications = [], isLoading } = useFinanceApplications();
+  const updateApplication = useUpdateFinanceApplication();
+  const deleteApplication = useDeleteFinanceApplication();
 
   const filteredApplications = applications.filter(app => {
     const searchLower = searchQuery.toLowerCase();
@@ -30,8 +35,12 @@ const AdminFinance = () => {
       app.phone?.includes(searchQuery);
     
     const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
+    
+    // Filter by active/archived
+    const isArchived = app.status === 'archived';
+    const matchesViewMode = viewMode === 'archived' ? isArchived : !isArchived;
 
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesViewMode;
   });
 
   const openWhatsApp = (app: FinanceApplication) => {
@@ -41,6 +50,18 @@ const AdminFinance = () => {
     const message = getWhatsAppMessage(app.status, name);
     window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
+
+  const handleArchive = async (app: FinanceApplication, e: React.MouseEvent) => {
+    e.stopPropagation();
+    await updateApplication.mutateAsync({ id: app.id, updates: { status: 'archived' } });
+  };
+
+  const handleDelete = async (appId: string) => {
+    await deleteApplication.mutateAsync(appId);
+  };
+
+  // Stats for active applications only
+  const activeApps = applications.filter(a => a.status !== 'archived');
 
   return (
     <AdminLayout>
@@ -58,6 +79,21 @@ const AdminFinance = () => {
         >
           <h1 className="text-3xl font-semibold mb-2">Finance Applications</h1>
           <p className="text-muted-foreground">Manage and process finance applications</p>
+        </motion.div>
+
+        {/* View Mode Tabs */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="mb-6"
+        >
+          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'active' | 'archived')}>
+            <TabsList>
+              <TabsTrigger value="active">Active</TabsTrigger>
+              <TabsTrigger value="archived">Archived</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </motion.div>
 
         {/* Filters */}
@@ -94,27 +130,31 @@ const AdminFinance = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6"
+          className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6"
         >
           <div className="glass-card rounded-lg p-4">
-            <p className="text-2xl font-bold text-amber-400">{applications.filter(a => a.status === 'pending').length}</p>
+            <p className="text-2xl font-bold text-amber-400">{activeApps.filter(a => a.status === 'pending').length}</p>
             <p className="text-sm text-muted-foreground">Pending</p>
           </div>
           <div className="glass-card rounded-lg p-4">
-            <p className="text-2xl font-bold text-blue-400">{applications.filter(a => a.status === 'validations_pending').length}</p>
+            <p className="text-2xl font-bold text-blue-400">{activeApps.filter(a => a.status === 'validations_pending').length}</p>
             <p className="text-sm text-muted-foreground">Validations</p>
           </div>
           <div className="glass-card rounded-lg p-4">
-            <p className="text-2xl font-bold text-emerald-400">{applications.filter(a => a.status === 'approved').length}</p>
+            <p className="text-2xl font-bold text-emerald-400">{activeApps.filter(a => a.status === 'approved').length}</p>
             <p className="text-sm text-muted-foreground">Budget Confirmed</p>
           </div>
           <div className="glass-card rounded-lg p-4">
-            <p className="text-2xl font-bold text-red-400">{applications.filter(a => a.status === 'declined').length}</p>
+            <p className="text-2xl font-bold text-purple-400">{activeApps.filter(a => a.status === 'vehicle_selected').length}</p>
+            <p className="text-sm text-muted-foreground">Vehicle Selected</p>
+          </div>
+          <div className="glass-card rounded-lg p-4">
+            <p className="text-2xl font-bold text-red-400">{activeApps.filter(a => a.status === 'declined').length}</p>
             <p className="text-sm text-muted-foreground">Declined</p>
           </div>
           <div className="glass-card rounded-lg p-4">
-            <p className="text-2xl font-bold">{applications.length}</p>
-            <p className="text-sm text-muted-foreground">Total</p>
+            <p className="text-2xl font-bold">{activeApps.length}</p>
+            <p className="text-sm text-muted-foreground">Total Active</p>
           </div>
         </motion.div>
 
@@ -129,7 +169,8 @@ const AdminFinance = () => {
             <div className="p-8 text-center text-muted-foreground">Loading...</div>
           ) : filteredApplications.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">
-              {searchQuery || statusFilter !== 'all' ? 'No applications match your filters' : 'No finance applications yet'}
+              {searchQuery || statusFilter !== 'all' ? 'No applications match your filters' : 
+                viewMode === 'archived' ? 'No archived applications' : 'No finance applications yet'}
             </div>
           ) : (
             <Table>
@@ -171,7 +212,7 @@ const AdminFinance = () => {
                       {new Date(app.created_at).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-1">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -189,6 +230,46 @@ const AdminFinance = () => {
                         >
                           <ExternalLink className="w-4 h-4" />
                         </Button>
+                        {app.status !== 'archived' && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => handleArchive(app, e)}
+                            className="text-muted-foreground hover:text-amber-400 hover:bg-amber-500/10"
+                            title="Archive Application"
+                          >
+                            <Archive className="w-4 h-4" />
+                          </Button>
+                        )}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
+                              title="Delete Application"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Application?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently delete the application for {app.first_name} {app.last_name}. This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDelete(app.id)}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </TableCell>
                   </TableRow>
