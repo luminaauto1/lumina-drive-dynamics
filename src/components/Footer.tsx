@@ -6,10 +6,18 @@ const Footer = () => {
   const currentYear = new Date().getFullYear();
   const { data: settings } = useSiteSettings();
 
-  const contactPhone = settings?.contact_phone || '+27 68 601 7462';
-  const contactEmail = settings?.contact_email || 'lumina.auto1@gmail.com';
+  // Dynamic settings
+  const primaryPhone = settings?.primary_phone || '+27 68 601 7462';
+  const secondaryPhone = settings?.secondary_phone;
+  const primaryEmail = settings?.primary_email || 'lumina.auto1@gmail.com';
+  const financeEmail = settings?.finance_email;
+  const showLocation = settings?.show_physical_location ?? true;
+  const physicalAddress = settings?.physical_address || '123 Automotive Drive, Sandton, Johannesburg, South Africa';
   const facebookUrl = settings?.facebook_url || 'https://www.facebook.com/profile.php?id=61573796805868';
   const instagramUrl = settings?.instagram_url || 'https://www.instagram.com/lumina.auto/';
+
+  // Parse address into lines for display
+  const addressLines = physicalAddress?.split(',').map(line => line.trim()) || [];
 
   return (
     <footer className="bg-card border-t border-border">
@@ -81,33 +89,56 @@ const Footer = () => {
           <div>
             <h4 className="font-display text-lg font-semibold mb-6">Contact</h4>
             <ul className="space-y-4">
+              {showLocation && (
+                <li className="flex items-start gap-3">
+                  <MapPin className="w-5 h-5 text-primary mt-0.5" />
+                  <span className="text-muted-foreground text-sm">
+                    {addressLines.map((line, i) => (
+                      <span key={i}>
+                        {line}
+                        {i < addressLines.length - 1 && <br />}
+                      </span>
+                    ))}
+                  </span>
+                </li>
+              )}
               <li className="flex items-start gap-3">
-                <MapPin className="w-5 h-5 text-primary mt-0.5" />
-                <span className="text-muted-foreground text-sm">
-                  123 Automotive Drive
-                  <br />
-                  Sandton, Johannesburg
-                  <br />
-                  South Africa
-                </span>
+                <Phone className="w-5 h-5 text-primary mt-0.5" />
+                <div className="flex flex-col">
+                  <a
+                    href={`tel:${primaryPhone.replace(/\s/g, '')}`}
+                    className="text-muted-foreground hover:text-primary transition-colors text-sm"
+                  >
+                    {primaryPhone}
+                  </a>
+                  {secondaryPhone && (
+                    <a
+                      href={`tel:${secondaryPhone.replace(/\s/g, '')}`}
+                      className="text-muted-foreground hover:text-primary transition-colors text-sm"
+                    >
+                      {secondaryPhone}
+                    </a>
+                  )}
+                </div>
               </li>
-              <li className="flex items-center gap-3">
-                <Phone className="w-5 h-5 text-primary" />
-                <a
-                  href={`tel:${contactPhone.replace(/\s/g, '')}`}
-                  className="text-muted-foreground hover:text-primary transition-colors text-sm"
-                >
-                  {contactPhone}
-                </a>
-              </li>
-              <li className="flex items-center gap-3">
-                <Mail className="w-5 h-5 text-primary" />
-                <a
-                  href={`mailto:${contactEmail}`}
-                  className="text-muted-foreground hover:text-primary transition-colors text-sm"
-                >
-                  {contactEmail}
-                </a>
+              <li className="flex items-start gap-3">
+                <Mail className="w-5 h-5 text-primary mt-0.5" />
+                <div className="flex flex-col">
+                  <a
+                    href={`mailto:${primaryEmail}`}
+                    className="text-muted-foreground hover:text-primary transition-colors text-sm"
+                  >
+                    {primaryEmail}
+                  </a>
+                  {financeEmail && financeEmail !== primaryEmail && (
+                    <a
+                      href={`mailto:${financeEmail}`}
+                      className="text-muted-foreground hover:text-primary transition-colors text-sm"
+                    >
+                      {financeEmail}
+                    </a>
+                  )}
+                </div>
               </li>
             </ul>
           </div>

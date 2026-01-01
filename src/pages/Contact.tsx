@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import KineticText from '@/components/KineticText';
 import { supabase } from '@/integrations/supabase/client';
+import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { toast } from 'sonner';
 
 const Contact = () => {
@@ -22,6 +23,19 @@ const Contact = () => {
     salary: '',
     message: '',
   });
+
+  const { data: settings } = useSiteSettings();
+
+  // Dynamic settings
+  const primaryPhone = settings?.primary_phone || '+27 68 601 7462';
+  const secondaryPhone = settings?.secondary_phone;
+  const primaryEmail = settings?.primary_email || 'lumina.auto1@gmail.com';
+  const financeEmail = settings?.finance_email || 'finance@luminaauto.co.za';
+  const showLocation = settings?.show_physical_location ?? true;
+  const physicalAddress = settings?.physical_address || '123 Automotive Drive, Sandton, Johannesburg, South Africa';
+
+  // Parse address into lines for display
+  const addressLines = physicalAddress?.split(',').map(line => line.trim()) || [];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +63,7 @@ const Contact = () => {
       // Send email via edge function
       const { error } = await supabase.functions.invoke('send-email', {
         body: {
-          to: ['lumina.auto1@gmail.com'],
+          to: [primaryEmail],
           subject: `New Contact Enquiry from ${safeName}`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -95,21 +109,22 @@ const Contact = () => {
     }
   };
 
+  // Build contact info dynamically
   const contactInfo = [
-    {
+    ...(showLocation ? [{
       icon: MapPin,
       title: 'Visit Us',
-      details: ['123 Automotive Drive', 'Sandton, Johannesburg', 'South Africa'],
-    },
+      details: addressLines,
+    }] : []),
     {
       icon: Phone,
       title: 'Call Us',
-      details: ['+27 68 601 7462', '+27 11 000 1234'],
+      details: [primaryPhone, ...(secondaryPhone ? [secondaryPhone] : [])],
     },
     {
       icon: Mail,
       title: 'Email Us',
-      details: ['hello@luminaauto.co.za', 'sales@luminaauto.co.za'],
+      details: [primaryEmail, financeEmail],
     },
     {
       icon: Clock,
