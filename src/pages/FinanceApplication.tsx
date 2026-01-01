@@ -260,17 +260,21 @@ const FinanceApplication = () => {
       const PUBLIC_KEY = "pWT3blntfZk-_syL4";
 
       try {
+        // ... inside the try block ...
+
         await emailjs.send(
           SERVICE_ID,
           TEMPLATE_ID,
           {
-            to_name: "Lumina Admin", // Who receives it
-            client_name: `${formData.first_name} ${formData.last_name}`,
+            // CHANGE 1: Send Client Name here so it shows in the "Name:" field
+            to_name: `${formData.first_name} ${formData.last_name}`,
+
+            // CHANGE 2: Match the variable names exactly to your template
             phone: formData.phone,
-            email: formData.email,
-            net_salary: formData.net_salary,
+            reply_to: formData.email, // Template expects {{reply_to}}, not 'email'
+            salary: formData.net_salary, // Template expects {{salary}}, not 'net_salary'
             id_number: formData.id_number,
-            vehicle: formData.preferred_vehicle_text || "No preference listed",
+            preference: formData.preferred_vehicle_text || "No preference listed", // Template expects {{preference}}
           },
           PUBLIC_KEY,
         );
