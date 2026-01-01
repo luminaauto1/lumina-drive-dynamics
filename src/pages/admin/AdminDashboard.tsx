@@ -1,25 +1,17 @@
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Car, Users, CreditCard, TrendingUp, Eye, DollarSign, Clock, Activity, BarChart3 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts';
+import { Car, Users, CreditCard, DollarSign, TrendingUp, ArrowRight, Plus, FileText, BarChart3 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import AdminLayout from '@/components/admin/AdminLayout';
+import { Button } from '@/components/ui/button';
 import { useVehicles, formatPrice } from '@/hooks/useVehicles';
 import { useLeads } from '@/hooks/useLeads';
 import { useFinanceApplications } from '@/hooks/useFinanceApplications';
-import { useAnalyticsSummary } from '@/hooks/useAnalytics';
 
 const AdminDashboard = () => {
   const { data: vehicles = [] } = useVehicles();
   const { data: leads = [] } = useLeads();
   const { data: applications = [] } = useFinanceApplications();
-  const { 
-    totalPageViews, 
-    avgTimeOnSite, 
-    mostViewedPath, 
-    chartData, 
-    enquiryCount,
-    isLoading: analyticsLoading 
-  } = useAnalyticsSummary(7);
 
   const totalStockValue = vehicles.reduce((sum, v) => sum + v.price, 0);
   const availableVehicles = vehicles.filter(v => v.status === 'available').length;
@@ -28,58 +20,47 @@ const AdminDashboard = () => {
     const now = new Date();
     return leadDate.getMonth() === now.getMonth() && leadDate.getFullYear() === now.getFullYear();
   }).length;
-  const pendingApplications = applications.filter(a => a.status === 'pending').length;
+  const pendingValidations = applications.filter(a => a.status === 'validations_pending').length;
 
-  // Extract vehicle ID from path and find vehicle name
-  const getMostViewedVehicle = () => {
-    if (!mostViewedPath) return null;
-    const vehicleId = mostViewedPath.replace('/vehicle/', '');
-    const vehicle = vehicles.find(v => v.id === vehicleId);
-    if (vehicle) {
-      return `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
-    }
-    return null;
-  };
-
-  const mostViewedVehicle = getMostViewedVehicle();
-
-  // Format seconds to readable time
-  const formatTime = (seconds: number) => {
-    if (seconds < 60) return `${seconds}s`;
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}m ${secs}s`;
-  };
-
-  const stats = [
+  const pulseCards = [
     { 
-      label: 'Total Stock Value', 
-      value: formatPrice(totalStockValue), 
-      icon: DollarSign,
-      color: 'text-emerald-400',
-      bg: 'bg-emerald-500/10'
-    },
-    { 
-      label: 'Cars Available', 
-      value: availableVehicles.toString(), 
-      icon: Car,
-      color: 'text-blue-400',
-      bg: 'bg-blue-500/10'
-    },
-    { 
-      label: 'New Leads (This Month)', 
+      label: 'Active Leads', 
       value: newLeadsThisMonth.toString(), 
       icon: Users,
-      color: 'text-purple-400',
-      bg: 'bg-purple-500/10'
+      color: 'text-blue-400',
+      bg: 'bg-blue-500/10',
+      link: '/admin/leads'
     },
     { 
-      label: 'Pending Applications', 
-      value: pendingApplications.toString(), 
-      icon: CreditCard,
+      label: 'Pending Validations', 
+      value: pendingValidations.toString(), 
+      icon: FileText,
       color: 'text-amber-400',
-      bg: 'bg-amber-500/10'
+      bg: 'bg-amber-500/10',
+      link: '/admin/finance'
     },
+    { 
+      label: 'Total Stock', 
+      value: availableVehicles.toString(), 
+      icon: Car,
+      color: 'text-emerald-400',
+      bg: 'bg-emerald-500/10',
+      link: '/admin/inventory'
+    },
+    { 
+      label: 'Stock Value', 
+      value: formatPrice(totalStockValue), 
+      icon: DollarSign,
+      color: 'text-purple-400',
+      bg: 'bg-purple-500/10',
+      link: '/admin/inventory'
+    },
+  ];
+
+  const quickActions = [
+    { label: 'Add Vehicle', icon: Plus, link: '/admin/inventory', variant: 'default' as const },
+    { label: 'View Analytics', icon: BarChart3, link: '/admin/analytics', variant: 'outline' as const },
+    { label: 'Finance Apps', icon: CreditCard, link: '/admin/finance', variant: 'outline' as const },
   ];
 
   return (
@@ -100,190 +81,102 @@ const AdminDashboard = () => {
           <p className="text-muted-foreground">Welcome back. Here's what's happening today.</p>
         </motion.div>
 
-        {/* Stats Grid */}
+        {/* Pulse Cards */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
         >
-          {stats.map((stat) => (
-            <div
-              key={stat.label}
-              className="glass-card rounded-xl p-6"
+          {pulseCards.map((card) => (
+            <Link
+              key={card.label}
+              to={card.link}
+              className="glass-card rounded-xl p-6 hover:border-primary/50 transition-all group"
             >
               <div className="flex items-center justify-between mb-4">
-                <div className={`p-3 rounded-lg ${stat.bg}`}>
-                  <stat.icon className={`w-6 h-6 ${stat.color}`} />
+                <div className={`p-3 rounded-lg ${card.bg}`}>
+                  <card.icon className={`w-6 h-6 ${card.color}`} />
                 </div>
-                <TrendingUp className="w-4 h-4 text-emerald-400" />
+                <TrendingUp className="w-4 h-4 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
-              <p className="text-2xl font-bold mb-1">{stat.value}</p>
-              <p className="text-sm text-muted-foreground">{stat.label}</p>
-            </div>
+              <p className="text-2xl font-bold mb-1">{card.value}</p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">{card.label}</p>
+                <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </Link>
           ))}
         </motion.div>
 
-        {/* Intelligence Report Section */}
+        {/* Quick Actions */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="mb-8"
+          transition={{ delay: 0.2 }}
+          className="glass-card rounded-xl p-6 mb-8"
         >
-          <div className="flex items-center gap-2 mb-6">
-            <Activity className="w-5 h-5 text-primary" />
-            <h2 className="text-xl font-semibold">Intelligence Report</h2>
-            <span className="text-xs text-muted-foreground ml-2">Last 7 days</span>
-          </div>
-
-          {/* Intelligence Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-            {/* Most Viewed Car */}
-            <div className="glass-card rounded-xl p-6 border-l-4 border-l-primary">
-              <div className="flex items-center gap-2 mb-3">
-                <Eye className="w-4 h-4 text-primary" />
-                <span className="text-sm text-muted-foreground">Most Viewed Car</span>
-              </div>
-              {analyticsLoading ? (
-                <div className="h-6 bg-muted/50 rounded animate-pulse" />
-              ) : mostViewedVehicle ? (
-                <p className="text-lg font-semibold">{mostViewedVehicle}</p>
-              ) : (
-                <p className="text-muted-foreground text-sm">No vehicle views yet</p>
-              )}
-            </div>
-
-            {/* Avg Time on Site */}
-            <div className="glass-card rounded-xl p-6 border-l-4 border-l-emerald-500">
-              <div className="flex items-center gap-2 mb-3">
-                <Clock className="w-4 h-4 text-emerald-500" />
-                <span className="text-sm text-muted-foreground">Avg Time on Site</span>
-              </div>
-              {analyticsLoading ? (
-                <div className="h-6 bg-muted/50 rounded animate-pulse" />
-              ) : (
-                <p className="text-lg font-semibold">{formatTime(avgTimeOnSite)}</p>
-              )}
-            </div>
-
-            {/* Total Page Views */}
-            <div className="glass-card rounded-xl p-6 border-l-4 border-l-purple-500">
-              <div className="flex items-center gap-2 mb-3">
-                <BarChart3 className="w-4 h-4 text-purple-500" />
-                <span className="text-sm text-muted-foreground">Total Page Views</span>
-              </div>
-              {analyticsLoading ? (
-                <div className="h-6 bg-muted/50 rounded animate-pulse" />
-              ) : (
-                <p className="text-lg font-semibold">{totalPageViews.toLocaleString()}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Enquiries vs Views Chart */}
-          <div className="glass-card rounded-xl p-6">
-            <div className="flex items-center gap-2 mb-6">
-              <Activity className="w-5 h-5 text-muted-foreground" />
-              <h3 className="text-lg font-semibold">Views vs Enquiries</h3>
-            </div>
-            <div className="h-64">
-              {analyticsLoading ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" />
-                    <YAxis stroke="hsl(var(--muted-foreground))" />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Legend />
-                    <Bar dataKey="views" name="Page Views" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="enquiries" name="Enquiries" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
+          <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
+          <div className="flex flex-wrap gap-3">
+            {quickActions.map((action) => (
+              <Button 
+                key={action.label} 
+                variant={action.variant} 
+                asChild
+              >
+                <Link to={action.link}>
+                  <action.icon className="w-4 h-4 mr-2" />
+                  {action.label}
+                </Link>
+              </Button>
+            ))}
           </div>
         </motion.div>
 
-        {/* Existing Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Leads Chart */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="glass-card rounded-xl p-6"
-          >
-            <div className="flex items-center gap-2 mb-6">
-              <Users className="w-5 h-5 text-muted-foreground" />
-              <h2 className="text-lg font-semibold">Leads This Week</h2>
-            </div>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" />
-                  <YAxis stroke="hsl(var(--muted-foreground))" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                    }}
-                  />
-                  <Bar dataKey="views" name="Views" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </motion.div>
-
-          {/* Recent Activity */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="glass-card rounded-xl p-6"
-          >
-            <h2 className="text-lg font-semibold mb-4">Recent Leads</h2>
-            {leads.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">No leads yet</p>
-            ) : (
-              <div className="space-y-3 max-h-64 overflow-y-auto">
-                {leads.slice(0, 5).map((lead) => (
-                  <div
-                    key={lead.id}
-                    className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg"
-                  >
-                    <div>
-                      <p className="font-medium">{lead.client_name || 'Unknown'}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {lead.source} • {lead.vehicle ? `${lead.vehicle.year} ${lead.vehicle.make} ${lead.vehicle.model}` : 'No vehicle'}
-                      </p>
-                    </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      lead.status === 'new' ? 'bg-blue-500/20 text-blue-400' :
-                      lead.status === 'contacted' ? 'bg-amber-500/20 text-amber-400' :
-                      lead.status === 'sold' ? 'bg-emerald-500/20 text-emerald-400' :
-                      'bg-red-500/20 text-red-400'
-                    }`}>
-                      {lead.status}
-                    </span>
+        {/* Recent Activity */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="glass-card rounded-xl p-6"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Recent Leads</h2>
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/admin/leads">
+                View All
+                <ArrowRight className="w-4 h-4 ml-1" />
+              </Link>
+            </Button>
+          </div>
+          {leads.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">No leads yet</p>
+          ) : (
+            <div className="space-y-3">
+              {leads.slice(0, 5).map((lead) => (
+                <div
+                  key={lead.id}
+                  className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg"
+                >
+                  <div>
+                    <p className="font-medium">{lead.client_name || 'Unknown'}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {lead.source} • {lead.vehicle ? `${lead.vehicle.year} ${lead.vehicle.make} ${lead.vehicle.model}` : 'No vehicle'}
+                    </p>
                   </div>
-                ))}
-              </div>
-            )}
-          </motion.div>
-        </div>
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    lead.status === 'new' ? 'bg-blue-500/20 text-blue-400' :
+                    lead.status === 'contacted' ? 'bg-amber-500/20 text-amber-400' :
+                    lead.status === 'sold' ? 'bg-emerald-500/20 text-emerald-400' :
+                    'bg-red-500/20 text-red-400'
+                  }`}>
+                    {lead.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </motion.div>
       </div>
     </AdminLayout>
   );

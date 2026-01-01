@@ -29,6 +29,7 @@ import AdminLeads from "./pages/admin/AdminLeads";
 import AdminFinance from "./pages/admin/AdminFinance";
 import AdminDealRoom from "./pages/admin/AdminDealRoom";
 import AdminSettings from "./pages/admin/AdminSettings";
+import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -62,6 +63,7 @@ const AppLayout = () => {
           <Route path="/admin/leads" element={<AdminLeads />} />
           <Route path="/admin/finance" element={<AdminFinance />} />
           <Route path="/admin/finance/:id" element={<AdminDealRoom />} />
+          <Route path="/admin/analytics" element={<AdminAnalytics />} />
           <Route path="/admin/settings" element={<AdminSettings />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
