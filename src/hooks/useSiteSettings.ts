@@ -15,6 +15,13 @@ export interface SiteSettings {
   hero_headline: string;
   hero_subheadline: string;
   is_maintenance_mode: boolean;
+  // New fields
+  primary_phone: string;
+  secondary_phone: string | null;
+  primary_email: string;
+  finance_email: string;
+  show_physical_location: boolean;
+  physical_address: string | null;
   created_at: string;
   updated_at: string;
 }

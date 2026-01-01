@@ -53,3 +53,25 @@ export const useUpdateFinanceApplication = () => {
     },
   });
 };
+
+export const useDeleteFinanceApplication = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('finance_applications')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['finance-applications'] });
+      toast.success('Application deleted successfully');
+    },
+    onError: (error) => {
+      toast.error('Failed to delete application: ' + error.message);
+    },
+  });
+};

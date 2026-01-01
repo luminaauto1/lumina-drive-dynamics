@@ -1,12 +1,13 @@
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Settings, DollarSign, Phone, Palette, Loader2 } from 'lucide-react';
+import { Settings, DollarSign, Phone, Palette, Loader2, MapPin } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSiteSettings, useUpdateSiteSettings, SiteSettings } from '@/hooks/useSiteSettings';
@@ -30,6 +31,12 @@ const AdminSettings = () => {
       hero_headline: '',
       hero_subheadline: '',
       is_maintenance_mode: false,
+      primary_phone: '',
+      secondary_phone: '',
+      primary_email: '',
+      finance_email: '',
+      show_physical_location: true,
+      physical_address: '',
     },
   });
 
@@ -48,6 +55,12 @@ const AdminSettings = () => {
         hero_headline: settings.hero_headline,
         hero_subheadline: settings.hero_subheadline,
         is_maintenance_mode: settings.is_maintenance_mode,
+        primary_phone: settings.primary_phone || '',
+        secondary_phone: settings.secondary_phone || '',
+        primary_email: settings.primary_email || '',
+        finance_email: settings.finance_email || '',
+        show_physical_location: settings.show_physical_location ?? true,
+        physical_address: settings.physical_address || '',
       });
     }
   }, [settings, reset]);
@@ -57,6 +70,7 @@ const AdminSettings = () => {
   };
 
   const isMaintenanceMode = watch('is_maintenance_mode');
+  const showPhysicalLocation = watch('show_physical_location');
 
   if (isLoading) {
     return (
@@ -88,14 +102,18 @@ const AdminSettings = () => {
 
         <form onSubmit={handleSubmit(onSubmit)}>
           <Tabs defaultValue="finance" className="max-w-3xl">
-            <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsList className="grid w-full grid-cols-4 mb-6">
               <TabsTrigger value="finance" className="gap-2">
                 <DollarSign className="w-4 h-4" />
                 Finance
               </TabsTrigger>
               <TabsTrigger value="contact" className="gap-2">
                 <Phone className="w-4 h-4" />
-                Contact & Socials
+                Contact
+              </TabsTrigger>
+              <TabsTrigger value="location" className="gap-2">
+                <MapPin className="w-4 h-4" />
+                Location
               </TabsTrigger>
               <TabsTrigger value="branding" className="gap-2">
                 <Palette className="w-4 h-4" />
@@ -164,7 +182,7 @@ const AdminSettings = () => {
               </motion.div>
             </TabsContent>
 
-            {/* Contact & Socials Tab */}
+            {/* Contact Tab */}
             <TabsContent value="contact">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -173,10 +191,50 @@ const AdminSettings = () => {
               >
                 <div className="flex items-center gap-3 mb-4">
                   <Phone className="w-5 h-5 text-primary" />
-                  <h2 className="text-lg font-semibold">Contact & Social Links</h2>
+                  <h2 className="text-lg font-semibold">Contact Details & Social Links</h2>
                 </div>
 
                 <div className="grid gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="primary_phone">Primary Phone *</Label>
+                      <Input
+                        id="primary_phone"
+                        placeholder="+27 68 601 7462"
+                        {...register('primary_phone')}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="secondary_phone">Secondary Phone (Optional)</Label>
+                      <Input
+                        id="secondary_phone"
+                        placeholder="+27 11 000 1234"
+                        {...register('secondary_phone')}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="primary_email">Primary Email *</Label>
+                      <Input
+                        id="primary_email"
+                        type="email"
+                        placeholder="hello@luminaauto.co.za"
+                        {...register('primary_email')}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="finance_email">Finance Email *</Label>
+                      <Input
+                        id="finance_email"
+                        type="email"
+                        placeholder="finance@luminaauto.co.za"
+                        {...register('finance_email')}
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="whatsapp_number">WhatsApp Number</Label>
                     <Input
@@ -190,44 +248,69 @@ const AdminSettings = () => {
                     </p>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="contact_phone">Contact Phone</Label>
-                    <Input
-                      id="contact_phone"
-                      placeholder="+27 68 601 7462"
-                      {...register('contact_phone')}
-                      className="max-w-md"
+                  <div className="border-t border-border pt-6">
+                    <h3 className="font-medium mb-4">Social Media</h3>
+                    <div className="grid gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="facebook_url">Facebook URL</Label>
+                        <Input
+                          id="facebook_url"
+                          placeholder="https://www.facebook.com/..."
+                          {...register('facebook_url')}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="instagram_url">Instagram URL</Label>
+                        <Input
+                          id="instagram_url"
+                          placeholder="https://www.instagram.com/..."
+                          {...register('instagram_url')}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </TabsContent>
+
+            {/* Location Tab */}
+            <TabsContent value="location">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="glass-card rounded-xl p-6 space-y-6"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <MapPin className="w-5 h-5 text-primary" />
+                  <h2 className="text-lg font-semibold">Physical Location</h2>
+                </div>
+
+                <div className="grid gap-6">
+                  <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                    <div>
+                      <Label>Show Physical Location</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Display address and map on Contact page
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={showPhysicalLocation}
+                      onCheckedChange={(checked) => setValue('show_physical_location', checked)}
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="contact_email">Contact Email</Label>
-                    <Input
-                      id="contact_email"
-                      type="email"
-                      placeholder="lumina.auto1@gmail.com"
-                      {...register('contact_email')}
-                      className="max-w-md"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="facebook_url">Facebook URL</Label>
-                    <Input
-                      id="facebook_url"
-                      placeholder="https://www.facebook.com/..."
-                      {...register('facebook_url')}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="instagram_url">Instagram URL</Label>
-                    <Input
-                      id="instagram_url"
-                      placeholder="https://www.instagram.com/..."
-                      {...register('instagram_url')}
-                    />
-                  </div>
+                  {showPhysicalLocation && (
+                    <div className="space-y-2">
+                      <Label htmlFor="physical_address">Physical Address</Label>
+                      <Textarea
+                        id="physical_address"
+                        placeholder="123 Automotive Drive, Sandton, Johannesburg, South Africa"
+                        {...register('physical_address')}
+                        rows={3}
+                      />
+                    </div>
+                  )}
                 </div>
               </motion.div>
             </TabsContent>
