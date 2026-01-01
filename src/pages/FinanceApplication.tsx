@@ -266,11 +266,14 @@ const FinanceApplication = () => {
           SERVICE_ID,
           TEMPLATE_ID,
           {
-            // WE ARE USING CLEAR NAMES NOW:
-            admin_name: "Lumina Admin", // Who the email is for
-            client_name: `${formData.first_name} ${formData.last_name}`, // Who sent it
-            client_email: formData.email,
-            client_phone: formData.phone,
+            // 1. "to_email" -> The Client's Email (Fixes 422 Error)
+            to_email: formData.email,
+
+            // 2. "to_name" -> The Client's Name
+            to_name: `${formData.first_name} ${formData.last_name}`,
+
+            // 3. Data for the email body
+            phone: formData.phone,
             net_salary: formData.net_salary,
             id_number: formData.id_number,
             vehicle_preference: formData.preferred_vehicle_text || "No preference listed",
