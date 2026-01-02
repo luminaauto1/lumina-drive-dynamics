@@ -1,22 +1,23 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Heart, Search, User, Settings } from 'lucide-react';
+import { Menu, X, Heart, Search, User, Settings, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWishlist } from '@/hooks/useWishlist';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSiteSettings } from '@/hooks/useSiteSettings';
 import luminaLogo from '@/assets/lumina-logo.png';
+
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
-  const {
-    wishlist
-  } = useWishlist();
-  const {
-    user,
-    isAdmin
-  } = useAuth();
+  const { wishlist } = useWishlist();
+  const { user, isAdmin } = useAuth();
+  const { data: settings } = useSiteSettings();
+
+  const showFinanceTab = settings?.show_finance_tab ?? true;
+
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
@@ -24,28 +25,20 @@ const Navbar = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [location]);
-  const navLinks = [{
-    path: '/',
-    label: 'Home'
-  }, {
-    path: '/inventory',
-    label: 'Inventory'
-  }, {
-    path: '/calculator',
-    label: 'Calculator'
-  }, {
-    path: '/sell-your-car',
-    label: 'Sell Your Car'
-  }, {
-    path: '/about',
-    label: 'About'
-  }, {
-    path: '/contact',
-    label: 'Contact'
-  }];
+
+  const navLinks = [
+    { path: '/', label: 'Home' },
+    { path: '/inventory', label: 'Inventory' },
+    { path: '/calculator', label: 'Calculator' },
+    { path: '/sell-your-car', label: 'Sell Your Car' },
+    { path: '/about', label: 'About' },
+    { path: '/contact', label: 'Contact' },
+    ...(showFinanceTab ? [{ path: '/finance-application', label: 'Apply for Finance' }] : []),
+  ];
   return <>
       <motion.nav initial={{
       y: -100

@@ -4,7 +4,8 @@ import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import { 
   ArrowLeft, User, MapPin, Building, Wallet, Users, Phone, Mail, 
-  MessageCircle, Car, Plus, X, Search, FileText, CheckCircle, AlertTriangle, Copy, Check
+  MessageCircle, Car, Plus, X, Search, FileText, CheckCircle, AlertTriangle, Copy, Check,
+  Download, PartyPopper
 } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
@@ -20,7 +21,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useVehicles, formatPrice } from '@/hooks/useVehicles';
 import { useUpdateFinanceApplication, FinanceApplication } from '@/hooks/useFinanceApplications';
 import { useApplicationMatches, useAddApplicationMatch, useRemoveApplicationMatch } from '@/hooks/useApplicationMatches';
+import { useCreateAftersalesRecord } from '@/hooks/useAftersales';
 import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, getWhatsAppMessage } from '@/lib/statusConfig';
+import { generateFinancePDF } from '@/lib/generateFinancePDF';
 import { toast } from 'sonner';
 
 const AdminDealRoom = () => {
@@ -40,6 +43,7 @@ const AdminDealRoom = () => {
   const updateApplication = useUpdateFinanceApplication();
   const addMatch = useAddApplicationMatch();
   const removeMatch = useRemoveApplicationMatch();
+  const createAftersalesRecord = useCreateAftersalesRecord();
 
   useEffect(() => {
     if (id) {
@@ -129,6 +133,57 @@ const AdminDealRoom = () => {
   const handleRemoveVehicle = async (matchId: string) => {
     if (!application) return;
     await removeMatch.mutateAsync({ matchId, applicationId: application.id });
+  };
+
+  const handleDownloadPDF = () => {
+    if (!application) return;
+    const selectedVehicle = matches.find((m: any) => m.vehicles)?.vehicles;
+    const vehicleDetails = selectedVehicle 
+      ? `${selectedVehicle.year} ${selectedVehicle.make} ${selectedVehicle.model}`
+      : undefined;
+    generateFinancePDF(application, vehicleDetails);
+    toast.success('PDF downloaded');
+  };
+
+  const handleFinalizeDeal = async () => {
+    if (!application) return;
+    
+    // Get the selected vehicle from matches
+    const selectedMatch = matches[0] as any;
+    if (!selectedMatch?.vehicle_id) {
+      toast.error('Please add a vehicle to this application before finalizing');
+      return;
+    }
+
+    try {
+      // Update status to finalized
+      await updateApplication.mutateAsync({ 
+        id: application.id, 
+        updates: { status: 'finalized' } 
+      });
+
+      // Create aftersales record
+      await createAftersalesRecord.mutateAsync({
+        vehicleId: selectedMatch.vehicle_id,
+        customerId: application.user_id,
+        customerName: `${application.first_name || ''} ${application.last_name || ''}`.trim() || application.full_name,
+        customerEmail: application.email,
+        customerPhone: application.phone,
+        financeApplicationId: application.id,
+      });
+
+      // Update vehicle status to sold
+      await supabase
+        .from('vehicles')
+        .update({ status: 'sold' })
+        .eq('id', selectedMatch.vehicle_id);
+
+      setApplication(prev => prev ? { ...prev, status: 'finalized' } : null);
+      toast.success('Deal finalized! Aftersales record created.');
+    } catch (error) {
+      console.error('Error finalizing deal:', error);
+      toast.error('Failed to finalize deal');
+    }
   };
 
   const availableVehicles = vehicles.filter(v => 
@@ -232,13 +287,31 @@ const AdminDealRoom = () => {
                 Application ID: {application.id.slice(0, 8)}...
               </p>
             </div>
-            <Button
-              onClick={openWhatsApp}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              <MessageCircle className="w-4 h-4 mr-2" />
-              Send WhatsApp Update
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                onClick={handleDownloadPDF}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download PDF
+              </Button>
+              {application.status === 'approved' && (
+                <Button
+                  onClick={handleFinalizeDeal}
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                >
+                  <PartyPopper className="w-4 h-4 mr-2" />
+                  Finalize Deal
+                </Button>
+              )}
+              <Button
+                onClick={openWhatsApp}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Send WhatsApp Update
+              </Button>
+            </div>
           </div>
         </motion.div>
 

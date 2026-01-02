@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Settings, DollarSign, Phone, Palette, Loader2, MapPin } from 'lucide-react';
+import { Settings, DollarSign, Phone, Palette, Loader2, MapPin, CreditCard } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Switch } from '@/components/ui/switch';
@@ -37,6 +37,7 @@ const AdminSettings = () => {
       finance_email: '',
       show_physical_location: true,
       physical_address: '',
+      show_finance_tab: true,
     },
   });
 
@@ -61,6 +62,7 @@ const AdminSettings = () => {
         finance_email: settings.finance_email || '',
         show_physical_location: settings.show_physical_location ?? true,
         physical_address: settings.physical_address || '',
+        show_finance_tab: settings.show_finance_tab ?? true,
       });
     }
   }, [settings, reset]);
@@ -71,6 +73,7 @@ const AdminSettings = () => {
 
   const isMaintenanceMode = watch('is_maintenance_mode');
   const showPhysicalLocation = watch('show_physical_location');
+  const showFinanceTab = watch('show_finance_tab');
 
   if (isLoading) {
     return (
@@ -102,7 +105,7 @@ const AdminSettings = () => {
 
         <form onSubmit={handleSubmit(onSubmit)}>
           <Tabs defaultValue="finance" className="max-w-3xl">
-            <TabsList className="grid w-full grid-cols-4 mb-6">
+            <TabsList className="grid w-full grid-cols-5 mb-6">
               <TabsTrigger value="finance" className="gap-2">
                 <DollarSign className="w-4 h-4" />
                 Finance
@@ -118,6 +121,10 @@ const AdminSettings = () => {
               <TabsTrigger value="branding" className="gap-2">
                 <Palette className="w-4 h-4" />
                 Branding
+              </TabsTrigger>
+              <TabsTrigger value="features" className="gap-2">
+                <CreditCard className="w-4 h-4" />
+                Features
               </TabsTrigger>
             </TabsList>
 
@@ -371,6 +378,33 @@ const AdminSettings = () => {
                       onCheckedChange={(checked) => setValue('is_maintenance_mode', checked)}
                     />
                   </div>
+                </div>
+              </motion.div>
+            </TabsContent>
+
+            {/* Features Tab */}
+            <TabsContent value="features">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="glass-card rounded-xl p-6 space-y-6"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <CreditCard className="w-5 h-5 text-primary" />
+                  <h2 className="text-lg font-semibold">Feature Toggles</h2>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                  <div>
+                    <Label>Show "Apply for Finance" Tab</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Display the finance application link in the navigation menu
+                    </p>
+                  </div>
+                  <Switch 
+                    checked={showFinanceTab}
+                    onCheckedChange={(checked) => setValue('show_finance_tab', checked)}
+                  />
                 </div>
               </motion.div>
             </TabsContent>

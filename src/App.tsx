@@ -30,6 +30,8 @@ import AdminFinance from "./pages/admin/AdminFinance";
 import AdminDealRoom from "./pages/admin/AdminDealRoom";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
+import AdminAftersales from "./pages/admin/AdminAftersales";
+import UpdatePassword from "./pages/UpdatePassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -63,8 +65,10 @@ const AppLayout = () => {
           <Route path="/admin/leads" element={<AdminLeads />} />
           <Route path="/admin/finance" element={<AdminFinance />} />
           <Route path="/admin/finance/:id" element={<AdminDealRoom />} />
+          <Route path="/admin/aftersales" element={<AdminAftersales />} />
           <Route path="/admin/analytics" element={<AdminAnalytics />} />
           <Route path="/admin/settings" element={<AdminSettings />} />
+          <Route path="/update-password" element={<UpdatePassword />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
