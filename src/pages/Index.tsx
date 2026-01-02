@@ -122,7 +122,7 @@ const Index = () => {
           {/* Video Background - Optimized positioning */}
           <video autoPlay muted loop playsInline preload="metadata" style={{
           objectPosition: 'center 10%'
-        }} className="w-full h-full object-contain md:object-cover rounded-full shadow-inner">
+        }} className="w-full h-full object-contain md:object-cover shadow-inner rounded-none">
             <source src="/videos/hero-video-new.mp4" type="video/mp4" />
           </video>
         </motion.div>
