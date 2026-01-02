@@ -266,16 +266,16 @@ const FinanceApplication = () => {
           SERVICE_ID,
           TEMPLATE_ID,
           {
-            // 1. "to_email" -> The Client's Email (Fixes 422 Error)
-            to_email: formData.email,
+            // WE SEND THE EMAIL AS ALL 3 COMMON VARIABLES TO FORCE A MATCH:
+            email: formData.email, // <--- The Standard Name
+            to_email: formData.email, // <--- The Explicit Name
+            reply_to: formData.email, // <--- The Header Name
 
-            // 2. "to_name" -> The Client's Name
+            // CLIENT DETAILS
             to_name: `${formData.first_name} ${formData.last_name}`,
-
-            // 3. Data for the email body
             phone: formData.phone,
-            net_salary: formData.net_salary,
             id_number: formData.id_number,
+            net_salary: formData.net_salary,
             vehicle_preference: formData.preferred_vehicle_text || "No preference listed",
           },
           PUBLIC_KEY,
