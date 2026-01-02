@@ -123,7 +123,7 @@ const Index = () => {
           <video autoPlay muted loop playsInline preload="metadata" style={{
           objectPosition: 'center 10%'
         }} className="w-full h-full object-contain md:object-cover rounded-full shadow-inner">
-            <source src="/videos/hero-drift.mp4" type="video/mp4" />
+            <source src="/videos/hero-video-new.mp4" type="video/mp4" />
           </video>
         </motion.div>
 

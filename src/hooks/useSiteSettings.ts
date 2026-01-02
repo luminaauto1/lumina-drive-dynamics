@@ -22,6 +22,7 @@ export interface SiteSettings {
   finance_email: string;
   show_physical_location: boolean;
   physical_address: string | null;
+  show_finance_tab: boolean;
   created_at: string;
   updated_at: string;
 }

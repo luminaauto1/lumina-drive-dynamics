@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      aftersales_records: {
+        Row: {
+          created_at: string
+          customer_email: string | null
+          customer_id: string
+          customer_name: string
+          customer_phone: string | null
+          finance_application_id: string | null
+          id: string
+          notes: string | null
+          sale_date: string
+          updated_at: string
+          vehicle_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_email?: string | null
+          customer_id: string
+          customer_name: string
+          customer_phone?: string | null
+          finance_application_id?: string | null
+          id?: string
+          notes?: string | null
+          sale_date?: string
+          updated_at?: string
+          vehicle_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_email?: string | null
+          customer_id?: string
+          customer_name?: string
+          customer_phone?: string | null
+          finance_application_id?: string | null
+          id?: string
+          notes?: string | null
+          sale_date?: string
+          updated_at?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aftersales_records_finance_application_id_fkey"
+            columns: ["finance_application_id"]
+            isOneToOne: false
+            referencedRelation: "finance_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aftersales_records_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       analytics_events: {
         Row: {
           created_at: string
@@ -323,6 +380,7 @@ export type Database = {
           primary_email: string
           primary_phone: string
           secondary_phone: string | null
+          show_finance_tab: boolean
           show_physical_location: boolean
           updated_at: string
           whatsapp_number: string
@@ -345,6 +403,7 @@ export type Database = {
           primary_email?: string
           primary_phone?: string
           secondary_phone?: string | null
+          show_finance_tab?: boolean
           show_physical_location?: boolean
           updated_at?: string
           whatsapp_number?: string
@@ -367,6 +426,7 @@ export type Database = {
           primary_email?: string
           primary_phone?: string
           secondary_phone?: string | null
+          show_finance_tab?: boolean
           show_physical_location?: boolean
           updated_at?: string
           whatsapp_number?: string
