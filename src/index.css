@@ -100,7 +100,6 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-body);
-    cursor: none;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -314,4 +313,21 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+}
+
+/* --- EMERGENCY CURSOR RESTORATION --- */
+* {
+  cursor: auto !important;
+}
+
+html, body, #root {
+  cursor: default !important;
+}
+
+a, button, input, select, textarea, [role="button"] {
+  cursor: pointer !important;
+}
+
+input[type="text"], input[type="email"], input[type="number"], textarea {
+  cursor: text !important;
 }
