@@ -523,9 +523,14 @@ const FinanceApplication = () => {
                         id="phone"
                         type="tel"
                         value={formData.phone}
-                        onChange={(e) => handleInputChange("phone", e.target.value)}
+                        onChange={(e) => {
+                          // Only allow digits, strip everything else
+                          const cleaned = e.target.value.replace(/\D/g, '').slice(0, 10);
+                          handleInputChange("phone", cleaned);
+                        }}
                         required
-                        placeholder="+27 00 000 0000"
+                        placeholder="0721234567"
+                        maxLength={10}
                       />
                     </div>
                   </div>

@@ -5,7 +5,24 @@ import { Plus, Search, Trash2, Edit2, Upload, X, GripVertical } from 'lucide-rea
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable';
 import AdminLayout from '@/components/admin/AdminLayout';
+import SortableImage from '@/components/admin/SortableImage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -188,13 +205,33 @@ const AdminInventoryPage = () => {
     setImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  const moveImage = (fromIndex: number, toIndex: number) => {
-    setImages(prev => {
-      const newImages = [...prev];
-      const [moved] = newImages.splice(fromIndex, 1);
-      newImages.splice(toIndex, 0, moved);
-      return newImages;
-    });
+  // DnD Sensors with touch support
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setImages((items) => {
+        const oldIndex = items.indexOf(active.id as string);
+        const newIndex = items.indexOf(over.id as string);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
   };
 
   const onSubmit = async (data: VehicleFormData) => {
@@ -650,51 +687,30 @@ const AdminInventoryPage = () => {
                   </label>
                 </div>
 
-                {/* Image Preview Grid */}
+                {/* Image Preview Grid with Drag & Drop */}
                 {images.length > 0 && (
-                  <div className="grid grid-cols-3 gap-2">
-                    {images.map((url, index) => (
-                      <div key={url} className="relative group aspect-video">
-                        <img
-                          src={url}
-                          alt={`Vehicle ${index + 1}`}
-                          className="w-full h-full object-cover rounded"
-                        />
-                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => removeImage(index)}
-                            className="p-1 bg-destructive rounded"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                          {index > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => moveImage(index, index - 1)}
-                              className="p-1 bg-secondary rounded text-xs"
-                            >
-                              ←
-                            </button>
-                          )}
-                          {index < images.length - 1 && (
-                            <button
-                              type="button"
-                              onClick={() => moveImage(index, index + 1)}
-                              className="p-1 bg-secondary rounded text-xs"
-                            >
-                              →
-                            </button>
-                          )}
-                        </div>
-                        {index === 0 && (
-                          <span className="absolute top-1 left-1 bg-primary text-primary-foreground text-xs px-1 rounded">
-                            Main
-                          </span>
-                        )}
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext items={images} strategy={rectSortingStrategy}>
+                      <div className="grid grid-cols-3 gap-2">
+                        {images.map((url, index) => (
+                          <SortableImage
+                            key={url}
+                            id={url}
+                            url={url}
+                            index={index}
+                            onRemove={removeImage}
+                          />
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </SortableContext>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Drag images to reorder. First image is the cover photo.
+                    </p>
+                  </DndContext>
                 )}
 
                 <FormField
