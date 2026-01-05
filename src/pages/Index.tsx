@@ -114,7 +114,7 @@ const Index = () => {
       </Helmet>
 
       {/* Fullscreen Hero Video Section - Standalone */}
-      <section ref={heroRef} className="relative h-[42vh] sm:h-[50vh] md:h-screen overflow-hidden">
+      <section ref={heroRef} className="relative h-[50vh] sm:h-[60vh] md:h-screen overflow-hidden mt-16 md:mt-0">
         <motion.div style={{
         opacity: heroOpacity,
         scale: heroScale
@@ -139,7 +139,7 @@ const Index = () => {
         opacity: 1
       }} transition={{
         delay: 2
-      }} className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20">
+      }} className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
           <motion.div animate={{
           y: [0, 10, 0]
         }} transition={{
@@ -157,7 +157,7 @@ const Index = () => {
       opacity: contentOpacity
     }}>
         {/* Hero Text Section - Reveals on Scroll */}
-        <motion.section className="py-24 md:py-32 text-center" variants={containerVariants} initial="hidden" whileInView="visible" viewport={{
+        <motion.section className="py-12 md:py-20 text-center" variants={containerVariants} initial="hidden" whileInView="visible" viewport={{
         once: true,
         margin: "-50px"
       }}>

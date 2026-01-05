@@ -14,7 +14,11 @@ const menuItems = [
   { title: 'Settings', icon: Settings, path: '/admin/settings' },
 ];
 
-const AdminSidebar = () => {
+interface AdminSidebarProps {
+  onNavigate?: () => void;
+}
+
+const AdminSidebar = ({ onNavigate }: AdminSidebarProps) => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
 
@@ -36,7 +40,7 @@ const AdminSidebar = () => {
           variant="ghost"
           size="icon"
           onClick={() => setCollapsed(!collapsed)}
-          className="ml-auto"
+          className="ml-auto hidden md:flex"
         >
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </Button>
@@ -52,6 +56,7 @@ const AdminSidebar = () => {
             <NavLink
               key={item.path}
               to={item.path}
+              onClick={onNavigate}
               className={cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
                 isActive

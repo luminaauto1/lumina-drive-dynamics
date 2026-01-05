@@ -6,11 +6,9 @@ const saIdNumberSchema = z.string()
   .optional()
   .or(z.literal(''));
 
-// South African phone number validation
+// South African phone number validation - strict 10 digits starting with 0
 const phoneSchema = z.string()
-  .min(10, 'Phone number must be at least 10 digits')
-  .max(15, 'Phone number must be less than 15 characters')
-  .regex(/^[\d\s+()-]+$/, 'Invalid phone number format');
+  .regex(/^0\d{9}$/, 'Phone must be 10 digits starting with 0 (e.g., 0721234567)');
 
 // Email validation
 const emailSchema = z.string()
