@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Eye, EyeOff, Mail, Lock, User, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +14,9 @@ const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [surname, setSurname] = useState('');
+  const [mobileNumber, setMobileNumber] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [failedAttempts, setFailedAttempts] = useState(0);
@@ -59,7 +61,8 @@ const Auth = () => {
           return;
         }
 
-        const { error } = await signUp(email, password, fullName);
+        const fullName = `${firstName.trim()} ${surname.trim()}`.trim();
+        const { error } = await signUp(email, password, fullName, mobileNumber);
         if (error) {
           if (error.message.includes('already registered')) {
             toast.error('This email is already registered. Please sign in.');
@@ -187,20 +190,56 @@ const Auth = () => {
 
                   <form onSubmit={handleSubmit} className="space-y-6">
                     {!isLogin && (
-                      <div className="space-y-2">
-                        <Label htmlFor="fullName">Full Name</Label>
-                        <div className="relative">
-                          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                          <Input
-                            id="fullName"
-                            type="text"
-                            value={fullName}
-                            onChange={(e) => setFullName(e.target.value)}
-                            placeholder="John Doe"
-                            className="pl-10 glass-card border-border"
-                          />
+                      <>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="firstName">First Name</Label>
+                            <div className="relative">
+                              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                              <Input
+                                id="firstName"
+                                type="text"
+                                value={firstName}
+                                onChange={(e) => setFirstName(e.target.value)}
+                                placeholder="John"
+                                className="pl-10 glass-card border-border"
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="surname">Surname</Label>
+                            <div className="relative">
+                              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                              <Input
+                                id="surname"
+                                type="text"
+                                value={surname}
+                                onChange={(e) => setSurname(e.target.value)}
+                                placeholder="Doe"
+                                className="pl-10 glass-card border-border"
+                              />
+                            </div>
+                          </div>
                         </div>
-                      </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="mobileNumber">Mobile Number</Label>
+                          <div className="relative">
+                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                            <Input
+                              id="mobileNumber"
+                              type="tel"
+                              value={mobileNumber}
+                              onChange={(e) => {
+                                const cleaned = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                setMobileNumber(cleaned);
+                              }}
+                              placeholder="0721234567"
+                              maxLength={10}
+                              className="pl-10 glass-card border-border"
+                            />
+                          </div>
+                        </div>
+                      </>
                     )}
 
                     <div className="space-y-2">

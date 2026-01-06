@@ -1,5 +1,5 @@
-import { LayoutDashboard, Car, Users, CreditCard, Settings, ChevronLeft, ChevronRight, BarChart3, Package } from 'lucide-react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { LayoutDashboard, Car, Users, CreditCard, Settings, ChevronLeft, ChevronRight, BarChart3, Package, Home } from 'lucide-react';
+import { NavLink, useLocation, Link } from 'react-router-dom';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -70,6 +70,21 @@ const AdminSidebar = ({ onNavigate }: AdminSidebarProps) => {
           );
         })}
       </nav>
+
+      {/* Back to Home Button */}
+      <div className="p-2 mt-2">
+        <Link
+          to="/"
+          onClick={onNavigate}
+          className={cn(
+            'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
+            'text-muted-foreground hover:bg-secondary hover:text-foreground'
+          )}
+        >
+          <Home className="h-5 w-5 flex-shrink-0" />
+          {!collapsed && <span className="font-medium">Back to Home</span>}
+        </Link>
+      </div>
 
       {/* Footer */}
       {!collapsed && (
