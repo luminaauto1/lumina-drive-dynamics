@@ -31,6 +31,8 @@ import AdminSettings from "./pages/admin/AdminSettings";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminAftersales from "./pages/admin/AdminAftersales";
 import UpdatePassword from "./pages/UpdatePassword";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -59,14 +61,15 @@ const AppLayout = () => {
           <Route path="/calculator" element={<Calculator />} />
           <Route path="/finance-application" element={<FinanceApplication />} />
           <Route path="/sourcing" element={<Sourcing />} />
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/admin/inventory" element={<AdminInventoryPage />} />
-          <Route path="/admin/leads" element={<AdminLeads />} />
-          <Route path="/admin/finance" element={<AdminFinance />} />
-          <Route path="/admin/finance/:id" element={<AdminDealRoom />} />
-          <Route path="/admin/aftersales" element={<AdminAftersales />} />
-          <Route path="/admin/analytics" element={<AdminAnalytics />} />
-          <Route path="/admin/settings" element={<AdminSettings />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/admin/inventory" element={<ProtectedRoute requireAdmin><AdminInventoryPage /></ProtectedRoute>} />
+          <Route path="/admin/leads" element={<ProtectedRoute requireAdmin><AdminLeads /></ProtectedRoute>} />
+          <Route path="/admin/finance" element={<ProtectedRoute requireAdmin><AdminFinance /></ProtectedRoute>} />
+          <Route path="/admin/finance/:id" element={<ProtectedRoute requireAdmin><AdminDealRoom /></ProtectedRoute>} />
+          <Route path="/admin/aftersales" element={<ProtectedRoute requireAdmin><AdminAftersales /></ProtectedRoute>} />
+          <Route path="/admin/analytics" element={<ProtectedRoute requireAdmin><AdminAnalytics /></ProtectedRoute>} />
+          <Route path="/admin/settings" element={<ProtectedRoute requireAdmin><AdminSettings /></ProtectedRoute>} />
           <Route path="/update-password" element={<UpdatePassword />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

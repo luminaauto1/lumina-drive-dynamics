@@ -173,6 +173,7 @@ const AdminFinance = () => {
                 viewMode === 'archived' ? 'No archived applications' : 'No finance applications yet'}
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="border-white/10 hover:bg-white/5">
@@ -294,6 +295,7 @@ const AdminFinance = () => {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </motion.div>
       </div>

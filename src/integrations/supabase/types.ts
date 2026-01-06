@@ -149,6 +149,7 @@ export type Database = {
           bank_name: string | null
           buyer_type: string | null
           created_at: string
+          credit_score_status: string | null
           declined_reason: string | null
           deposit_amount: number | null
           email: string
@@ -160,6 +161,7 @@ export type Database = {
           full_name: string
           gender: string | null
           gross_salary: number | null
+          has_drivers_license: boolean | null
           id: string
           id_number: string | null
           job_title: string | null
@@ -191,6 +193,7 @@ export type Database = {
           bank_name?: string | null
           buyer_type?: string | null
           created_at?: string
+          credit_score_status?: string | null
           declined_reason?: string | null
           deposit_amount?: number | null
           email: string
@@ -202,6 +205,7 @@ export type Database = {
           full_name: string
           gender?: string | null
           gross_salary?: number | null
+          has_drivers_license?: boolean | null
           id?: string
           id_number?: string | null
           job_title?: string | null
@@ -233,6 +237,7 @@ export type Database = {
           bank_name?: string | null
           buyer_type?: string | null
           created_at?: string
+          credit_score_status?: string | null
           declined_reason?: string | null
           deposit_amount?: number | null
           email?: string
@@ -244,6 +249,7 @@ export type Database = {
           full_name?: string
           gender?: string | null
           gross_salary?: number | null
+          has_drivers_license?: boolean | null
           id?: string
           id_number?: string | null
           job_title?: string | null
@@ -382,6 +388,7 @@ export type Database = {
           secondary_phone: string | null
           show_finance_tab: boolean
           show_physical_location: boolean
+          tiktok_url: string
           updated_at: string
           whatsapp_number: string
         }
@@ -405,6 +412,7 @@ export type Database = {
           secondary_phone?: string | null
           show_finance_tab?: boolean
           show_physical_location?: boolean
+          tiktok_url?: string
           updated_at?: string
           whatsapp_number?: string
         }
@@ -428,6 +436,7 @@ export type Database = {
           secondary_phone?: string | null
           show_finance_tab?: boolean
           show_physical_location?: boolean
+          tiktok_url?: string
           updated_at?: string
           whatsapp_number?: string
         }

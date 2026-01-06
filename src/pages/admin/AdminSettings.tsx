@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSiteSettings, useUpdateSiteSettings, SiteSettings } from '@/hooks/useSiteSettings';
 
-type SettingsFormData = Omit<SiteSettings, 'id' | 'created_at' | 'updated_at'>;
+type SettingsFormData = Omit<SiteSettings, 'id' | 'created_at' | 'updated_at'> & { tiktok_url: string };
 
 const AdminSettings = () => {
   const { data: settings, isLoading } = useSiteSettings();
@@ -28,6 +28,7 @@ const AdminSettings = () => {
       whatsapp_number: '',
       facebook_url: '',
       instagram_url: '',
+      tiktok_url: '',
       hero_headline: '',
       hero_subheadline: '',
       is_maintenance_mode: false,
@@ -53,6 +54,7 @@ const AdminSettings = () => {
         whatsapp_number: settings.whatsapp_number,
         facebook_url: settings.facebook_url,
         instagram_url: settings.instagram_url,
+        tiktok_url: (settings as any).tiktok_url || '',
         hero_headline: settings.hero_headline,
         hero_subheadline: settings.hero_subheadline,
         is_maintenance_mode: settings.is_maintenance_mode,
@@ -273,6 +275,15 @@ const AdminSettings = () => {
                           id="instagram_url"
                           placeholder="https://www.instagram.com/..."
                           {...register('instagram_url')}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="tiktok_url">TikTok URL</Label>
+                        <Input
+                          id="tiktok_url"
+                          placeholder="https://www.tiktok.com/@..."
+                          {...register('tiktok_url')}
                         />
                       </div>
                     </div>

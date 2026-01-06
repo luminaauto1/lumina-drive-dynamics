@@ -15,7 +15,7 @@ export const calculateMonthlyPayment = (
   price: number,
   interestRate: number = 13,
   termMonths: number = 72,
-  depositPercent: number = 10
+  depositPercent: number = 0
 ): number => {
   const deposit = price * (depositPercent / 100);
   const principal = price - deposit;

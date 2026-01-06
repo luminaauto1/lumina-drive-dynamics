@@ -13,7 +13,7 @@ import { formatPrice } from '@/lib/formatters';
 const Calculator = () => {
   const [vehiclePrice, setVehiclePrice] = useState(500000);
   const [vehicleYear, setVehicleYear] = useState(new Date().getFullYear());
-  const [deposit, setDeposit] = useState(10);
+  const [deposit, setDeposit] = useState(0);
   const [balloon, setBalloon] = useState(0);
   const [months, setMonths] = useState(72);
   const [interest, setInterest] = useState(13.5);
@@ -205,18 +205,24 @@ const Calculator = () => {
               </Select>
             </div>
 
-            {/* Interest Rate Input */}
-            <div className="space-y-2">
-              <label className="text-sm text-muted-foreground">Interest Rate (%)</label>
-              <Input
-                type="number"
-                value={interest}
-                onChange={(e) => setInterest(Number(e.target.value))}
+            {/* Interest Rate Slider + Input */}
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Interest Rate</span>
+                <span className="font-medium">{interest.toFixed(2)}%</span>
+              </div>
+              <Slider
+                value={[interest]}
+                onValueChange={(value) => setInterest(value[0])}
                 min={0}
                 max={30}
-                step={0.5}
-                className="bg-secondary border-border"
+                step={0.25}
+                className="w-full"
               />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>0%</span>
+                <span>30%</span>
+              </div>
             </div>
 
             {/* Summary */}

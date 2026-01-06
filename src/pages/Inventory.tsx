@@ -25,6 +25,7 @@ const Inventory = () => {
   const [selectedMakes, setSelectedMakes] = useState<string[]>([]);
   const [selectedBodyType, setSelectedBodyType] = useState<string>('all');
   const [variantSearch, setVariantSearch] = useState('');
+  const [financeFilter, setFinanceFilter] = useState<'all' | 'finance' | 'cash'>('all');
 
   const { data: vehicles = [], isLoading } = useVehicles();
   const { compareList, toggleCompare, removeFromCompare, clearCompare, isInCompare } = useCompare();
@@ -88,12 +89,18 @@ const Inventory = () => {
         !variantSearch || 
         (vehicle.variant?.toLowerCase().includes(variantSearch.toLowerCase()) ?? false);
 
+      // Finance availability filter
+      const matchesFinance = 
+        financeFilter === 'all' ||
+        (financeFilter === 'finance' && vehicle.finance_available !== false) ||
+        (financeFilter === 'cash' && vehicle.finance_available === false);
+
       // Exclude generic listings from main inventory
       const isNotGeneric = !(vehicle as any).is_generic_listing;
 
-      return matchesSearch && matchesPrice && matchesMonthly && matchesMake && matchesBodyType && matchesVariant && isNotGeneric;
+      return matchesSearch && matchesPrice && matchesMonthly && matchesMake && matchesBodyType && matchesVariant && matchesFinance && isNotGeneric;
     });
-  }, [searchQuery, priceRange, monthlyPaymentMax, selectedMakes, selectedBodyType, variantSearch, vehicles]);
+  }, [searchQuery, priceRange, monthlyPaymentMax, selectedMakes, selectedBodyType, variantSearch, financeFilter, vehicles]);
 
   const toggleMake = (make: string) => {
     setSelectedMakes((prev) =>
@@ -108,6 +115,7 @@ const Inventory = () => {
     setSelectedMakes([]);
     setSelectedBodyType('all');
     setVariantSearch('');
+    setFinanceFilter('all');
   };
 
   const hasActiveFilters =
@@ -117,7 +125,8 @@ const Inventory = () => {
     monthlyPaymentMax < 150000 ||
     selectedMakes.length > 0 ||
     selectedBodyType !== 'all' ||
-    variantSearch;
+    variantSearch ||
+    financeFilter !== 'all';
 
   return (
     <>
@@ -211,6 +220,18 @@ const Inventory = () => {
                       {type}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+
+              {/* Finance Filter */}
+              <Select value={financeFilter} onValueChange={(v) => setFinanceFilter(v as 'all' | 'finance' | 'cash')}>
+                <SelectTrigger className="w-44 bg-card border-border">
+                  <SelectValue placeholder="Finance" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="all">All Vehicles</SelectItem>
+                  <SelectItem value="finance">Finance Available</SelectItem>
+                  <SelectItem value="cash">Cash Only</SelectItem>
                 </SelectContent>
               </Select>
 
