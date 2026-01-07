@@ -157,6 +157,7 @@ const AdminLeads = () => {
               {searchQuery || statusFilter !== 'all' ? 'No leads match your filters' : 'No leads yet'}
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="border-white/10 hover:bg-white/5">
@@ -235,6 +236,7 @@ const AdminLeads = () => {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </motion.div>
       </div>

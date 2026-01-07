@@ -9,15 +9,30 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import KineticText from '@/components/KineticText';
 import { formatPrice } from '@/lib/formatters';
+import { useSiteSettings } from '@/hooks/useSiteSettings';
 
 const Calculator = () => {
+  const { data: settings } = useSiteSettings();
+  
+  // Dynamic settings from database
+  const minInterest = settings?.min_interest ?? 10.5;
+  const maxInterest = settings?.max_interest ?? 25;
+  const defaultInterest = settings?.default_interest_rate ?? 13.5;
+
   const [vehiclePrice, setVehiclePrice] = useState(500000);
   const [vehicleYear, setVehicleYear] = useState(new Date().getFullYear());
-  const [deposit, setDeposit] = useState(0);
+  const [deposit, setDeposit] = useState(0); // Default deposit to 0%
   const [balloon, setBalloon] = useState(0);
   const [months, setMonths] = useState(72);
-  const [interest, setInterest] = useState(13.5);
+  const [interest, setInterest] = useState(defaultInterest);
   const [monthlyPayment, setMonthlyPayment] = useState(0);
+
+  // Update interest when settings load
+  useEffect(() => {
+    if (settings?.default_interest_rate) {
+      setInterest(settings.default_interest_rate);
+    }
+  }, [settings?.default_interest_rate]);
 
   const currentYear = new Date().getFullYear();
   const vehicleAge = currentYear - vehicleYear;
@@ -207,21 +222,35 @@ const Calculator = () => {
 
             {/* Interest Rate Slider + Input */}
             <div className="space-y-3">
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between items-center text-sm">
                 <span className="text-muted-foreground">Interest Rate</span>
-                <span className="font-medium">{interest.toFixed(2)}%</span>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={interest}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || 0;
+                      setInterest(Math.max(minInterest, Math.min(maxInterest, val)));
+                    }}
+                    min={minInterest}
+                    max={maxInterest}
+                    step={0.25}
+                    className="w-20 h-8 text-center text-sm"
+                  />
+                  <span className="text-sm font-medium">%</span>
+                </div>
               </div>
               <Slider
                 value={[interest]}
                 onValueChange={(value) => setInterest(value[0])}
-                min={0}
-                max={30}
+                min={minInterest}
+                max={maxInterest}
                 step={0.25}
                 className="w-full"
               />
               <div className="flex justify-between text-xs text-muted-foreground">
-                <span>0%</span>
-                <span>30%</span>
+                <span>{minInterest}%</span>
+                <span>{maxInterest}%</span>
               </div>
             </div>
 

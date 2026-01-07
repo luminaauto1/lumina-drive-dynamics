@@ -7,6 +7,32 @@ export interface SiteSettings {
   default_interest_rate: number;
   min_balloon_percent: number;
   max_balloon_percent: number;
+  show_finance_tab: boolean;
+  is_maintenance_mode: boolean;
+  hero_headline: string;
+  hero_subheadline: string;
+  primary_phone: string;
+  secondary_phone: string | null;
+  primary_email: string;
+  finance_email: string;
+  contact_phone: string;
+  contact_email: string;
+  whatsapp_number: string;
+  facebook_url: string;
+  instagram_url: string;
+  tiktok_url: string | null;
+  show_physical_location: boolean;
+  physical_address: string | null;
+  min_interest: number | null;
+  max_interest: number | null;
+  min_deposit_percent: number | null;
+}
+
+interface SiteSettingsLegacy {
+  id: string;
+  default_interest_rate: number;
+  min_balloon_percent: number;
+  max_balloon_percent: number;
   contact_phone: string;
   contact_email: string;
   whatsapp_number: string;

@@ -93,6 +93,9 @@ const FinanceApplication = () => {
     popia_consent: false,
     // Preferred Vehicle
     preferred_vehicle_text: "",
+    // Anti-Time Wasting
+    has_drivers_license: "",
+    credit_score_status: "",
   });
 
   useEffect(() => {
@@ -239,6 +242,8 @@ const FinanceApplication = () => {
       expenses_summary: formData.expenses_summary?.trim() || null,
       popia_consent: formData.popia_consent,
       preferred_vehicle_text: formData.preferred_vehicle_text?.trim() || null,
+      has_drivers_license: formData.has_drivers_license === "yes",
+      credit_score_status: formData.credit_score_status || "unsure",
       status: "pending",
     };
 
@@ -253,25 +258,34 @@ const FinanceApplication = () => {
       toast.error("Failed to submit application. Please try again.");
       console.error("Submission error:", error);
     } else {
-      // 4. SEND EMAIL (Manual Fix via EmailJS)
-      // REPLACE THESE 3 STRINGS WITH YOUR COPIED KEYS
+      // 4. Auto-create Lead
+      try {
+        await supabase.from("leads").insert({
+          client_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
+          client_email: formData.email.trim().toLowerCase(),
+          client_phone: formData.phone.trim(),
+          source: "Finance Form",
+          status: "new",
+          notes: `Finance application submitted. Vehicle preference: ${formData.preferred_vehicle_text || "None specified"}`,
+          vehicle_id: vehicleId || null,
+        } as any);
+      } catch (leadError) {
+        console.error("Lead creation failed:", leadError);
+      }
+
+      // 5. SEND EMAIL (Manual Fix via EmailJS)
       const SERVICE_ID = "service_myacl2m";
       const TEMPLATE_ID = "template_ftu8rix";
       const PUBLIC_KEY = "pWT3blntfZk-_syL4";
 
       try {
-        // ... inside the try block ...
-
         await emailjs.send(
           SERVICE_ID,
           TEMPLATE_ID,
           {
-            // WE SEND THE EMAIL AS ALL 3 COMMON VARIABLES TO FORCE A MATCH:
-            email: formData.email, // <--- The Standard Name
-            to_email: formData.email, // <--- The Explicit Name
-            reply_to: formData.email, // <--- The Header Name
-
-            // CLIENT DETAILS
+            email: formData.email,
+            to_email: formData.email,
+            reply_to: formData.email,
             to_name: `${formData.first_name} ${formData.last_name}`,
             phone: formData.phone,
             id_number: formData.id_number,
@@ -283,8 +297,6 @@ const FinanceApplication = () => {
         console.log("Email sent successfully");
       } catch (emailError) {
         console.error("Email failed:", emailError);
-        // We do not stop the success flow if email fails,
-        // because the database save was successful.
       }
 
       setIsSubmitted(true);
@@ -476,6 +488,54 @@ const FinanceApplication = () => {
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {/* Anti-Time Wasting Fields */}
+                    <div className="space-y-2 md:col-span-2">
+                      <Label>Do you have a valid Driver's License? *</Label>
+                      <div className="flex gap-4 mt-2">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="has_drivers_license"
+                            value="yes"
+                            checked={formData.has_drivers_license === "yes"}
+                            onChange={(e) => handleInputChange("has_drivers_license", e.target.value)}
+                            className="w-4 h-4 accent-primary"
+                          />
+                          <span>Yes</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="has_drivers_license"
+                            value="no"
+                            checked={formData.has_drivers_license === "no"}
+                            onChange={(e) => handleInputChange("has_drivers_license", e.target.value)}
+                            className="w-4 h-4 accent-primary"
+                          />
+                          <span>No</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="credit_score_status">What is your credit status?</Label>
+                      <Select
+                        value={formData.credit_score_status}
+                        onValueChange={(v) => handleInputChange("credit_score_status", v)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select your credit status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="good">Good (No defaults)</SelectItem>
+                          <SelectItem value="unsure">Not Sure</SelectItem>
+                          <SelectItem value="bad">Bad (Have defaults/judgments)</SelectItem>
+                          <SelectItem value="blacklisted">Blacklisted</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     <div className="space-y-2">
                       <Label htmlFor="gender">Gender</Label>
                       <Select value={formData.gender} onValueChange={(v) => handleInputChange("gender", v)}>
