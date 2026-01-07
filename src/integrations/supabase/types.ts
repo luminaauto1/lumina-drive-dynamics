@@ -381,7 +381,10 @@ export type Database = {
           instagram_url: string
           is_maintenance_mode: boolean
           max_balloon_percent: number
+          max_interest: number | null
           min_balloon_percent: number
+          min_deposit_percent: number | null
+          min_interest: number | null
           physical_address: string | null
           primary_email: string
           primary_phone: string
@@ -405,7 +408,10 @@ export type Database = {
           instagram_url?: string
           is_maintenance_mode?: boolean
           max_balloon_percent?: number
+          max_interest?: number | null
           min_balloon_percent?: number
+          min_deposit_percent?: number | null
+          min_interest?: number | null
           physical_address?: string | null
           primary_email?: string
           primary_phone?: string
@@ -429,7 +435,10 @@ export type Database = {
           instagram_url?: string
           is_maintenance_mode?: boolean
           max_balloon_percent?: number
+          max_interest?: number | null
           min_balloon_percent?: number
+          min_deposit_percent?: number | null
+          min_interest?: number | null
           physical_address?: string | null
           primary_email?: string
           primary_phone?: string

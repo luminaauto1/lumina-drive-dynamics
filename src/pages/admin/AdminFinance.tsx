@@ -190,6 +190,12 @@ const AdminFinance = () => {
                   const cleanedPhone = app.phone?.replace(/\D/g, '') || '';
                   const whatsAppPhone = cleanedPhone.startsWith('0') ? `27${cleanedPhone.slice(1)}` : cleanedPhone;
                   
+                  // Warning conditions
+                  const lowSalary = app.net_salary && app.net_salary < 8500;
+                  const noLicense = (app as any).has_drivers_license === false;
+                  const badCredit = ['bad', 'blacklisted'].includes((app as any).credit_score_status || '');
+                  const hasWarning = lowSalary || noLicense || badCredit;
+                  
                   return (
                   <TableRow 
                     key={app.id} 
@@ -197,9 +203,16 @@ const AdminFinance = () => {
                     onClick={() => navigate(`/admin/finance/${app.id}`)}
                   >
                     <TableCell>
-                      <div>
-                        <p className="font-medium">{app.first_name} {app.last_name}</p>
-                        <p className="text-xs text-muted-foreground">{app.email}</p>
+                      <div className="flex items-center gap-2">
+                        <div>
+                          <p className="font-medium">{app.first_name} {app.last_name}</p>
+                          <p className="text-xs text-muted-foreground">{app.email}</p>
+                        </div>
+                        {hasWarning && (
+                          <span className="px-1.5 py-0.5 text-[10px] uppercase font-bold rounded bg-red-500/20 text-red-400 border border-red-500/30">
+                            ⚠ RISK
+                          </span>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
@@ -219,7 +232,9 @@ const AdminFinance = () => {
                       )}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {app.net_salary ? formatPrice(app.net_salary) : 'N/A'}
+                      <span className={lowSalary ? 'text-red-400 font-medium' : ''}>
+                        {app.net_salary ? formatPrice(app.net_salary) : 'N/A'}
+                      </span>
                     </TableCell>
                     <TableCell>
                       <span className={`px-2 py-1 text-xs uppercase tracking-wider rounded border ${STATUS_STYLES[app.status] || STATUS_STYLES.pending}`}>

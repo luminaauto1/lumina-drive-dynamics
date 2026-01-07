@@ -278,38 +278,42 @@ const AdminDealRoom = () => {
             Back to Applications
           </Button>
           
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-semibold">
+              <h1 className="text-2xl md:text-3xl font-semibold">
                 {application.first_name} {application.last_name}
               </h1>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 Application ID: {application.id.slice(0, 8)}...
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"
+                size="sm"
                 onClick={handleDownloadPDF}
+                className="text-xs md:text-sm"
               >
-                <Download className="w-4 h-4 mr-2" />
-                Download PDF
+                <Download className="w-4 h-4 mr-1 md:mr-2" />
+                <span className="hidden sm:inline">Download</span> PDF
               </Button>
               {application.status === 'approved' && (
                 <Button
                   onClick={handleFinalizeDeal}
-                  className="bg-emerald-600 hover:bg-emerald-700"
+                  size="sm"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-xs md:text-sm"
                 >
-                  <PartyPopper className="w-4 h-4 mr-2" />
-                  Finalize Deal
+                  <PartyPopper className="w-4 h-4 mr-1 md:mr-2" />
+                  Finalize
                 </Button>
               )}
               <Button
                 onClick={openWhatsApp}
-                className="bg-green-600 hover:bg-green-700"
+                size="sm"
+                className="bg-green-600 hover:bg-green-700 text-xs md:text-sm"
               >
-                <MessageCircle className="w-4 h-4 mr-2" />
-                Send WhatsApp Update
+                <MessageCircle className="w-4 h-4 mr-1 md:mr-2" />
+                WhatsApp
               </Button>
             </div>
           </div>
