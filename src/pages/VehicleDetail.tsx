@@ -15,6 +15,7 @@ import {
   Settings,
   Shield,
   Bell,
+  ZoomIn,
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { Button } from '@/components/ui/button';
@@ -23,12 +24,14 @@ import { useVehicle } from '@/hooks/useVehicles';
 import { formatPrice, formatMileage, calculateMonthlyPayment } from '@/lib/formatters';
 import KineticText from '@/components/KineticText';
 import FinanceCalculator from '@/components/FinanceCalculator';
+import ImageLightbox from '@/components/ImageLightbox';
 import { useTrackEvent } from '@/hooks/useAnalytics';
 
 const VehicleDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const { isInWishlist, toggleWishlist } = useWishlist();
   const trackEvent = useTrackEvent();
 
@@ -147,6 +150,26 @@ const VehicleDetail = () => {
     }
   };
 
+  const lightboxPrevImage = () => {
+    if (images.length > 0) {
+      setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+    }
+  };
+
+  const lightboxNextImage = () => {
+    if (images.length > 0) {
+      setCurrentImageIndex((prev) => (prev + 1) % images.length);
+    }
+  };
+
+  const openLightbox = () => {
+    setLightboxOpen(true);
+  };
+
+  const closeLightbox = () => {
+    setLightboxOpen(false);
+  };
+
   // SEO Schema
   const vehicleSchema = {
     '@context': 'https://schema.org',
@@ -190,7 +213,10 @@ const VehicleDetail = () => {
       <div className="min-h-screen pt-20">
         {/* Image Gallery */}
         <section className={`relative ${isSold ? 'sold-overlay' : ''}`}>
-          <div className="relative aspect-[16/9] md:aspect-[21/9] overflow-hidden bg-card">
+          <div 
+            className="relative aspect-[16/9] md:aspect-[21/9] overflow-hidden bg-card cursor-pointer group"
+            onClick={openLightbox}
+          >
             {images.length > 0 ? (
               images.map((image, index) => (
                 <motion.img
@@ -466,6 +492,17 @@ const VehicleDetail = () => {
           </div>
         )}
       </div>
+
+      {/* Image Lightbox */}
+      <ImageLightbox
+        images={images}
+        currentIndex={currentImageIndex}
+        isOpen={lightboxOpen}
+        onClose={closeLightbox}
+        onPrev={lightboxPrevImage}
+        onNext={lightboxNextImage}
+        title={vehicleTitle}
+      />
     </>
   );
 };

@@ -53,7 +53,7 @@ const Inventory = () => {
     return suggestions.slice(0, 5);
   }, [searchQuery, vehicles]);
 
-  // Filter vehicles
+  // Filter vehicles (main stock - excludes generic/sourcing listings)
   const filteredVehicles = useMemo(() => {
     return vehicles.filter((vehicle) => {
       // Search filter
@@ -101,6 +101,11 @@ const Inventory = () => {
       return matchesSearch && matchesPrice && matchesMonthly && matchesMake && matchesBodyType && matchesVariant && matchesFinance && isNotGeneric;
     });
   }, [searchQuery, priceRange, monthlyPaymentMax, selectedMakes, selectedBodyType, variantSearch, financeFilter, vehicles]);
+
+  // Sourcing examples (generic listings)
+  const sourcingExamples = useMemo(() => {
+    return vehicles.filter((vehicle) => (vehicle as any).is_generic_listing === true);
+  }, [vehicles]);
 
   const toggleMake = (make: string) => {
     setSelectedMakes((prev) =>
@@ -377,6 +382,37 @@ const Inventory = () => {
               <Button onClick={clearFilters} variant="outline">
                 Clear Filters
               </Button>
+            </div>
+          )}
+
+          {/* Sourcing Examples Section */}
+          {sourcingExamples.length > 0 && (
+            <div className="mt-16">
+              <div className="mb-8">
+                <motion.span
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-primary text-sm font-semibold uppercase tracking-widest mb-4 block"
+                >
+                  Can't Find What You Want?
+                </motion.span>
+                <h2 className="font-display text-3xl md:text-4xl font-bold mb-2">
+                  We Can Source It
+                </h2>
+                <p className="text-muted-foreground max-w-2xl">
+                  These are examples of vehicles we can source for you. Tell us your dream car and we'll find it.
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {sourcingExamples.map((vehicle) => (
+                  <VehicleCard
+                    key={vehicle.id}
+                    vehicle={vehicle}
+                    isSourcingCard={true}
+                  />
+                ))}
+              </div>
             </div>
           )}
         </div>

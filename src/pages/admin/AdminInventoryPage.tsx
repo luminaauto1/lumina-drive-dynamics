@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Plus, Search, Trash2, Edit2, Upload, X, GripVertical } from 'lucide-react';
+import { Plus, Search, Trash2, Edit2, Upload, X, GripVertical, Star } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -361,6 +361,7 @@ const AdminInventoryPage = () => {
                   <TableHead className="text-muted-foreground">Vehicle</TableHead>
                   <TableHead className="text-muted-foreground">Price</TableHead>
                   <TableHead className="text-muted-foreground">Status</TableHead>
+                  <TableHead className="text-muted-foreground text-center">Featured</TableHead>
                   <TableHead className="text-muted-foreground text-center">Finance</TableHead>
                   <TableHead className="text-muted-foreground text-right">Actions</TableHead>
                 </TableRow>
@@ -396,6 +397,21 @@ const AdminInventoryPage = () => {
                       {formatPrice(vehicle.price)}
                     </TableCell>
                     <TableCell>{getStatusBadge(vehicle.status)}</TableCell>
+                    <TableCell className="text-center">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={async () => {
+                          await updateVehicle.mutateAsync({
+                            id: vehicle.id,
+                            updates: { is_featured: !(vehicle as any).is_featured } as any,
+                          });
+                        }}
+                        className={`${(vehicle as any).is_featured ? 'text-yellow-400' : 'text-muted-foreground hover:text-yellow-400'}`}
+                      >
+                        <Star className={`w-5 h-5 ${(vehicle as any).is_featured ? 'fill-current' : ''}`} />
+                      </Button>
+                    </TableCell>
                     <TableCell className="text-center">
                       <Switch
                         checked={vehicle.finance_available ?? true}

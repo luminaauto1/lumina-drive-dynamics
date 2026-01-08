@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { Heart, GitCompare, ChevronRight } from 'lucide-react';
@@ -10,13 +10,15 @@ interface VehicleCardProps {
   vehicle: Vehicle;
   onCompare?: (id: string) => void;
   isComparing?: boolean;
+  isSourcingCard?: boolean;
 }
 
-const VehicleCard = ({ vehicle, onCompare, isComparing }: VehicleCardProps) => {
+const VehicleCard = ({ vehicle, onCompare, isComparing, isSourcingCard = false }: VehicleCardProps) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const { isInWishlist, toggleWishlist } = useWishlist();
   const cardRef = useRef<HTMLDivElement>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // 3D Tilt Effect
   const x = useMotionValue(0);
@@ -39,23 +41,33 @@ const VehicleCard = ({ vehicle, onCompare, isComparing }: VehicleCardProps) => {
     y.set(0);
     setIsHovered(false);
     setCurrentImageIndex(0);
-  };
-
-  // Image slideshow on hover
-  const handleMouseEnter = () => {
-    setIsHovered(true);
-  };
-
-  // Cycle through images on hover
-  const handleImageHover = () => {
-    const images = vehicle.images || [];
-    if (images.length > 1) {
-      const interval = setInterval(() => {
-        setCurrentImageIndex((prev) => (prev + 1) % images.length);
-      }, 800);
-      return () => clearInterval(interval);
+    // Clear interval on leave
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
   };
+
+  // Image slideshow ONLY on hover - no auto-scroll
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+    const images = vehicle.images || [];
+    // Start cycling images on hover (slower speed: 1.2s)
+    if (images.length > 1) {
+      intervalRef.current = setInterval(() => {
+        setCurrentImageIndex((prev) => (prev + 1) % images.length);
+      }, 1200);
+    }
+  };
+
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []);
 
   const isSold = vehicle.status === 'sold';
   const isIncoming = vehicle.status === 'incoming';
@@ -88,10 +100,7 @@ const VehicleCard = ({ vehicle, onCompare, isComparing }: VehicleCardProps) => {
     >
       <div className="relative overflow-hidden rounded-lg bg-card border border-border">
         {/* Image Container */}
-        <div
-          className="relative aspect-[16/10] overflow-hidden"
-          onMouseEnter={handleImageHover}
-        >
+        <div className="relative aspect-[16/10] overflow-hidden">
           {images.length > 0 ? (
             images.map((image, index) => (
               <motion.img
@@ -99,6 +108,7 @@ const VehicleCard = ({ vehicle, onCompare, isComparing }: VehicleCardProps) => {
                 src={image}
                 alt={`${vehicle.make} ${vehicle.model} - Image ${index + 1}`}
                 className="absolute inset-0 w-full h-full object-cover"
+                loading="lazy"
                 initial={{ opacity: index === 0 ? 1 : 0 }}
                 animate={{ opacity: index === currentImageIndex ? 1 : 0 }}
                 transition={{ duration: 0.3 }}
@@ -191,20 +201,22 @@ const VehicleCard = ({ vehicle, onCompare, isComparing }: VehicleCardProps) => {
             <span>{vehicle.fuel_type}</span>
           </div>
 
-          {/* Price - FINANCE FIRST */}
+          {/* Price - FINANCE FIRST (Hide cash price for sourcing cards) */}
           <div className="flex items-end justify-between">
             <div>
               {/* Monthly Payment - LARGEST & BRIGHTEST */}
               {monthlyPayment && !isSold && (
                 <p className="font-display text-2xl font-bold text-foreground" title="Est. only. Subject to bank approval & interest rates.">
-                  {formatPrice(monthlyPayment)}<span className="text-sm">/pm*</span>
+                  From {formatPrice(monthlyPayment)}<span className="text-sm">/pm*</span>
                 </p>
               )}
-              {/* Cash Price - Smaller & Greyed */}
-              <p className="text-sm text-muted-foreground">
-                {formatPrice(vehicle.price)} cash
-              </p>
-              {!vehicle.finance_available && !isSold && (
+              {/* Cash Price - Hide for sourcing examples */}
+              {!isSourcingCard && (
+                <p className="text-sm text-muted-foreground">
+                  {formatPrice(vehicle.price)} cash
+                </p>
+              )}
+              {!vehicle.finance_available && !isSold && !isSourcingCard && (
                 <p className="text-xs text-muted-foreground">Cash/EFT Only</p>
               )}
             </div>

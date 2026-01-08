@@ -20,7 +20,10 @@ const AdminSettings = () => {
 
   const { register, handleSubmit, reset, watch, setValue } = useForm<SettingsFormData>({
     defaultValues: {
-      default_interest_rate: 13.75,
+      default_interest_rate: 13.25,
+      min_interest: 10.5,
+      max_interest: 25.0,
+      min_deposit_percent: 0,
       min_balloon_percent: 0,
       max_balloon_percent: 40,
       contact_phone: '',
@@ -46,7 +49,10 @@ const AdminSettings = () => {
   useEffect(() => {
     if (settings) {
       reset({
-        default_interest_rate: settings.default_interest_rate,
+        default_interest_rate: settings.default_interest_rate || 13.25,
+        min_interest: settings.min_interest || 10.5,
+        max_interest: settings.max_interest || 25.0,
+        min_deposit_percent: settings.min_deposit_percent || 0,
         min_balloon_percent: settings.min_balloon_percent,
         max_balloon_percent: settings.max_balloon_percent,
         contact_phone: settings.contact_phone,
@@ -54,7 +60,7 @@ const AdminSettings = () => {
         whatsapp_number: settings.whatsapp_number,
         facebook_url: settings.facebook_url,
         instagram_url: settings.instagram_url,
-        tiktok_url: (settings as any).tiktok_url || '',
+        tiktok_url: settings.tiktok_url || '',
         hero_headline: settings.hero_headline,
         hero_subheadline: settings.hero_subheadline,
         is_maintenance_mode: settings.is_maintenance_mode,
@@ -147,7 +153,7 @@ const AdminSettings = () => {
 
                 <div className="grid gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="default_interest_rate">Global Base Interest Rate (%)</Label>
+                    <Label htmlFor="default_interest_rate">Default Interest Rate (%)</Label>
                     <Input
                       id="default_interest_rate"
                       type="number"
@@ -158,7 +164,53 @@ const AdminSettings = () => {
                       className="max-w-xs"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Update this when the Prime Lending Rate changes
+                      Default rate shown in calculators (typically Prime + margin)
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 max-w-md">
+                    <div className="space-y-2">
+                      <Label htmlFor="min_interest">Min Interest Rate (%)</Label>
+                      <Input
+                        id="min_interest"
+                        type="number"
+                        step="0.25"
+                        min="0"
+                        max="50"
+                        {...register('min_interest', { valueAsNumber: true })}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Slider minimum
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="max_interest">Max Interest Rate (%)</Label>
+                      <Input
+                        id="max_interest"
+                        type="number"
+                        step="0.25"
+                        min="0"
+                        max="50"
+                        {...register('max_interest', { valueAsNumber: true })}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Slider maximum
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="min_deposit_percent">Min Deposit (%)</Label>
+                    <Input
+                      id="min_deposit_percent"
+                      type="number"
+                      min="0"
+                      max="100"
+                      {...register('min_deposit_percent', { valueAsNumber: true })}
+                      className="max-w-xs"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Minimum deposit percentage required
                     </p>
                   </div>
 

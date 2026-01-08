@@ -38,7 +38,14 @@ const Index = () => {
     data: vehicles = [],
     isLoading
   } = useVehicles();
-  const featuredVehicles = vehicles.filter(v => v.status === 'available').slice(0, 4);
+  // Show featured vehicles first, then fall back to available vehicles
+  const featuredVehicles = vehicles
+    .filter(v => v.status === 'available' && (v as any).is_featured === true)
+    .slice(0, 4);
+  // Fallback if no featured vehicles
+  const displayVehicles = featuredVehicles.length > 0 
+    ? featuredVehicles 
+    : vehicles.filter(v => v.status === 'available').slice(0, 4);
 
   // Dynamic headline from settings - updated for sourcing emphasis
   const heroHeadline = settings?.hero_headline || 'Premium Stock & Bespoke Sourcing';
@@ -280,7 +287,7 @@ const Index = () => {
             {isLoading ? <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <SkeletonCard count={4} />
               </div> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {featuredVehicles.map((vehicle, index) => <motion.div key={vehicle.id} variants={itemVariants} custom={index}>
+                {displayVehicles.map((vehicle, index) => <motion.div key={vehicle.id} variants={itemVariants} custom={index}>
                     <VehicleCard vehicle={vehicle} />
                   </motion.div>)}
               </div>}
