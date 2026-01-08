@@ -483,6 +483,7 @@ export type Database = {
           fuel_type: string
           id: string
           images: string[] | null
+          is_featured: boolean | null
           is_generic_listing: boolean | null
           make: string
           mileage: number
@@ -507,6 +508,7 @@ export type Database = {
           fuel_type: string
           id?: string
           images?: string[] | null
+          is_featured?: boolean | null
           is_generic_listing?: boolean | null
           make: string
           mileage: number
@@ -531,6 +533,7 @@ export type Database = {
           fuel_type?: string
           id?: string
           images?: string[] | null
+          is_featured?: boolean | null
           is_generic_listing?: boolean | null
           make?: string
           mileage?: number

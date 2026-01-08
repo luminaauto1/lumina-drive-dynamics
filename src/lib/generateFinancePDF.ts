@@ -166,6 +166,62 @@ export const generateFinancePDF = (application: FinanceApplication, vehicleDetai
       addField('Preference', application.preferred_vehicle_text);
     }
   }
+
+  // Section: Expenses Summary (if available)
+  if (application.expenses_summary) {
+    yPos += 12;
+    doc.setFontSize(12);
+    doc.setTextColor(textColor);
+    doc.text('Expenses Summary', leftMargin, yPos);
+    
+    yPos += 3;
+    doc.line(leftMargin, yPos, 190, yPos);
+    
+    yPos += lineHeight;
+    doc.setFontSize(10);
+    doc.setTextColor(mutedColor);
+    
+    // Split long text into lines
+    const expenseLines = doc.splitTextToSize(application.expenses_summary, 160);
+    expenseLines.forEach((line: string) => {
+      if (yPos > 260) {
+        doc.addPage();
+        yPos = 20;
+      }
+      doc.text(line, leftMargin, yPos);
+      yPos += lineHeight - 2;
+    });
+  }
+
+  // POPIA Consent Declaration
+  yPos += 12;
+  if (yPos > 240) {
+    doc.addPage();
+    yPos = 20;
+  }
+  
+  doc.setFontSize(10);
+  doc.setTextColor(textColor);
+  doc.text('Consent Declaration', leftMargin, yPos);
+  
+  yPos += 3;
+  doc.setDrawColor(primaryColor);
+  doc.line(leftMargin, yPos, 190, yPos);
+  
+  yPos += lineHeight;
+  doc.setFontSize(8);
+  doc.setTextColor(mutedColor);
+  
+  const consentText = `I hereby give consent to Lumina Auto to process my personal information in accordance with the Protection of Personal Information Act (POPIA). I understand that my information will be used for the purpose of processing my finance application and may be shared with financial institutions for credit assessment purposes. I confirm that all information provided is true and accurate to the best of my knowledge.`;
+  
+  const consentLines = doc.splitTextToSize(consentText, 170);
+  consentLines.forEach((line: string) => {
+    doc.text(line, leftMargin, yPos);
+    yPos += 4;
+  });
+  
+  yPos += 6;
+  doc.text(`POPIA Consent Given: ${application.popia_consent ? 'Yes' : 'No'}`, leftMargin, yPos);
   
   // Footer
   yPos = 280;
