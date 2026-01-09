@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Package, Calendar, AlertCircle, Loader2, MessageCircle, Edit2, Save, X } from 'lucide-react';
+import { Package, Calendar, AlertCircle, Loader2, MessageCircle, Edit2, Save, X, Eye } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { differenceInDays, differenceInYears, format } from 'date-fns';
 import AdminLayout from '@/components/admin/AdminLayout';
+import ClientProfileModal from '@/components/admin/ClientProfileModal';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -127,6 +128,7 @@ const AdminAftersales = () => {
   const updateNotes = useUpdateAftersalesNotes();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editNotes, setEditNotes] = useState('');
+  const [selectedRecord, setSelectedRecord] = useState<AftersalesRecord | null>(null);
 
   const startEditing = (record: AftersalesRecord) => {
     setEditingId(record.id);
@@ -350,14 +352,24 @@ const AdminAftersales = () => {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-green-500 hover:text-green-400 hover:bg-green-500/10"
-                          onClick={() => openWhatsApp(record.customer_phone, record.customer_name)}
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setSelectedRecord(record)}
+                            title="View Profile"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-green-500 hover:text-green-400 hover:bg-green-500/10"
+                            onClick={() => openWhatsApp(record.customer_phone, record.customer_name)}
+                          >
+                            <MessageCircle className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -366,6 +378,15 @@ const AdminAftersales = () => {
             </Table>
           )}
         </motion.div>
+
+        {/* Client Profile Modal */}
+        {selectedRecord && (
+          <ClientProfileModal
+            isOpen={!!selectedRecord}
+            onClose={() => setSelectedRecord(null)}
+            record={selectedRecord}
+          />
+        )}
       </div>
     </AdminLayout>
   );

@@ -140,6 +140,54 @@ export type Database = {
           },
         ]
       }
+      client_comments: {
+        Row: {
+          admin_id: string
+          client_id: string
+          content: string
+          created_at: string | null
+          id: string
+        }
+        Insert: {
+          admin_id: string
+          client_id: string
+          content: string
+          created_at?: string | null
+          id?: string
+        }
+        Update: {
+          admin_id?: string
+          client_id?: string
+          content?: string
+          created_at?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      client_documents: {
+        Row: {
+          client_id: string
+          file_path: string
+          id: string
+          name: string
+          uploaded_at: string | null
+        }
+        Insert: {
+          client_id: string
+          file_path: string
+          id?: string
+          name: string
+          uploaded_at?: string | null
+        }
+        Update: {
+          client_id?: string
+          file_path?: string
+          id?: string
+          name?: string
+          uploaded_at?: string | null
+        }
+        Relationships: []
+      }
       finance_applications: {
         Row: {
           account_number: string | null
@@ -491,6 +539,7 @@ export type Database = {
           price: number
           service_history: string | null
           status: string
+          stock_number: string | null
           transmission: string
           updated_at: string
           variant: string | null
@@ -516,6 +565,7 @@ export type Database = {
           price: number
           service_history?: string | null
           status?: string
+          stock_number?: string | null
           transmission: string
           updated_at?: string
           variant?: string | null
@@ -541,6 +591,7 @@ export type Database = {
           price?: number
           service_history?: string | null
           status?: string
+          stock_number?: string | null
           transmission?: string
           updated_at?: string
           variant?: string | null

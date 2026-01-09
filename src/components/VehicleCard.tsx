@@ -11,9 +11,19 @@ interface VehicleCardProps {
   onCompare?: (id: string) => void;
   isComparing?: boolean;
   isSourcingCard?: boolean;
+  isEager?: boolean; // For first 6 images to load eagerly
 }
 
-const VehicleCard = ({ vehicle, onCompare, isComparing, isSourcingCard = false }: VehicleCardProps) => {
+// Helper to optimize Supabase storage images
+const getOptimizedImageUrl = (url: string, width = 600) => {
+  if (url.includes('supabase.co/storage')) {
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}width=${width}&resize=cover&quality=75&format=webp`;
+  }
+  return url;
+};
+
+const VehicleCard = ({ vehicle, onCompare, isComparing, isSourcingCard = false, isEager = false }: VehicleCardProps) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const { isInWishlist, toggleWishlist } = useWishlist();
@@ -101,14 +111,14 @@ const VehicleCard = ({ vehicle, onCompare, isComparing, isSourcingCard = false }
       <div className="relative overflow-hidden rounded-lg bg-card border border-border">
         {/* Image Container */}
         <div className="relative aspect-[16/10] overflow-hidden">
-          {images.length > 0 ? (
+        {images.length > 0 ? (
             images.map((image, index) => (
               <motion.img
                 key={index}
-                src={image}
+                src={getOptimizedImageUrl(image)}
                 alt={`${vehicle.make} ${vehicle.model} - Image ${index + 1}`}
                 className="absolute inset-0 w-full h-full object-cover"
-                loading="lazy"
+                loading={isEager && index === 0 ? "eager" : "lazy"}
                 initial={{ opacity: index === 0 ? 1 : 0 }}
                 animate={{ opacity: index === currentImageIndex ? 1 : 0 }}
                 transition={{ duration: 0.3 }}
