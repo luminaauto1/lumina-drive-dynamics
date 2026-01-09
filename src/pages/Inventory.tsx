@@ -363,12 +363,13 @@ const Inventory = () => {
             </div>
           ) : filteredVehicles.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredVehicles.map((vehicle) => (
+              {filteredVehicles.map((vehicle, index) => (
                 <VehicleCard
                   key={vehicle.id}
                   vehicle={vehicle}
                   onCompare={toggleCompare}
                   isComparing={isInCompare(vehicle.id)}
+                  isEager={index < 6}
                 />
               ))}
               {/* Always show sourcing card at the end */}
