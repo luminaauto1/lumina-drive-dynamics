@@ -114,8 +114,32 @@ const AdminInventoryPage = () => {
     return matchesSearch && matchesTab;
   });
 
-  const openAddSheet = () => {
+  const openAddSheet = async () => {
     setEditingVehicle(null);
+    
+    // Fetch latest stock number
+    let nextStockNumber = 'LA001134';
+    try {
+      const { data: latestVehicles } = await supabase
+        .from('vehicles')
+        .select('stock_number')
+        .not('stock_number', 'is', null)
+        .order('stock_number', { ascending: false })
+        .limit(1);
+      
+      if (latestVehicles && latestVehicles.length > 0 && latestVehicles[0].stock_number) {
+        const lastNumber = latestVehicles[0].stock_number;
+        // Parse the number part (e.g., "LA001134" -> 1134)
+        const match = lastNumber.match(/LA(\d+)/);
+        if (match) {
+          const num = parseInt(match[1], 10) + 1;
+          nextStockNumber = `LA${String(num).padStart(6, '0')}`;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch latest stock number:', error);
+    }
+
     form.reset({
       make: '',
       model: '',

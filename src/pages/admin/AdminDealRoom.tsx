@@ -5,7 +5,7 @@ import { Helmet } from 'react-helmet-async';
 import { 
   ArrowLeft, User, MapPin, Building, Wallet, Users, Phone, Mail, 
   MessageCircle, Car, Plus, X, Search, FileText, CheckCircle, AlertTriangle, Copy, Check,
-  Download, PartyPopper
+  Download, PartyPopper, Edit2, Save
 } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,8 @@ const AdminDealRoom = () => {
   const [vehicleModalOpen, setVehicleModalOpen] = useState(false);
   const [vehicleSearch, setVehicleSearch] = useState('');
   const [approvedBudget, setApprovedBudget] = useState<string>('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedData, setEditedData] = useState<Partial<FinanceApplication>>({});
 
   const { data: vehicles = [] } = useVehicles();
   const { data: matches = [], isLoading: matchesLoading } = useApplicationMatches(id || '');
@@ -210,25 +212,75 @@ const AdminDealRoom = () => {
     }
   };
 
-  const DetailItem = ({ label, value, copyable = false }: { label: string; value: string | number | null | undefined; copyable?: boolean }) => (
+  const startEditing = () => {
+    if (!application) return;
+    setEditedData({
+      first_name: application.first_name,
+      last_name: application.last_name,
+      phone: application.phone,
+      email: application.email,
+      street_address: application.street_address,
+      employer_name: application.employer_name,
+      gross_salary: application.gross_salary,
+      net_salary: application.net_salary,
+      expenses_summary: application.expenses_summary,
+    });
+    setIsEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setIsEditing(false);
+    setEditedData({});
+  };
+
+  const saveEdits = async () => {
+    if (!application) return;
+    try {
+      await updateApplication.mutateAsync({ 
+        id: application.id, 
+        updates: editedData as any
+      });
+      setApplication(prev => prev ? { ...prev, ...editedData } : null);
+      setIsEditing(false);
+      setEditedData({});
+      toast.success('Application updated');
+    } catch (error) {
+      console.error('Failed to save edits:', error);
+      toast.error('Failed to save changes');
+    }
+  };
+
+  const handleEditChange = (field: string, value: string | number) => {
+    setEditedData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const DetailItem = ({ label, value, copyable = false, field }: { label: string; value: string | number | null | undefined; copyable?: boolean; field?: string }) => (
     <div className="space-y-1">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <div className="flex items-center gap-2">
-        <p className="text-sm font-medium">{value || 'N/A'}</p>
-        {copyable && value && (
-          <button
-            onClick={() => copyToClipboard(String(value), label)}
-            className="p-1 rounded hover:bg-muted/50 transition-colors"
-            title={`Copy ${label}`}
-          >
-            {copiedField === label ? (
-              <Check className="w-3 h-3 text-green-500" />
-            ) : (
-              <Copy className="w-3 h-3 text-muted-foreground hover:text-foreground" />
-            )}
-          </button>
-        )}
-      </div>
+      {isEditing && field ? (
+        <Input
+          value={(editedData as any)[field] ?? value ?? ''}
+          onChange={(e) => handleEditChange(field, field?.includes('salary') ? parseFloat(e.target.value) || 0 : e.target.value)}
+          className="h-8 text-sm"
+        />
+      ) : (
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium">{value || 'N/A'}</p>
+          {copyable && value && (
+            <button
+              onClick={() => copyToClipboard(String(value), label)}
+              className="p-1 rounded hover:bg-muted/50 transition-colors"
+              title={`Copy ${label}`}
+            >
+              {copiedField === label ? (
+                <Check className="w-3 h-3 text-green-500" />
+              ) : (
+                <Copy className="w-3 h-3 text-muted-foreground hover:text-foreground" />
+              )}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 
@@ -288,33 +340,65 @@ const AdminDealRoom = () => {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleDownloadPDF}
-                className="text-xs md:text-sm"
-              >
-                <Download className="w-4 h-4 mr-1 md:mr-2" />
-                <span className="hidden sm:inline">Download</span> PDF
-              </Button>
-              {application.status === 'approved' && (
-                <Button
-                  onClick={handleFinalizeDeal}
-                  size="sm"
-                  className="bg-emerald-600 hover:bg-emerald-700 text-xs md:text-sm"
-                >
-                  <PartyPopper className="w-4 h-4 mr-1 md:mr-2" />
-                  Finalize
-                </Button>
+              {isEditing ? (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={cancelEditing}
+                    className="text-xs md:text-sm"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={saveEdits}
+                    className="bg-primary hover:bg-primary/90 text-xs md:text-sm"
+                  >
+                    <Save className="w-4 h-4 mr-1 md:mr-2" />
+                    Save
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={startEditing}
+                    className="text-xs md:text-sm"
+                  >
+                    <Edit2 className="w-4 h-4 mr-1 md:mr-2" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDownloadPDF}
+                    className="text-xs md:text-sm"
+                  >
+                    <Download className="w-4 h-4 mr-1 md:mr-2" />
+                    <span className="hidden sm:inline">Download</span> PDF
+                  </Button>
+                  {application.status === 'approved' && (
+                    <Button
+                      onClick={handleFinalizeDeal}
+                      size="sm"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-xs md:text-sm"
+                    >
+                      <PartyPopper className="w-4 h-4 mr-1 md:mr-2" />
+                      Finalize
+                    </Button>
+                  )}
+                  <Button
+                    onClick={openWhatsApp}
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700 text-xs md:text-sm"
+                  >
+                    <MessageCircle className="w-4 h-4 mr-1 md:mr-2" />
+                    WhatsApp
+                  </Button>
+                </>
               )}
-              <Button
-                onClick={openWhatsApp}
-                size="sm"
-                className="bg-green-600 hover:bg-green-700 text-xs md:text-sm"
-              >
-                <MessageCircle className="w-4 h-4 mr-1 md:mr-2" />
-                WhatsApp
-              </Button>
             </div>
           </div>
         </motion.div>
@@ -334,14 +418,14 @@ const AdminDealRoom = () => {
                 Personal Details
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <DetailItem label="First Name" value={application.first_name} copyable />
-                <DetailItem label="Surname" value={application.last_name} copyable />
+                <DetailItem label="First Name" value={application.first_name} copyable field="first_name" />
+                <DetailItem label="Surname" value={application.last_name} copyable field="last_name" />
                 <DetailItem label="ID Number" value={application.id_number} copyable />
                 <DetailItem label="Gender" value={application.gender} />
                 <DetailItem label="Marital Status" value={application.marital_status} />
                 <DetailItem label="Qualification" value={application.qualification} />
-                <DetailItem label="Email" value={application.email} copyable />
-                <DetailItem label="Phone" value={application.phone} copyable />
+                <DetailItem label="Email" value={application.email} copyable field="email" />
+                <DetailItem label="Phone" value={application.phone} copyable field="phone" />
               </div>
             </div>
 
@@ -352,7 +436,7 @@ const AdminDealRoom = () => {
                 Address
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <DetailItem label="Physical Address" value={application.street_address} />
+                <DetailItem label="Physical Address" value={application.street_address} field="street_address" />
                 <DetailItem label="Area/Postal Code" value={application.area_code} />
               </div>
             </div>
@@ -364,7 +448,7 @@ const AdminDealRoom = () => {
                 Employment
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <DetailItem label="Employer" value={application.employer_name} />
+                <DetailItem label="Employer" value={application.employer_name} field="employer_name" />
                 <DetailItem label="Job Title" value={application.job_title} />
                 <DetailItem label="Period at Employer" value={application.employment_period} />
               </div>

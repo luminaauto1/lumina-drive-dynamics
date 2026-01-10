@@ -30,6 +30,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import KineticText from "@/components/KineticText";
+import SignaturePad from "@/components/SignaturePad";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -91,6 +92,7 @@ const FinanceApplication = () => {
     expenses_summary: "",
     // Consent
     popia_consent: false,
+    signature_url: "",
     // Preferred Vehicle
     preferred_vehicle_text: "",
     // Anti-Time Wasting
@@ -782,14 +784,19 @@ const FinanceApplication = () => {
                         />
                       </div>
                       <div className="space-y-2 md:col-span-2">
-                        <Label htmlFor="expenses_summary">Monthly Expenses Summary</Label>
+                        <Label htmlFor="expenses_summary">Monthly Expenses Summary *</Label>
                         <Textarea
                           id="expenses_summary"
                           value={formData.expenses_summary}
                           onChange={(e) => handleInputChange("expenses_summary", e.target.value)}
                           placeholder="e.g., Rent R5000, Phone R500, Insurance R1200"
                           rows={3}
+                          required
+                          className={!formData.expenses_summary ? 'border-destructive/50' : ''}
                         />
+                        {!formData.expenses_summary && (
+                          <p className="text-xs text-destructive">Expenses breakdown is required</p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -823,7 +830,7 @@ const FinanceApplication = () => {
                   </div>
 
                   {/* POPIA Consent */}
-                  <div className="glass-card rounded-lg p-6 border border-border">
+                  <div className="glass-card rounded-lg p-6 border border-border space-y-4">
                     <div className="flex items-start space-x-4">
                       <Checkbox
                         id="popia_consent"
@@ -837,6 +844,17 @@ const FinanceApplication = () => {
                         be shared with financial institutions for the purpose of obtaining vehicle finance.
                       </Label>
                     </div>
+                    
+                    {/* Signature Pad */}
+                    {formData.popia_consent && (
+                      <div className="pt-4 border-t border-border">
+                        <Label className="text-sm font-medium mb-3 block">Digital Signature</Label>
+                        <SignaturePad 
+                          onSave={(dataUrl) => handleInputChange("signature_url", dataUrl)}
+                          existingSignature={formData.signature_url}
+                        />
+                      </div>
+                    )}
                   </div>
                   <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground">
                     <p>

@@ -224,6 +224,8 @@ const VehicleDetail = () => {
                   src={image}
                   alt={`${vehicleTitle} - Image ${index + 1}`}
                   className="absolute inset-0 w-full h-full object-cover"
+                  loading={index === 0 ? "eager" : "lazy"}
+                  decoding="async"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: index === currentImageIndex ? 1 : 0 }}
                   transition={{ duration: 0.5 }}
@@ -298,6 +300,8 @@ const VehicleDetail = () => {
                       src={image}
                       alt={`Thumbnail ${index + 1}`}
                       className="w-full h-full object-cover"
+                      loading="lazy"
+                      decoding="async"
                     />
                   </button>
                 ))}

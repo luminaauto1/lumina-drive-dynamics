@@ -36,6 +36,8 @@ const SortableImage = ({ id, url, index, onRemove }: SortableImageProps) => {
         src={url}
         alt={`Vehicle ${index + 1}`}
         className="w-full h-full object-cover rounded"
+        loading="lazy"
+        decoding="async"
       />
       
       {/* Drag Handle */}
