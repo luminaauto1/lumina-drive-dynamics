@@ -72,7 +72,7 @@ export const financeApplicationStep4Schema = z.object({
   account_number: accountNumberSchema,
   gross_salary: salarySchema.refine((val) => val && val.trim() !== '', 'Gross salary is required'),
   net_salary: salarySchema.refine((val) => val && val.trim() !== '', 'Net salary is required'),
-  expenses_summary: mediumTextSchema,
+  expenses_summary: z.string().min(1, 'Expenses breakdown is required').max(500, 'Field must be less than 500 characters'),
 });
 
 export const financeApplicationStep5Schema = z.object({
@@ -102,7 +102,7 @@ export const financeApplicationFullSchema = z.object({
   account_number: accountNumberSchema,
   gross_salary: salarySchema.refine((val) => val && val.trim() !== '', 'Gross salary is required'),
   net_salary: salarySchema.refine((val) => val && val.trim() !== '', 'Net salary is required'),
-  expenses_summary: mediumTextSchema,
+  expenses_summary: z.string().min(1, 'Expenses breakdown is required').max(500, 'Field must be less than 500 characters'),
   preferred_vehicle_text: longTextSchema,
   popia_consent: z.boolean().refine((val) => val === true, 'You must consent to POPIA to proceed'),
 });
