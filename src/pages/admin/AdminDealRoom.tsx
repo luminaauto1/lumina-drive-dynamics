@@ -215,15 +215,35 @@ const AdminDealRoom = () => {
   const startEditing = () => {
     if (!application) return;
     setEditedData({
+      // Personal
       first_name: application.first_name,
       last_name: application.last_name,
+      id_number: application.id_number,
       phone: application.phone,
       email: application.email,
+      marital_status: application.marital_status,
+      gender: application.gender,
+      qualification: application.qualification,
+      // Address
       street_address: application.street_address,
+      area_code: application.area_code,
+      // Employment
       employer_name: application.employer_name,
+      job_title: application.job_title,
+      employment_period: application.employment_period,
+      // Financials
       gross_salary: application.gross_salary,
       net_salary: application.net_salary,
       expenses_summary: application.expenses_summary,
+      // Banking
+      bank_name: application.bank_name,
+      account_number: application.account_number,
+      account_type: application.account_type,
+      // Next of Kin
+      kin_name: application.kin_name,
+      kin_contact: application.kin_contact,
+      // Cash buyer
+      source_of_funds: (application as any).source_of_funds,
     });
     setIsEditing(true);
   };
@@ -254,15 +274,65 @@ const AdminDealRoom = () => {
     setEditedData(prev => ({ ...prev, [field]: value }));
   };
 
-  const DetailItem = ({ label, value, copyable = false, field }: { label: string; value: string | number | null | undefined; copyable?: boolean; field?: string }) => (
+  type InputType = 'text' | 'number' | 'textarea' | 'select';
+  
+  interface SelectOption {
+    value: string;
+    label: string;
+  }
+
+  const DetailItem = ({ 
+    label, 
+    value, 
+    copyable = false, 
+    field,
+    inputType = 'text',
+    selectOptions = []
+  }: { 
+    label: string; 
+    value: string | number | null | undefined; 
+    copyable?: boolean; 
+    field?: string;
+    inputType?: InputType;
+    selectOptions?: SelectOption[];
+  }) => (
     <div className="space-y-1">
       <p className="text-xs text-muted-foreground">{label}</p>
       {isEditing && field ? (
-        <Input
-          value={(editedData as any)[field] ?? value ?? ''}
-          onChange={(e) => handleEditChange(field, field?.includes('salary') ? parseFloat(e.target.value) || 0 : e.target.value)}
-          className="h-8 text-sm"
-        />
+        inputType === 'textarea' ? (
+          <Textarea
+            value={(editedData as any)[field] ?? value ?? ''}
+            onChange={(e) => handleEditChange(field, e.target.value)}
+            className="text-sm min-h-[80px]"
+          />
+        ) : inputType === 'select' ? (
+          <Select
+            value={(editedData as any)[field] ?? value ?? ''}
+            onValueChange={(val) => handleEditChange(field, val)}
+          >
+            <SelectTrigger className="h-8 text-sm">
+              <SelectValue placeholder={`Select ${label}`} />
+            </SelectTrigger>
+            <SelectContent>
+              {selectOptions.map(opt => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : inputType === 'number' ? (
+          <Input
+            type="number"
+            value={(editedData as any)[field] ?? value ?? ''}
+            onChange={(e) => handleEditChange(field, parseFloat(e.target.value) || 0)}
+            className="h-8 text-sm"
+          />
+        ) : (
+          <Input
+            value={(editedData as any)[field] ?? value ?? ''}
+            onChange={(e) => handleEditChange(field, e.target.value)}
+            className="h-8 text-sm"
+          />
+        )
       ) : (
         <div className="flex items-center gap-2">
           <p className="text-sm font-medium">{value || 'N/A'}</p>
@@ -283,6 +353,37 @@ const AdminDealRoom = () => {
       )}
     </div>
   );
+
+  const maritalStatusOptions: SelectOption[] = [
+    { value: 'Single', label: 'Single' },
+    { value: 'Married', label: 'Married' },
+    { value: 'Divorced', label: 'Divorced' },
+    { value: 'Widowed', label: 'Widowed' },
+  ];
+
+  const genderOptions: SelectOption[] = [
+    { value: 'Male', label: 'Male' },
+    { value: 'Female', label: 'Female' },
+    { value: 'Other', label: 'Other' },
+  ];
+
+  const accountTypeOptions: SelectOption[] = [
+    { value: 'Cheque', label: 'Cheque' },
+    { value: 'Savings', label: 'Savings' },
+  ];
+
+  const bankOptions: SelectOption[] = [
+    { value: 'ABSA', label: 'ABSA' },
+    { value: 'Capitec', label: 'Capitec' },
+    { value: 'FNB', label: 'FNB' },
+    { value: 'Nedbank', label: 'Nedbank' },
+    { value: 'Standard Bank', label: 'Standard Bank' },
+    { value: 'African Bank', label: 'African Bank' },
+    { value: 'Investec', label: 'Investec' },
+    { value: 'TymeBank', label: 'TymeBank' },
+    { value: 'Discovery Bank', label: 'Discovery Bank' },
+    { value: 'Other', label: 'Other' },
+  ];
 
   if (isLoading) {
     return (
@@ -420,10 +521,10 @@ const AdminDealRoom = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <DetailItem label="First Name" value={application.first_name} copyable field="first_name" />
                 <DetailItem label="Surname" value={application.last_name} copyable field="last_name" />
-                <DetailItem label="ID Number" value={application.id_number} copyable />
-                <DetailItem label="Gender" value={application.gender} />
-                <DetailItem label="Marital Status" value={application.marital_status} />
-                <DetailItem label="Qualification" value={application.qualification} />
+                <DetailItem label="ID Number" value={application.id_number} copyable field="id_number" />
+                <DetailItem label="Gender" value={application.gender} field="gender" inputType="select" selectOptions={genderOptions} />
+                <DetailItem label="Marital Status" value={application.marital_status} field="marital_status" inputType="select" selectOptions={maritalStatusOptions} />
+                <DetailItem label="Qualification" value={application.qualification} field="qualification" />
                 <DetailItem label="Email" value={application.email} copyable field="email" />
                 <DetailItem label="Phone" value={application.phone} copyable field="phone" />
               </div>
@@ -436,8 +537,8 @@ const AdminDealRoom = () => {
                 Address
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <DetailItem label="Physical Address" value={application.street_address} field="street_address" />
-                <DetailItem label="Area/Postal Code" value={application.area_code} />
+                <DetailItem label="Physical Address" value={application.street_address} field="street_address" inputType="textarea" />
+                <DetailItem label="Area/Postal Code" value={application.area_code} field="area_code" />
               </div>
             </div>
 
@@ -449,8 +550,8 @@ const AdminDealRoom = () => {
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <DetailItem label="Employer" value={application.employer_name} field="employer_name" />
-                <DetailItem label="Job Title" value={application.job_title} />
-                <DetailItem label="Period at Employer" value={application.employment_period} />
+                <DetailItem label="Job Title" value={application.job_title} field="job_title" />
+                <DetailItem label="Period at Employer" value={application.employment_period} field="employment_period" />
               </div>
             </div>
 
@@ -462,18 +563,30 @@ const AdminDealRoom = () => {
                   Financials
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  <DetailItem label="Gross Salary" value={application.gross_salary ? formatPrice(application.gross_salary) : null} />
-                  <DetailItem label="Net Salary" value={application.net_salary ? formatPrice(application.net_salary) : null} />
-                  <DetailItem label="Bank" value={application.bank_name} />
-                  <DetailItem label="Account Type" value={application.account_type} />
-                  <DetailItem label="Account Number" value={application.account_number} />
+                  <DetailItem 
+                    label="Gross Salary" 
+                    value={isEditing ? application.gross_salary : (application.gross_salary ? formatPrice(application.gross_salary) : null)} 
+                    field="gross_salary" 
+                    inputType="number" 
+                  />
+                  <DetailItem 
+                    label="Net Salary" 
+                    value={isEditing ? application.net_salary : (application.net_salary ? formatPrice(application.net_salary) : null)} 
+                    field="net_salary" 
+                    inputType="number" 
+                  />
+                  <DetailItem label="Bank" value={application.bank_name} field="bank_name" inputType="select" selectOptions={bankOptions} />
+                  <DetailItem label="Account Type" value={application.account_type} field="account_type" inputType="select" selectOptions={accountTypeOptions} />
+                  <DetailItem label="Account Number" value={application.account_number} field="account_number" />
                 </div>
-                {application.expenses_summary && (
-                  <div className="mt-4">
-                    <p className="text-xs text-muted-foreground mb-1">Expenses Summary</p>
-                    <p className="text-sm bg-muted/50 p-3 rounded">{application.expenses_summary}</p>
-                  </div>
-                )}
+                <div className="mt-4">
+                  <DetailItem 
+                    label="Expenses Summary" 
+                    value={application.expenses_summary} 
+                    field="expenses_summary" 
+                    inputType="textarea" 
+                  />
+                </div>
               </div>
             )}
 
@@ -486,7 +599,7 @@ const AdminDealRoom = () => {
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <DetailItem label="Buyer Type" value="Cash / EFT" />
-                  <DetailItem label="Source of Funds" value={(application as any).source_of_funds} />
+                  <DetailItem label="Source of Funds" value={(application as any).source_of_funds} field="source_of_funds" />
                 </div>
               </div>
             )}
@@ -498,8 +611,8 @@ const AdminDealRoom = () => {
                 Next of Kin
               </h3>
               <div className="grid grid-cols-2 gap-4">
-                <DetailItem label="Name" value={application.kin_name} />
-                <DetailItem label="Contact" value={application.kin_contact} />
+                <DetailItem label="Name" value={application.kin_name} field="kin_name" />
+                <DetailItem label="Contact" value={application.kin_contact} field="kin_contact" />
               </div>
             </div>
           </motion.div>
