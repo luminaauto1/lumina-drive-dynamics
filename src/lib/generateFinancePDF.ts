@@ -195,7 +195,7 @@ export const generateFinancePDF = (application: FinanceApplication, vehicleDetai
 
   // POPIA Consent Declaration
   yPos += 12;
-  if (yPos > 240) {
+  if (yPos > 220) {
     doc.addPage();
     yPos = 20;
   }
@@ -222,6 +222,17 @@ export const generateFinancePDF = (application: FinanceApplication, vehicleDetai
   
   yPos += 6;
   doc.text(`POPIA Consent Given: ${application.popia_consent ? 'Yes' : 'No'}`, leftMargin, yPos);
+  
+  // Signature Date
+  yPos += lineHeight;
+  const signedDate = new Date(application.created_at).toLocaleDateString('en-ZA', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  doc.text(`Signed and agreed to POPIA consent on: ${signedDate}`, leftMargin, yPos);
   
   // Footer
   yPos = 280;

@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { useWishlist } from '@/hooks/useWishlist';
 import { useVehicle } from '@/hooks/useVehicles';
 import { formatPrice, formatMileage, calculateMonthlyPayment } from '@/lib/formatters';
+import { getOptimizedImageUrl } from '@/lib/utils';
 import KineticText from '@/components/KineticText';
 import FinanceCalculator from '@/components/FinanceCalculator';
 import ImageLightbox from '@/components/ImageLightbox';
@@ -221,7 +222,7 @@ const VehicleDetail = () => {
               images.map((image, index) => (
                 <motion.img
                   key={index}
-                  src={image}
+                  src={getOptimizedImageUrl(image, 1200)}
                   alt={`${vehicleTitle} - Image ${index + 1}`}
                   className="absolute inset-0 w-full h-full object-cover"
                   loading={index === 0 ? "eager" : "lazy"}
