@@ -362,19 +362,34 @@ const Inventory = () => {
               <SkeletonCard count={6} />
             </div>
           ) : filteredVehicles.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredVehicles.map((vehicle, index) => (
-                <VehicleCard
-                  key={vehicle.id}
-                  vehicle={vehicle}
-                  onCompare={toggleCompare}
-                  isComparing={isInCompare(vehicle.id)}
-                  isEager={index < 6}
-                />
-              ))}
-              {/* Always show sourcing card at the end */}
-              <SourcingCard />
-            </div>
+            <>
+              {/* Preload first 4 images */}
+              <head>
+                {filteredVehicles.slice(0, 4).map((vehicle) => (
+                  vehicle.images?.[0] && (
+                    <link
+                      key={`preload-${vehicle.id}`}
+                      rel="preload"
+                      as="image"
+                      href={vehicle.images[0]}
+                    />
+                  )
+                ))}
+              </head>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredVehicles.map((vehicle, index) => (
+                  <VehicleCard
+                    key={vehicle.id}
+                    vehicle={vehicle}
+                    onCompare={toggleCompare}
+                    isComparing={isInCompare(vehicle.id)}
+                    isEager={index < 4}
+                  />
+                ))}
+                {/* Always show sourcing card at the end */}
+                <SourcingCard />
+              </div>
+            </>
           ) : (
             <div className="text-center py-20">
               <p className="text-muted-foreground text-lg mb-4">

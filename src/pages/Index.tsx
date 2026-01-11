@@ -126,14 +126,13 @@ const Index = () => {
         opacity: heroOpacity,
         scale: heroScale
       }} className="absolute inset-0 overflow-hidden">
-          {/* Video Background - Optimized positioning */}
+          {/* Video Background - Force load, no poster flash */}
           <video 
             autoPlay 
             muted 
             loop 
             playsInline 
-            preload="metadata" 
-            poster="/lovable-uploads/16189aee-0fe1-4c9b-9a90-bcb743ad9a1d.png"
+            preload="auto"
             style={{ objectPosition: 'center 10%' }} 
             className="w-full h-full object-contain md:object-cover shadow-inner rounded-none"
           >

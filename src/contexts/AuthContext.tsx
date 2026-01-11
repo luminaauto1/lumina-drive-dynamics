@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -23,7 +24,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let mounted = true;
 
-    // Get initial session first (important for mobile refresh persistence)
+    // Set up auth state listener FIRST (before getSession)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!mounted) return;
+        
+        // Handle PASSWORD_RECOVERY event - redirect to update password page
+        if (event === 'PASSWORD_RECOVERY') {
+          window.location.href = '/update-password';
+          return;
+        }
+        
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+
+        // Check admin role after auth state change
+        if (session?.user) {
+          // Use setTimeout to avoid potential deadlock with Supabase client
+          setTimeout(() => {
+            if (mounted) {
+              checkAdminRole(session.user.id);
+            }
+          }, 0);
+        } else {
+          setIsAdmin(false);
+        }
+      }
+    );
+
+    // Get initial session (important for mobile refresh persistence)
     const initializeAuth = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -50,29 +80,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     initializeAuth();
-
-    // Set up auth state listener for changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted) return;
-        
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-
-        // Check admin role after auth state change
-        if (session?.user) {
-          // Use setTimeout to avoid potential deadlock with Supabase client
-          setTimeout(() => {
-            if (mounted) {
-              checkAdminRole(session.user.id);
-            }
-          }, 0);
-        } else {
-          setIsAdmin(false);
-        }
-      }
-    );
 
     return () => {
       mounted = false;

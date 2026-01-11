@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import KineticText from "@/components/KineticText";
 import SignaturePad from "@/components/SignaturePad";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -78,7 +79,8 @@ const FinanceApplication = () => {
     // Employment
     employer_name: "",
     job_title: "",
-    employment_period: "",
+    employment_period_value: "",
+    employment_period_unit: "years",
     // Next of Kin
     kin_name: "",
     kin_contact: "",
@@ -99,6 +101,12 @@ const FinanceApplication = () => {
     has_drivers_license: "",
     credit_score_status: "",
   });
+
+  // Computed employment period for validation and submission
+  const getEmploymentPeriod = () => {
+    if (!formData.employment_period_value) return "";
+    return `${formData.employment_period_value} ${formData.employment_period_unit}`;
+  };
 
   useEffect(() => {
     // Don't redirect while loading - wait for auth state to resolve
@@ -151,7 +159,7 @@ const FinanceApplication = () => {
             area_code: formData.area_code,
             employer_name: formData.employer_name,
             job_title: formData.job_title,
-            employment_period: formData.employment_period,
+            employment_period: getEmploymentPeriod(),
           });
           return true;
         case 3:
@@ -233,7 +241,7 @@ const FinanceApplication = () => {
       area_code: formData.area_code?.trim() || null,
       employer_name: formData.employer_name.trim(),
       job_title: formData.job_title?.trim() || null,
-      employment_period: formData.employment_period?.trim() || null,
+      employment_period: getEmploymentPeriod() || null,
       kin_name: formData.kin_name.trim(),
       kin_contact: formData.kin_contact.trim(),
       bank_name: formData.bank_name,
@@ -612,11 +620,10 @@ const FinanceApplication = () => {
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="street_address">Physical Address *</Label>
-                      <Textarea
-                        id="street_address"
+                      <AddressAutocomplete
                         value={formData.street_address}
-                        onChange={(e) => handleInputChange("street_address", e.target.value)}
-                        placeholder="Street address, suburb, city"
+                        onChange={(value) => handleInputChange("street_address", value)}
+                        placeholder="Start typing your address..."
                         required
                       />
                     </div>
@@ -652,12 +659,29 @@ const FinanceApplication = () => {
                       </div>
                       <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="employment_period">Period at Employer</Label>
-                        <Input
-                          id="employment_period"
-                          value={formData.employment_period}
-                          onChange={(e) => handleInputChange("employment_period", e.target.value)}
-                          placeholder="e.g., 2 years 6 months"
-                        />
+                        <div className="flex gap-3">
+                          <Input
+                            id="employment_period_value"
+                            type="number"
+                            value={formData.employment_period_value}
+                            onChange={(e) => handleInputChange("employment_period_value", e.target.value)}
+                            placeholder="Time"
+                            className="flex-1"
+                            min={0}
+                          />
+                          <Select
+                            value={formData.employment_period_unit}
+                            onValueChange={(v) => handleInputChange("employment_period_unit", v)}
+                          >
+                            <SelectTrigger className="w-32">
+                              <SelectValue placeholder="Unit" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="months">Months</SelectItem>
+                              <SelectItem value="years">Years</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                     </div>
                   </div>

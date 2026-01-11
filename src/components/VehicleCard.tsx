@@ -4,6 +4,7 @@ import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { Heart, GitCompare, ChevronRight } from 'lucide-react';
 import { useWishlist } from '@/hooks/useWishlist';
 import { formatPrice, formatMileage, calculateMonthlyPayment } from '@/lib/formatters';
+import { getOptimizedImageUrl } from '@/lib/utils';
 import type { Vehicle } from '@/hooks/useVehicles';
 
 interface VehicleCardProps {
@@ -106,7 +107,7 @@ const VehicleCard = ({ vehicle, onCompare, isComparing, isSourcingCard = false, 
             images.map((image, index) => (
               <motion.img
                 key={index}
-                src={image}
+                src={getOptimizedImageUrl(image, 600)}
                 alt={`${vehicle.make} ${vehicle.model} - Image ${index + 1}`}
                 className="absolute inset-0 w-full h-full object-cover"
                 loading={isEager && index === 0 ? "eager" : "lazy"}
