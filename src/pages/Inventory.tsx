@@ -14,6 +14,7 @@ import KineticText from '@/components/KineticText';
 import { useCompare } from '@/hooks/useCompare';
 import { useVehicles } from '@/hooks/useVehicles';
 import { formatPrice, calculateMonthlyPayment } from '@/lib/formatters';
+import { getOptimizedImage } from '@/lib/utils';
 
 const BODY_TYPES = ['SUV', 'Hatchback', 'Sedan', 'Bakkie', 'Coupe', 'Convertible', 'Wagon'];
 
@@ -363,19 +364,17 @@ const Inventory = () => {
             </div>
           ) : filteredVehicles.length > 0 ? (
             <>
-              {/* Preload first 4 images */}
-              <head>
-                {filteredVehicles.slice(0, 4).map((vehicle) => (
-                  vehicle.images?.[0] && (
-                    <link
-                      key={`preload-${vehicle.id}`}
-                      rel="preload"
-                      as="image"
-                      href={vehicle.images[0]}
-                    />
-                  )
-                ))}
-              </head>
+              {/* Preload first 6 images using optimized URLs */}
+              {filteredVehicles.slice(0, 6).map((vehicle) => (
+                vehicle.images?.[0] && (
+                  <link
+                    key={`preload-${vehicle.id}`}
+                    rel="preload"
+                    as="image"
+                    href={getOptimizedImage(vehicle.images[0], 600)}
+                  />
+                )
+              ))}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredVehicles.map((vehicle, index) => (
                   <VehicleCard
@@ -383,7 +382,7 @@ const Inventory = () => {
                     vehicle={vehicle}
                     onCompare={toggleCompare}
                     isComparing={isInCompare(vehicle.id)}
-                    isEager={index < 4}
+                    isEager={index < 6}
                   />
                 ))}
                 {/* Always show sourcing card at the end */}

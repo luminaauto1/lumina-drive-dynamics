@@ -39,6 +39,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useVehicles, useCreateVehicle, useUpdateVehicle, useDeleteVehicle, formatPrice, Vehicle, VehicleInsert } from '@/hooks/useVehicles';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { getOptimizedImage } from '@/lib/utils';
 
 const BODY_TYPE_OPTIONS = ['Hatchback', 'Sedan', 'SUV', 'Coupe', 'Convertible', 'Bakkie/Pickup', 'MPV'] as const;
 
@@ -396,9 +397,11 @@ const AdminInventoryPage = () => {
                     <TableCell>
                       {vehicle.images && vehicle.images[0] ? (
                         <img
-                          src={vehicle.images[0]}
+                          src={getOptimizedImage(vehicle.images[0], 200)}
                           alt={`${vehicle.make} ${vehicle.model}`}
                           className="w-20 h-14 object-cover rounded"
+                          loading="lazy"
+                          decoding="async"
                         />
                       ) : (
                         <div className="w-20 h-14 bg-secondary rounded flex items-center justify-center text-muted-foreground text-xs">

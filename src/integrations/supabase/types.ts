@@ -226,6 +226,7 @@ export type Database = {
           preferred_vehicle_text: string | null
           qualification: string | null
           selected_vehicle_id: string | null
+          signature_url: string | null
           source_of_funds: string | null
           status: string
           street_address: string | null
@@ -270,6 +271,7 @@ export type Database = {
           preferred_vehicle_text?: string | null
           qualification?: string | null
           selected_vehicle_id?: string | null
+          signature_url?: string | null
           source_of_funds?: string | null
           status?: string
           street_address?: string | null
@@ -314,6 +316,7 @@ export type Database = {
           preferred_vehicle_text?: string | null
           qualification?: string | null
           selected_vehicle_id?: string | null
+          signature_url?: string | null
           source_of_funds?: string | null
           status?: string
           street_address?: string | null
@@ -334,6 +337,80 @@ export type Database = {
             columns: ["vehicle_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finance_offers: {
+        Row: {
+          admin_fee: number | null
+          application_id: string
+          balloon_amount: number | null
+          bank_name: string
+          cash_price: number | null
+          created_at: string
+          delivery_fee: number | null
+          id: string
+          initiation_fee: number | null
+          instalment_fixed: number | null
+          instalment_linked: number | null
+          interest_rate_fixed: number | null
+          interest_rate_linked: number | null
+          license_fee: number | null
+          principal_debt: number | null
+          status: string
+          total_fees: number | null
+          updated_at: string
+          vap_amount: number | null
+        }
+        Insert: {
+          admin_fee?: number | null
+          application_id: string
+          balloon_amount?: number | null
+          bank_name: string
+          cash_price?: number | null
+          created_at?: string
+          delivery_fee?: number | null
+          id?: string
+          initiation_fee?: number | null
+          instalment_fixed?: number | null
+          instalment_linked?: number | null
+          interest_rate_fixed?: number | null
+          interest_rate_linked?: number | null
+          license_fee?: number | null
+          principal_debt?: number | null
+          status?: string
+          total_fees?: number | null
+          updated_at?: string
+          vap_amount?: number | null
+        }
+        Update: {
+          admin_fee?: number | null
+          application_id?: string
+          balloon_amount?: number | null
+          bank_name?: string
+          cash_price?: number | null
+          created_at?: string
+          delivery_fee?: number | null
+          id?: string
+          initiation_fee?: number | null
+          instalment_fixed?: number | null
+          instalment_linked?: number | null
+          interest_rate_fixed?: number | null
+          interest_rate_linked?: number | null
+          license_fee?: number | null
+          principal_debt?: number | null
+          status?: string
+          total_fees?: number | null
+          updated_at?: string
+          vap_amount?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_offers_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "finance_applications"
             referencedColumns: ["id"]
           },
         ]

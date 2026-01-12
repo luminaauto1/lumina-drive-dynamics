@@ -234,6 +234,31 @@ export const generateFinancePDF = (application: FinanceApplication, vehicleDetai
   });
   doc.text(`Signed and agreed to POPIA consent on: ${signedDate}`, leftMargin, yPos);
   
+  // Add signature image if available
+  const signatureUrl = (application as any).signature_url;
+  if (signatureUrl && signatureUrl.startsWith('data:image')) {
+    yPos += 10;
+    if (yPos > 230) {
+      doc.addPage();
+      yPos = 30;
+    }
+    
+    doc.setFontSize(10);
+    doc.setTextColor(textColor);
+    doc.text('Client Signature:', leftMargin, yPos);
+    
+    yPos += 5;
+    try {
+      doc.addImage(signatureUrl, 'PNG', leftMargin, yPos, 60, 25);
+      yPos += 30;
+      doc.setFontSize(8);
+      doc.setTextColor(mutedColor);
+      doc.text('Digitally signed by client', leftMargin, yPos);
+    } catch (e) {
+      console.error('Failed to add signature to PDF:', e);
+    }
+  }
+  
   // Footer
   yPos = 280;
   doc.setFontSize(8);
