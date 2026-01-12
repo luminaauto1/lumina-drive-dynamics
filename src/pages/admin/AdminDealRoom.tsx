@@ -5,9 +5,10 @@ import { Helmet } from 'react-helmet-async';
 import { 
   ArrowLeft, User, MapPin, Building, Wallet, Users, Phone, Mail, 
   MessageCircle, Car, Plus, X, Search, FileText, CheckCircle, AlertTriangle, Copy, Check,
-  Download, PartyPopper, Edit2, Save
+  Download, PartyPopper, Edit2, Save, Building2
 } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
+import FinancePodiumModal from '@/components/admin/FinancePodiumModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,6 +40,7 @@ const AdminDealRoom = () => {
   const [approvedBudget, setApprovedBudget] = useState<string>('');
   const [isEditing, setIsEditing] = useState(false);
   const [editedData, setEditedData] = useState<Partial<FinanceApplication>>({});
+  const [podiumModalOpen, setPodiumModalOpen] = useState(false);
 
   const { data: vehicles = [] } = useVehicles();
   const { data: matches = [], isLoading: matchesLoading } = useApplicationMatches(id || '');
@@ -481,14 +483,25 @@ const AdminDealRoom = () => {
                     <span className="hidden sm:inline">Download</span> PDF
                   </Button>
                   {application.status === 'approved' && (
-                    <Button
-                      onClick={handleFinalizeDeal}
-                      size="sm"
-                      className="bg-emerald-600 hover:bg-emerald-700 text-xs md:text-sm"
-                    >
-                      <PartyPopper className="w-4 h-4 mr-1 md:mr-2" />
-                      Finalize
-                    </Button>
+                    <>
+                      <Button
+                        onClick={() => setPodiumModalOpen(true)}
+                        size="sm"
+                        variant="outline"
+                        className="border-primary/30 text-primary hover:bg-primary/10 text-xs md:text-sm"
+                      >
+                        <Building2 className="w-4 h-4 mr-1 md:mr-2" />
+                        Podium
+                      </Button>
+                      <Button
+                        onClick={handleFinalizeDeal}
+                        size="sm"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-xs md:text-sm"
+                      >
+                        <PartyPopper className="w-4 h-4 mr-1 md:mr-2" />
+                        Finalize
+                      </Button>
+                    </>
                   )}
                   <Button
                     onClick={openWhatsApp}
@@ -931,6 +944,14 @@ const AdminDealRoom = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Finance Podium Modal */}
+      <FinancePodiumModal
+        open={podiumModalOpen}
+        onOpenChange={setPodiumModalOpen}
+        applicationId={application.id}
+        approvedBudget={(application as any).approved_budget}
+      />
     </AdminLayout>
   );
 };

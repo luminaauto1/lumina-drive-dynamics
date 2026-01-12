@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Info } from 'lucide-react';
+import { Info, BadgeCheck } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { formatPrice, calculateMaxBalloon } from '@/lib/formatters';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
+import { useUserActiveOffer } from '@/hooks/useFinanceOffers';
 
 interface FinanceCalculatorProps {
   vehiclePrice: number;
@@ -18,6 +19,7 @@ interface FinanceCalculatorProps {
 const FinanceCalculator = ({ vehiclePrice, vehicleYear }: FinanceCalculatorProps) => {
   const { user } = useAuth();
   const { data: settings } = useSiteSettings();
+  const { data: activeOffer } = useUserActiveOffer(user?.id);
   const navigate = useNavigate();
 
   const currentYear = new Date().getFullYear();
@@ -38,6 +40,7 @@ const FinanceCalculator = ({ vehiclePrice, vehicleYear }: FinanceCalculatorProps
   const [interest, setInterest] = useState(defaultInterestRate);
   const [monthlyPayment, setMonthlyPayment] = useState(0);
   const [isCashBuyer, setIsCashBuyer] = useState(false);
+  const [hasActiveOffer, setHasActiveOffer] = useState(false);
 
   // Update interest when settings load
   useEffect(() => {
@@ -45,6 +48,24 @@ const FinanceCalculator = ({ vehiclePrice, vehicleYear }: FinanceCalculatorProps
       setInterest(settings.default_interest_rate);
     }
   }, [settings?.default_interest_rate]);
+
+  // Override with bank offer values if available
+  useEffect(() => {
+    if (activeOffer) {
+      setHasActiveOffer(true);
+      // Use linked rate as default (usually better)
+      if (activeOffer.interest_rate_linked) {
+        setInterest(activeOffer.interest_rate_linked);
+      } else if (activeOffer.interest_rate_fixed) {
+        setInterest(activeOffer.interest_rate_fixed);
+      }
+      // Set balloon from offer
+      if (activeOffer.balloon_amount && vehiclePrice > 0) {
+        const balloonPercent = Math.round((activeOffer.balloon_amount / vehiclePrice) * 100);
+        setBalloon(Math.min(balloonPercent, maxBalloon));
+      }
+    }
+  }, [activeOffer, vehiclePrice, maxBalloon]);
 
   // Clamp balloon if maxBalloon changes
   useEffect(() => {
@@ -91,6 +112,19 @@ const FinanceCalculator = ({ vehiclePrice, vehicleYear }: FinanceCalculatorProps
         <h3 className="text-lg font-semibold">Finance Calculator</h3>
         <span className="text-xs uppercase tracking-wider text-muted-foreground">Interactive</span>
       </div>
+
+      {/* Bank Offer Badge */}
+      {hasActiveOffer && (
+        <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+          <BadgeCheck className="w-5 h-5 text-emerald-500" />
+          <div>
+            <p className="text-sm font-medium text-emerald-400">Bank Offer Applied</p>
+            <p className="text-xs text-muted-foreground">
+              {activeOffer?.bank_name} - Rate: {activeOffer?.interest_rate_linked || activeOffer?.interest_rate_fixed}%
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Cash Buyer Toggle */}
       <div className="flex items-center space-x-2 p-3 bg-muted/50 rounded-lg">
