@@ -19,12 +19,12 @@ const Calculator = () => {
   const maxInterest = settings?.max_interest ?? 25;
   const defaultInterest = settings?.default_interest_rate ?? 13.5;
 
-  const [vehiclePrice, setVehiclePrice] = useState(500000);
+  const [vehiclePrice, setVehiclePrice] = useState<number | ''>(500000);
   const [vehicleYear, setVehicleYear] = useState(new Date().getFullYear());
   const [deposit, setDeposit] = useState(0); // Default deposit to 0%
   const [balloon, setBalloon] = useState(0);
   const [months, setMonths] = useState(72);
-  const [interest, setInterest] = useState(defaultInterest);
+  const [interest, setInterest] = useState<number | ''>(defaultInterest);
   const [monthlyPayment, setMonthlyPayment] = useState(0);
 
   // Update interest when settings load
@@ -47,10 +47,13 @@ const Calculator = () => {
 
   // PMT formula calculation
   useEffect(() => {
-    const depositAmount = vehiclePrice * (deposit / 100);
-    const balloonAmount = vehiclePrice * (balloon / 100);
-    const principal = vehiclePrice - depositAmount;
-    const monthlyRate = interest / 100 / 12;
+    const priceValue = vehiclePrice === '' ? 0 : vehiclePrice;
+    const interestValue = interest === '' ? 0 : interest;
+    
+    const depositAmount = priceValue * (deposit / 100);
+    const balloonAmount = priceValue * (balloon / 100);
+    const principal = priceValue - depositAmount;
+    const monthlyRate = interestValue / 100 / 12;
 
     if (monthlyRate === 0) {
       setMonthlyPayment(Math.round((principal - balloonAmount) / months));
@@ -63,9 +66,10 @@ const Calculator = () => {
     setMonthlyPayment(Math.round(payment));
   }, [vehiclePrice, deposit, balloon, months, interest]);
 
-  const depositAmount = vehiclePrice * (deposit / 100);
-  const balloonAmount = vehiclePrice * (balloon / 100);
-  const financeAmount = vehiclePrice - depositAmount;
+  const priceValue = vehiclePrice === '' ? 0 : vehiclePrice;
+  const depositAmount = priceValue * (deposit / 100);
+  const balloonAmount = priceValue * (balloon / 100);
+  const financeAmount = priceValue - depositAmount;
 
   const yearOptions = Array.from({ length: 15 }, (_, i) => currentYear - i);
 
@@ -110,7 +114,10 @@ const Calculator = () => {
                 <Input
                   type="number"
                   value={vehiclePrice}
-                  onChange={(e) => setVehiclePrice(Number(e.target.value))}
+                  onChange={(e) => setVehiclePrice(e.target.value === '' ? '' : Number(e.target.value))}
+                  onBlur={() => {
+                    if (vehiclePrice === '') setVehiclePrice(0);
+                  }}
                   min={50000}
                   max={10000000}
                   step={10000}
@@ -118,7 +125,7 @@ const Calculator = () => {
                 />
               </div>
               <Slider
-                value={[vehiclePrice]}
+                value={[priceValue]}
                 onValueChange={(value) => setVehiclePrice(value[0])}
                 min={50000}
                 max={6000000}
@@ -229,8 +236,19 @@ const Calculator = () => {
                     type="number"
                     value={interest}
                     onChange={(e) => {
-                      const val = parseFloat(e.target.value) || 0;
-                      setInterest(Math.max(minInterest, Math.min(maxInterest, val)));
+                      if (e.target.value === '') {
+                        setInterest('');
+                      } else {
+                        const val = parseFloat(e.target.value);
+                        setInterest(isNaN(val) ? '' : val);
+                      }
+                    }}
+                    onBlur={() => {
+                      if (interest === '' || (typeof interest === 'number' && interest < minInterest)) {
+                        setInterest(minInterest);
+                      } else if (typeof interest === 'number' && interest > maxInterest) {
+                        setInterest(maxInterest);
+                      }
                     }}
                     min={minInterest}
                     max={maxInterest}
@@ -241,7 +259,7 @@ const Calculator = () => {
                 </div>
               </div>
               <Slider
-                value={[interest]}
+                value={[interest === '' ? minInterest : interest]}
                 onValueChange={(value) => setInterest(value[0])}
                 min={minInterest}
                 max={maxInterest}
@@ -258,7 +276,7 @@ const Calculator = () => {
             <div className="pt-6 border-t border-border space-y-4">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Vehicle Price</span>
-                <span>{formatPrice(vehiclePrice)}</span>
+                <span>{formatPrice(priceValue)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Less Deposit</span>

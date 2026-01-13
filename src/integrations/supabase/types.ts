@@ -604,6 +604,7 @@ export type Database = {
           created_at: string
           description: string | null
           engine_code: string | null
+          estimated_profit: number | null
           finance_available: boolean | null
           fuel_type: string
           id: string
@@ -614,6 +615,8 @@ export type Database = {
           mileage: number
           model: string
           price: number
+          purchase_price: number | null
+          reconditioning_cost: number | null
           service_history: string | null
           status: string
           stock_number: string | null
@@ -630,6 +633,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           engine_code?: string | null
+          estimated_profit?: number | null
           finance_available?: boolean | null
           fuel_type: string
           id?: string
@@ -640,6 +644,8 @@ export type Database = {
           mileage: number
           model: string
           price: number
+          purchase_price?: number | null
+          reconditioning_cost?: number | null
           service_history?: string | null
           status?: string
           stock_number?: string | null
@@ -656,6 +662,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           engine_code?: string | null
+          estimated_profit?: number | null
           finance_available?: boolean | null
           fuel_type?: string
           id?: string
@@ -666,6 +673,8 @@ export type Database = {
           mileage?: number
           model?: string
           price?: number
+          purchase_price?: number | null
+          reconditioning_cost?: number | null
           service_history?: string | null
           status?: string
           stock_number?: string | null
