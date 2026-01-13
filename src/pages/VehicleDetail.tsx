@@ -16,6 +16,7 @@ import {
   Shield,
   Bell,
   ZoomIn,
+  Sparkles,
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,7 @@ import { useWishlist } from '@/hooks/useWishlist';
 import { useVehicle } from '@/hooks/useVehicles';
 import { formatPrice, formatMileage, calculateMonthlyPayment } from '@/lib/formatters';
 import { getOptimizedImage } from '@/lib/utils';
+import { useBestFinanceOffer } from '@/hooks/useBestFinanceOffer';
 import KineticText from '@/components/KineticText';
 import FinanceCalculator from '@/components/FinanceCalculator';
 import ImageLightbox from '@/components/ImageLightbox';
@@ -34,6 +36,7 @@ const VehicleDetail = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const { isInWishlist, toggleWishlist } = useWishlist();
+  const { data: bestOffer } = useBestFinanceOffer();
   const trackEvent = useTrackEvent();
 
   const { data: vehicle, isLoading } = useVehicle(id || '');
@@ -99,8 +102,17 @@ const VehicleDetail = () => {
   const isSold = vehicle.status === 'sold';
   const isIncoming = vehicle.status === 'incoming';
   const inWishlist = isInWishlist(vehicle.id);
+  
+  // Calculate monthly payment - use personalized rate if available
+  const hasPersonalizedRate = !!bestOffer && (bestOffer.interest_rate_linked || bestOffer.interest_rate_fixed);
+  const personalizedRate = hasPersonalizedRate 
+    ? Math.min(bestOffer.interest_rate_linked || 100, bestOffer.interest_rate_fixed || 100)
+    : undefined;
+  
   const monthlyPayment = vehicle.finance_available
-    ? calculateMonthlyPayment(vehicle.price)
+    ? personalizedRate 
+      ? calculateMonthlyPayment(vehicle.price, personalizedRate, 72, 0)
+      : calculateMonthlyPayment(vehicle.price)
     : null;
 
   const images = vehicle.images || [];
@@ -384,6 +396,13 @@ const VehicleDetail = () => {
                 {/* Price Card - FINANCE FIRST */}
                 <div className="p-6 glass-card rounded-xl space-y-4">
                   <div>
+                    {/* Personalized Rate Badge */}
+                    {hasPersonalizedRate && !isSold && (
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <Sparkles className="w-4 h-4 text-amber-400" />
+                        <span className="text-sm font-medium text-amber-400">Personalized Rate Applied</span>
+                      </div>
+                    )}
                     {/* Monthly Payment - PROMINENT */}
                     {monthlyPayment && !isSold && (
                       <p className="font-display text-4xl font-bold text-foreground mb-1" title="Est. only. Subject to bank approval & interest rates.">

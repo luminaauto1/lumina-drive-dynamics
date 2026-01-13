@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
-import { Heart, GitCompare, ChevronRight } from 'lucide-react';
+import { Heart, GitCompare, ChevronRight, Sparkles } from 'lucide-react';
 import { useWishlist } from '@/hooks/useWishlist';
 import { formatPrice, formatMileage, calculateMonthlyPayment } from '@/lib/formatters';
 import { getOptimizedImage } from '@/lib/utils';
+import { useBestFinanceOffer } from '@/hooks/useBestFinanceOffer';
 import type { Vehicle } from '@/hooks/useVehicles';
 
 interface VehicleCardProps {
@@ -19,6 +20,7 @@ const VehicleCard = ({ vehicle, onCompare, isComparing, isSourcingCard = false, 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const { isInWishlist, toggleWishlist } = useWishlist();
+  const { data: bestOffer } = useBestFinanceOffer();
   const cardRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -74,8 +76,20 @@ const VehicleCard = ({ vehicle, onCompare, isComparing, isSourcingCard = false, 
   const isSold = vehicle.status === 'sold';
   const isIncoming = vehicle.status === 'incoming';
   const inWishlist = isInWishlist(vehicle.id);
+  
+  // Calculate monthly payment - use personalized rate if available
+  const hasPersonalizedRate = !!bestOffer && (bestOffer.interest_rate_linked || bestOffer.interest_rate_fixed);
+  const personalizedRate = hasPersonalizedRate 
+    ? Math.min(bestOffer.interest_rate_linked || 100, bestOffer.interest_rate_fixed || 100)
+    : undefined;
+  const personalizedBalloon = bestOffer?.balloon_amount && vehicle.price > 0
+    ? Math.round((bestOffer.balloon_amount / vehicle.price) * 100)
+    : 0;
+  
   const monthlyPayment = vehicle.finance_available
-    ? calculateMonthlyPayment(vehicle.price)
+    ? personalizedRate 
+      ? calculateMonthlyPayment(vehicle.price, personalizedRate, 72, 0) // With personalized rate
+      : calculateMonthlyPayment(vehicle.price)
     : null;
 
   const images = vehicle.images || [];
@@ -207,6 +221,13 @@ const VehicleCard = ({ vehicle, onCompare, isComparing, isSourcingCard = false, 
           {/* Price - FINANCE FIRST (Hide cash price for sourcing cards) */}
           <div className="flex items-end justify-between">
             <div>
+              {/* Personalized Rate Badge */}
+              {hasPersonalizedRate && !isSold && (
+                <div className="flex items-center gap-1 mb-1">
+                  <Sparkles className="w-3 h-3 text-amber-400" />
+                  <span className="text-xs font-medium text-amber-400">Personalized Rate</span>
+                </div>
+              )}
               {/* Monthly Payment - LARGEST & BRIGHTEST */}
               {monthlyPayment && !isSold && (
                 <p className="font-display text-2xl font-bold text-foreground" title="Est. only. Subject to bank approval & interest rates.">

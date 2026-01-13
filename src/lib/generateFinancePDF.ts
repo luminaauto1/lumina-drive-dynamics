@@ -236,9 +236,9 @@ export const generateFinancePDF = (application: FinanceApplication, vehicleDetai
   
   // Add signature image if available
   const signatureUrl = (application as any).signature_url;
-  if (signatureUrl && signatureUrl.startsWith('data:image')) {
+  if (signatureUrl) {
     yPos += 10;
-    if (yPos > 230) {
+    if (yPos > 220) {
       doc.addPage();
       yPos = 30;
     }
@@ -248,15 +248,36 @@ export const generateFinancePDF = (application: FinanceApplication, vehicleDetai
     doc.text('Client Signature:', leftMargin, yPos);
     
     yPos += 5;
-    try {
-      doc.addImage(signatureUrl, 'PNG', leftMargin, yPos, 60, 25);
-      yPos += 30;
+    
+    // Handle both base64 data URLs and regular URLs
+    if (signatureUrl.startsWith('data:image')) {
+      try {
+        doc.addImage(signatureUrl, 'PNG', leftMargin, yPos, 60, 25);
+        yPos += 30;
+        doc.setFontSize(8);
+        doc.setTextColor(mutedColor);
+        doc.text('Digitally signed by client', leftMargin, yPos);
+      } catch (e) {
+        console.error('Failed to add signature to PDF:', e);
+        doc.setFontSize(8);
+        doc.setTextColor(mutedColor);
+        doc.text('[Signature available but could not be rendered]', leftMargin, yPos);
+        yPos += 10;
+      }
+    } else {
+      // For URL-based signatures, we need to fetch and convert to base64
+      // Note: This is async so we show placeholder text
       doc.setFontSize(8);
       doc.setTextColor(mutedColor);
-      doc.text('Digitally signed by client', leftMargin, yPos);
-    } catch (e) {
-      console.error('Failed to add signature to PDF:', e);
+      doc.text(`[Signature stored at: ${signatureUrl.substring(0, 50)}...]`, leftMargin, yPos);
+      yPos += 10;
     }
+  } else {
+    // No signature available
+    yPos += 10;
+    doc.setFontSize(8);
+    doc.setTextColor(mutedColor);
+    doc.text('[No digital signature captured]', leftMargin, yPos);
   }
   
   // Footer

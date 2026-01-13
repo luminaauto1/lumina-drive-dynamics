@@ -138,7 +138,12 @@ const FinanceApplication = () => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  // Track which fields have errors for visual feedback
+  const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
+
   const validateStep = (step: number): boolean => {
+    const newFieldErrors: Record<string, boolean> = {};
+    
     try {
       switch (step) {
         case 1:
@@ -152,7 +157,7 @@ const FinanceApplication = () => {
             email: formData.email,
             phone: formData.phone,
           });
-          return true;
+          break;
         case 2:
           financeApplicationStep2Schema.parse({
             street_address: formData.street_address,
@@ -161,13 +166,13 @@ const FinanceApplication = () => {
             job_title: formData.job_title,
             employment_period: getEmploymentPeriod(),
           });
-          return true;
+          break;
         case 3:
           financeApplicationStep3Schema.parse({
             kin_name: formData.kin_name,
             kin_contact: formData.kin_contact,
           });
-          return true;
+          break;
         case 4:
           financeApplicationStep4Schema.parse({
             bank_name: formData.bank_name,
@@ -177,17 +182,27 @@ const FinanceApplication = () => {
             net_salary: formData.net_salary,
             expenses_summary: formData.expenses_summary,
           });
-          return true;
+          break;
         case 5:
           financeApplicationStep5Schema.parse({
             preferred_vehicle_text: formData.preferred_vehicle_text,
             popia_consent: formData.popia_consent,
           });
-          return true;
-        default:
-          return true;
+          break;
       }
-    } catch (error) {
+      setFieldErrors({});
+      return true;
+    } catch (error: any) {
+      // Extract field-specific errors for visual feedback
+      if (error?.errors) {
+        for (const err of error.errors) {
+          if (err.path && err.path.length > 0) {
+            newFieldErrors[err.path[0]] = true;
+          }
+        }
+      }
+      setFieldErrors(newFieldErrors);
+      
       if (error instanceof Error && "errors" in error) {
         toast.error(getFirstZodError(error as any));
       } else {
@@ -195,6 +210,11 @@ const FinanceApplication = () => {
       }
       return false;
     }
+  };
+  
+  // Helper to get error class for inputs
+  const getErrorClass = (fieldName: string) => {
+    return fieldErrors[fieldName] ? 'border-red-500 ring-1 ring-red-500' : '';
   };
 
   const nextStep = () => {
@@ -461,6 +481,7 @@ const FinanceApplication = () => {
                         value={formData.first_name}
                         onChange={(e) => handleInputChange("first_name", e.target.value)}
                         required
+                        className={getErrorClass("first_name")}
                       />
                     </div>
                     <div className="space-y-2">
@@ -470,6 +491,7 @@ const FinanceApplication = () => {
                         value={formData.last_name}
                         onChange={(e) => handleInputChange("last_name", e.target.value)}
                         required
+                        className={getErrorClass("last_name")}
                       />
                     </div>
                     <div className="space-y-2">
@@ -585,6 +607,7 @@ const FinanceApplication = () => {
                         value={formData.email}
                         onChange={(e) => handleInputChange("email", e.target.value)}
                         required
+                        className={getErrorClass("email")}
                       />
                     </div>
                     <div className="space-y-2">
@@ -601,6 +624,7 @@ const FinanceApplication = () => {
                         required
                         placeholder="0721234567"
                         maxLength={10}
+                        className={getErrorClass("phone")}
                       />
                     </div>
                   </div>

@@ -62,6 +62,8 @@ const vehicleSchema = z.object({
   youtube_url: z.string().optional(),
   body_type: z.string().optional(),
   is_generic_listing: z.boolean().optional(),
+  purchase_price: z.coerce.number().min(0).optional(),
+  reconditioning_cost: z.coerce.number().min(0).optional(),
 });
 
 type VehicleFormData = z.infer<typeof vehicleSchema>;
@@ -100,6 +102,8 @@ const AdminInventoryPage = () => {
       service_history: '',
       youtube_url: '',
       body_type: '',
+      purchase_price: 0,
+      reconditioning_cost: 0,
     },
   });
 
@@ -186,6 +190,8 @@ const AdminInventoryPage = () => {
       youtube_url: vehicle.youtube_url || '',
       body_type: (vehicle as any).body_type || '',
       is_generic_listing: (vehicle as any).is_generic_listing || false,
+      purchase_price: (vehicle as any).purchase_price || 0,
+      reconditioning_cost: (vehicle as any).reconditioning_cost || 0,
     });
     setImages(vehicle.images || []);
     setIsSheetOpen(true);
@@ -280,6 +286,8 @@ const AdminInventoryPage = () => {
       images,
       body_type: data.body_type || null,
       is_generic_listing: data.is_generic_listing || false,
+      purchase_price: data.purchase_price || 0,
+      reconditioning_cost: data.reconditioning_cost || 0,
     };
 
     if (editingVehicle) {
@@ -685,9 +693,9 @@ const AdminInventoryPage = () => {
                 />
               </div>
 
-              {/* Pricing */}
+              {/* Pricing & Profitability */}
               <div className="space-y-4">
-                <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Pricing</h3>
+                <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Pricing & Profitability</h3>
                 
                 <FormField
                   control={form.control}
@@ -702,6 +710,51 @@ const AdminInventoryPage = () => {
                     </FormItem>
                   )}
                 />
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="purchase_price"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Purchase Price</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="0" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="reconditioning_cost"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Reconditioning/Expenses</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="0" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                {/* Estimated Profit Display */}
+                <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Estimated Profit</span>
+                    <span className={`text-lg font-bold ${
+                      (form.watch('price') - (form.watch('purchase_price') || 0) - (form.watch('reconditioning_cost') || 0)) >= 0 
+                        ? 'text-emerald-400' 
+                        : 'text-red-400'
+                    }`}>
+                      {formatPrice(
+                        form.watch('price') - (form.watch('purchase_price') || 0) - (form.watch('reconditioning_cost') || 0)
+                      )}
+                    </span>
+                  </div>
+                </div>
               </div>
 
               {/* Media Center */}
