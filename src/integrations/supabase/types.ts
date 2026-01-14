@@ -188,6 +188,69 @@ export type Database = {
         }
         Relationships: []
       }
+      deal_records: {
+        Row: {
+          aftersales_expenses: Json | null
+          application_id: string | null
+          created_at: string | null
+          delivery_address: string | null
+          delivery_date: string | null
+          id: string
+          next_service_date: string | null
+          next_service_km: number | null
+          sales_rep_commission: number | null
+          sales_rep_name: string | null
+          sold_mileage: number | null
+          sold_price: number | null
+          vehicle_id: string | null
+        }
+        Insert: {
+          aftersales_expenses?: Json | null
+          application_id?: string | null
+          created_at?: string | null
+          delivery_address?: string | null
+          delivery_date?: string | null
+          id?: string
+          next_service_date?: string | null
+          next_service_km?: number | null
+          sales_rep_commission?: number | null
+          sales_rep_name?: string | null
+          sold_mileage?: number | null
+          sold_price?: number | null
+          vehicle_id?: string | null
+        }
+        Update: {
+          aftersales_expenses?: Json | null
+          application_id?: string | null
+          created_at?: string | null
+          delivery_address?: string | null
+          delivery_date?: string | null
+          id?: string
+          next_service_date?: string | null
+          next_service_km?: number | null
+          sales_rep_commission?: number | null
+          sales_rep_name?: string | null
+          sold_mileage?: number | null
+          sold_price?: number | null
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_records_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "finance_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_records_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       finance_applications: {
         Row: {
           account_number: string | null
@@ -513,6 +576,7 @@ export type Database = {
           physical_address: string | null
           primary_email: string
           primary_phone: string
+          sales_reps: Json | null
           secondary_phone: string | null
           show_finance_tab: boolean
           show_physical_location: boolean
@@ -540,6 +604,7 @@ export type Database = {
           physical_address?: string | null
           primary_email?: string
           primary_phone?: string
+          sales_reps?: Json | null
           secondary_phone?: string | null
           show_finance_tab?: boolean
           show_physical_location?: boolean
@@ -567,6 +632,7 @@ export type Database = {
           physical_address?: string | null
           primary_email?: string
           primary_phone?: string
+          sales_reps?: Json | null
           secondary_phone?: string | null
           show_finance_tab?: boolean
           show_physical_location?: boolean
@@ -623,6 +689,7 @@ export type Database = {
           transmission: string
           updated_at: string
           variant: string | null
+          variants: Json | null
           vin: string | null
           year: number
           youtube_url: string | null
@@ -652,6 +719,7 @@ export type Database = {
           transmission: string
           updated_at?: string
           variant?: string | null
+          variants?: Json | null
           vin?: string | null
           year: number
           youtube_url?: string | null
@@ -681,6 +749,7 @@ export type Database = {
           transmission?: string
           updated_at?: string
           variant?: string | null
+          variants?: Json | null
           vin?: string | null
           year?: number
           youtube_url?: string | null

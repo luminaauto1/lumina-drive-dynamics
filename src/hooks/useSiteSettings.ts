@@ -26,6 +26,7 @@ export interface SiteSettings {
   min_interest: number | null;
   max_interest: number | null;
   min_deposit_percent: number | null;
+  sales_reps: { name: string; commission: number }[] | null;
 }
 
 interface SiteSettingsLegacy {
@@ -64,7 +65,7 @@ export const useSiteSettings = () => {
         .single();
       
       if (error) throw error;
-      return data as SiteSettings;
+      return data as unknown as SiteSettings;
     },
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
   });
@@ -94,7 +95,7 @@ export const useUpdateSiteSettings = () => {
         .single();
 
       if (error) throw error;
-      return data as SiteSettings;
+      return data as unknown as SiteSettings;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['site-settings'] });
