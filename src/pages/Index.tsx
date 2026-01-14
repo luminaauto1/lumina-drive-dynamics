@@ -170,7 +170,7 @@ const Index = () => {
       opacity: contentOpacity
     }}>
         {/* Hero Text Section - Reveals on Scroll */}
-        <motion.section className="py-12 md:py-20 text-center" variants={containerVariants} initial="hidden" whileInView="visible" viewport={{
+        <motion.section className="py-6 md:py-20 mt-4 md:mt-16 text-center" variants={containerVariants} initial="hidden" whileInView="visible" viewport={{
         once: true,
         margin: "-50px"
       }}>

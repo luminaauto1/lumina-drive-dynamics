@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Plus, Search, Trash2, Edit2, Upload, X, GripVertical, Star } from 'lucide-react';
+import { Plus, Search, Trash2, Edit2, Upload, X, GripVertical, Star, Clock } from 'lucide-react';
+import { differenceInDays } from 'date-fns';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -393,6 +394,7 @@ const AdminInventoryPage = () => {
                   <TableHead className="text-muted-foreground">Stock #</TableHead>
                   <TableHead className="text-muted-foreground">Vehicle</TableHead>
                   <TableHead className="text-muted-foreground">Price</TableHead>
+                  <TableHead className="text-muted-foreground">Age</TableHead>
                   <TableHead className="text-muted-foreground">Status</TableHead>
                   <TableHead className="text-muted-foreground text-center">Featured</TableHead>
                   <TableHead className="text-muted-foreground text-center">Finance</TableHead>
@@ -430,6 +432,14 @@ const AdminInventoryPage = () => {
                     </TableCell>
                     <TableCell className="font-semibold">
                       {formatPrice(vehicle.price)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1 text-xs">
+                        <Clock className="w-3 h-3 text-muted-foreground" />
+                        <span className={differenceInDays(new Date(), new Date(vehicle.created_at)) > 60 ? 'text-amber-400' : 'text-muted-foreground'}>
+                          {differenceInDays(new Date(), new Date(vehicle.created_at))}d
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell>{getStatusBadge(vehicle.status)}</TableCell>
                     <TableCell className="text-center">

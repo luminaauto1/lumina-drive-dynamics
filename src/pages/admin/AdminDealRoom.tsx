@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import FinancePodiumModal from '@/components/admin/FinancePodiumModal';
+import FinalizeDealModal from '@/components/admin/FinalizeDealModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,6 +42,7 @@ const AdminDealRoom = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedData, setEditedData] = useState<Partial<FinanceApplication>>({});
   const [podiumModalOpen, setPodiumModalOpen] = useState(false);
+  const [finalizeDealModalOpen, setFinalizeDealModalOpen] = useState(false);
 
   const { data: vehicles = [] } = useVehicles();
   const { data: matches = [], isLoading: matchesLoading } = useApplicationMatches(id || '');
@@ -149,16 +151,21 @@ const AdminDealRoom = () => {
     toast.success('PDF downloaded');
   };
 
-  const handleFinalizeDeal = async () => {
-    if (!application) return;
-    
+  const handleOpenFinalizeModal = () => {
     // Get the selected vehicle from matches
     const selectedMatch = matches[0] as any;
     if (!selectedMatch?.vehicle_id) {
       toast.error('Please add a vehicle to this application before finalizing');
       return;
     }
+    setFinalizeDealModalOpen(true);
+  };
 
+  const handleFinalizeDealSuccess = async () => {
+    if (!application) return;
+    
+    const selectedMatch = matches[0] as any;
+    
     try {
       // Update status to finalized
       await updateApplication.mutateAsync({ 
@@ -494,7 +501,7 @@ const AdminDealRoom = () => {
                         Podium
                       </Button>
                       <Button
-                        onClick={handleFinalizeDeal}
+                        onClick={handleOpenFinalizeModal}
                         size="sm"
                         className="bg-emerald-600 hover:bg-emerald-700 text-xs md:text-sm"
                       >
@@ -952,6 +959,19 @@ const AdminDealRoom = () => {
         applicationId={application.id}
         approvedBudget={(application as any).approved_budget}
       />
+
+      {/* Finalize Deal Modal */}
+      {matches[0] && (matches[0] as any).vehicle_id && (
+        <FinalizeDealModal
+          isOpen={finalizeDealModalOpen}
+          onClose={() => setFinalizeDealModalOpen(false)}
+          applicationId={application.id}
+          vehicleId={(matches[0] as any).vehicle_id}
+          vehiclePrice={(matches[0] as any).vehicles?.price || 0}
+          vehicleMileage={(matches[0] as any).vehicles?.mileage || 0}
+          onSuccess={handleFinalizeDealSuccess}
+        />
+      )}
     </AdminLayout>
   );
 };
