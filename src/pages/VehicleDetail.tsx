@@ -101,7 +101,17 @@ const VehicleDetail = () => {
 
   const isSold = vehicle.status === 'sold';
   const isIncoming = vehicle.status === 'incoming';
+  const isSourcing = vehicle.status === 'sourcing' || (vehicle as any).is_generic_listing === true;
   const inWishlist = isInWishlist(vehicle.id);
+  
+  // Variant selection state
+  const variants = (vehicle as any).variants as Array<{ name: string; price: number }> | null;
+  const [selectedVariantIndex, setSelectedVariantIndex] = useState<number | null>(null);
+  
+  // Get effective price based on variant selection
+  const effectivePrice = selectedVariantIndex !== null && variants?.[selectedVariantIndex]
+    ? variants[selectedVariantIndex].price
+    : vehicle.price;
   
   // Calculate monthly payment - use personalized rate if available
   const hasPersonalizedRate = !!bestOffer && (bestOffer.interest_rate_linked || bestOffer.interest_rate_fixed);
@@ -111,8 +121,8 @@ const VehicleDetail = () => {
   
   const monthlyPayment = vehicle.finance_available
     ? personalizedRate 
-      ? calculateMonthlyPayment(vehicle.price, personalizedRate, 72, 0)
-      : calculateMonthlyPayment(vehicle.price)
+      ? calculateMonthlyPayment(effectivePrice, personalizedRate, 72, 0)
+      : calculateMonthlyPayment(effectivePrice)
     : null;
 
   const images = vehicle.images || [];
@@ -393,6 +403,25 @@ const VehicleDetail = () => {
             {/* Sidebar */}
             <div className="lg:col-span-1">
               <div className="sticky top-28 space-y-6">
+                {/* Variant Selector */}
+                {variants && variants.length > 0 && (
+                  <div className="p-6 glass-card rounded-xl space-y-4 mb-6">
+                    <h3 className="font-semibold">Choose Spec</h3>
+                    <select
+                      value={selectedVariantIndex ?? ''}
+                      onChange={(e) => setSelectedVariantIndex(e.target.value === '' ? null : Number(e.target.value))}
+                      className="w-full p-3 rounded-lg bg-background border border-border text-foreground"
+                    >
+                      <option value="">Base Model - {formatPrice(vehicle.price)}</option>
+                      {variants.map((variant, index) => (
+                        <option key={index} value={index}>
+                          {variant.name} - {formatPrice(variant.price)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 {/* Price Card - FINANCE FIRST */}
                 <div className="p-6 glass-card rounded-xl space-y-4">
                   <div>
@@ -409,11 +438,13 @@ const VehicleDetail = () => {
                         {formatPrice(monthlyPayment)}<span className="text-lg">/pm*</span>
                       </p>
                     )}
-                    {/* Cash Price - De-emphasized */}
-                    <p className="text-lg text-muted-foreground">
-                      {formatPrice(vehicle.price)} cash
-                    </p>
-                    {!vehicle.finance_available && !isSold && (
+                    {/* Cash Price - Hide for sourcing */}
+                    {!isSourcing && (
+                      <p className="text-lg text-muted-foreground">
+                        {formatPrice(effectivePrice)} cash
+                      </p>
+                    )}
+                    {!vehicle.finance_available && !isSold && !isSourcing && (
                       <p className="text-muted-foreground text-sm mt-1">Cash/EFT Only</p>
                     )}
                     {monthlyPayment && !isSold && (
@@ -487,7 +518,7 @@ const VehicleDetail = () => {
 
                 {/* Interactive Finance Calculator */}
                 {vehicle.finance_available && !isSold && (
-                  <FinanceCalculator vehiclePrice={vehicle.price} vehicleYear={vehicle.year} />
+                  <FinanceCalculator vehiclePrice={effectivePrice} vehicleYear={vehicle.year} />
                 )}
               </div>
             </div>
