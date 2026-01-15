@@ -16,22 +16,23 @@ import ImageLightbox from "@/components/ImageLightbox";
 import { useTrackEvent } from "@/hooks/useAnalytics";
 
 const VehicleDetail = () => {
-  // 1. ALL HOOKS MUST BE AT THE TOP (Before any "if" returns)
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [selectedVariant, setSelectedVariant] = useState<any>(null); // State for variants
+  const [selectedVariant, setSelectedVariant] = useState<any>(null);
   const { isInWishlist, toggleWishlist } = useWishlist();
   const { data: bestOffer } = useBestFinanceOffer();
   const trackEvent = useTrackEvent();
 
-  // Fetch Vehicle Data
-  const { data: vehicle, isLoading } = useVehicle(id || "");
+  const { data: vehicleData, isLoading } = useVehicle(id || "");
 
-  // 2. USE EFFECT TO HANDLE DATA UPDATES (Safe Logic)
+  // Cast vehicle to 'any' to bypass strict JSON/Type checks for new columns
+  const vehicle = vehicleData as any;
+
+  // Handle Variant Selection
   useEffect(() => {
-    if (vehicle?.variants && vehicle.variants.length > 0) {
+    if (vehicle?.variants && Array.isArray(vehicle.variants) && vehicle.variants.length > 0) {
       setSelectedVariant(vehicle.variants[0]);
     }
   }, [vehicle]);
@@ -57,7 +58,6 @@ const VehicleDetail = () => {
     };
   }, [vehicle?.id]);
 
-  // 3. CONDITIONAL RETURNS (Only after all hooks are declared)
   if (isLoading) {
     return (
       <div className="min-h-screen pt-24 flex items-center justify-center">
@@ -79,12 +79,11 @@ const VehicleDetail = () => {
     );
   }
 
-  // 4. CALCULATIONS & VARIABLES
+  // --- VARIABLES ---
   const isSold = vehicle.status === "sold";
-  const isIncoming = vehicle.status === "incoming";
   const isSourcing = vehicle.status === "sourcing" || vehicle.is_sourcing_example;
+  const variants = (vehicle.variants as any[]) || [];
 
-  // Dynamic Price (Variant Support)
   const displayPrice = selectedVariant ? Number(selectedVariant.price) : vehicle.price;
   const displayTitle = selectedVariant
     ? `${vehicle.year} ${vehicle.make} ${vehicle.model} ${selectedVariant.name}`
@@ -109,7 +108,7 @@ const VehicleDetail = () => {
       : `Hi, I'm interested in the cash deal for ${displayTitle}. Is it available?`;
   const whatsappUrl = `https://wa.me/27686017462?text=${encodeURIComponent(whatsappMessage)}`;
 
-  // Lightbox & Image Handlers
+  // Handlers
   const nextImage = () => images.length > 0 && setCurrentImageIndex((p) => (p + 1) % images.length);
   const prevImage = () => images.length > 0 && setCurrentImageIndex((p) => (p - 1 + images.length) % images.length);
 
@@ -137,7 +136,7 @@ const VehicleDetail = () => {
             onClick={() => setLightboxOpen(true)}
           >
             {images.length > 0 ? (
-              images.map((image, index) => (
+              images.map((image: string, index: number) => (
                 <motion.img
                   key={index}
                   src={getOptimizedImage(image, 1200)}
@@ -181,7 +180,7 @@ const VehicleDetail = () => {
             {/* Dots */}
             {images.length > 1 && (
               <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-10">
-                {images.map((_, i) => (
+                {images.map((_: any, i: number) => (
                   <div
                     key={i}
                     className={`w-2 h-2 rounded-full transition-all ${i === currentImageIndex ? "bg-white w-6" : "bg-white/50"}`}
@@ -209,13 +208,13 @@ const VehicleDetail = () => {
                 </h1>
 
                 {/* Variant Selector (If Sourcing) */}
-                {vehicle.variants && vehicle.variants.length > 0 && (
+                {variants.length > 0 && (
                   <div className="mt-4 max-w-sm">
                     <label className="text-sm text-muted-foreground mb-2 block">Select Spec/Variant</label>
                     <Select
                       value={selectedVariant?.name}
                       onValueChange={(val) => {
-                        const v = vehicle.variants.find((v: any) => v.name === val);
+                        const v = variants.find((v: any) => v.name === val);
                         if (v) setSelectedVariant(v);
                       }}
                     >
@@ -223,7 +222,7 @@ const VehicleDetail = () => {
                         <SelectValue placeholder="Choose Variant" />
                       </SelectTrigger>
                       <SelectContent>
-                        {vehicle.variants.map((v: any, idx: number) => (
+                        {variants.map((v: any, idx: number) => (
                           <SelectItem key={idx} value={v.name}>
                             {v.name} - {formatPrice(v.price)}
                           </SelectItem>
@@ -299,11 +298,7 @@ const VehicleDetail = () => {
 
                 {/* Calculator */}
                 {vehicle.finance_available && (
-                  <FinanceCalculator
-                    vehiclePrice={displayPrice}
-                    defaultInterestRate={personalizedRate || 13.25}
-                    defaultDeposit={0}
-                  />
+                  <FinanceCalculator vehiclePrice={displayPrice} vehicleYear={vehicle.year} />
                 )}
               </div>
             </div>
@@ -314,9 +309,12 @@ const VehicleDetail = () => {
       {/* Lightbox */}
       {lightboxOpen && (
         <ImageLightbox
-          images={images.map((img) => getOptimizedImage(img, 1600))}
-          initialIndex={currentImageIndex}
+          images={images.map((img: string) => getOptimizedImage(img, 1600))}
+          currentIndex={currentImageIndex}
+          isOpen={lightboxOpen}
           onClose={() => setLightboxOpen(false)}
+          onPrev={prevImage}
+          onNext={nextImage}
         />
       )}
     </>
