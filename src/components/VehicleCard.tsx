@@ -221,8 +221,8 @@ const VehicleCard = ({ vehicle, onCompare, isComparing, isSourcingCard = false, 
           {/* Price - FINANCE FIRST (Hide cash price for sourcing cards) */}
           <div className="flex items-end justify-between">
             <div>
-              {/* Personalized Rate Badge */}
-              {hasPersonalizedRate && !isSold && (
+              {/* Personalized Rate Badge - only show if vehicle is financeable AND user has podium offer */}
+              {vehicle.finance_available && hasPersonalizedRate && !isSold && (
                 <div className="flex items-center gap-1 mb-1">
                   <Sparkles className="w-3 h-3 text-amber-400" />
                   <span className="text-xs font-medium text-amber-400">Personalized Rate</span>
@@ -234,13 +234,13 @@ const VehicleCard = ({ vehicle, onCompare, isComparing, isSourcingCard = false, 
                   From {formatPrice(monthlyPayment)}<span className="text-sm">/pm*</span>
                 </p>
               )}
-              {/* Cash Price - Hide for sourcing examples */}
-              {!isSourcingCard && (
+              {/* Cash Price - Hide for sourcing examples AND sourcing status */}
+              {!isSourcingCard && vehicle.status !== 'sourcing' && !(vehicle as any).is_generic_listing && (
                 <p className="text-sm text-muted-foreground">
                   {formatPrice(vehicle.price)} cash
                 </p>
               )}
-              {!vehicle.finance_available && !isSold && !isSourcingCard && (
+              {!vehicle.finance_available && !isSold && !isSourcingCard && vehicle.status !== 'sourcing' && !(vehicle as any).is_generic_listing && (
                 <p className="text-xs text-muted-foreground">Cash/EFT Only</p>
               )}
             </div>

@@ -2,7 +2,24 @@ import jsPDF from 'jspdf';
 import { FinanceApplication } from '@/hooks/useFinanceApplications';
 import { formatPrice } from '@/hooks/useVehicles';
 
-export const generateFinancePDF = (application: FinanceApplication, vehicleDetails?: string) => {
+// Helper function to convert URL to base64
+const urlToBase64 = async (url: string): Promise<string | null> => {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error('Failed to convert URL to base64:', error);
+    return null;
+  }
+};
+
+export const generateFinancePDF = async (application: FinanceApplication, vehicleDetails?: string) => {
   const doc = new jsPDF();
   
   // Colors
@@ -235,7 +252,8 @@ export const generateFinancePDF = (application: FinanceApplication, vehicleDetai
   doc.text(`Signed and agreed to POPIA consent on: ${signedDate}`, leftMargin, yPos);
   
   // Add signature image if available
-  const signatureUrl = (application as any).signature_url;
+  const signatureUrl = application.signature_url;
+  
   if (signatureUrl) {
     yPos += 10;
     if (yPos > 220) {
@@ -249,10 +267,19 @@ export const generateFinancePDF = (application: FinanceApplication, vehicleDetai
     
     yPos += 5;
     
-    // Handle both base64 data URLs and regular URLs
+    let signatureData: string | null = null;
+    
+    // Check if it's already a base64 data URL
     if (signatureUrl.startsWith('data:image')) {
+      signatureData = signatureUrl;
+    } else {
+      // It's a URL - fetch and convert to base64
+      signatureData = await urlToBase64(signatureUrl);
+    }
+    
+    if (signatureData) {
       try {
-        doc.addImage(signatureUrl, 'PNG', leftMargin, yPos, 60, 25);
+        doc.addImage(signatureData, 'PNG', leftMargin, yPos, 60, 25);
         yPos += 30;
         doc.setFontSize(8);
         doc.setTextColor(mutedColor);
@@ -261,15 +288,13 @@ export const generateFinancePDF = (application: FinanceApplication, vehicleDetai
         console.error('Failed to add signature to PDF:', e);
         doc.setFontSize(8);
         doc.setTextColor(mutedColor);
-        doc.text('[Signature available but could not be rendered]', leftMargin, yPos);
+        doc.text('[Signature could not be rendered]', leftMargin, yPos);
         yPos += 10;
       }
     } else {
-      // For URL-based signatures, we need to fetch and convert to base64
-      // Note: This is async so we show placeholder text
       doc.setFontSize(8);
       doc.setTextColor(mutedColor);
-      doc.text(`[Signature stored at: ${signatureUrl.substring(0, 50)}...]`, leftMargin, yPos);
+      doc.text('[Signature could not be loaded]', leftMargin, yPos);
       yPos += 10;
     }
   } else {

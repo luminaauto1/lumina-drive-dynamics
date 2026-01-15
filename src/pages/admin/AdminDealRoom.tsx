@@ -141,13 +141,13 @@ const AdminDealRoom = () => {
     await removeMatch.mutateAsync({ matchId, applicationId: application.id });
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     if (!application) return;
     const selectedVehicle = matches.find((m: any) => m.vehicles)?.vehicles;
     const vehicleDetails = selectedVehicle 
       ? `${selectedVehicle.year} ${selectedVehicle.make} ${selectedVehicle.model}`
       : undefined;
-    generateFinancePDF(application, vehicleDetails);
+    await generateFinancePDF(application, vehicleDetails);
     toast.success('PDF downloaded');
   };
 

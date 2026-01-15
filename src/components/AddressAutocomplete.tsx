@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Input } from '@/components/ui/input';
+import GooglePlacesAutocomplete from 'react-google-places-autocomplete';
 import { Textarea } from '@/components/ui/textarea';
 
 interface AddressAutocompleteProps {
@@ -9,50 +8,27 @@ interface AddressAutocompleteProps {
   required?: boolean;
 }
 
-/**
- * Address Autocomplete Component
- * Falls back to regular input if Google Maps API key is not configured
- */
 const AddressAutocomplete = ({ value, onChange, placeholder, required }: AddressAutocompleteProps) => {
-  const [inputValue, setInputValue] = useState(value);
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-
-  // If no API key, use fallback textarea
-  if (!apiKey) {
-    return (
-      <Textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder || "Street address, suburb, city"}
-        required={required}
-        rows={2}
-      />
-    );
-  }
-
-  // With API key - use Google Places Autocomplete
-  // Note: The react-google-places-autocomplete library requires @react-google-maps/api
-  // For now, we use a simple implementation with manual input
-  // Full Google Places integration can be added when the API key is configured
   
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    setInputValue(newValue);
-    onChange(newValue);
-  };
-
+  if (!apiKey) return <Textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} required={required} />;
   return (
-    <div className="relative">
-      <Input
-        value={inputValue}
-        onChange={handleChange}
-        placeholder={placeholder || "Start typing your address..."}
-        required={required}
-        className="w-full"
+    <div className="w-full relative z-50">
+      <GooglePlacesAutocomplete
+        apiKey={apiKey}
+        selectProps={{
+          defaultInputValue: value,
+          onChange: (val: any) => { if (val) onChange(val.label); },
+          placeholder: placeholder || "Start typing address...",
+          styles: {
+            menu: (provided) => ({ ...provided, zIndex: 9999, color: '#000' }),
+            input: (provided) => ({ ...provided, color: 'inherit' }),
+            singleValue: (provided) => ({ ...provided, color: 'inherit' }),
+            control: (provided) => ({ ...provided, background: 'transparent', borderColor: 'hsl(var(--input))' })
+          },
+        }}
+        autocompletionRequest={{ componentRestrictions: { country: ['za'] } }}
       />
-      <p className="text-xs text-muted-foreground mt-1">
-        Enter your full address including suburb and city
-      </p>
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Package, Calendar, AlertCircle, Loader2, MessageCircle, Edit2, Save, X, Eye } from 'lucide-react';
+import { Package, Calendar, AlertCircle, Loader2, MessageCircle, Edit2, Save, X, Eye, Undo2, TrendingUp, DollarSign, Users } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { differenceInDays, differenceInYears, format } from 'date-fns';
 import AdminLayout from '@/components/admin/AdminLayout';
@@ -10,9 +10,42 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { formatPrice } from '@/hooks/useVehicles';
 import { toast } from 'sonner';
+
+interface DealRecord {
+  id: string;
+  application_id: string | null;
+  vehicle_id: string | null;
+  sales_rep_name: string | null;
+  sales_rep_commission: number | null;
+  sold_price: number | null;
+  sold_mileage: number | null;
+  next_service_date: string | null;
+  next_service_km: number | null;
+  delivery_address: string | null;
+  delivery_date: string | null;
+  aftersales_expenses: Array<{ type: string; amount: number }> | null;
+  created_at: string;
+  vehicle?: {
+    make: string;
+    model: string;
+    variant: string | null;
+    year: number;
+    price: number;
+    purchase_price?: number;
+    reconditioning_cost?: number;
+  };
+  application?: {
+    first_name: string | null;
+    last_name: string | null;
+    full_name: string;
+    email: string;
+    phone: string;
+  };
+}
 
 interface AftersalesRecord {
   id: string;
@@ -34,6 +67,25 @@ interface AftersalesRecord {
     price: number;
   };
 }
+
+const useDealRecords = () => {
+  return useQuery({
+    queryKey: ['deal-records'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('deal_records')
+        .select(`
+          *,
+          vehicle:vehicles(make, model, variant, year, price, purchase_price, reconditioning_cost),
+          application:finance_applications(first_name, last_name, full_name, email, phone)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data as DealRecord[];
+    },
+  });
+};
 
 const useAftersalesRecords = () => {
   return useQuery({
@@ -71,6 +123,58 @@ const useUpdateAftersalesNotes = () => {
     },
     onError: () => {
       toast.error('Failed to update notes');
+    },
+  });
+};
+
+const useRollbackDeal = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ dealId, applicationId, vehicleId }: { dealId: string; applicationId: string | null; vehicleId: string | null }) => {
+      // 1. Update finance application status back to approved
+      if (applicationId) {
+        const { error: appError } = await supabase
+          .from('finance_applications')
+          .update({ status: 'approved' })
+          .eq('id', applicationId);
+        if (appError) throw appError;
+      }
+
+      // 2. Update vehicle status back to available
+      if (vehicleId) {
+        const { error: vehicleError } = await supabase
+          .from('vehicles')
+          .update({ status: 'available' })
+          .eq('id', vehicleId);
+        if (vehicleError) throw vehicleError;
+      }
+
+      // 3. Delete the deal record
+      const { error: dealError } = await supabase
+        .from('deal_records')
+        .delete()
+        .eq('id', dealId);
+      if (dealError) throw dealError;
+
+      // 4. Delete associated aftersales record if exists
+      if (applicationId) {
+        await supabase
+          .from('aftersales_records')
+          .delete()
+          .eq('finance_application_id', applicationId);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deal-records'] });
+      queryClient.invalidateQueries({ queryKey: ['aftersales-records'] });
+      queryClient.invalidateQueries({ queryKey: ['finance-applications'] });
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      toast.success('Deal rolled back. Application returned to Approved status.');
+    },
+    onError: (error: any) => {
+      console.error('Rollback error:', error);
+      toast.error('Failed to rollback deal');
     },
   });
 };
@@ -124,11 +228,28 @@ const StatusBadge = ({ status, label }: { status: 'ok' | 'due_soon' | 'overdue';
 };
 
 const AdminAftersales = () => {
-  const { data: records = [], isLoading } = useAftersalesRecords();
+  const { data: aftersalesRecords = [], isLoading: aftersalesLoading } = useAftersalesRecords();
+  const { data: dealRecords = [], isLoading: dealsLoading } = useDealRecords();
   const updateNotes = useUpdateAftersalesNotes();
+  const rollbackDeal = useRollbackDeal();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editNotes, setEditNotes] = useState('');
   const [selectedRecord, setSelectedRecord] = useState<AftersalesRecord | null>(null);
+
+  const isLoading = aftersalesLoading || dealsLoading;
+
+  // Calculate analytics from deal records
+  const totalProfit = dealRecords.reduce((sum, deal) => {
+    const soldPrice = deal.sold_price || 0;
+    const purchasePrice = (deal.vehicle as any)?.purchase_price || 0;
+    const reconditioningCost = (deal.vehicle as any)?.reconditioning_cost || 0;
+    const expensesTotal = (deal.aftersales_expenses || []).reduce((e, exp) => e + (exp.amount || 0), 0);
+    return sum + (soldPrice - purchasePrice - reconditioningCost - expensesTotal);
+  }, 0);
+
+  const totalCommission = dealRecords.reduce((sum, deal) => {
+    return sum + (deal.sales_rep_commission || 0);
+  }, 0);
 
   const startEditing = (record: AftersalesRecord) => {
     setEditingId(record.id);
@@ -159,7 +280,7 @@ const AdminAftersales = () => {
   };
 
   // Sort records to show alerts first
-  const sortedRecords = [...records].sort((a, b) => {
+  const sortedRecords = [...aftersalesRecords].sort((a, b) => {
     const aStatus = getServiceStatus(a.sale_date);
     const bStatus = getServiceStatus(b.sale_date);
     const aUrgent = aStatus.serviceStatus !== 'ok' || aStatus.tradeInStatus !== 'ok';
@@ -169,7 +290,7 @@ const AdminAftersales = () => {
     return 0;
   });
 
-  const alertCount = records.filter(r => {
+  const alertCount = aftersalesRecords.filter(r => {
     const status = getServiceStatus(r.sale_date);
     return status.serviceStatus !== 'ok' || status.tradeInStatus !== 'ok';
   }).length;
@@ -192,16 +313,35 @@ const AdminAftersales = () => {
           <p className="text-muted-foreground">Manage customer relationships post-sale</p>
         </motion.div>
 
-        {/* Stats */}
+        {/* Analytics Bar */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6"
+          transition={{ delay: 0.05 }}
+          className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6"
         >
           <div className="glass-card rounded-lg p-4">
-            <p className="text-2xl font-bold">{records.length}</p>
-            <p className="text-sm text-muted-foreground">Total Sales</p>
+            <div className="flex items-center gap-2 mb-1">
+              <TrendingUp className="w-4 h-4 text-emerald-400" />
+              <p className="text-sm text-muted-foreground">Total Profit</p>
+            </div>
+            <p className={`text-2xl font-bold ${totalProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {formatPrice(totalProfit)}
+            </p>
+          </div>
+          <div className="glass-card rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <DollarSign className="w-4 h-4 text-primary" />
+              <p className="text-sm text-muted-foreground">Total Commission</p>
+            </div>
+            <p className="text-2xl font-bold text-primary">{formatPrice(totalCommission)}</p>
+          </div>
+          <div className="glass-card rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Users className="w-4 h-4 text-blue-400" />
+              <p className="text-sm text-muted-foreground">Total Sales</p>
+            </div>
+            <p className="text-2xl font-bold">{dealRecords.length}</p>
           </div>
           <div className="glass-card rounded-lg p-4">
             <p className="text-2xl font-bold text-yellow-400">{alertCount}</p>
@@ -209,18 +349,9 @@ const AdminAftersales = () => {
           </div>
           <div className="glass-card rounded-lg p-4">
             <p className="text-2xl font-bold text-emerald-400">
-              {records.filter(r => getServiceStatus(r.sale_date).years >= 3).length}
+              {aftersalesRecords.filter(r => getServiceStatus(r.sale_date).years >= 3).length}
             </p>
             <p className="text-sm text-muted-foreground">Trade-In Candidates</p>
-          </div>
-          <div className="glass-card rounded-lg p-4">
-            <p className="text-2xl font-bold text-blue-400">
-              {records.filter(r => {
-                const days = differenceInDays(new Date(), new Date(r.sale_date));
-                return days <= 30;
-              }).length}
-            </p>
-            <p className="text-sm text-muted-foreground">This Month</p>
           </div>
         </motion.div>
 
@@ -229,7 +360,7 @@ const AdminAftersales = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
+            transition={{ delay: 0.1 }}
             className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center gap-3"
           >
             <AlertCircle className="w-5 h-5 text-yellow-500" />
@@ -239,21 +370,139 @@ const AdminAftersales = () => {
           </motion.div>
         )}
 
-        {/* Table */}
+        {/* Deal Records Table */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="glass-card rounded-xl overflow-hidden mb-8"
+        >
+          <div className="p-4 border-b border-white/10">
+            <h2 className="text-lg font-semibold">Deal Records</h2>
+          </div>
+          {isLoading ? (
+            <div className="p-8 text-center">
+              <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+            </div>
+          ) : dealRecords.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground">
+              <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>No finalized deals yet</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="border-white/10 hover:bg-white/5">
+                  <TableHead className="text-muted-foreground">Customer</TableHead>
+                  <TableHead className="text-muted-foreground">Vehicle</TableHead>
+                  <TableHead className="text-muted-foreground">Sold Price</TableHead>
+                  <TableHead className="text-muted-foreground">Sales Rep</TableHead>
+                  <TableHead className="text-muted-foreground">Date</TableHead>
+                  <TableHead className="text-muted-foreground text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {dealRecords.map((deal) => (
+                  <TableRow key={deal.id} className="border-white/10 hover:bg-white/5">
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">
+                          {deal.application?.first_name} {deal.application?.last_name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{deal.application?.email}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {deal.vehicle ? (
+                        <p className="font-medium">
+                          {deal.vehicle.year} {deal.vehicle.make} {deal.vehicle.model}
+                        </p>
+                      ) : (
+                        <span className="text-muted-foreground">Vehicle removed</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-semibold">
+                      {deal.sold_price ? formatPrice(deal.sold_price) : 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="text-sm">{deal.sales_rep_name || 'N/A'}</p>
+                        {deal.sales_rep_commission && (
+                          <p className="text-xs text-muted-foreground">
+                            {formatPrice(deal.sales_rep_commission)} comm.
+                          </p>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {format(new Date(deal.created_at), 'dd MMM yyyy')}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-amber-500 hover:text-amber-400 hover:bg-amber-500/10"
+                            title="Undo Deal / Return to Finance"
+                          >
+                            <Undo2 className="w-4 h-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Undo This Deal?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will:
+                              <ul className="list-disc list-inside mt-2 space-y-1">
+                                <li>Return the finance application status to "Approved"</li>
+                                <li>Set the vehicle status back to "Available"</li>
+                                <li>Delete this deal record permanently</li>
+                              </ul>
+                              <p className="mt-3 font-medium">This action cannot be undone.</p>
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => rollbackDeal.mutate({
+                                dealId: deal.id,
+                                applicationId: deal.application_id,
+                                vehicleId: deal.vehicle_id,
+                              })}
+                              className="bg-amber-600 hover:bg-amber-700"
+                            >
+                              Undo Deal
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </motion.div>
+
+        {/* Aftersales Follow-up Table */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
           className="glass-card rounded-xl overflow-hidden"
         >
-          {isLoading ? (
+          <div className="p-4 border-b border-white/10">
+            <h2 className="text-lg font-semibold">Customer Follow-ups</h2>
+          </div>
+          {aftersalesLoading ? (
             <div className="p-8 text-center">
               <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
             </div>
-          ) : records.length === 0 ? (
+          ) : aftersalesRecords.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">
               <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No finalized sales yet</p>
+              <p>No aftersales records yet</p>
               <p className="text-sm mt-1">Finalized deals will appear here for follow-up</p>
             </div>
           ) : (
