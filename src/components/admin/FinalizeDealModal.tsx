@@ -23,6 +23,7 @@ interface FinalizeDealModalProps {
   vehicleId: string;
   vehiclePrice: number;
   vehicleMileage: number;
+  vehicleStatus?: string;
   onSuccess: () => void;
 }
 
@@ -35,10 +36,14 @@ const FinalizeDealModal = ({
   vehicleId,
   vehiclePrice,
   vehicleMileage,
+  vehicleStatus = 'available',
   onSuccess,
 }: FinalizeDealModalProps) => {
   const { data: settings } = useSiteSettings();
   const createDealRecord = useCreateDealRecord();
+  
+  // Cost price for profit calculation
+  const [costPrice, setCostPrice] = useState(0);
   
   // Sales Rep
   const [selectedRepName, setSelectedRepName] = useState('');
@@ -84,6 +89,8 @@ const FinalizeDealModal = ({
   };
 
   const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
+  const commissionAmount = soldPrice * (repCommission / 100);
+  const calculatedProfit = soldPrice - costPrice - totalExpenses - commissionAmount;
 
   const handleSubmit = async () => {
     if (!selectedRepName || !deliveryAddress || !deliveryDate) {
@@ -95,7 +102,7 @@ const FinalizeDealModal = ({
         applicationId,
         vehicleId,
         salesRepName: selectedRepName,
-        salesRepCommission: repCommission,
+        salesRepCommission: commissionAmount, // Store actual amount, not percentage
         soldPrice,
         soldMileage,
         nextServiceDate: nextServiceDate || undefined,
@@ -103,6 +110,9 @@ const FinalizeDealModal = ({
         deliveryAddress,
         deliveryDate: `${deliveryDate}T${deliveryTime}:00`,
         aftersalesExpenses: expenses,
+        costPrice, // Include cost price
+        calculatedProfit, // Include calculated profit
+        isSourcingVehicle: vehicleStatus === 'sourcing', // Flag for evergreen logic
       });
       
       onSuccess();
@@ -162,11 +172,43 @@ const FinalizeDealModal = ({
                 />
               </div>
             </div>
-            {soldPrice > 0 && repCommission > 0 && (
+          {soldPrice > 0 && repCommission > 0 && (
               <p className="text-sm text-muted-foreground">
-                Commission Amount: <span className="font-semibold text-primary">{formatPrice(soldPrice * (repCommission / 100))}</span>
+                Commission Amount: <span className="font-semibold text-primary">{formatPrice(commissionAmount)}</span>
               </p>
             )}
+          </div>
+
+          <Separator />
+
+          {/* Cost Price Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <DollarSign className="w-4 h-4 text-primary" />
+              Cost & Profit
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Cost Price (Bought For) *</Label>
+                <Input
+                  type="number"
+                  value={costPrice || ''}
+                  onChange={(e) => setCostPrice(parseFloat(e.target.value) || 0)}
+                  placeholder="Enter purchase price"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Calculated Profit</Label>
+                <div className={`p-2 rounded-lg border ${calculatedProfit >= 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
+                  <span className={`text-lg font-bold ${calculatedProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {formatPrice(calculatedProfit)}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Profit = Sold Price - Cost - Expenses - Commission
+            </p>
           </div>
 
           <Separator />

@@ -684,6 +684,7 @@ export type Database = {
           purchase_price: number | null
           reconditioning_cost: number | null
           service_history: string | null
+          sourced_count: number | null
           status: string
           stock_number: string | null
           transmission: string
@@ -714,6 +715,7 @@ export type Database = {
           purchase_price?: number | null
           reconditioning_cost?: number | null
           service_history?: string | null
+          sourced_count?: number | null
           status?: string
           stock_number?: string | null
           transmission: string
@@ -744,6 +746,7 @@ export type Database = {
           purchase_price?: number | null
           reconditioning_cost?: number | null
           service_history?: string | null
+          sourced_count?: number | null
           status?: string
           stock_number?: string | null
           transmission?: string
