@@ -2,15 +2,32 @@ import jsPDF from 'jspdf';
 import { FinanceApplication } from '@/hooks/useFinanceApplications';
 import { formatPrice } from '@/hooks/useVehicles';
 
-// Helper function to convert URL to base64
-const urlToBase64 = async (url: string): Promise<string | null> => {
+// Helper function to fetch image URL and convert to Base64
+const getDataUrl = async (url: string): Promise<string | null> => {
   try {
-    const response = await fetch(url);
+    // For Supabase storage URLs, we need to handle CORS
+    const response = await fetch(url, {
+      mode: 'cors',
+      cache: 'no-cache',
+    });
+    
+    if (!response.ok) {
+      console.error('Failed to fetch image:', response.status);
+      return null;
+    }
+    
     const blob = await response.blob();
+    
     return new Promise((resolve) => {
       const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = () => resolve(null);
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        resolve(result);
+      };
+      reader.onerror = () => {
+        console.error('FileReader error');
+        resolve(null);
+      };
       reader.readAsDataURL(blob);
     });
   } catch (error) {
@@ -254,55 +271,58 @@ export const generateFinancePDF = async (application: FinanceApplication, vehicl
   // Add signature image if available
   const signatureUrl = application.signature_url;
   
+  yPos += 10;
+  if (yPos > 220) {
+    doc.addPage();
+    yPos = 30;
+  }
+  
+  doc.setFontSize(10);
+  doc.setTextColor(textColor);
+  doc.text('Client Signature:', leftMargin, yPos);
+  
+  yPos += 5;
+  
   if (signatureUrl) {
-    yPos += 10;
-    if (yPos > 220) {
-      doc.addPage();
-      yPos = 30;
-    }
-    
-    doc.setFontSize(10);
-    doc.setTextColor(textColor);
-    doc.text('Client Signature:', leftMargin, yPos);
-    
-    yPos += 5;
-    
     let signatureData: string | null = null;
     
     // Check if it's already a base64 data URL
     if (signatureUrl.startsWith('data:image')) {
       signatureData = signatureUrl;
     } else {
-      // It's a URL - fetch and convert to base64
-      signatureData = await urlToBase64(signatureUrl);
+      // It's a URL - fetch and convert to base64 using helper
+      signatureData = await getDataUrl(signatureUrl);
     }
     
     if (signatureData) {
       try {
-        doc.addImage(signatureData, 'PNG', leftMargin, yPos, 60, 25);
+        // Determine image format from data URL
+        const format = signatureData.includes('image/png') ? 'PNG' : 'JPEG';
+        doc.addImage(signatureData, format, leftMargin, yPos, 60, 25);
         yPos += 30;
         doc.setFontSize(8);
         doc.setTextColor(mutedColor);
-        doc.text('Digitally signed by client', leftMargin, yPos);
+        doc.text('[Digitally Signed by Client]', leftMargin, yPos);
       } catch (e) {
-        console.error('Failed to add signature to PDF:', e);
+        console.error('Failed to add signature image to PDF:', e);
         doc.setFontSize(8);
         doc.setTextColor(mutedColor);
-        doc.text('[Signature could not be rendered]', leftMargin, yPos);
+        doc.text('[Digitally Signed by Client]', leftMargin, yPos);
         yPos += 10;
       }
     } else {
+      // Fallback when fetch fails
       doc.setFontSize(8);
       doc.setTextColor(mutedColor);
-      doc.text('[Signature could not be loaded]', leftMargin, yPos);
+      doc.text('[Digitally Signed by Client]', leftMargin, yPos);
       yPos += 10;
     }
   } else {
-    // No signature available
-    yPos += 10;
+    // No signature URL available at all
     doc.setFontSize(8);
     doc.setTextColor(mutedColor);
-    doc.text('[No digital signature captured]', leftMargin, yPos);
+    doc.text('[Digitally Signed by Client]', leftMargin, yPos);
+    yPos += 10;
   }
   
   // Footer

@@ -20,6 +20,9 @@ export interface DealRecordInsert {
   deliveryAddress: string;
   deliveryDate: string;
   aftersalesExpenses: AftersalesExpense[];
+  costPrice?: number;
+  calculatedProfit?: number;
+  isSourcingVehicle?: boolean;
 }
 
 export const useCreateDealRecord = () => {
@@ -27,6 +30,7 @@ export const useCreateDealRecord = () => {
 
   return useMutation({
     mutationFn: async (record: DealRecordInsert) => {
+      // Insert deal record
       const { data, error } = await supabase
         .from('deal_records')
         .insert({
@@ -46,6 +50,28 @@ export const useCreateDealRecord = () => {
         .single();
 
       if (error) throw error;
+
+      // If sourcing vehicle, increment sourced_count instead of marking sold
+      if (record.isSourcingVehicle) {
+        const { error: countError } = await supabase.rpc('increment_sourced_count', { 
+          vehicle_id: record.vehicleId 
+        }).maybeSingle();
+        
+        // Fallback if RPC doesn't exist - just update manually
+        if (countError) {
+          const { data: vehicle } = await supabase
+            .from('vehicles')
+            .select('sourced_count')
+            .eq('id', record.vehicleId)
+            .single();
+          
+          await supabase
+            .from('vehicles')
+            .update({ sourced_count: ((vehicle as any)?.sourced_count || 0) + 1 })
+            .eq('id', record.vehicleId);
+        }
+      }
+
       return data;
     },
     onSuccess: () => {

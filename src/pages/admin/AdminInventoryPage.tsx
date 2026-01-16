@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Plus, Search, Trash2, Edit2, Upload, X, GripVertical, Star, Clock } from 'lucide-react';
+import { Plus, Search, Trash2, Edit2, Upload, X, GripVertical, Star, Clock, Truck } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -37,12 +37,18 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Separator } from '@/components/ui/separator';
 import { useVehicles, useCreateVehicle, useUpdateVehicle, useDeleteVehicle, formatPrice, Vehicle, VehicleInsert } from '@/hooks/useVehicles';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getOptimizedImage } from '@/lib/utils';
 
 const BODY_TYPE_OPTIONS = ['Hatchback', 'Sedan', 'SUV', 'Coupe', 'Convertible', 'Bakkie/Pickup', 'MPV'] as const;
+
+interface VariantSpec {
+  name: string;
+  price: number;
+}
 
 const vehicleSchema = z.object({
   make: z.string().min(1, 'Make is required'),
@@ -55,7 +61,7 @@ const vehicleSchema = z.object({
   transmission: z.string().min(1, 'Transmission is required'),
   fuel_type: z.string().min(1, 'Fuel type is required'),
   price: z.coerce.number().min(0, 'Price must be positive'),
-  status: z.enum(['available', 'reserved', 'sold']),
+  status: z.enum(['available', 'reserved', 'sold', 'sourcing']),
   finance_available: z.boolean(),
   description: z.string().optional(),
   engine_code: z.string().optional(),
@@ -77,6 +83,8 @@ const AdminInventoryPage = () => {
   const [images, setImages] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [activeTab, setActiveTab] = useState('live');
+  const [isSourcingMode, setIsSourcingMode] = useState(false);
+  const [variants, setVariants] = useState<VariantSpec[]>([]);
 
   const { data: vehicles = [], isLoading } = useVehicles();
   const createVehicle = useCreateVehicle();
@@ -115,13 +123,15 @@ const AdminInventoryPage = () => {
       v.model.toLowerCase().includes(search) ||
       v.variant?.toLowerCase().includes(search)
     );
-    const isGeneric = (v as any).is_generic_listing === true;
+    const isGeneric = (v as any).is_generic_listing === true || v.status === 'sourcing';
     const matchesTab = activeTab === 'live' ? !isGeneric : isGeneric;
     return matchesSearch && matchesTab;
   });
 
-  const openAddSheet = async () => {
+  const openAddSheet = async (sourcing: boolean = false) => {
     setEditingVehicle(null);
+    setIsSourcingMode(sourcing);
+    setVariants([]);
     
     // Fetch latest stock number
     let nextStockNumber = 'LA001134';
@@ -157,14 +167,14 @@ const AdminInventoryPage = () => {
       transmission: 'Automatic',
       fuel_type: 'Petrol',
       price: 0,
-      status: 'available',
+      status: sourcing ? 'sourcing' : 'available',
       finance_available: true,
       description: '',
       engine_code: '',
       service_history: '',
       youtube_url: '',
       body_type: '',
-      is_generic_listing: activeTab === 'sourcing',
+      is_generic_listing: sourcing,
     });
     setImages([]);
     setIsSheetOpen(true);
@@ -172,6 +182,17 @@ const AdminInventoryPage = () => {
 
   const openEditSheet = (vehicle: Vehicle) => {
     setEditingVehicle(vehicle);
+    const isSourcing = vehicle.status === 'sourcing' || (vehicle as any).is_generic_listing;
+    setIsSourcingMode(isSourcing);
+    
+    // Load variants
+    const vehicleVariants = (vehicle as any).variants;
+    if (Array.isArray(vehicleVariants)) {
+      setVariants(vehicleVariants);
+    } else {
+      setVariants([]);
+    }
+    
     form.reset({
       make: vehicle.make,
       model: vehicle.model,
@@ -183,7 +204,7 @@ const AdminInventoryPage = () => {
       transmission: vehicle.transmission,
       fuel_type: vehicle.fuel_type,
       price: vehicle.price,
-      status: vehicle.status as 'available' | 'reserved' | 'sold',
+      status: vehicle.status as 'available' | 'reserved' | 'sold' | 'sourcing',
       finance_available: vehicle.finance_available ?? true,
       description: vehicle.description || '',
       engine_code: vehicle.engine_code || '',
@@ -237,6 +258,21 @@ const AdminInventoryPage = () => {
     setImages(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Variants management
+  const addVariant = () => {
+    setVariants(prev => [...prev, { name: '', price: 0 }]);
+  };
+
+  const updateVariant = (index: number, field: keyof VariantSpec, value: string | number) => {
+    setVariants(prev => prev.map((v, i) => 
+      i === index ? { ...v, [field]: value } : v
+    ));
+  };
+
+  const removeVariant = (index: number) => {
+    setVariants(prev => prev.filter((_, i) => i !== index));
+  };
+
   // DnD Sensors with touch support
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -286,9 +322,11 @@ const AdminInventoryPage = () => {
       youtube_url: data.youtube_url || null,
       images,
       body_type: data.body_type || null,
-      is_generic_listing: data.is_generic_listing || false,
+      is_generic_listing: data.is_generic_listing || isSourcingMode,
       purchase_price: data.purchase_price || 0,
       reconditioning_cost: data.reconditioning_cost || 0,
+      // Save variants for sourcing vehicles
+      variants: isSourcingMode && variants.length > 0 ? variants.filter(v => v.name && v.price > 0) : [],
     };
 
     if (editingVehicle) {
@@ -298,6 +336,8 @@ const AdminInventoryPage = () => {
     }
 
     setIsSheetOpen(false);
+    setIsSourcingMode(false);
+    setVariants([]);
   };
 
   const handleDelete = async () => {
@@ -311,6 +351,7 @@ const AdminInventoryPage = () => {
       available: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
       reserved: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
       sold: 'bg-red-500/20 text-red-400 border-red-500/30',
+      sourcing: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
     };
 
     return (
@@ -338,10 +379,16 @@ const AdminInventoryPage = () => {
             <h1 className="text-3xl font-semibold mb-2">Inventory Manager</h1>
             <p className="text-muted-foreground">Manage your vehicle listings</p>
           </div>
-          <Button onClick={openAddSheet} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Add Vehicle
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => openAddSheet(true)} variant="outline" className="gap-2 border-purple-500/30 text-purple-400 hover:bg-purple-500/10">
+              <Truck className="w-4 h-4" />
+              Add Sourcing Example
+            </Button>
+            <Button onClick={() => openAddSheet(false)} className="gap-2">
+              <Plus className="w-4 h-4" />
+              Add Vehicle
+            </Button>
+          </div>
         </motion.div>
 
         {/* Search & Tabs */}
@@ -396,99 +443,116 @@ const AdminInventoryPage = () => {
                   <TableHead className="text-muted-foreground">Price</TableHead>
                   <TableHead className="text-muted-foreground">Age</TableHead>
                   <TableHead className="text-muted-foreground">Status</TableHead>
+                  {activeTab === 'sourcing' && (
+                    <TableHead className="text-muted-foreground text-center">Sourced</TableHead>
+                  )}
                   <TableHead className="text-muted-foreground text-center">Featured</TableHead>
                   <TableHead className="text-muted-foreground text-center">Finance</TableHead>
                   <TableHead className="text-muted-foreground text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredVehicles.map((vehicle) => (
-                  <TableRow key={vehicle.id} className="border-white/10 hover:bg-white/5">
-                    <TableCell>
-                      {vehicle.images && vehicle.images[0] ? (
-                        <img
-                          src={getOptimizedImage(vehicle.images[0], 200)}
-                          alt={`${vehicle.make} ${vehicle.model}`}
-                          className="w-20 h-14 object-cover rounded"
-                          loading="lazy"
-                          decoding="async"
-                        />
-                      ) : (
-                        <div className="w-20 h-14 bg-secondary rounded flex items-center justify-center text-muted-foreground text-xs">
-                          No Image
+                {filteredVehicles.map((vehicle) => {
+                  const sourcedCount = (vehicle as any).sourced_count || 0;
+                  return (
+                    <TableRow key={vehicle.id} className="border-white/10 hover:bg-white/5">
+                      <TableCell>
+                        {vehicle.images && vehicle.images[0] ? (
+                          <img
+                            src={getOptimizedImage(vehicle.images[0], 200)}
+                            alt={`${vehicle.make} ${vehicle.model}`}
+                            className="w-20 h-14 object-cover rounded"
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        ) : (
+                          <div className="w-20 h-14 bg-secondary rounded flex items-center justify-center text-muted-foreground text-xs">
+                            No Image
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {vehicle.id.slice(0, 8).toUpperCase()}
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">
+                            {vehicle.year} {vehicle.make} {vehicle.model}
+                          </p>
+                          <p className="text-sm text-muted-foreground">{vehicle.variant}</p>
                         </div>
+                      </TableCell>
+                      <TableCell className="font-semibold">
+                        {formatPrice(vehicle.price)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1 text-xs">
+                          <Clock className="w-3 h-3 text-muted-foreground" />
+                          <span className={differenceInDays(new Date(), new Date(vehicle.created_at)) > 60 ? 'text-amber-400' : 'text-muted-foreground'}>
+                            {differenceInDays(new Date(), new Date(vehicle.created_at))}d
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{getStatusBadge(vehicle.status)}</TableCell>
+                      {activeTab === 'sourcing' && (
+                        <TableCell className="text-center">
+                          {sourcedCount > 0 ? (
+                            <span className="px-2 py-1 text-xs rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                              {sourcedCount}x
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">-</span>
+                          )}
+                        </TableCell>
                       )}
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">
-                      {vehicle.id.slice(0, 8).toUpperCase()}
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">
-                          {vehicle.year} {vehicle.make} {vehicle.model}
-                        </p>
-                        <p className="text-sm text-muted-foreground">{vehicle.variant}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-semibold">
-                      {formatPrice(vehicle.price)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1 text-xs">
-                        <Clock className="w-3 h-3 text-muted-foreground" />
-                        <span className={differenceInDays(new Date(), new Date(vehicle.created_at)) > 60 ? 'text-amber-400' : 'text-muted-foreground'}>
-                          {differenceInDays(new Date(), new Date(vehicle.created_at))}d
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{getStatusBadge(vehicle.status)}</TableCell>
-                    <TableCell className="text-center">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={async () => {
-                          await updateVehicle.mutateAsync({
-                            id: vehicle.id,
-                            updates: { is_featured: !(vehicle as any).is_featured } as any,
-                          });
-                        }}
-                        className={`${(vehicle as any).is_featured ? 'text-yellow-400' : 'text-muted-foreground hover:text-yellow-400'}`}
-                      >
-                        <Star className={`w-5 h-5 ${(vehicle as any).is_featured ? 'fill-current' : ''}`} />
-                      </Button>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Switch
-                        checked={vehicle.finance_available ?? true}
-                        onCheckedChange={async (checked) => {
-                          await updateVehicle.mutateAsync({
-                            id: vehicle.id,
-                            updates: { finance_available: checked },
-                          });
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
+                      <TableCell className="text-center">
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => openEditSheet(vehicle)}
+                          onClick={async () => {
+                            await updateVehicle.mutateAsync({
+                              id: vehicle.id,
+                              updates: { is_featured: !(vehicle as any).is_featured } as any,
+                            });
+                          }}
+                          className={`${(vehicle as any).is_featured ? 'text-yellow-400' : 'text-muted-foreground hover:text-yellow-400'}`}
                         >
-                          <Edit2 className="w-4 h-4" />
+                          <Star className={`w-5 h-5 ${(vehicle as any).is_featured ? 'fill-current' : ''}`} />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setDeleteVehicle(vehicle)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Switch
+                          checked={vehicle.finance_available ?? true}
+                          onCheckedChange={async (checked) => {
+                            await updateVehicle.mutateAsync({
+                              id: vehicle.id,
+                              updates: { finance_available: checked },
+                            });
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditSheet(vehicle)}
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setDeleteVehicle(vehicle)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
@@ -499,9 +563,15 @@ const AdminInventoryPage = () => {
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>{editingVehicle ? 'Edit Vehicle' : 'Add New Vehicle'}</SheetTitle>
+            <SheetTitle>
+              {editingVehicle ? 'Edit Vehicle' : isSourcingMode ? 'Add Sourcing Example' : 'Add New Vehicle'}
+            </SheetTitle>
             <SheetDescription>
-              {editingVehicle ? 'Update vehicle details' : 'Add a new vehicle to your inventory'}
+              {editingVehicle 
+                ? 'Update vehicle details' 
+                : isSourcingMode 
+                  ? 'Add a sourcing template with spec variants'
+                  : 'Add a new vehicle to your inventory'}
             </SheetDescription>
           </SheetHeader>
 
@@ -767,6 +837,58 @@ const AdminInventoryPage = () => {
                 </div>
               </div>
 
+              {/* Sourcing Variants Section */}
+              {isSourcingMode && (
+                <div className="space-y-4">
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Spec Variants</h3>
+                      <p className="text-xs text-muted-foreground mt-1">Add different spec levels with prices</p>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" onClick={addVariant}>
+                      <Plus className="w-4 h-4 mr-1" />
+                      Add Variant
+                    </Button>
+                  </div>
+                  
+                  {variants.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4 bg-muted/30 rounded-lg">
+                      No variants added. Add spec levels like "M-Sport", "Carbon Edition", etc.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {variants.map((variant, index) => (
+                        <div key={index} className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg">
+                          <Input
+                            placeholder="Variant Name (e.g. M-Sport)"
+                            value={variant.name}
+                            onChange={(e) => updateVariant(index, 'name', e.target.value)}
+                            className="flex-1"
+                          />
+                          <Input
+                            type="number"
+                            placeholder="Price"
+                            value={variant.price || ''}
+                            onChange={(e) => updateVariant(index, 'price', parseFloat(e.target.value) || 0)}
+                            className="w-32"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeVariant(index)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Media Center */}
               <div className="space-y-4">
                 <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Media Center</h3>
@@ -847,7 +969,7 @@ const AdminInventoryPage = () => {
                         <RadioGroup
                           onValueChange={field.onChange}
                           defaultValue={field.value}
-                          className="flex gap-4"
+                          className="flex flex-wrap gap-4"
                         >
                           <div className="flex items-center space-x-2">
                             <RadioGroupItem value="available" id="available" />
@@ -860,6 +982,10 @@ const AdminInventoryPage = () => {
                           <div className="flex items-center space-x-2">
                             <RadioGroupItem value="sold" id="sold" />
                             <Label htmlFor="sold" className="text-red-400">Sold</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="sourcing" id="sourcing" />
+                            <Label htmlFor="sourcing" className="text-purple-400">Sourcing</Label>
                           </div>
                         </RadioGroup>
                       </FormControl>
@@ -891,14 +1017,14 @@ const AdminInventoryPage = () => {
                   control={form.control}
                   name="is_generic_listing"
                   render={({ field }) => (
-                    <FormItem className="flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+                    <FormItem className="flex items-center justify-between rounded-lg border border-border p-4">
                       <div>
-                        <FormLabel className="text-amber-400">Sourcing Example</FormLabel>
-                        <p className="text-sm text-muted-foreground">Mark as a generic/sourcing example (not actual stock)</p>
+                        <FormLabel>Sourcing Example</FormLabel>
+                        <p className="text-sm text-muted-foreground">Mark as sourcing template (evergreen stock)</p>
                       </div>
                       <FormControl>
-                        <Switch
-                          checked={field.value}
+                        <Checkbox
+                          checked={field.value || isSourcingMode}
                           onCheckedChange={field.onChange}
                         />
                       </FormControl>
@@ -907,10 +1033,24 @@ const AdminInventoryPage = () => {
                 />
               </div>
 
-              {/* Description */}
+              {/* Additional Details */}
               <div className="space-y-4">
-                <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Additional Info</h3>
+                <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Additional Details</h3>
                 
+                <FormField
+                  control={form.control}
+                  name="service_history"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Service History</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Full Service History" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <FormField
                   control={form.control}
                   name="description"
@@ -918,7 +1058,7 @@ const AdminInventoryPage = () => {
                     <FormItem>
                       <FormLabel>Description</FormLabel>
                       <FormControl>
-                        <Textarea
+                        <Textarea 
                           placeholder="Vehicle description..."
                           className="min-h-[100px]"
                           {...field}
@@ -928,42 +1068,34 @@ const AdminInventoryPage = () => {
                     </FormItem>
                   )}
                 />
-
-                <FormField
-                  control={form.control}
-                  name="service_history"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Service History</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select service history" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Full Franchise Service History">Full Franchise Service History</SelectItem>
-                          <SelectItem value="Partial Service History">Partial Service History</SelectItem>
-                          <SelectItem value="No Service History">No Service History</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
 
-              {/* Submit */}
-              <div className="flex gap-3 pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsSheetOpen(false)} className="flex-1">
+              {/* Submit Button */}
+              <div className="flex gap-4 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsSheetOpen(false);
+                    setIsSourcingMode(false);
+                    setVariants([]);
+                  }}
+                  className="flex-1"
+                >
                   Cancel
                 </Button>
-                <Button 
-                  type="submit" 
-                  className="flex-1"
+                <Button
+                  type="submit"
                   disabled={createVehicle.isPending || updateVehicle.isPending}
+                  className="flex-1"
                 >
-                  {createVehicle.isPending || updateVehicle.isPending ? 'Saving...' : 'Save Vehicle'}
+                  {createVehicle.isPending || updateVehicle.isPending
+                    ? 'Saving...'
+                    : editingVehicle
+                    ? 'Update Vehicle'
+                    : isSourcingMode 
+                    ? 'Add Sourcing Example'
+                    : 'Add Vehicle'}
                 </Button>
               </div>
             </form>
@@ -975,14 +1107,17 @@ const AdminInventoryPage = () => {
       <AlertDialog open={!!deleteVehicle} onOpenChange={() => setDeleteVehicle(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Vehicle</AlertDialogTitle>
+            <AlertDialogTitle>Delete Vehicle?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete {deleteVehicle?.year} {deleteVehicle?.make} {deleteVehicle?.model}? This action cannot be undone.
+              This will permanently delete {deleteVehicle?.year} {deleteVehicle?.make} {deleteVehicle?.model}. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
