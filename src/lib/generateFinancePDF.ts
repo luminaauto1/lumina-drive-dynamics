@@ -284,44 +284,42 @@ export const generateFinancePDF = async (application: FinanceApplication, vehicl
   yPos += 5;
   
   if (signatureUrl) {
-    let signatureData: string | null = null;
-    
-    // Check if it's already a base64 data URL
-    if (signatureUrl.startsWith('data:image')) {
-      signatureData = signatureUrl;
-    } else {
-      // It's a URL - fetch and convert to base64 using helper
-      signatureData = await getDataUrl(signatureUrl);
-    }
-    
-    if (signatureData) {
-      try {
-        // Determine image format from data URL
-        const format = signatureData.includes('image/png') ? 'PNG' : 'JPEG';
-        doc.addImage(signatureData, format, leftMargin, yPos, 60, 25);
+    try {
+      // 1. Fetch the image blob
+      const response = await fetch(signatureUrl);
+      const blob = await response.blob();
+
+      // 2. Convert to Base64
+      const base64 = await new Promise<string | null>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+
+      // 3. Add to PDF (dimensions: x, y, width, height)
+      if (base64) {
+        const format = base64.includes('image/png') ? 'PNG' : 'JPEG';
+        doc.addImage(base64, format, leftMargin, yPos, 60, 25);
         yPos += 30;
         doc.setFontSize(8);
         doc.setTextColor(mutedColor);
-        doc.text('[Digitally Signed by Client]', leftMargin, yPos);
-      } catch (e) {
-        console.error('Failed to add signature image to PDF:', e);
-        doc.setFontSize(8);
-        doc.setTextColor(mutedColor);
-        doc.text('[Digitally Signed by Client]', leftMargin, yPos);
-        yPos += 10;
+        doc.text(`Digital Signature ID: ${application.id.slice(0, 8)}`, leftMargin, yPos);
+      } else {
+        throw new Error('Failed to convert to base64');
       }
-    } else {
-      // Fallback when fetch fails
+    } catch (err) {
+      console.error('Signature Load Error', err);
       doc.setFontSize(8);
       doc.setTextColor(mutedColor);
-      doc.text('[Digitally Signed by Client]', leftMargin, yPos);
+      doc.text('[Signed Digitally - Image Load Failed]', leftMargin, yPos);
       yPos += 10;
     }
   } else {
     // No signature URL available at all
     doc.setFontSize(8);
     doc.setTextColor(mutedColor);
-    doc.text('[Digitally Signed by Client]', leftMargin, yPos);
+    doc.text('[Signed Digitally]', leftMargin, yPos);
     yPos += 10;
   }
   

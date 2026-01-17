@@ -42,12 +42,13 @@ export const useUserApplicationMatches = (userId: string) => {
 
       const appIds = apps.map(a => a.id);
       
-      // Fetch matches with vehicles, filtering for finance_available only
+      // Fetch matches with vehicles, filtering for finance_available AND available status
       const { data, error } = await supabase
         .from('application_matches')
         .select('*, vehicles!inner(*)')
         .in('application_id', appIds)
-        .eq('vehicles.finance_available', true);
+        .eq('vehicles.finance_available', true)
+        .eq('vehicles.status', 'available');
       
       if (error) throw error;
       return data;
