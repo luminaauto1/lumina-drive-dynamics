@@ -6,21 +6,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import KineticText from '@/components/KineticText';
-import { supabase } from '@/integrations/supabase/client';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { toast } from 'sonner';
 
 const Contact = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isCashBuyer, setIsCashBuyer] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
-    employer: '',
-    salary: '',
+    interestedVehicle: '',
+    budget: '',
     message: '',
   });
 
@@ -33,74 +30,51 @@ const Contact = () => {
   const financeEmail = settings?.finance_email || 'finance@luminaauto.co.za';
   const showLocation = settings?.show_physical_location ?? true;
   const physicalAddress = settings?.physical_address || '123 Automotive Drive, Sandton, Johannesburg, South Africa';
+  const whatsappNumber = settings?.whatsapp_number || '27686017462';
 
   // Parse address into lines for display
   const addressLines = physicalAddress?.split(',').map(line => line.trim()) || [];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate required fields
+    if (!formData.name.trim() || !formData.email.trim() || !formData.message.trim()) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
     setIsSubmitting(true);
 
-    // HTML escape function to prevent XSS in emails
-    const escapeHtml = (unsafe: string): string => {
-      return unsafe
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-    };
-
     try {
-      // Sanitize all user inputs
-      const safeName = escapeHtml(formData.name);
-      const safeEmail = escapeHtml(formData.email);
-      const safePhone = escapeHtml(formData.phone || 'Not provided');
-      const safeEmployer = escapeHtml(formData.employer || 'Not provided');
-      const safeSalary = escapeHtml(formData.salary || 'Not provided');
-      const safeMessage = escapeHtml(formData.message);
-
-      // Send email via edge function
-      const { error } = await supabase.functions.invoke('send-email', {
-        body: {
-          to: [primaryEmail],
-          subject: `New Contact Enquiry from ${safeName}`,
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-              <h1 style="color: #1a1a1a; border-bottom: 2px solid #d4af37; padding-bottom: 10px;">New Contact Enquiry</h1>
-              
-              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <p style="margin: 0 0 10px 0;"><strong>Name:</strong> ${safeName}</p>
-                <p style="margin: 0 0 10px 0;"><strong>Email:</strong> ${safeEmail}</p>
-                <p style="margin: 0 0 10px 0;"><strong>Phone:</strong> ${safePhone}</p>
-                <p style="margin: 0 0 10px 0;"><strong>Buyer Type:</strong> ${isCashBuyer ? 'Cash Buyer' : 'Finance Buyer'}</p>
-                ${!isCashBuyer ? `
-                  <p style="margin: 0 0 10px 0;"><strong>Employer:</strong> ${safeEmployer}</p>
-                  <p style="margin: 0 0 10px 0;"><strong>Monthly Salary:</strong> R${safeSalary}</p>
-                ` : ''}
-              </div>
-              
-              <div style="background: #fff; border: 1px solid #eee; padding: 20px; border-radius: 8px;">
-                <h3 style="margin: 0 0 10px 0; color: #333;">Message:</h3>
-                <p style="margin: 0; color: #666; white-space: pre-wrap;">${safeMessage}</p>
-              </div>
-              
-              <p style="color: #999; font-size: 12px; margin-top: 30px;">
-                This enquiry was submitted via the Lumina Auto website.
-              </p>
-            </div>
-          `,
-        },
-      });
-
-      if (error) {
-        console.error('Email send error:', error);
-        toast.error('Failed to send message. Please try again.');
-      } else {
-        toast.success('Message sent successfully! We will get back to you soon.');
-        setFormData({ name: '', email: '', phone: '', employer: '', salary: '', message: '' });
-        setIsCashBuyer(false);
+      // Build WhatsApp message
+      const messageParts = [
+        `Hi Lumina Auto, I am ${formData.name.trim()}.`,
+        `Email: ${formData.email.trim()}`,
+      ];
+      
+      if (formData.phone.trim()) {
+        messageParts.push(`Phone: ${formData.phone.trim()}`);
       }
+      
+      if (formData.interestedVehicle.trim()) {
+        messageParts.push(`I am interested in: ${formData.interestedVehicle.trim()}`);
+      }
+      
+      if (formData.budget.trim()) {
+        messageParts.push(`My budget is: R${formData.budget.trim()}`);
+      }
+      
+      messageParts.push(`Message: ${formData.message.trim()}`);
+      
+      const whatsappMessage = messageParts.join('\n');
+      const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`;
+      
+      // Open WhatsApp
+      window.open(whatsappUrl, '_blank');
+      
+      toast.success('Opening WhatsApp...');
+      setFormData({ name: '', email: '', phone: '', interestedVehicle: '', budget: '', message: '' });
     } catch (error) {
       console.error('Contact form error:', error);
       toast.error('An error occurred. Please try again.');
@@ -200,7 +174,7 @@ const Contact = () => {
               <h2 className="text-2xl font-bold mb-6">Send a Message</h2>
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
+                  <Label htmlFor="name">Full Name *</Label>
                   <Input
                     id="name"
                     value={formData.name}
@@ -213,7 +187,7 @@ const Contact = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email">Email *</Label>
                     <Input
                       id="email"
                       type="email"
@@ -237,52 +211,33 @@ const Contact = () => {
                   </div>
                 </div>
 
-                {/* Cash Buyer Toggle */}
-                <div className="flex items-center space-x-2 p-3 bg-muted/50 rounded-lg">
-                  <Checkbox
-                    id="cashBuyer"
-                    checked={isCashBuyer}
-                    onCheckedChange={(checked) => setIsCashBuyer(checked as boolean)}
-                  />
-                  <Label htmlFor="cashBuyer" className="text-sm cursor-pointer">
-                    I am a Cash Buyer (no finance required)
-                  </Label>
+                {/* Vehicle Interest & Budget */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="interestedVehicle">Interested Vehicle</Label>
+                    <Input
+                      id="interestedVehicle"
+                      value={formData.interestedVehicle}
+                      onChange={(e) => setFormData({ ...formData, interestedVehicle: e.target.value })}
+                      placeholder="e.g. 2022 BMW X5"
+                      className="glass-card border-border"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="budget">Budget Estimate (R)</Label>
+                    <Input
+                      id="budget"
+                      type="text"
+                      value={formData.budget}
+                      onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
+                      placeholder="e.g. 500,000"
+                      className="glass-card border-border"
+                    />
+                  </div>
                 </div>
 
-                {/* Employment fields - only show for finance buyers */}
-                {!isCashBuyer && (
-                  <motion.div 
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="grid grid-cols-1 md:grid-cols-2 gap-4"
-                  >
-                    <div className="space-y-2">
-                      <Label htmlFor="employer">Employer (Optional)</Label>
-                      <Input
-                        id="employer"
-                        value={formData.employer}
-                        onChange={(e) => setFormData({ ...formData, employer: e.target.value })}
-                        placeholder="Company name"
-                        className="glass-card border-border"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="salary">Monthly Salary (Optional)</Label>
-                      <Input
-                        id="salary"
-                        type="number"
-                        value={formData.salary}
-                        onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
-                        placeholder="e.g. 25000"
-                        className="glass-card border-border"
-                      />
-                    </div>
-                  </motion.div>
-                )}
-
                 <div className="space-y-2">
-                  <Label htmlFor="message">Message</Label>
+                  <Label htmlFor="message">Message *</Label>
                   <Textarea
                     id="message"
                     value={formData.message}
@@ -300,10 +255,10 @@ const Contact = () => {
                   className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
                 >
                   {isSubmitting ? (
-                    'Sending...'
+                    'Opening WhatsApp...'
                   ) : (
                     <>
-                      Send Message
+                      Send via WhatsApp
                       <Send className="ml-2 w-4 h-4" />
                     </>
                   )}

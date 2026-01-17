@@ -510,6 +510,17 @@ const AdminDealRoom = () => {
                       </Button>
                     </>
                   )}
+                  {/* Finalize button for vehicle_selected status too */}
+                  {application.status === 'vehicle_selected' && (
+                    <Button
+                      onClick={handleOpenFinalizeModal}
+                      size="sm"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-xs md:text-sm"
+                    >
+                      <PartyPopper className="w-4 h-4 mr-1 md:mr-2" />
+                      Finalize Deal
+                    </Button>
+                  )}
                   <Button
                     onClick={openWhatsApp}
                     size="sm"
@@ -698,6 +709,52 @@ const AdminDealRoom = () => {
                 </ul>
               </div>
             )}
+
+            {/* Vehicle Selection - Direct Assignment */}
+            <div className="glass-card rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="flex items-center gap-2 font-semibold">
+                  <Car className="w-4 h-4 text-primary" />
+                  Selected Vehicle
+                </h3>
+              </div>
+              
+              {/* Current Selected Vehicle */}
+              <div className="mb-4">
+                <Label className="text-sm text-muted-foreground mb-2 block">Assigned Vehicle</Label>
+                {matches.length > 0 && (matches[0] as any).vehicles ? (
+                  <div className="p-3 bg-muted/30 rounded-lg flex items-center gap-3">
+                    {(matches[0] as any).vehicles?.images?.[0] && (
+                      <img 
+                        src={(matches[0] as any).vehicles.images[0]} 
+                        alt="" 
+                        className="w-12 h-12 rounded object-cover"
+                      />
+                    )}
+                    <div>
+                      <p className="font-medium text-sm">
+                        {(matches[0] as any).vehicles?.year} {(matches[0] as any).vehicles?.make} {(matches[0] as any).vehicles?.model}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatPrice((matches[0] as any).vehicles?.price)}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">No vehicle assigned</p>
+                )}
+              </div>
+
+              {/* Assign/Change Vehicle Button */}
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => setVehicleModalOpen(true)}
+              >
+                <Car className="w-4 h-4 mr-2" />
+                {matches.length > 0 ? 'Change Vehicle' : 'Assign Vehicle'}
+              </Button>
+            </div>
 
             {/* Vehicle Matchmaking - Always visible */}
             <div className="glass-card rounded-xl p-6">

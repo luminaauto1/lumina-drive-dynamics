@@ -88,8 +88,8 @@ const FinanceApplication = () => {
     bank_name: "",
     account_type: "",
     account_number: "",
-    // Financials
-    gross_salary: "",
+    // Financials - Multiple Income Sources
+    income_sources: [{ source: "Primary Employment", amount: "" }],
     net_salary: "",
     expenses_summary: "",
     // Consent
@@ -174,11 +174,14 @@ const FinanceApplication = () => {
           });
           break;
         case 4:
+          // Calculate total gross from income sources
+          const totalGross = formData.income_sources.reduce((sum, src) => 
+            sum + (parseFloat(src.amount) || 0), 0);
           financeApplicationStep4Schema.parse({
             bank_name: formData.bank_name,
             account_type: formData.account_type,
             account_number: formData.account_number,
-            gross_salary: formData.gross_salary,
+            gross_salary: String(totalGross),
             net_salary: formData.net_salary,
             expenses_summary: formData.expenses_summary,
           });
@@ -244,6 +247,16 @@ const FinanceApplication = () => {
 
     setIsSubmitting(true);
 
+    // Calculate total gross from income sources
+    const totalGross = formData.income_sources.reduce((sum, src) => 
+      sum + (parseFloat(src.amount) || 0), 0);
+    
+    // Combine income source names
+    const incomeSourceNames = formData.income_sources
+      .filter(src => src.source && src.amount)
+      .map(src => src.source)
+      .join(" + ");
+
     // 2. Prepare Data
     const sanitizedData = {
       user_id: user.id,
@@ -259,7 +272,7 @@ const FinanceApplication = () => {
       qualification: formData.qualification || null,
       street_address: formData.street_address.trim(),
       area_code: formData.area_code?.trim() || null,
-      employer_name: formData.employer_name.trim(),
+      employer_name: incomeSourceNames || formData.employer_name.trim(),
       job_title: formData.job_title?.trim() || null,
       employment_period: getEmploymentPeriod() || null,
       kin_name: formData.kin_name.trim(),
@@ -267,7 +280,7 @@ const FinanceApplication = () => {
       bank_name: formData.bank_name,
       account_type: formData.account_type || null,
       account_number: formData.account_number?.trim() || null,
-      gross_salary: formData.gross_salary ? parseFloat(formData.gross_salary) : null,
+      gross_salary: totalGross || null,
       net_salary: formData.net_salary ? parseFloat(formData.net_salary) : null,
       expenses_summary: formData.expenses_summary?.trim() || null,
       popia_consent: formData.popia_consent,
@@ -807,19 +820,80 @@ const FinanceApplication = () => {
                     </div>
                   </div>
                   <div className="border-t border-border pt-6">
-                    <h3 className="font-medium mb-4">Income & Expenses</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="gross_salary">Gross Salary (Before deductions) *</Label>
-                        <Input
-                          id="gross_salary"
-                          type="number"
-                          value={formData.gross_salary}
-                          onChange={(e) => handleInputChange("gross_salary", e.target.value)}
-                          placeholder="e.g., 50000"
-                          required
-                        />
+                    <h3 className="font-medium mb-4">Income Sources</h3>
+                    <p className="text-sm text-muted-foreground mb-4">Add all your income sources (employment, rental, side business, etc.)</p>
+                    
+                    <div className="space-y-4">
+                      {formData.income_sources.map((source, index) => (
+                        <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                          <div className="space-y-2 md:col-span-2">
+                            <Label>Income Source {index + 1}</Label>
+                            <Input
+                              value={source.source}
+                              onChange={(e) => {
+                                const newSources = [...formData.income_sources];
+                                newSources[index].source = e.target.value;
+                                setFormData(prev => ({ ...prev, income_sources: newSources }));
+                              }}
+                              placeholder="e.g., Main Job, Rental Income, Side Business"
+                            />
+                          </div>
+                          <div className="flex gap-2 items-end">
+                            <div className="flex-1 space-y-2">
+                              <Label>Amount (R)</Label>
+                              <Input
+                                type="number"
+                                value={source.amount}
+                                onChange={(e) => {
+                                  const newSources = [...formData.income_sources];
+                                  newSources[index].amount = e.target.value;
+                                  setFormData(prev => ({ ...prev, income_sources: newSources }));
+                                }}
+                                placeholder="e.g., 35000"
+                              />
+                            </div>
+                            {formData.income_sources.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="text-red-400 hover:text-red-300"
+                                onClick={() => {
+                                  const newSources = formData.income_sources.filter((_, i) => i !== index);
+                                  setFormData(prev => ({ ...prev, income_sources: newSources }));
+                                }}
+                              >
+                                ✕
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setFormData(prev => ({
+                            ...prev,
+                            income_sources: [...prev.income_sources, { source: "", amount: "" }]
+                          }));
+                        }}
+                      >
+                        + Add Income Source
+                      </Button>
+                      
+                      {/* Total Gross Income Display */}
+                      <div className="bg-muted/50 rounded-lg p-4 mt-4">
+                        <p className="text-sm text-muted-foreground">Total Gross Income</p>
+                        <p className="text-2xl font-bold text-primary">
+                          R{formData.income_sources.reduce((sum, src) => sum + (parseFloat(src.amount) || 0), 0).toLocaleString()}
+                        </p>
                       </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                       <div className="space-y-2">
                         <Label htmlFor="net_salary">Net Salary (After deductions) *</Label>
                         <Input
