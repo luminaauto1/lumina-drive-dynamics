@@ -16,6 +16,13 @@ interface SalesRep {
   commission: number;
 }
 
+interface VehicleInfo {
+  year?: number;
+  make?: string;
+  model?: string;
+  stock_number?: string;
+}
+
 interface FinalizeDealModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -24,6 +31,7 @@ interface FinalizeDealModalProps {
   vehiclePrice: number;
   vehicleMileage: number;
   vehicleStatus?: string;
+  vehicle?: VehicleInfo | null;
   onSuccess: () => void;
 }
 
@@ -37,6 +45,7 @@ const FinalizeDealModal = ({
   vehiclePrice,
   vehicleMileage,
   vehicleStatus = 'available',
+  vehicle,
   onSuccess,
 }: FinalizeDealModalProps) => {
   const { data: settings } = useSiteSettings();
@@ -136,6 +145,18 @@ const FinalizeDealModal = ({
         </DialogHeader>
 
         <div className="space-y-6 py-4">
+          {/* Vehicle Summary */}
+          <div className="bg-muted p-4 rounded-md mb-4 border border-blue-500/20">
+            <h4 className="font-bold text-sm text-blue-400 uppercase mb-1">Finalizing Deal For:</h4>
+            {vehicle ? (
+              <div className="text-lg font-semibold">
+                {vehicle.year} {vehicle.make} {vehicle.model}
+                <span className="block text-xs text-muted-foreground">Stock: {vehicle.stock_number || 'N/A'}</span>
+              </div>
+            ) : (
+              <div className="text-red-400 font-bold">NO VEHICLE SELECTED</div>
+            )}
+          </div>
           {/* Sales Rep Section */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-sm font-medium">

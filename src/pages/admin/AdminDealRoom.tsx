@@ -1026,6 +1026,8 @@ const AdminDealRoom = () => {
           vehicleId={(matches[0] as any).vehicle_id}
           vehiclePrice={(matches[0] as any).vehicles?.price || 0}
           vehicleMileage={(matches[0] as any).vehicles?.mileage || 0}
+          vehicleStatus={(matches[0] as any).vehicles?.status}
+          vehicle={(matches[0] as any).vehicles}
           onSuccess={handleFinalizeDealSuccess}
         />
       )}
