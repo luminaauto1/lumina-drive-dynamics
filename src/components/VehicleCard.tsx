@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
-import { Heart, GitCompare, ChevronRight, Sparkles } from 'lucide-react';
+import { Heart, GitCompare, ChevronRight, Sparkles, Users } from 'lucide-react';
 import { useWishlist } from '@/hooks/useWishlist';
 import { formatPrice, formatMileage, calculateMonthlyPayment } from '@/lib/formatters';
 import { getOptimizedImage } from '@/lib/utils';
@@ -152,9 +152,20 @@ const VehicleCard = ({ vehicle, onCompare, isComparing, isSourcingCard = false, 
           )}
 
           {/* Badges */}
-          {isIncoming && (
-            <div className="coming-soon-badge rounded-sm">Coming Soon</div>
-          )}
+          <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
+            {isIncoming && (
+              <div className="coming-soon-badge rounded-sm">Coming Soon</div>
+            )}
+            
+            {/* Sourced X times badge - for sourcing vehicles with sales history */}
+            {(vehicle.status === 'sourcing' || (vehicle as any).is_generic_listing) && 
+             (vehicle as any).sourced_count > 0 && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/90 backdrop-blur-sm text-white text-xs font-medium">
+                <Users className="w-3 h-3" />
+                Sourced {(vehicle as any).sourced_count}x
+              </div>
+            )}
+          </div>
 
           {/* Action Buttons */}
           <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
