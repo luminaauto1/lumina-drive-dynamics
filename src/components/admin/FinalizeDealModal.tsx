@@ -145,18 +145,19 @@ const FinalizeDealModal = ({
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Vehicle Summary */}
-          <div className="bg-muted p-4 rounded-md mb-4 border border-blue-500/20">
-            <h4 className="font-bold text-sm text-blue-400 uppercase mb-1">Finalizing Deal For:</h4>
-            {vehicle ? (
-              <div className="text-lg font-semibold">
-                {vehicle.year} {vehicle.make} {vehicle.model}
-                <span className="block text-xs text-muted-foreground">Stock: {vehicle.stock_number || 'N/A'}</span>
-              </div>
-            ) : (
-              <div className="text-red-400 font-bold">NO VEHICLE SELECTED</div>
-            )}
-          </div>
+          {/* Vehicle Summary - Enhanced display with null check */}
+          {vehicle ? (
+            <div className="bg-blue-500/10 p-4 rounded-md mb-4 border border-blue-500/20">
+              <h3 className="font-bold text-blue-400 text-sm uppercase mb-1">Closing Deal For:</h3>
+              <p className="text-xl font-semibold text-foreground">{vehicle.year} {vehicle.make} {vehicle.model}</p>
+              <p className="text-sm text-muted-foreground">Stock: {vehicle.stock_number || 'N/A'}</p>
+            </div>
+          ) : (
+            <div className="bg-red-500/10 p-4 rounded-md mb-4 border border-red-500/20">
+              <p className="text-red-400 font-bold">⚠️ WARNING: No Vehicle Assigned</p>
+              <p className="text-xs text-red-300">Please close this modal and assign a vehicle first.</p>
+            </div>
+          )}
           {/* Sales Rep Section */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-sm font-medium">
