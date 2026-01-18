@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
@@ -7,6 +7,7 @@ import {
   MessageCircle, Car, Plus, X, Search, FileText, CheckCircle, AlertTriangle, Copy, Check,
   Download, PartyPopper, Edit2, Save, Building2
 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import AdminLayout from '@/components/admin/AdminLayout';
 import FinancePodiumModal from '@/components/admin/FinancePodiumModal';
 import FinalizeDealModal from '@/components/admin/FinalizeDealModal';
@@ -31,6 +32,7 @@ import { toast } from 'sonner';
 const AdminDealRoom = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   
   const [application, setApplication] = useState<FinanceApplication | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,12 +46,24 @@ const AdminDealRoom = () => {
   const [podiumModalOpen, setPodiumModalOpen] = useState(false);
   const [finalizeDealModalOpen, setFinalizeDealModalOpen] = useState(false);
 
-  const { data: vehicles = [] } = useVehicles();
-  const { data: matches = [], isLoading: matchesLoading } = useApplicationMatches(id || '');
+  const { data: vehicles = [], refetch: refetchVehicles } = useVehicles();
+  const { data: matches = [], isLoading: matchesLoading, refetch: refetchMatches } = useApplicationMatches(id || '');
   const updateApplication = useUpdateFinanceApplication();
   const addMatch = useAddApplicationMatch();
   const removeMatch = useRemoveApplicationMatch();
   const createAftersalesRecord = useCreateAftersalesRecord();
+
+  // Compute active vehicle from matches OR from vehicles array for freshness
+  const activeVehicle = useMemo(() => {
+    const selectedMatch = matches[0] as any;
+    if (!selectedMatch?.vehicle_id) return null;
+    
+    // First try to get from matches (includes join data)
+    if (selectedMatch.vehicles) return selectedMatch.vehicles;
+    
+    // Fallback: look up directly from vehicles array (always fresh)
+    return vehicles.find(v => v.id === selectedMatch.vehicle_id) || null;
+  }, [matches, vehicles]);
 
   useEffect(() => {
     if (id) {
@@ -131,33 +145,71 @@ const AdminDealRoom = () => {
 
   const handleAddVehicle = async (vehicleId: string) => {
     if (!application) return;
-    await addMatch.mutateAsync({ applicationId: application.id, vehicleId });
-    setVehicleModalOpen(false);
-    setVehicleSearch('');
+    
+    try {
+      await addMatch.mutateAsync({ applicationId: application.id, vehicleId });
+      
+      // CRITICAL: Force React Query to re-fetch all related data
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['application-matches', application.id] }),
+        queryClient.invalidateQueries({ queryKey: ['vehicles'] }),
+      ]);
+      
+      // Also refetch to ensure immediate UI update
+      await refetchMatches();
+      await refetchVehicles();
+      
+      setVehicleModalOpen(false);
+      setVehicleSearch('');
+      toast.success('Vehicle assigned - UI Synced');
+    } catch (error) {
+      console.error('Failed to add vehicle:', error);
+      toast.error('Failed to assign vehicle');
+    }
   };
 
   const handleRemoveVehicle = async (matchId: string) => {
     if (!application) return;
-    await removeMatch.mutateAsync({ matchId, applicationId: application.id });
+    
+    try {
+      await removeMatch.mutateAsync({ matchId, applicationId: application.id });
+      
+      // Force refresh after removal
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['application-matches', application.id] }),
+        queryClient.invalidateQueries({ queryKey: ['vehicles'] }),
+      ]);
+      
+      await refetchMatches();
+      toast.success('Vehicle removed');
+    } catch (error) {
+      console.error('Failed to remove vehicle:', error);
+    }
   };
 
   const handleDownloadPDF = async () => {
     if (!application) return;
-    const selectedVehicle = matches.find((m: any) => m.vehicles)?.vehicles;
-    const vehicleDetails = selectedVehicle 
-      ? `${selectedVehicle.year} ${selectedVehicle.make} ${selectedVehicle.model}`
+    const vehicleDetails = activeVehicle 
+      ? `${activeVehicle.year} ${activeVehicle.make} ${activeVehicle.model}`
       : undefined;
     await generateFinancePDF(application, vehicleDetails);
     toast.success('PDF downloaded');
   };
 
-  const handleOpenFinalizeModal = () => {
+  const handleOpenFinalizeModal = async () => {
     // Get the selected vehicle from matches
     const selectedMatch = matches[0] as any;
     if (!selectedMatch?.vehicle_id) {
       toast.error('Please add a vehicle to this application before finalizing');
       return;
     }
+    
+    // Ensure we have fresh vehicle data before opening modal
+    if (!activeVehicle) {
+      await refetchVehicles();
+      await refetchMatches();
+    }
+    
     setFinalizeDealModalOpen(true);
   };
 
@@ -1017,17 +1069,17 @@ const AdminDealRoom = () => {
         approvedBudget={(application as any).approved_budget}
       />
 
-      {/* Finalize Deal Modal */}
-      {matches[0] && (matches[0] as any).vehicle_id && (
+      {/* Finalize Deal Modal - Uses activeVehicle for fresh data */}
+      {(matches[0] as any)?.vehicle_id && (
         <FinalizeDealModal
           isOpen={finalizeDealModalOpen}
           onClose={() => setFinalizeDealModalOpen(false)}
           applicationId={application.id}
           vehicleId={(matches[0] as any).vehicle_id}
-          vehiclePrice={(matches[0] as any).vehicles?.price || 0}
-          vehicleMileage={(matches[0] as any).vehicles?.mileage || 0}
-          vehicleStatus={(matches[0] as any).vehicles?.status}
-          vehicle={(matches[0] as any).vehicles}
+          vehiclePrice={activeVehicle?.price || 0}
+          vehicleMileage={activeVehicle?.mileage || 0}
+          vehicleStatus={activeVehicle?.status}
+          vehicle={activeVehicle}
           onSuccess={handleFinalizeDealSuccess}
         />
       )}
