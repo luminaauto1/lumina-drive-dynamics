@@ -131,6 +131,7 @@ const AdminSettings = () => {
       min_deposit_percent: 0,
       min_balloon_percent: 0,
       max_balloon_percent: 40,
+      default_balloon_percent: 35,
       contact_phone: '',
       contact_email: '',
       whatsapp_number: '',
@@ -160,6 +161,7 @@ const AdminSettings = () => {
         min_deposit_percent: settings.min_deposit_percent || 0,
         min_balloon_percent: settings.min_balloon_percent,
         max_balloon_percent: settings.max_balloon_percent,
+        default_balloon_percent: settings.default_balloon_percent || 35,
         contact_phone: settings.contact_phone,
         contact_email: settings.contact_email,
         whatsapp_number: settings.whatsapp_number,
@@ -347,6 +349,21 @@ const AdminSettings = () => {
                         Controls slider limit on calculator
                       </p>
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="default_balloon_percent">Default Balloon (%) - For Sourcing Cards</Label>
+                    <Input
+                      id="default_balloon_percent"
+                      type="number"
+                      min="0"
+                      max="50"
+                      {...register('default_balloon_percent' as any, { valueAsNumber: true })}
+                      className="max-w-xs"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Default balloon percentage used for sourcing vehicle card calculations (makes payments look lower)
+                    </p>
                   </div>
                 </div>
               </motion.div>

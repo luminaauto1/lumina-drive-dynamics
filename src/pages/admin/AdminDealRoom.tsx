@@ -149,10 +149,20 @@ const AdminDealRoom = () => {
     try {
       await addMatch.mutateAsync({ applicationId: application.id, vehicleId });
       
+      // BLOCK 4 FIX: Also update the finance_applications table with vehicle_id and status
+      await supabase
+        .from('finance_applications')
+        .update({ vehicle_id: vehicleId, status: 'vehicle_selected' })
+        .eq('id', application.id);
+      
+      // Update local state
+      setApplication(prev => prev ? { ...prev, vehicle_id: vehicleId, status: 'vehicle_selected' } : null);
+      
       // CRITICAL: Force React Query to re-fetch all related data
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['application-matches', application.id] }),
         queryClient.invalidateQueries({ queryKey: ['vehicles'] }),
+        queryClient.invalidateQueries({ queryKey: ['finance-applications'] }),
       ]);
       
       // Also refetch to ensure immediate UI update
@@ -161,7 +171,7 @@ const AdminDealRoom = () => {
       
       setVehicleModalOpen(false);
       setVehicleSearch('');
-      toast.success('Vehicle assigned - UI Synced');
+      toast.success('Vehicle assigned & status updated');
     } catch (error) {
       console.error('Failed to add vehicle:', error);
       toast.error('Failed to assign vehicle');
@@ -249,16 +259,17 @@ const AdminDealRoom = () => {
     }
   };
 
-  const availableVehicles = vehicles.filter(v => 
-    v.status === 'available' && 
+  // BLOCK 4 FIX: Fetch ALL vehicles (Available, Sourcing, Incoming) - not just available
+  const selectableVehicles = vehicles.filter(v => 
+    ['available', 'sourcing', 'incoming'].includes(v.status) && 
     !matches.some((m: any) => m.vehicle_id === v.id)
   );
 
   const filteredVehicles = vehicleSearch 
-    ? availableVehicles.filter(v => 
+    ? selectableVehicles.filter(v => 
         `${v.make} ${v.model} ${v.variant || ''}`.toLowerCase().includes(vehicleSearch.toLowerCase())
       )
-    : availableVehicles;
+    : selectableVehicles;
 
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
