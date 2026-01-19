@@ -78,6 +78,7 @@ const VehicleCard = ({ vehicle, onCompare, isComparing, isSourcingCard = false, 
 
   const isSold = vehicle.status === 'sold';
   const isIncoming = vehicle.status === 'incoming';
+  const isSourcingDisplay = vehicle.status === 'sourcing' || (vehicle as any).is_generic_listing;
   const inWishlist = isInWishlist(vehicle.id);
   
   // Calculate monthly payment using MARKETING LOGIC (teaser rates for cards)
@@ -98,8 +99,11 @@ const VehicleCard = ({ vehicle, onCompare, isComparing, isSourcingCard = false, 
     personalizedRate
   );
   
+  // For sourcing cards, use aggressive balloon from settings (default 35%) to make payment look attractive
+  const sourcingBalloon = isSourcingDisplay ? (siteSettings?.default_balloon_percent || 35) : 0;
+  
   const monthlyPayment = vehicle.finance_available
-    ? calculateMonthlyPayment(vehicle.price, marketingConfig.rate, marketingConfig.term, 0)
+    ? calculateMonthlyPayment(vehicle.price, marketingConfig.rate, marketingConfig.term, sourcingBalloon)
     : null;
 
   const images = vehicle.images || [];
@@ -220,23 +224,29 @@ const VehicleCard = ({ vehicle, onCompare, isComparing, isSourcingCard = false, 
 
         {/* Content */}
         <div className="p-5">
-          {/* Title */}
+          {/* Title - Hide year for sourcing vehicles */}
           <div className="flex items-start justify-between gap-4 mb-3">
             <div>
               <h3 className="font-display text-lg font-semibold leading-tight">
-                {vehicle.year} {vehicle.make} {vehicle.model}
+                {isSourcingDisplay ? `${vehicle.make} ${vehicle.model}` : `${vehicle.year} ${vehicle.make} ${vehicle.model}`}
               </h3>
               <p className="text-sm text-muted-foreground">{vehicle.variant}</p>
             </div>
           </div>
 
-          {/* Specs */}
+          {/* Specs - Hide mileage for sourcing, show "Customer Preference" for color */}
           <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-            <span>{formatMileage(vehicle.mileage)}</span>
-            <span className="w-1 h-1 rounded-full bg-muted-foreground" />
+            {!isSourcingDisplay && <span>{formatMileage(vehicle.mileage)}</span>}
+            {!isSourcingDisplay && <span className="w-1 h-1 rounded-full bg-muted-foreground" />}
             <span>{vehicle.transmission}</span>
             <span className="w-1 h-1 rounded-full bg-muted-foreground" />
             <span>{vehicle.fuel_type}</span>
+            {isSourcingDisplay && (
+              <>
+                <span className="w-1 h-1 rounded-full bg-muted-foreground" />
+                <span className="text-primary">Your Color Choice</span>
+              </>
+            )}
           </div>
 
           {/* Price - FINANCE FIRST (Hide cash price for sourcing cards) */}

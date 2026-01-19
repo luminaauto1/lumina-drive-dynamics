@@ -349,6 +349,63 @@ const FinanceApplication = () => {
     setIsSubmitting(false);
   };
 
+  // Save Progress handler - bypasses validation, saves as draft
+  const handleSaveProgress = async () => {
+    if (!user) return;
+    
+    setIsSubmitting(true);
+    
+    // Calculate total gross from income sources
+    const totalGross = formData.income_sources.reduce((sum, src) => 
+      sum + (parseFloat(src.amount) || 0), 0);
+    
+    const draftData = {
+      user_id: user.id,
+      vehicle_id: vehicleId || null,
+      full_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`.trim() || 'Draft Application',
+      first_name: formData.first_name.trim() || null,
+      last_name: formData.last_name.trim() || null,
+      email: formData.email.trim().toLowerCase() || user.email || '',
+      phone: formData.phone.trim() || '',
+      id_number: formData.id_number?.trim() || null,
+      marital_status: formData.marital_status || null,
+      gender: formData.gender || null,
+      qualification: formData.qualification || null,
+      street_address: formData.street_address.trim() || null,
+      area_code: formData.area_code?.trim() || null,
+      employer_name: formData.employer_name.trim() || null,
+      job_title: formData.job_title?.trim() || null,
+      employment_period: getEmploymentPeriod() || null,
+      kin_name: formData.kin_name.trim() || null,
+      kin_contact: formData.kin_contact.trim() || null,
+      bank_name: formData.bank_name || null,
+      account_type: formData.account_type || null,
+      account_number: formData.account_number?.trim() || null,
+      gross_salary: totalGross || null,
+      net_salary: formData.net_salary ? parseFloat(formData.net_salary) : null,
+      expenses_summary: formData.expenses_summary?.trim() || null,
+      popia_consent: formData.popia_consent,
+      preferred_vehicle_text: formData.preferred_vehicle_text?.trim() || null,
+      has_drivers_license: formData.has_drivers_license === "yes",
+      credit_score_status: formData.credit_score_status || "unsure",
+      status: "draft", // Keep as draft
+    };
+    
+    const { error } = await supabase
+      .from("finance_applications")
+      .insert(draftData as any);
+    
+    if (error) {
+      console.error("Save progress error:", error);
+      toast.error("Failed to save progress. Please try again.");
+    } else {
+      toast.success("Progress saved! You can return to finish later from your dashboard.");
+      navigate("/dashboard");
+    }
+    
+    setIsSubmitting(false);
+  };
+
   const openWhatsApp = () => {
     const message = `Hi, I have just submitted my finance application (ID: ${formData.id_number || "Not Provided"}).`;
     window.open(`https://wa.me/27686017462?text=${encodeURIComponent(message)}`, "_blank");
@@ -653,13 +710,14 @@ const FinanceApplication = () => {
                   exit={{ opacity: 0, x: -20 }}
                   className="space-y-6"
                 >
-                  <h2 className="text-xl font-semibold mb-4">Address & Employment</h2>
+                <h2 className="text-xl font-semibold mb-4">Address & Employment</h2>
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="street_address">Physical Address *</Label>
                       <AddressAutocomplete
                         value={formData.street_address}
                         onChange={(value) => handleInputChange("street_address", value)}
+                        onPostalCodeChange={(postalCode) => handleInputChange("area_code", postalCode)}
                         placeholder="Start typing your address..."
                         required
                       />
@@ -670,7 +728,7 @@ const FinanceApplication = () => {
                         id="area_code"
                         value={formData.area_code}
                         onChange={(e) => handleInputChange("area_code", e.target.value)}
-                        placeholder="e.g., 2000"
+                        placeholder="Auto-filled or enter manually"
                       />
                     </div>
                   </div>
@@ -989,17 +1047,30 @@ const FinanceApplication = () => {
             </AnimatePresence>
 
             {/* Navigation Buttons */}
-            <div className="flex justify-between mt-8 pt-6 border-t border-border">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={prevStep}
-                disabled={currentStep === 1}
-                className="min-w-[120px]"
-              >
-                <ArrowLeft className="mr-2 w-4 h-4" />
-                Back
-              </Button>
+            <div className="flex flex-col sm:flex-row justify-between gap-4 mt-8 pt-6 border-t border-border">
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={prevStep}
+                  disabled={currentStep === 1}
+                  className="min-w-[120px]"
+                >
+                  <ArrowLeft className="mr-2 w-4 h-4" />
+                  Back
+                </Button>
+                
+                {/* Save Progress Button */}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleSaveProgress}
+                  disabled={isSubmitting}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  Save & Finish Later
+                </Button>
+              </div>
 
               {currentStep < 5 ? (
                 <Button type="button" onClick={nextStep} className="min-w-[120px] bg-accent text-accent-foreground">

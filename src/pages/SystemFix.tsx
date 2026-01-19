@@ -8,23 +8,28 @@ import KineticText from '@/components/KineticText';
 const SQL_CODE = `-- 1. REMOVE THE STATUS RESTRICTION (Fixes "Violates Check Constraint" errors)
 ALTER TABLE finance_applications DROP CONSTRAINT IF EXISTS finance_applications_status_check;
 
--- 2. ADD ANTI-TIME WASTING COLUMNS
+-- 2. FIX VEHICLE STATUS CONSTRAINT (Allows 'sourcing' status)
+ALTER TABLE vehicles DROP CONSTRAINT IF EXISTS vehicles_status_check;
+ALTER TABLE vehicles ADD CONSTRAINT vehicles_status_check CHECK (status IN ('available', 'reserved', 'sold', 'incoming', 'sourcing'));
+
+-- 3. ADD ANTI-TIME WASTING COLUMNS
 ALTER TABLE finance_applications ADD COLUMN IF NOT EXISTS has_drivers_license BOOLEAN DEFAULT FALSE;
 ALTER TABLE finance_applications ADD COLUMN IF NOT EXISTS credit_score_status TEXT DEFAULT 'unsure';
 
--- 3. ADD SETTINGS COLUMNS
+-- 4. ADD SETTINGS COLUMNS
 ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS min_interest NUMERIC DEFAULT 10.5;
 ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS max_interest NUMERIC DEFAULT 25.0;
 ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS min_deposit_percent NUMERIC DEFAULT 0;
 ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS tiktok_url TEXT;
+ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS default_balloon_percent NUMERIC DEFAULT 35;
 
--- 4. ADD VARIANTS TO VEHICLES (for sourcing specs)
+-- 5. ADD VARIANTS TO VEHICLES (for sourcing specs)
 ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS variants JSONB DEFAULT '[]'::jsonb;
 
--- 5. ADD SALES REPS SETTINGS
+-- 6. ADD SALES REPS SETTINGS
 ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS sales_reps JSONB DEFAULT '[]'::jsonb;
 
--- 6. CREATE DEAL RECORDS TABLE
+-- 7. CREATE DEAL RECORDS TABLE
 CREATE TABLE IF NOT EXISTS deal_records (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   application_id UUID REFERENCES finance_applications(id) ON DELETE SET NULL,

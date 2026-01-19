@@ -7,6 +7,7 @@ export interface SiteSettings {
   default_interest_rate: number;
   min_balloon_percent: number;
   max_balloon_percent: number;
+  default_balloon_percent: number | null;
   show_finance_tab: boolean;
   is_maintenance_mode: boolean;
   hero_headline: string;

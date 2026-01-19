@@ -179,6 +179,31 @@ const useRollbackDeal = () => {
   });
 };
 
+// BLOCK 5 FIX: Proper service due badge logic using deal records
+const getServiceDueStatus = (deal: DealRecord) => {
+  const now = new Date();
+  
+  // Check next_service_date - only show if date is in the past or today
+  if (deal.next_service_date) {
+    const serviceDate = new Date(deal.next_service_date);
+    if (serviceDate <= now) {
+      return { isDue: true, reason: 'Service Date Passed' };
+    }
+  }
+  
+  // Check mileage - only show if we have both sold_mileage and next_service_km
+  // Assume current mileage is sold_mileage + estimated usage (can't track real mileage)
+  // This is a simplified check - in real scenario you'd track current mileage
+  if (deal.sold_mileage && deal.next_service_km) {
+    // If next_service_km is less than or equal to sold_mileage, it's already due
+    if (deal.next_service_km <= deal.sold_mileage) {
+      return { isDue: true, reason: 'Service KM Reached' };
+    }
+  }
+  
+  return { isDue: false, reason: null };
+};
+
 const getServiceStatus = (saleDate: string) => {
   const days = differenceInDays(new Date(), new Date(saleDate));
   const years = differenceInYears(new Date(), new Date(saleDate));
