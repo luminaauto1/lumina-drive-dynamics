@@ -54,7 +54,7 @@ const Inventory = () => {
     return suggestions.slice(0, 5);
   }, [searchQuery, vehicles]);
 
-  // Filter vehicles (main stock - excludes generic/sourcing listings)
+  // Filter vehicles (main stock - excludes generic/sourcing/hidden listings)
   const filteredVehicles = useMemo(() => {
     return vehicles.filter((vehicle) => {
       // Search filter
@@ -96,10 +96,11 @@ const Inventory = () => {
         (financeFilter === 'finance' && vehicle.finance_available !== false) ||
         (financeFilter === 'cash' && vehicle.finance_available === false);
 
-      // Exclude generic listings from main inventory
+      // Exclude generic listings and hidden vehicles from main inventory
       const isNotGeneric = !(vehicle as any).is_generic_listing;
+      const isNotHidden = vehicle.status !== 'hidden';
 
-      return matchesSearch && matchesPrice && matchesMonthly && matchesMake && matchesBodyType && matchesVariant && matchesFinance && isNotGeneric;
+      return matchesSearch && matchesPrice && matchesMonthly && matchesMake && matchesBodyType && matchesVariant && matchesFinance && isNotGeneric && isNotHidden;
     });
   }, [searchQuery, priceRange, monthlyPaymentMax, selectedMakes, selectedBodyType, variantSearch, financeFilter, vehicles]);
 
