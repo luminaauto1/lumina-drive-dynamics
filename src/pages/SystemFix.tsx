@@ -5,7 +5,11 @@ import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import KineticText from '@/components/KineticText';
 
-const SQL_CODE = `-- 1. REMOVE THE STATUS RESTRICTION (Fixes "Violates Check Constraint" errors)
+const SQL_CODE = `-- ============================================
+-- LUMINA DMS 3.0 - COMPLETE DATABASE REPAIR
+-- ============================================
+
+-- 1. REMOVE THE STATUS RESTRICTION (Fixes "Violates Check Constraint" errors)
 ALTER TABLE finance_applications DROP CONSTRAINT IF EXISTS finance_applications_status_check;
 
 -- 2. FIX VEHICLE STATUS CONSTRAINT (Allows 'sourcing' status)
@@ -22,6 +26,7 @@ ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS max_interest NUMERIC DEFAULT 
 ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS min_deposit_percent NUMERIC DEFAULT 0;
 ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS tiktok_url TEXT;
 ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS default_balloon_percent NUMERIC DEFAULT 35;
+ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS monthly_sales_target INTEGER DEFAULT 10;
 
 -- 5. ADD VARIANTS TO VEHICLES (for sourcing specs)
 ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS variants JSONB DEFAULT '[]'::jsonb;
@@ -46,7 +51,52 @@ CREATE TABLE IF NOT EXISTS deal_records (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 ALTER TABLE deal_records ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Admins Manage Deals" ON deal_records USING (has_role(auth.uid(), 'admin'::app_role));`;
+CREATE POLICY IF NOT EXISTS "Admins Manage Deals" ON deal_records USING (has_role(auth.uid(), 'admin'::app_role));
+
+-- ============================================
+-- LUMINA DMS - NEW TABLES
+-- ============================================
+
+-- 8. RECON TASKS (The Forge)
+CREATE TABLE IF NOT EXISTS inventory_tasks (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  vehicle_id UUID REFERENCES vehicles(id) ON DELETE CASCADE,
+  task_name TEXT NOT NULL,
+  category TEXT CHECK (category IN ('mechanical', 'aesthetic', 'valet', 'admin')),
+  cost NUMERIC DEFAULT 0,
+  status TEXT DEFAULT 'pending',
+  completed_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+ALTER TABLE inventory_tasks ENABLE ROW LEVEL SECURITY;
+CREATE POLICY IF NOT EXISTS "Admins can manage inventory tasks" ON inventory_tasks FOR ALL USING (has_role(auth.uid(), 'admin'::app_role));
+
+-- 9. CLIENT ACTIVITY LOG (The Genome)
+CREATE TABLE IF NOT EXISTS client_activities (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  lead_id UUID REFERENCES leads(id) ON DELETE CASCADE,
+  application_id UUID REFERENCES finance_applications(id) ON DELETE SET NULL,
+  action_type TEXT NOT NULL,
+  description TEXT,
+  metadata JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+ALTER TABLE client_activities ENABLE ROW LEVEL SECURITY;
+CREATE POLICY IF NOT EXISTS "Admins can manage client activities" ON client_activities FOR ALL USING (has_role(auth.uid(), 'admin'::app_role));
+
+-- 10. DEAL ADD-ONS (The Ledger)
+CREATE TABLE IF NOT EXISTS deal_add_ons (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  deal_id UUID REFERENCES deal_records(id) ON DELETE CASCADE,
+  application_id UUID REFERENCES finance_applications(id),
+  item_name TEXT NOT NULL,
+  cost_price NUMERIC DEFAULT 0,
+  selling_price NUMERIC DEFAULT 0,
+  category TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+ALTER TABLE deal_add_ons ENABLE ROW LEVEL SECURITY;
+CREATE POLICY IF NOT EXISTS "Admins can manage deal add-ons" ON deal_add_ons FOR ALL USING (has_role(auth.uid(), 'admin'::app_role));`;
 
 const SystemFix = () => {
   const [copied, setCopied] = useState(false);
