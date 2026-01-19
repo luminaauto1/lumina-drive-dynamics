@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Info, BadgeCheck } from 'lucide-react';
+import { Info, BadgeCheck, TrendingUp, TrendingDown } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
@@ -10,13 +10,15 @@ import { formatPrice, calculateMaxBalloon } from '@/lib/formatters';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { useUserActiveOffer } from '@/hooks/useFinanceOffers';
+import { calculateDynamicInterestRate } from '@/lib/financeLogic';
 
 interface FinanceCalculatorProps {
   vehiclePrice: number;
   vehicleYear?: number;
+  vehicleBodyType?: string;
 }
 
-const FinanceCalculator = ({ vehiclePrice, vehicleYear }: FinanceCalculatorProps) => {
+const FinanceCalculator = ({ vehiclePrice, vehicleYear, vehicleBodyType }: FinanceCalculatorProps) => {
   const { user } = useAuth();
   const { data: settings } = useSiteSettings();
   const { data: activeOffer } = useUserActiveOffer(user?.id);
@@ -41,13 +43,22 @@ const FinanceCalculator = ({ vehiclePrice, vehicleYear }: FinanceCalculatorProps
   const [monthlyPayment, setMonthlyPayment] = useState(0);
   const [isCashBuyer, setIsCashBuyer] = useState(false);
   const [hasActiveOffer, setHasActiveOffer] = useState(false);
+  
+  // Calculate dynamic interest using bank scoring algorithm
+  const rateAdjustment = useMemo(() => {
+    const baseRate = activeOffer?.interest_rate_linked || activeOffer?.interest_rate_fixed || defaultInterestRate;
+    return calculateDynamicInterestRate(baseRate, {
+      vehicleYear: year,
+      bodyType: vehicleBodyType,
+      depositPercent: deposit,
+    });
+  }, [activeOffer, defaultInterestRate, year, vehicleBodyType, deposit]);
 
-  // Update interest when settings load
+  // Update interest when settings load OR when dynamic rate changes
   useEffect(() => {
-    if (settings?.default_interest_rate) {
-      setInterest(settings.default_interest_rate);
-    }
-  }, [settings?.default_interest_rate]);
+    // Use the dynamic rate which accounts for vehicle risk profile
+    setInterest(rateAdjustment.finalRate);
+  }, [rateAdjustment.finalRate]);
 
   // Override with bank offer values if available
   useEffect(() => {

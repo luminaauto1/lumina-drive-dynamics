@@ -6,6 +6,8 @@ import { useWishlist } from '@/hooks/useWishlist';
 import { formatPrice, formatMileage, calculateMonthlyPayment } from '@/lib/formatters';
 import { getOptimizedImage } from '@/lib/utils';
 import { useBestFinanceOffer } from '@/hooks/useBestFinanceOffer';
+import { useSiteSettings } from '@/hooks/useSiteSettings';
+import { getMarketingRateConfig } from '@/lib/financeLogic';
 import type { Vehicle } from '@/hooks/useVehicles';
 
 interface VehicleCardProps {
@@ -21,6 +23,7 @@ const VehicleCard = ({ vehicle, onCompare, isComparing, isSourcingCard = false, 
   const [isHovered, setIsHovered] = useState(false);
   const { isInWishlist, toggleWishlist } = useWishlist();
   const { data: bestOffer } = useBestFinanceOffer();
+  const { data: siteSettings } = useSiteSettings();
   const cardRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -77,8 +80,8 @@ const VehicleCard = ({ vehicle, onCompare, isComparing, isSourcingCard = false, 
   const isIncoming = vehicle.status === 'incoming';
   const inWishlist = isInWishlist(vehicle.id);
   
-  // Calculate monthly payment - use personalized rate if available
-  const hasPersonalizedRate = !!bestOffer && (bestOffer.interest_rate_linked || bestOffer.interest_rate_fixed);
+  // Calculate monthly payment using MARKETING LOGIC (teaser rates for cards)
+  const hasPersonalizedRate = !!bestOffer && !!(bestOffer.interest_rate_linked || bestOffer.interest_rate_fixed);
   const personalizedRate = hasPersonalizedRate 
     ? Math.min(bestOffer.interest_rate_linked || 100, bestOffer.interest_rate_fixed || 100)
     : undefined;
@@ -86,10 +89,17 @@ const VehicleCard = ({ vehicle, onCompare, isComparing, isSourcingCard = false, 
     ? Math.round((bestOffer.balloon_amount / vehicle.price) * 100)
     : 0;
   
+  // Get marketing rate config - uses teaser rates for cards unless user has personalized rate
+  const defaultSiteRate = siteSettings?.default_interest_rate || 13.5;
+  const marketingConfig = getMarketingRateConfig(
+    vehicle.price,
+    defaultSiteRate,
+    hasPersonalizedRate,
+    personalizedRate
+  );
+  
   const monthlyPayment = vehicle.finance_available
-    ? personalizedRate 
-      ? calculateMonthlyPayment(vehicle.price, personalizedRate, 72, 0) // With personalized rate
-      : calculateMonthlyPayment(vehicle.price)
+    ? calculateMonthlyPayment(vehicle.price, marketingConfig.rate, marketingConfig.term, 0)
     : null;
 
   const images = vehicle.images || [];
