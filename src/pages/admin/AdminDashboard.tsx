@@ -20,7 +20,7 @@ const AdminDashboard = () => {
   const { data: reconLiability = 0 } = useReconLiability();
   const { data: siteSettings } = useSiteSettings();
   
-  const monthlySalesTarget = (siteSettings as any)?.monthly_sales_target || 10;
+  const monthlySalesTarget = siteSettings?.monthly_sales_target || 10;
 
   // Fetch deal records for profit calculations
   const { data: dealRecords = [] } = useQuery({
