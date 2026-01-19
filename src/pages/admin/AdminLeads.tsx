@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Search, Phone, Mail, Car, Trash2 } from 'lucide-react';
+import { Search, Phone, Mail, Car, Trash2, Eye } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,11 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useLeads, useUpdateLead, useDeleteLead, Lead } from '@/hooks/useLeads';
+import ClientGenomeDrawer from '@/components/admin/ClientGenomeDrawer';
 
 const AdminLeads = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [deleteLead, setDeleteLead] = useState<Lead | null>(null);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const { data: leads = [], isLoading } = useLeads();
   const updateLead = useUpdateLead();
@@ -38,6 +41,11 @@ const AdminLeads = () => {
     if (!deleteLead) return;
     await deleteLeadMutation.mutateAsync(deleteLead.id);
     setDeleteLead(null);
+  };
+
+  const handleRowClick = (lead: Lead) => {
+    setSelectedLead(lead);
+    setIsDrawerOpen(true);
   };
 
   const getStatusBadge = (status: string) => {
@@ -85,7 +93,7 @@ const AdminLeads = () => {
           className="mb-6"
         >
           <h1 className="text-3xl font-semibold mb-2">Leads & CRM</h1>
-          <p className="text-muted-foreground">Manage customer inquiries and leads</p>
+          <p className="text-muted-foreground">Manage customer inquiries and leads • Click a row to open Client 360</p>
         </motion.div>
 
         {/* Filters */}
@@ -172,7 +180,11 @@ const AdminLeads = () => {
               </TableHeader>
               <TableBody>
                 {filteredLeads.map((lead) => (
-                  <TableRow key={lead.id} className="border-white/10 hover:bg-white/5">
+                  <TableRow 
+                    key={lead.id} 
+                    className="border-white/10 hover:bg-white/5 cursor-pointer"
+                    onClick={() => handleRowClick(lead)}
+                  >
                     <TableCell>{getSourceBadge(lead.source)}</TableCell>
                     <TableCell>
                       <p className="font-medium">{lead.client_name || 'Unknown'}</p>
@@ -180,13 +192,21 @@ const AdminLeads = () => {
                     <TableCell>
                       <div className="flex flex-col gap-1 text-sm">
                         {lead.client_phone && (
-                          <a href={`tel:${lead.client_phone}`} className="flex items-center gap-1 text-muted-foreground hover:text-foreground">
+                          <a 
+                            href={`tel:${lead.client_phone}`} 
+                            className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <Phone className="w-3 h-3" />
                             {lead.client_phone}
                           </a>
                         )}
                         {lead.client_email && (
-                          <a href={`mailto:${lead.client_email}`} className="flex items-center gap-1 text-muted-foreground hover:text-foreground">
+                          <a 
+                            href={`mailto:${lead.client_email}`} 
+                            className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <Mail className="w-3 h-3" />
                             {lead.client_email}
                           </a>
@@ -203,7 +223,7 @@ const AdminLeads = () => {
                         <span className="text-muted-foreground text-sm">No vehicle</span>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <Select 
                         value={lead.status} 
                         onValueChange={(value) => handleStatusChange(lead.id, value)}
@@ -222,15 +242,25 @@ const AdminLeads = () => {
                     <TableCell className="text-sm text-muted-foreground">
                       {new Date(lead.created_at).toLocaleDateString()}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setDeleteLead(lead)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRowClick(lead)}
+                          className="text-blue-400 hover:text-blue-300"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteLead(lead)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -240,6 +270,13 @@ const AdminLeads = () => {
           )}
         </motion.div>
       </div>
+
+      {/* Client Genome Drawer */}
+      <ClientGenomeDrawer 
+        lead={selectedLead}
+        open={isDrawerOpen}
+        onOpenChange={setIsDrawerOpen}
+      />
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteLead} onOpenChange={() => setDeleteLead(null)}>
