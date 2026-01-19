@@ -298,7 +298,7 @@ const VehicleDetail = () => {
 
                 {/* Calculator */}
                 {vehicle.finance_available && (
-                  <FinanceCalculator vehiclePrice={displayPrice} vehicleYear={vehicle.year} />
+                  <FinanceCalculator vehiclePrice={displayPrice} vehicleYear={vehicle.year} vehicleBodyType={vehicle.body_type} />
                 )}
               </div>
             </div>

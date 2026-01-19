@@ -62,17 +62,17 @@ export const financeApplicationStep2Schema = z.object({
 });
 
 export const financeApplicationStep3Schema = z.object({
-  kin_name: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name is too long'),
+  kin_name: z.string().min(2, 'Next of kin name is required (min 2 characters)').max(100, 'Name is too long'),
   kin_contact: phoneSchema,
 });
 
 export const financeApplicationStep4Schema = z.object({
   bank_name: z.string().min(1, 'Please select a bank'),
-  account_type: shortTextSchema,
-  account_number: accountNumberSchema,
-  gross_salary: salarySchema.refine((val) => val && val.trim() !== '', 'Gross salary is required'),
-  net_salary: salarySchema.refine((val) => val && val.trim() !== '', 'Net salary is required'),
-  expenses_summary: z.string().min(1, 'Expenses breakdown is required').max(500, 'Field must be less than 500 characters'),
+  account_type: z.string().min(1, 'Account type is required'),
+  account_number: z.string().min(1, 'Account number is required').regex(/^\d+$/, 'Account number must contain only digits').max(20, 'Account number must be less than 20 digits'),
+  gross_salary: salarySchema.refine((val) => val && val.trim() !== '' && parseFloat(val) >= 1, 'Gross salary is required (min R1)'),
+  net_salary: salarySchema.refine((val) => val && val.trim() !== '' && parseFloat(val) >= 1, 'Net salary is required (min R1)'),
+  expenses_summary: z.string().min(2, 'Expenses breakdown is required (min 2 characters)').max(500, 'Field must be less than 500 characters'),
 });
 
 export const financeApplicationStep5Schema = z.object({

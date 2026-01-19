@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Search, MessageCircle, ExternalLink, Trash2, Archive } from 'lucide-react';
+import { Search, MessageCircle, ExternalLink, Trash2, Archive, UserPlus } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -75,10 +75,16 @@ const AdminFinance = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-6"
+          className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4"
         >
-          <h1 className="text-3xl font-semibold mb-2">Finance Applications</h1>
-          <p className="text-muted-foreground">Manage and process finance applications</p>
+          <div>
+            <h1 className="text-3xl font-semibold mb-2">Finance Applications</h1>
+            <p className="text-muted-foreground">Manage and process finance applications</p>
+          </div>
+          <Button onClick={() => navigate('/admin/finance/create')} className="w-fit">
+            <UserPlus className="w-4 h-4 mr-2" />
+            Create Application
+          </Button>
         </motion.div>
 
         {/* View Mode Tabs */}
