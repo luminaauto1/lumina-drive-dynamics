@@ -5,12 +5,13 @@ import { Helmet } from 'react-helmet-async';
 import { 
   ArrowLeft, User, MapPin, Building, Wallet, Users, Phone, Mail, 
   MessageCircle, Car, Plus, X, Search, FileText, CheckCircle, AlertTriangle, Copy, Check,
-  Download, PartyPopper, Edit2, Save, Building2
+  Download, PartyPopper, Edit2, Save, Building2, FileSignature
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import AdminLayout from '@/components/admin/AdminLayout';
 import FinancePodiumModal from '@/components/admin/FinancePodiumModal';
 import FinalizeDealModal from '@/components/admin/FinalizeDealModal';
+import OTPModal from '@/components/admin/OTPModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -45,6 +46,7 @@ const AdminDealRoom = () => {
   const [editedData, setEditedData] = useState<Partial<FinanceApplication>>({});
   const [podiumModalOpen, setPodiumModalOpen] = useState(false);
   const [finalizeDealModalOpen, setFinalizeDealModalOpen] = useState(false);
+  const [otpModalOpen, setOtpModalOpen] = useState(false);
 
   const { data: vehicles = [], refetch: refetchVehicles } = useVehicles();
   const { data: matches = [], isLoading: matchesLoading, refetch: refetchMatches } = useApplicationMatches(id || '');
@@ -552,6 +554,17 @@ const AdminDealRoom = () => {
                     <Download className="w-4 h-4 mr-1 md:mr-2" />
                     <span className="hidden sm:inline">Download</span> PDF
                   </Button>
+                  {activeVehicle && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setOtpModalOpen(true)}
+                      className="text-xs md:text-sm border-amber-500/30 text-amber-600 hover:bg-amber-500/10"
+                    >
+                      <FileSignature className="w-4 h-4 mr-1 md:mr-2" />
+                      <span className="hidden sm:inline">Create</span> OTP
+                    </Button>
+                  )}
                   {application.status === 'approved' && (
                     <>
                       <Button
@@ -1094,6 +1107,32 @@ const AdminDealRoom = () => {
           onSuccess={handleFinalizeDealSuccess}
         />
       )}
+
+      {/* OTP Modal */}
+      <OTPModal
+        open={otpModalOpen}
+        onOpenChange={setOtpModalOpen}
+        applicationData={{
+          clientName: `${application.first_name || ''} ${application.last_name || ''}`.trim() || application.full_name,
+          idNumber: application.id_number || '',
+          address: application.street_address || '',
+          email: application.email,
+          phone: application.phone,
+        }}
+        vehicleData={activeVehicle ? {
+          make: activeVehicle.make,
+          model: activeVehicle.model,
+          variant: activeVehicle.variant || undefined,
+          year: activeVehicle.year,
+          vin: activeVehicle.vin || undefined,
+          engineCode: activeVehicle.engine_code || undefined,
+          mileage: activeVehicle.mileage,
+          color: activeVehicle.color || undefined,
+          price: activeVehicle.price,
+          stockNumber: activeVehicle.stock_number || undefined,
+        } : undefined}
+        dealId={application.id}
+      />
     </AdminLayout>
   );
 };
