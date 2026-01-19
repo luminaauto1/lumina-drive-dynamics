@@ -46,48 +46,7 @@ CREATE TABLE IF NOT EXISTS deal_records (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 ALTER TABLE deal_records ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Admins Manage Deals" ON deal_records FOR ALL USING (has_role(auth.uid(), 'admin'::app_role));
-
--- 8. RECON TASKS (The Forge)
-CREATE TABLE IF NOT EXISTS inventory_tasks (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  vehicle_id UUID REFERENCES vehicles(id) ON DELETE CASCADE,
-  task_name TEXT NOT NULL,
-  cost NUMERIC DEFAULT 0,
-  status TEXT DEFAULT 'pending',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-);
-ALTER TABLE inventory_tasks ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Admins Manage Tasks" ON inventory_tasks FOR ALL USING (has_role(auth.uid(), 'admin'::app_role));
-
--- 9. CLIENT ACTIVITY LOG (360 Hub)
-CREATE TABLE IF NOT EXISTS client_activities (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  lead_id UUID REFERENCES leads(id) ON DELETE SET NULL,
-  application_id UUID REFERENCES finance_applications(id) ON DELETE SET NULL,
-  action_type TEXT NOT NULL,
-  details TEXT,
-  admin_id UUID,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-);
-ALTER TABLE client_activities ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Admins Manage Activities" ON client_activities FOR ALL USING (has_role(auth.uid(), 'admin'::app_role));
-
--- 10. DEAL ADD-ONS (The Ledger)
-CREATE TABLE IF NOT EXISTS deal_addons (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  application_id UUID REFERENCES finance_applications(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  cost_price NUMERIC DEFAULT 0,
-  selling_price NUMERIC DEFAULT 0,
-  category TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-);
-ALTER TABLE deal_addons ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Admins Manage Addons" ON deal_addons FOR ALL USING (has_role(auth.uid(), 'admin'::app_role));
-
--- 11. SOURCING FLAG
-ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS is_sourcing_example BOOLEAN DEFAULT FALSE;`;
+CREATE POLICY "Admins Manage Deals" ON deal_records USING (has_role(auth.uid(), 'admin'::app_role));`;
 
 const SystemFix = () => {
   const [copied, setCopied] = useState(false);

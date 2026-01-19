@@ -1,24 +1,17 @@
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Car, Users, CreditCard, DollarSign, TrendingUp, ArrowRight, Plus, FileText, BarChart3, Wrench, Target, Gauge, Wallet } from 'lucide-react';
+import { Car, Users, CreditCard, DollarSign, TrendingUp, ArrowRight, Plus, FileText, BarChart3 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { useVehicles, formatPrice } from '@/hooks/useVehicles';
 import { useLeads } from '@/hooks/useLeads';
 import { useFinanceApplications } from '@/hooks/useFinanceApplications';
-import { useDealRecords } from '@/hooks/useDealRecords';
-import { useAllInventoryTasks } from '@/hooks/useInventoryTasks';
-
-const MONTHLY_TARGET = 15; // Hardcoded monthly target
 
 const AdminDashboard = () => {
   const { data: vehicles = [] } = useVehicles();
   const { data: leads = [] } = useLeads();
   const { data: applications = [] } = useFinanceApplications();
-  const { data: dealRecords = [] } = useDealRecords();
-  const { data: inventoryTasks = [] } = useAllInventoryTasks();
 
   const totalStockValue = vehicles.reduce((sum, v) => sum + v.price, 0);
   const availableVehicles = vehicles.filter(v => v.status === 'available').length;
@@ -28,43 +21,6 @@ const AdminDashboard = () => {
     return leadDate.getMonth() === now.getMonth() && leadDate.getFullYear() === now.getFullYear();
   }).length;
   const pendingValidations = applications.filter(a => a.status === 'validations_pending').length;
-
-  // Financial Vault Calculations
-  const now = new Date();
-  const thisMonthDeals = dealRecords.filter(deal => {
-    const dealDate = new Date(deal.created_at);
-    return dealDate.getMonth() === now.getMonth() && dealDate.getFullYear() === now.getFullYear();
-  });
-
-  // Gross Profit = Sold Price - (Purchase Price + Reconditioning)
-  const grossProfit = dealRecords.reduce((sum, deal) => {
-    const soldPrice = deal.sold_price || 0;
-    const purchasePrice = (deal.vehicle as any)?.purchase_price || 0;
-    const reconditioningCost = (deal.vehicle as any)?.reconditioning_cost || 0;
-    return sum + (soldPrice - purchasePrice - reconditioningCost);
-  }, 0);
-
-  // Net Profit = Gross - Expenses - Commissions
-  const totalExpenses = dealRecords.reduce((sum, deal) => {
-    const expenses = (deal.aftersales_expenses || []).reduce((e: number, exp: any) => e + (exp.amount || 0), 0);
-    return sum + expenses;
-  }, 0);
-
-  const totalCommissions = dealRecords.reduce((sum, deal) => sum + (deal.sales_rep_commission || 0), 0);
-  const netProfit = grossProfit - totalExpenses - totalCommissions;
-
-  // GPU = Gross Profit / Units Sold
-  const unitsSold = dealRecords.length;
-  const gpu = unitsSold > 0 ? grossProfit / unitsSold : 0;
-
-  // Inventory Velocity = Units sold this month
-  const unitsSoldThisMonth = thisMonthDeals.length;
-  const velocityProgress = Math.min((unitsSoldThisMonth / MONTHLY_TARGET) * 100, 100);
-
-  // Recon Liability = Sum of pending/in_progress task costs
-  const reconLiability = inventoryTasks
-    .filter(t => t.status !== 'completed')
-    .reduce((sum, t) => sum + (t.cost || 0), 0);
 
   const pulseCards = [
     { 
@@ -123,86 +79,6 @@ const AdminDashboard = () => {
         >
           <h1 className="text-3xl font-semibold mb-2">Mission Control</h1>
           <p className="text-muted-foreground">Welcome back. Here's what's happening today.</p>
-        </motion.div>
-
-        {/* Financial Vault Grid */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="mb-8"
-        >
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Wallet className="w-5 h-5 text-primary" />
-            Financial Vault
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Cash Flow Widget */}
-            <div className="glass-card rounded-xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="p-2 rounded-lg bg-emerald-500/10">
-                  <TrendingUp className="w-5 h-5 text-emerald-400" />
-                </div>
-                <span className="text-sm text-muted-foreground">Cash Flow</span>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-xs text-muted-foreground">Gross Profit</span>
-                  <span className={`font-semibold ${grossProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {formatPrice(grossProfit)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-xs text-muted-foreground">Net Profit</span>
-                  <span className={`font-bold ${netProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {formatPrice(netProfit)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* GPU Widget */}
-            <div className="glass-card rounded-xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Gauge className="w-5 h-5 text-primary" />
-                </div>
-                <span className="text-sm text-muted-foreground">GPU</span>
-              </div>
-              <p className="text-2xl font-bold text-primary">{formatPrice(gpu)}</p>
-              <p className="text-xs text-muted-foreground mt-1">Per unit ({unitsSold} sold)</p>
-            </div>
-
-            {/* Inventory Velocity Widget */}
-            <div className="glass-card rounded-xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="p-2 rounded-lg bg-blue-500/10">
-                  <Target className="w-5 h-5 text-blue-400" />
-                </div>
-                <span className="text-sm text-muted-foreground">Inventory Velocity</span>
-              </div>
-              <div className="flex items-baseline gap-2 mb-2">
-                <span className="text-2xl font-bold">{unitsSoldThisMonth}</span>
-                <span className="text-muted-foreground">/ {MONTHLY_TARGET}</span>
-              </div>
-              <Progress value={velocityProgress} className="h-2" />
-              <p className="text-xs text-muted-foreground mt-2">Units sold this month</p>
-            </div>
-
-            {/* Recon Liability Widget */}
-            <div className="glass-card rounded-xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="p-2 rounded-lg bg-amber-500/10">
-                  <Wrench className="w-5 h-5 text-amber-400" />
-                </div>
-                <span className="text-sm text-muted-foreground">Capital in Recon</span>
-              </div>
-              <p className="text-2xl font-bold text-amber-400">{formatPrice(reconLiability)}</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {inventoryTasks.filter(t => t.status !== 'completed').length} pending tasks
-              </p>
-            </div>
-          </div>
         </motion.div>
 
         {/* Pulse Cards */}

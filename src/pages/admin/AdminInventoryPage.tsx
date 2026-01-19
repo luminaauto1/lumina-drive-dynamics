@@ -486,16 +486,12 @@ const AdminInventoryPage = () => {
                         {formatPrice(vehicle.price)}
                       </TableCell>
                       <TableCell>
-                        {vehicle.status === 'sourcing' || (vehicle as any).is_generic_listing || (vehicle as any).is_sourcing_example ? (
-                          <span className="text-xs text-muted-foreground">N/A</span>
-                        ) : (
-                          <div className="flex items-center gap-1 text-xs">
-                            <Clock className="w-3 h-3 text-muted-foreground" />
-                            <span className={differenceInDays(new Date(), new Date(vehicle.created_at)) > 60 ? 'text-amber-400' : 'text-muted-foreground'}>
-                              {differenceInDays(new Date(), new Date(vehicle.created_at))}d
-                            </span>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-1 text-xs">
+                          <Clock className="w-3 h-3 text-muted-foreground" />
+                          <span className={differenceInDays(new Date(), new Date(vehicle.created_at)) > 60 ? 'text-amber-400' : 'text-muted-foreground'}>
+                            {differenceInDays(new Date(), new Date(vehicle.created_at))}d
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell>{getStatusBadge(vehicle.status)}</TableCell>
                       {activeTab === 'sourcing' && (
