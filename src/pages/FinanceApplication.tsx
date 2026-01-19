@@ -58,11 +58,13 @@ const FinanceApplication = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const vehicleId = searchParams.get("vehicle");
+  const resumeId = searchParams.get("resume");
 
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [showTrustModal, setShowTrustModal] = useState(true);
+  const [resumedApplicationId, setResumedApplicationId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     // Personal
     first_name: "",
@@ -117,10 +119,94 @@ const FinanceApplication = () => {
       return;
     }
     fetchProfile();
-  }, [user, navigate, vehicleId, loading]);
+    
+    // If resuming a draft, load the draft data
+    if (resumeId) {
+      loadDraftApplication(resumeId);
+    }
+  }, [user, navigate, vehicleId, loading, resumeId]);
+
+  const loadDraftApplication = async (draftId: string) => {
+    const { data, error } = await supabase
+      .from("finance_applications")
+      .select("*")
+      .eq("id", draftId)
+      .eq("user_id", user?.id)
+      .single();
+
+    if (error || !data) {
+      toast.error("Could not load draft application");
+      return;
+    }
+
+    // Don't show trust modal for resumed applications
+    setShowTrustModal(false);
+    setResumedApplicationId(draftId);
+    
+    // Parse employment period if present
+    let empPeriodValue = "";
+    let empPeriodUnit = "years";
+    if (data.employment_period) {
+      const match = data.employment_period.match(/^(\d+)\s*(\w+)$/);
+      if (match) {
+        empPeriodValue = match[1];
+        empPeriodUnit = match[2] || "years";
+      }
+    }
+
+    // Map database fields to form fields
+    setFormData({
+      first_name: data.first_name || "",
+      last_name: data.last_name || "",
+      id_number: data.id_number || "",
+      marital_status: data.marital_status || "",
+      gender: data.gender || "",
+      qualification: data.qualification || "",
+      email: data.email || "",
+      phone: data.phone || "",
+      street_address: data.street_address || "",
+      area_code: data.area_code || "",
+      employer_name: data.employer_name || "",
+      job_title: data.job_title || "",
+      employment_period_value: empPeriodValue,
+      employment_period_unit: empPeriodUnit,
+      kin_name: data.kin_name || "",
+      kin_contact: data.kin_contact || "",
+      bank_name: data.bank_name || "",
+      account_type: data.account_type || "",
+      account_number: data.account_number || "",
+      income_sources: data.gross_salary 
+        ? [{ source: "Primary Employment", amount: String(data.gross_salary) }] 
+        : [{ source: "Primary Employment", amount: "" }],
+      net_salary: data.net_salary ? String(data.net_salary) : "",
+      expenses_summary: data.expenses_summary || "",
+      popia_consent: data.popia_consent || false,
+      signature_url: data.signature_url || "",
+      preferred_vehicle_text: data.preferred_vehicle_text || "",
+      has_drivers_license: data.has_drivers_license === true ? "yes" : data.has_drivers_license === false ? "no" : "",
+      credit_score_status: data.credit_score_status || "",
+    });
+
+    // Determine which step the user was on based on filled fields
+    const step1Complete = data.first_name && data.last_name && data.id_number && data.email && data.phone;
+    const step2Complete = data.street_address && data.employer_name;
+    const step3Complete = data.kin_name && data.kin_contact;
+    const step4Complete = data.bank_name && data.account_number && data.gross_salary;
+    
+    if (step4Complete) setCurrentStep(5);
+    else if (step3Complete) setCurrentStep(4);
+    else if (step2Complete) setCurrentStep(3);
+    else if (step1Complete) setCurrentStep(2);
+    else setCurrentStep(1);
+
+    toast.success("Draft loaded. Continue your application.");
+  };
 
   const fetchProfile = async () => {
     if (!user) return;
+    // Don't overwrite with profile data if resuming a draft
+    if (resumeId) return;
+    
     const { data } = await supabase.from("profiles").select("*").eq("user_id", user.id).single();
 
     if (data) {
@@ -290,12 +376,30 @@ const FinanceApplication = () => {
       status: "pending",
     };
 
-    // 3. Save to Database
-    const { data: insertedApp, error } = await supabase
-      .from("finance_applications")
-      .insert(sanitizedData as any)
-      .select("id")
-      .single();
+    // 3. Save to Database - Update if resuming a draft, otherwise insert
+    let insertedApp: { id: string } | null = null;
+    let error: any = null;
+
+    if (resumedApplicationId) {
+      // Update existing draft application
+      const { data, error: updateError } = await supabase
+        .from("finance_applications")
+        .update(sanitizedData as any)
+        .eq("id", resumedApplicationId)
+        .select("id")
+        .single();
+      insertedApp = data;
+      error = updateError;
+    } else {
+      // Insert new application
+      const { data, error: insertError } = await supabase
+        .from("finance_applications")
+        .insert(sanitizedData as any)
+        .select("id")
+        .single();
+      insertedApp = data;
+      error = insertError;
+    }
 
     if (error) {
       toast.error("Failed to submit application. Please try again.");
@@ -391,12 +495,32 @@ const FinanceApplication = () => {
       status: "draft", // Keep as draft
     };
     
-    const { error } = await supabase
-      .from("finance_applications")
-      .insert(draftData as any);
+    let saveError: any = null;
     
-    if (error) {
-      console.error("Save progress error:", error);
+    if (resumedApplicationId) {
+      // Update existing draft
+      const { error } = await supabase
+        .from("finance_applications")
+        .update(draftData as any)
+        .eq("id", resumedApplicationId);
+      saveError = error;
+    } else {
+      // Insert new draft
+      const { data, error } = await supabase
+        .from("finance_applications")
+        .insert(draftData as any)
+        .select("id")
+        .single();
+      saveError = error;
+      
+      // Store the new draft ID so subsequent saves update instead of insert
+      if (data && !error) {
+        setResumedApplicationId(data.id);
+      }
+    }
+    
+    if (saveError) {
+      console.error("Save progress error:", saveError);
       toast.error("Failed to save progress. Please try again.");
     } else {
       toast.success("Progress saved! You can return to finish later from your dashboard.");

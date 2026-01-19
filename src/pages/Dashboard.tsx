@@ -2,13 +2,15 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Heart, FileText, User, LogOut, Car, AlertTriangle, Sparkles, HelpCircle, ChevronDown } from 'lucide-react';
+import { Heart, FileText, User, LogOut, Car, AlertTriangle, Sparkles, HelpCircle, ChevronDown, Edit3, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Progress } from '@/components/ui/progress';
 import VehicleCard from '@/components/VehicleCard';
 import KineticText from '@/components/KineticText';
 import SkeletonCard from '@/components/SkeletonCard';
@@ -27,6 +29,7 @@ const Dashboard = () => {
   const [applications, setApplications] = useState<any[]>([]);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isSelectingVehicle, setIsSelectingVehicle] = useState(false);
+  const [deletingDraftId, setDeletingDraftId] = useState<string | null>(null);
 
   const { data: vehicles = [], isLoading: vehiclesLoading } = useVehicles();
   const { data: matchedVehicles = [], isLoading: matchesLoading, refetch: refetchMatches } = useUserApplicationMatches(user?.id || '');
@@ -38,6 +41,48 @@ const Dashboard = () => {
   // Check if user has already selected a vehicle
   const vehicleSelectedApplication = applications.find(app => app.status === 'vehicle_selected');
   const hasSelectedVehicle = !!vehicleSelectedApplication;
+
+  // Check for draft applications
+  const draftApplications = applications.filter(app => app.status === 'draft');
+  const hasDraftApplications = draftApplications.length > 0;
+
+  // Calculate draft application progress
+  const getDraftProgress = (app: any) => {
+    const step1Fields = ['full_name', 'email', 'phone', 'id_number'];
+    const step2Fields = ['employment_status', 'employer_name', 'gross_salary', 'net_salary'];
+    const step3Fields = ['kin_name', 'kin_contact', 'bank_name', 'account_type', 'account_number'];
+    const step4Fields = ['expenses_summary', 'popia_consent'];
+    
+    const countFilled = (fields: string[]) => fields.filter(f => app[f]).length;
+    
+    const step1Done = countFilled(step1Fields) === step1Fields.length;
+    const step2Done = countFilled(step2Fields) === step2Fields.length;
+    const step3Done = countFilled(step3Fields) === step3Fields.length;
+    const step4Done = countFilled(step4Fields) === step4Fields.length;
+    
+    if (step4Done) return { step: 4, progress: 100 };
+    if (step3Done) return { step: 3, progress: 75 };
+    if (step2Done) return { step: 2, progress: 50 };
+    if (step1Done) return { step: 1, progress: 25 };
+    return { step: 0, progress: Math.max(10, (countFilled(step1Fields) / step1Fields.length) * 25) };
+  };
+
+  const handleDeleteDraft = async () => {
+    if (!deletingDraftId) return;
+    
+    const { error } = await supabase
+      .from('finance_applications')
+      .delete()
+      .eq('id', deletingDraftId);
+    
+    if (error) {
+      toast.error('Failed to delete draft');
+    } else {
+      toast.success('Draft deleted');
+      fetchApplications();
+    }
+    setDeletingDraftId(null);
+  };
 
   useEffect(() => {
     // Don't redirect while loading - wait for auth state to resolve
@@ -307,6 +352,109 @@ const Dashboard = () => {
               </div>
             </motion.div>
           )}
+
+          {/* Resume Draft Application Section */}
+          {hasDraftApplications && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-12"
+            >
+              <div className="glass-card rounded-xl p-6 border-2 border-blue-500/40 bg-gradient-to-br from-blue-500/10 to-blue-600/5">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                    <Edit3 className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <span className="inline-block px-3 py-1 mb-1 text-xs font-bold uppercase tracking-wider bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-full">
+                      Continue Where You Left Off
+                    </span>
+                    <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-blue-200 bg-clip-text text-transparent">
+                      Resume Your Application
+                    </h2>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {draftApplications.map((draft) => {
+                    const { step, progress } = getDraftProgress(draft);
+                    return (
+                      <div key={draft.id} className="bg-background/50 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <p className="font-semibold">Finance Application Draft</p>
+                            <p className="text-sm text-muted-foreground">
+                              Started: {new Date(draft.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <span className="px-2 py-1 text-xs rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                            Step {step + 1} of 5
+                          </span>
+                        </div>
+                        
+                        <div className="mb-4">
+                          <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                            <span>Progress</span>
+                            <span>{Math.round(progress)}%</span>
+                          </div>
+                          <Progress value={progress} className="h-2" />
+                        </div>
+
+                        <div className="flex gap-2">
+                          <Button 
+                            asChild 
+                            className="flex-1 bg-blue-600 hover:bg-blue-700"
+                          >
+                            <Link to={`/finance-application?resume=${draft.id}`}>
+                              <Edit3 className="w-4 h-4 mr-2" />
+                              Continue Application
+                            </Link>
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="icon"
+                            onClick={() => setDeletingDraftId(draft.id)}
+                            className="text-destructive hover:text-destructive border-destructive/30 hover:bg-destructive/10"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <Alert className="mt-4 bg-blue-500/10 border-blue-500/30">
+                  <FileText className="h-4 w-4 text-blue-400" />
+                  <AlertTitle className="text-blue-400">Your Progress is Saved</AlertTitle>
+                  <AlertDescription>
+                    Don't worry – all your information has been saved. Click "Continue Application" to pick up right where you left off.
+                  </AlertDescription>
+                </Alert>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Delete Draft Confirmation Dialog */}
+          <AlertDialog open={!!deletingDraftId} onOpenChange={() => setDeletingDraftId(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Draft Application?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently delete your draft application and all saved progress. This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeleteDraft}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Delete Draft
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           <Tabs defaultValue="applications" className="space-y-8">
             <TabsList className="glass-card">
