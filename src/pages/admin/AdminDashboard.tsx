@@ -67,8 +67,14 @@ const AdminDashboard = () => {
   const unitsSoldThisMonth = currentMonthDeals.length;
   const salesProgress = (unitsSoldThisMonth / monthlySalesTarget) * 100;
 
-  const totalStockValue = vehicles.reduce((sum, v) => sum + v.price, 0);
-  const availableVehicles = vehicles.filter(v => v.status === 'available').length;
+  // SEGREGATED ANALYTICS: Exclude 'sourcing' and 'hidden' from stock calculations
+  const realStockStatuses = ['available', 'reserved', 'incoming'];
+  const realStockVehicles = vehicles.filter(v => realStockStatuses.includes(v.status));
+  
+  const totalStockValue = realStockVehicles
+    .filter(v => v.status === 'available' || v.status === 'reserved')
+    .reduce((sum, v) => sum + v.price, 0);
+  const availableVehicles = realStockVehicles.length;
   const newLeadsThisMonth = leads.filter(l => {
     const leadDate = new Date(l.created_at);
     const now = new Date();

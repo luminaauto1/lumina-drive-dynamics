@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Plus, Search, Trash2, Edit2, Upload, X, GripVertical, Star, Clock, Truck, Ghost, ArrowRightCircle } from 'lucide-react';
+import { Plus, Search, Trash2, Edit2, Upload, X, GripVertical, Star, Clock, Truck, Ghost, ArrowRightCircle, Eye, EyeOff } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -63,7 +63,7 @@ const vehicleSchema = z.object({
   transmission: z.string().min(1, 'Transmission is required'),
   fuel_type: z.string().min(1, 'Fuel type is required'),
   price: z.coerce.number().min(0, 'Price must be positive'),
-  status: z.enum(['available', 'reserved', 'sold', 'sourcing']),
+  status: z.enum(['available', 'reserved', 'sold', 'sourcing', 'hidden', 'incoming']),
   finance_available: z.boolean(),
   description: z.string().optional(),
   engine_code: z.string().optional(),
@@ -422,6 +422,8 @@ const AdminInventoryPage = () => {
       reserved: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
       sold: 'bg-red-500/20 text-red-400 border-red-500/30',
       sourcing: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+      hidden: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+      incoming: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
     };
 
     return (
@@ -429,6 +431,16 @@ const AdminInventoryPage = () => {
         {status}
       </span>
     );
+  };
+
+  // Toggle visibility (hide/unhide)
+  const handleToggleVisibility = async (vehicle: Vehicle) => {
+    const newStatus = vehicle.status === 'hidden' ? 'available' : 'hidden';
+    await updateVehicle.mutateAsync({
+      id: vehicle.id,
+      updates: { status: newStatus },
+    });
+    toast.success(newStatus === 'hidden' ? 'Vehicle hidden from public' : 'Vehicle is now visible');
   };
 
   return (
@@ -524,8 +536,9 @@ const AdminInventoryPage = () => {
               <TableBody>
                 {filteredVehicles.map((vehicle) => {
                   const sourcedCount = (vehicle as any).sourced_count || 0;
+                  const isHidden = vehicle.status === 'hidden';
                   return (
-                    <TableRow key={vehicle.id} className="border-white/10 hover:bg-white/5">
+                    <TableRow key={vehicle.id} className={`border-white/10 hover:bg-white/5 ${isHidden ? 'opacity-50' : ''}`}>
                       <TableCell>
                         {vehicle.images && vehicle.images[0] ? (
                           <img
@@ -570,7 +583,16 @@ const AdminInventoryPage = () => {
                           </div>
                         )}
                       </TableCell>
-                      <TableCell>{getStatusBadge(vehicle.status)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {getStatusBadge(vehicle.status)}
+                          {isHidden && (
+                            <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider rounded bg-gray-500/30 text-gray-400 border border-gray-500/30">
+                              HIDDEN
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
                       {activeTab === 'sourcing' && (
                         <TableCell className="text-center">
                           {sourcedCount > 0 ? (
@@ -610,6 +632,18 @@ const AdminInventoryPage = () => {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
+                          {/* Hide/Unhide button for non-sourcing vehicles */}
+                          {!(vehicle.status === 'sourcing' || (vehicle as any).is_generic_listing) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleToggleVisibility(vehicle)}
+                              className={isHidden ? 'text-gray-400 hover:text-gray-300' : 'text-muted-foreground hover:text-gray-400'}
+                              title={isHidden ? 'Unhide from public' : 'Hide from public'}
+                            >
+                              {isHidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </Button>
+                          )}
                           {/* Convert to Real Stock button for sourcing vehicles */}
                           {(vehicle.status === 'sourcing' || (vehicle as any).is_generic_listing) && (
                             <Button

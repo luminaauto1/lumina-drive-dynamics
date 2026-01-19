@@ -12,9 +12,10 @@ const SQL_CODE = `-- ============================================
 -- 1. REMOVE THE STATUS RESTRICTION (Fixes "Violates Check Constraint" errors)
 ALTER TABLE finance_applications DROP CONSTRAINT IF EXISTS finance_applications_status_check;
 
--- 2. FIX VEHICLE STATUS CONSTRAINT (Allows 'sourcing' status)
+-- 2. FIX VEHICLE STATUS CONSTRAINT (Allows ALL required statuses including 'hidden')
 ALTER TABLE vehicles DROP CONSTRAINT IF EXISTS vehicles_status_check;
-ALTER TABLE vehicles ADD CONSTRAINT vehicles_status_check CHECK (status IN ('available', 'reserved', 'sold', 'incoming', 'sourcing'));
+ALTER TABLE vehicles ADD CONSTRAINT vehicles_status_check 
+  CHECK (status IN ('available', 'reserved', 'sold', 'incoming', 'sourcing', 'hidden'));
 
 -- 3. ADD ANTI-TIME WASTING COLUMNS
 ALTER TABLE finance_applications ADD COLUMN IF NOT EXISTS has_drivers_license BOOLEAN DEFAULT FALSE;
@@ -96,7 +97,16 @@ CREATE TABLE IF NOT EXISTS deal_add_ons (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 ALTER TABLE deal_add_ons ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Admins can manage deal add-ons" ON deal_add_ons FOR ALL USING (has_role(auth.uid(), 'admin'::app_role));`;
+CREATE POLICY IF NOT EXISTS "Admins can manage deal add-ons" ON deal_add_ons FOR ALL USING (has_role(auth.uid(), 'admin'::app_role));
+
+-- ============================================
+-- SECURE STORAGE BUCKETS
+-- ============================================
+
+-- 11. SECURE CLIENT DOCUMENTS BUCKET
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('client-docs', 'client-docs', false) 
+ON CONFLICT (id) DO NOTHING;`;
 
 const SystemFix = () => {
   const [copied, setCopied] = useState(false);
