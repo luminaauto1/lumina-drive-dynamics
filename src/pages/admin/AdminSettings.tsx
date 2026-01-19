@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Settings, DollarSign, Phone, Palette, Loader2, MapPin, CreditCard, Users, Plus, X } from 'lucide-react';
+import { Settings, DollarSign, Phone, Palette, Loader2, MapPin, CreditCard, Users, Plus, X, Target } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Switch } from '@/components/ui/switch';
@@ -148,6 +148,7 @@ const AdminSettings = () => {
       show_physical_location: true,
       physical_address: '',
       show_finance_tab: true,
+      monthly_sales_target: 10,
     },
   });
 
@@ -178,6 +179,7 @@ const AdminSettings = () => {
         show_physical_location: settings.show_physical_location ?? true,
         physical_address: settings.physical_address || '',
         show_finance_tab: settings.show_finance_tab ?? true,
+        monthly_sales_target: settings.monthly_sales_target || 10,
       });
     }
   }, [settings, reset]);
@@ -371,7 +373,36 @@ const AdminSettings = () => {
 
             {/* Sales Reps Tab */}
             <TabsContent value="sales">
-              <SalesRepsTab settings={settings} updateSettings={updateSettings} />
+              <div className="space-y-6">
+                {/* Monthly Sales Target */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="glass-card rounded-xl p-6"
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <Target className="w-5 h-5 text-primary" />
+                    <h2 className="text-lg font-semibold">Sales Target</h2>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="monthly_sales_target">Monthly Sales Target (Units)</Label>
+                    <Input
+                      id="monthly_sales_target"
+                      type="number"
+                      min="1"
+                      max="100"
+                      {...register('monthly_sales_target' as any, { valueAsNumber: true })}
+                      className="max-w-xs"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Target number of units to sell per month (used in dashboard velocity tracker)
+                    </p>
+                  </div>
+                </motion.div>
+                
+                {/* Sales Reps */}
+                <SalesRepsTab settings={settings} updateSettings={updateSettings} />
+              </div>
             </TabsContent>
 
             {/* Contact Tab */}
