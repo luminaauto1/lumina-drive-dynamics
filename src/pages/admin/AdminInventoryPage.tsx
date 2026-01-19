@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Plus, Search, Trash2, Edit2, Upload, X, GripVertical, Star, Clock, Truck } from 'lucide-react';
+import { Plus, Search, Trash2, Edit2, Upload, X, GripVertical, Star, Clock, Truck, Ghost, ArrowRightCircle } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -24,6 +24,7 @@ import {
 } from '@dnd-kit/sortable';
 import AdminLayout from '@/components/admin/AdminLayout';
 import SortableImage from '@/components/admin/SortableImage';
+import ReconTasksTab from '@/components/admin/ReconTasksTab';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -42,6 +43,7 @@ import { useVehicles, useCreateVehicle, useUpdateVehicle, useDeleteVehicle, form
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getOptimizedImage } from '@/lib/utils';
+import { useQueryClient } from '@tanstack/react-query';
 
 const BODY_TYPE_OPTIONS = ['Hatchback', 'Sedan', 'SUV', 'Coupe', 'Convertible', 'Bakkie/Pickup', 'MPV'] as const;
 
@@ -85,11 +87,78 @@ const AdminInventoryPage = () => {
   const [activeTab, setActiveTab] = useState('live');
   const [isSourcingMode, setIsSourcingMode] = useState(false);
   const [variants, setVariants] = useState<VariantSpec[]>([]);
+  const [sheetTab, setSheetTab] = useState<'details' | 'recon'>('details');
+  const [isConverting, setIsConverting] = useState(false);
 
+  const queryClient = useQueryClient();
   const { data: vehicles = [], isLoading } = useVehicles();
   const createVehicle = useCreateVehicle();
   const updateVehicle = useUpdateVehicle();
   const deleteVehicleMutation = useDeleteVehicle();
+
+  // Convert sourcing vehicle to real stock
+  const handleConvertToRealStock = async (vehicle: Vehicle) => {
+    setIsConverting(true);
+    try {
+      // Create a NEW vehicle with the same details but as incoming/available
+      const newVehicleData: any = {
+        make: vehicle.make,
+        model: vehicle.model,
+        variant: vehicle.variant || null,
+        year: new Date().getFullYear(), // Fresh year for new stock
+        mileage: 0, // To be filled
+        color: null, // To be selected
+        vin: null,
+        transmission: vehicle.transmission,
+        fuel_type: vehicle.fuel_type,
+        price: vehicle.price,
+        status: 'incoming',
+        finance_available: vehicle.finance_available ?? true,
+        description: vehicle.description || null,
+        engine_code: (vehicle as any).engine_code || null,
+        service_history: null,
+        youtube_url: null,
+        images: vehicle.images || [],
+        body_type: (vehicle as any).body_type || null,
+        is_generic_listing: false,
+        purchase_price: 0, // To be filled
+        reconditioning_cost: 0,
+      };
+
+      // Insert the new vehicle
+      const { data: newVehicle, error: insertError } = await supabase
+        .from('vehicles')
+        .insert(newVehicleData)
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      // Increment the sourced_count on the original sourcing vehicle
+      const currentCount = (vehicle as any).sourced_count || 0;
+      await supabase
+        .from('vehicles')
+        .update({ sourced_count: currentCount + 1 })
+        .eq('id', vehicle.id);
+
+      // Invalidate queries
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+
+      toast.success('Vehicle converted to real stock! Opening editor...');
+
+      // Open the edit sheet for the new vehicle
+      setTimeout(() => {
+        const freshVehicle = { ...newVehicle, status: 'incoming' } as Vehicle;
+        openEditSheet(freshVehicle);
+        setActiveTab('live');
+      }, 500);
+
+    } catch (error: any) {
+      toast.error('Failed to convert vehicle: ' + error.message);
+    } finally {
+      setIsConverting(false);
+    }
+  };
 
   const form = useForm<VehicleFormData>({
     resolver: zodResolver(vehicleSchema),
@@ -184,6 +253,7 @@ const AdminInventoryPage = () => {
     setEditingVehicle(vehicle);
     const isSourcing = vehicle.status === 'sourcing' || (vehicle as any).is_generic_listing;
     setIsSourcingMode(isSourcing);
+    setSheetTab('details'); // Reset to details tab when opening
     
     // Load variants
     const vehicleVariants = (vehicle as any).variants;
@@ -486,12 +556,19 @@ const AdminInventoryPage = () => {
                         {formatPrice(vehicle.price)}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1 text-xs">
-                          <Clock className="w-3 h-3 text-muted-foreground" />
-                          <span className={differenceInDays(new Date(), new Date(vehicle.created_at)) > 60 ? 'text-amber-400' : 'text-muted-foreground'}>
-                            {differenceInDays(new Date(), new Date(vehicle.created_at))}d
-                          </span>
-                        </div>
+                        {vehicle.status === 'sourcing' || (vehicle as any).is_generic_listing ? (
+                          <div className="flex items-center gap-1 text-xs">
+                            <Ghost className="w-3 h-3 text-purple-400" />
+                            <span className="text-purple-400">Ghost Stock</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1 text-xs">
+                            <Clock className="w-3 h-3 text-muted-foreground" />
+                            <span className={differenceInDays(new Date(), new Date(vehicle.created_at)) > 60 ? 'text-amber-400' : 'text-muted-foreground'}>
+                              {differenceInDays(new Date(), new Date(vehicle.created_at))}d
+                            </span>
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>{getStatusBadge(vehicle.status)}</TableCell>
                       {activeTab === 'sourcing' && (
@@ -533,6 +610,19 @@ const AdminInventoryPage = () => {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
+                          {/* Convert to Real Stock button for sourcing vehicles */}
+                          {(vehicle.status === 'sourcing' || (vehicle as any).is_generic_listing) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleConvertToRealStock(vehicle)}
+                              disabled={isConverting}
+                              className="text-emerald-400 hover:text-emerald-300"
+                              title="Convert to Real Stock"
+                            >
+                              <ArrowRightCircle className="w-4 h-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
@@ -560,7 +650,10 @@ const AdminInventoryPage = () => {
       </div>
 
       {/* Add/Edit Sheet */}
-      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+      <Sheet open={isSheetOpen} onOpenChange={(open) => {
+        setIsSheetOpen(open);
+        if (!open) setSheetTab('details');
+      }}>
         <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
           <SheetHeader>
             <SheetTitle>
@@ -575,6 +668,29 @@ const AdminInventoryPage = () => {
             </SheetDescription>
           </SheetHeader>
 
+          {/* Sheet Tabs - Only show Recon tab for existing non-sourcing vehicles */}
+          {editingVehicle && !isSourcingMode && (
+            <Tabs value={sheetTab} onValueChange={(v) => setSheetTab(v as 'details' | 'recon')} className="mt-4">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="details">Details</TabsTrigger>
+                <TabsTrigger value="recon">Reconditioning</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
+
+          {/* Reconditioning Tab Content */}
+          {editingVehicle && sheetTab === 'recon' && !isSourcingMode && (
+            <div className="mt-6">
+              <ReconTasksTab 
+                vehicleId={editingVehicle.id}
+                purchasePrice={(editingVehicle as any).purchase_price || 0}
+                sellingPrice={editingVehicle.price}
+              />
+            </div>
+          )}
+
+          {/* Details Tab Content (or always shown for new vehicles) */}
+          {(sheetTab === 'details' || !editingVehicle || isSourcingMode) && (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-6">
               {/* Basic Info */}
@@ -1100,6 +1216,7 @@ const AdminInventoryPage = () => {
               </div>
             </form>
           </Form>
+          )}
         </SheetContent>
       </Sheet>
 
