@@ -12,7 +12,7 @@ import CompareTray from '@/components/CompareTray';
 import SkeletonCard from '@/components/SkeletonCard';
 import KineticText from '@/components/KineticText';
 import { useCompare } from '@/hooks/useCompare';
-import { useVehicles } from '@/hooks/useVehicles';
+import { usePublicVehicles } from '@/hooks/useVehicles';
 import { formatPrice, calculateMonthlyPayment } from '@/lib/formatters';
 import { getOptimizedImage } from '@/lib/utils';
 
@@ -28,7 +28,7 @@ const Inventory = () => {
   const [variantSearch, setVariantSearch] = useState('');
   const [financeFilter, setFinanceFilter] = useState<'all' | 'finance' | 'cash'>('all');
 
-  const { data: vehicles = [], isLoading } = useVehicles();
+  const { data: vehicles = [], isLoading } = usePublicVehicles();
   const { compareList, toggleCompare, removeFromCompare, clearCompare, isInCompare } = useCompare();
 
   // Get unique makes from DB

@@ -99,6 +99,34 @@ export const useAnalyticsData = (days: number = 7) => {
   });
 };
 
+// Hook to get vehicle stats (excludes 'sourcing' and 'hidden' from counts)
+export const useVehicleStats = () => {
+  return useQuery({
+    queryKey: ['vehicleStats'],
+    queryFn: async () => {
+      const { data: vehicles, error } = await supabase
+        .from('vehicles')
+        .select('status, price');
+      
+      if (error) throw error;
+
+      // Total vehicles count - exclude 'sourcing', 'hidden', and 'sold'
+      const countableStatuses = ['available', 'reserved', 'incoming'];
+      const totalVehicles = vehicles?.filter(v => 
+        countableStatuses.includes(v.status)
+      ).length || 0;
+
+      // Total stock value - only 'available' and 'reserved' (actual sellable stock)
+      const valueStatuses = ['available', 'reserved'];
+      const totalStockValue = vehicles
+        ?.filter(v => valueStatuses.includes(v.status))
+        .reduce((sum, v) => sum + (v.price || 0), 0) || 0;
+
+      return { totalVehicles, totalStockValue };
+    },
+  });
+};
+
 // Compute analytics summary
 export const useAnalyticsSummary = (days: number = 7) => {
   const { data: events = [], isLoading } = useAnalyticsData(days);

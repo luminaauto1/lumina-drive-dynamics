@@ -7,6 +7,7 @@ export type Vehicle = Tables<'vehicles'>;
 export type VehicleInsert = TablesInsert<'vehicles'>;
 export type VehicleUpdate = TablesUpdate<'vehicles'>;
 
+// Fetch all vehicles (for admin use - includes hidden)
 export const useVehicles = () => {
   return useQuery({
     queryKey: ['vehicles'],
@@ -14,6 +15,23 @@ export const useVehicles = () => {
       const { data, error } = await supabase
         .from('vehicles')
         .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data as Vehicle[];
+    },
+  });
+};
+
+// Fetch public vehicles (excludes hidden status for public-facing pages)
+export const usePublicVehicles = () => {
+  return useQuery({
+    queryKey: ['publicVehicles'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('vehicles')
+        .select('*')
+        .neq('status', 'hidden')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
