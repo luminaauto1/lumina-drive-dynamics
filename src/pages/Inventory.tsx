@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import VehicleCard from '@/components/VehicleCard';
-import SourcingCard from '@/components/SourcingCard';
 import CompareTray from '@/components/CompareTray';
 import SkeletonCard from '@/components/SkeletonCard';
 import KineticText from '@/components/KineticText';
@@ -96,18 +95,11 @@ const Inventory = () => {
         (financeFilter === 'finance' && vehicle.finance_available !== false) ||
         (financeFilter === 'cash' && vehicle.finance_available === false);
 
-      // Exclude generic listings and hidden vehicles from main inventory
-      const isNotGeneric = !(vehicle as any).is_generic_listing;
-      const isNotHidden = vehicle.status !== 'hidden';
-
-      return matchesSearch && matchesPrice && matchesMonthly && matchesMake && matchesBodyType && matchesVariant && matchesFinance && isNotGeneric && isNotHidden;
+      // All vehicles in unified display (hidden already excluded by query)
+      return matchesSearch && matchesPrice && matchesMonthly && matchesMake && matchesBodyType && matchesVariant && matchesFinance;
     });
   }, [searchQuery, priceRange, monthlyPaymentMax, selectedMakes, selectedBodyType, variantSearch, financeFilter, vehicles]);
 
-  // Sourcing examples (generic listings)
-  const sourcingExamples = useMemo(() => {
-    return vehicles.filter((vehicle) => (vehicle as any).is_generic_listing === true);
-  }, [vehicles]);
 
   const toggleMake = (make: string) => {
     setSelectedMakes((prev) =>
@@ -386,8 +378,6 @@ const Inventory = () => {
                     isEager={index < 6}
                   />
                 ))}
-                {/* Always show sourcing card at the end */}
-                <SourcingCard />
               </div>
             </>
           ) : (
@@ -401,36 +391,6 @@ const Inventory = () => {
             </div>
           )}
 
-          {/* Sourcing Examples Section */}
-          {sourcingExamples.length > 0 && (
-            <div className="mt-16">
-              <div className="mb-8">
-                <motion.span
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-primary text-sm font-semibold uppercase tracking-widest mb-4 block"
-                >
-                  Can't Find What You Want?
-                </motion.span>
-                <h2 className="font-display text-3xl md:text-4xl font-bold mb-2">
-                  We Can Source It
-                </h2>
-                <p className="text-muted-foreground max-w-2xl">
-                  These are examples of vehicles we can source for you. Tell us your dream car and we'll find it.
-                </p>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {sourcingExamples.map((vehicle) => (
-                  <VehicleCard
-                    key={vehicle.id}
-                    vehicle={vehicle}
-                    isSourcingCard={true}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Compare Tray */}

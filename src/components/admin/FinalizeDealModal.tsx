@@ -98,8 +98,10 @@ const FinalizeDealModal = ({
   };
 
   const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
-  const commissionAmount = soldPrice * (repCommission / 100);
-  const calculatedProfit = soldPrice - costPrice - totalExpenses - commissionAmount;
+  // Commission is calculated on GROSS PROFIT (Sold Price - Cost Price - Expenses)
+  const grossProfit = soldPrice - costPrice - totalExpenses;
+  const commissionAmount = grossProfit * (repCommission / 100);
+  const calculatedProfit = grossProfit - commissionAmount;
 
   const handleSubmit = async () => {
     if (!selectedRepName || !deliveryAddress || !deliveryDate) {
@@ -194,10 +196,11 @@ const FinalizeDealModal = ({
                 />
               </div>
             </div>
-          {soldPrice > 0 && repCommission > 0 && (
-              <p className="text-sm text-muted-foreground">
-                Commission Amount: <span className="font-semibold text-primary">{formatPrice(commissionAmount)}</span>
-              </p>
+           {repCommission > 0 && (
+              <div className="text-sm text-muted-foreground space-y-1">
+                <p>Gross Profit: <span className="font-semibold">{formatPrice(grossProfit)}</span></p>
+                <p>Commission ({repCommission}% of profit): <span className="font-semibold text-primary">{formatPrice(commissionAmount)}</span></p>
+              </div>
             )}
           </div>
 

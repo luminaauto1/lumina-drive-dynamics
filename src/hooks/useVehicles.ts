@@ -23,7 +23,7 @@ export const useVehicles = () => {
   });
 };
 
-// Fetch public vehicles (excludes hidden status for public-facing pages)
+// Fetch public vehicles (includes available, sourcing, incoming - excludes hidden and sold)
 export const usePublicVehicles = () => {
   return useQuery({
     queryKey: ['publicVehicles'],
@@ -31,7 +31,7 @@ export const usePublicVehicles = () => {
       const { data, error } = await supabase
         .from('vehicles')
         .select('*')
-        .neq('status', 'hidden')
+        .in('status', ['available', 'sourcing', 'incoming'])
         .order('created_at', { ascending: false });
       
       if (error) throw error;
