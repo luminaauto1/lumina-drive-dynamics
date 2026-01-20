@@ -228,10 +228,14 @@ const VehicleCard = ({ vehicle, onCompare, isComparing, isSourcingCard = false, 
             </div>
           </div>
 
-          {/* Specs - Hide mileage for sourcing, show "Customer Preference" for color */}
+          {/* Specs - Hide year AND mileage for sourcing, show "Your Color Choice" */}
           <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-            {!isSourcingDisplay && <span>{formatMileage(vehicle.mileage)}</span>}
-            {!isSourcingDisplay && <span className="w-1 h-1 rounded-full bg-muted-foreground" />}
+            {!isSourcingDisplay && (
+              <>
+                <span>{formatMileage(vehicle.mileage)}</span>
+                <span className="w-1 h-1 rounded-full bg-muted-foreground" />
+              </>
+            )}
             <span>{vehicle.transmission}</span>
             <span className="w-1 h-1 rounded-full bg-muted-foreground" />
             <span>{vehicle.fuel_type}</span>
@@ -243,29 +247,35 @@ const VehicleCard = ({ vehicle, onCompare, isComparing, isSourcingCard = false, 
             )}
           </div>
 
-          {/* Price - FINANCE FIRST (Hide cash price for sourcing cards) */}
+          {/* Price - FINANCE FIRST for sourcing, show Est. Finance instead of cash price */}
           <div className="flex items-end justify-between">
             <div>
               {/* Personalized Rate Badge - only show if vehicle is financeable AND user has podium offer */}
-              {vehicle.finance_available && hasPersonalizedRate && !isSold && (
+              {vehicle.finance_available && hasPersonalizedRate && !isSold && !isSourcingDisplay && (
                 <div className="flex items-center gap-1 mb-1">
                   <Sparkles className="w-3 h-3 text-amber-400" />
                   <span className="text-xs font-medium text-amber-400">Personalized Rate</span>
                 </div>
               )}
-              {/* Monthly Payment - LARGEST & BRIGHTEST */}
-              {monthlyPayment && !isSold && (
+              {/* For sourcing vehicles: Show "Est. Finance" label instead of "From" */}
+              {isSourcingDisplay && monthlyPayment && !isSold && (
+                <p className="font-display text-2xl font-bold text-foreground" title="Est. only. Subject to bank approval & interest rates.">
+                  Est. {formatPrice(monthlyPayment)}<span className="text-sm">/pm*</span>
+                </p>
+              )}
+              {/* For regular vehicles: Monthly Payment - LARGEST & BRIGHTEST */}
+              {!isSourcingDisplay && monthlyPayment && !isSold && (
                 <p className="font-display text-2xl font-bold text-foreground" title="Est. only. Subject to bank approval & interest rates.">
                   From {formatPrice(monthlyPayment)}<span className="text-sm">/pm*</span>
                 </p>
               )}
-              {/* Cash Price - Hide for sourcing examples AND sourcing status */}
-              {!isSourcingCard && vehicle.status !== 'sourcing' && !(vehicle as any).is_generic_listing && (
+              {/* Cash Price - ONLY show for non-sourcing vehicles */}
+              {!isSourcingDisplay && (
                 <p className="text-sm text-muted-foreground">
                   {formatPrice(vehicle.price)} cash
                 </p>
               )}
-              {!vehicle.finance_available && !isSold && !isSourcingCard && vehicle.status !== 'sourcing' && !(vehicle as any).is_generic_listing && (
+              {!vehicle.finance_available && !isSold && !isSourcingDisplay && (
                 <p className="text-xs text-muted-foreground">Cash/EFT Only</p>
               )}
             </div>

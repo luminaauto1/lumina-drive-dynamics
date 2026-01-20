@@ -446,6 +446,7 @@ const AdminCreateApplication = () => {
                     <AddressAutocomplete
                       value={formData.street_address}
                       onChange={(value) => handleInputChange('street_address', value)}
+                      onPostalCodeChange={(code) => handleInputChange('area_code', code)}
                       placeholder="Start typing address..."
                       required
                     />

@@ -1,15 +1,18 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Package, Calendar, AlertCircle, Loader2, MessageCircle, Edit2, Save, X, Eye, Undo2, TrendingUp, DollarSign, Users } from 'lucide-react';
+import { Package, Calendar, AlertCircle, Loader2, MessageCircle, Edit2, Save, X, Eye, Undo2, TrendingUp, DollarSign, Users, Plus, Receipt } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { differenceInDays, differenceInYears, format } from 'date-fns';
 import AdminLayout from '@/components/admin/AdminLayout';
 import ClientProfileModal from '@/components/admin/ClientProfileModal';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { formatPrice } from '@/hooks/useVehicles';
@@ -179,26 +182,44 @@ const useRollbackDeal = () => {
   });
 };
 
-// BLOCK 5 FIX: Proper service due badge logic using deal records
+// Add expense to deal record mutation
+const useAddDealExpense = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ dealId, expense, currentExpenses }: { dealId: string; expense: { type: string; amount: number }; currentExpenses: Array<{ type: string; amount: number }> }) => {
+      const updatedExpenses = [...currentExpenses, expense];
+      
+      const { error } = await supabase
+        .from('deal_records')
+        .update({ aftersales_expenses: updatedExpenses as any })
+        .eq('id', dealId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deal-records'] });
+      toast.success('Expense added successfully');
+    },
+    onError: () => {
+      toast.error('Failed to add expense');
+    },
+  });
+};
+
+// TASK 3 FIX: Proper service due badge logic - only show if date is STRICTLY in the past
 const getServiceDueStatus = (deal: DealRecord) => {
-  const now = new Date();
+  if (!deal.next_service_date) return { isDue: false, reason: null };
   
-  // Check next_service_date - only show if date is in the past or today
-  if (deal.next_service_date) {
-    const serviceDate = new Date(deal.next_service_date);
-    if (serviceDate <= now) {
-      return { isDue: true, reason: 'Service Date Passed' };
-    }
-  }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Reset to start of day for fair comparison
   
-  // Check mileage - only show if we have both sold_mileage and next_service_km
-  // Assume current mileage is sold_mileage + estimated usage (can't track real mileage)
-  // This is a simplified check - in real scenario you'd track current mileage
-  if (deal.sold_mileage && deal.next_service_km) {
-    // If next_service_km is less than or equal to sold_mileage, it's already due
-    if (deal.next_service_km <= deal.sold_mileage) {
-      return { isDue: true, reason: 'Service KM Reached' };
-    }
+  const serviceDate = new Date(deal.next_service_date);
+  serviceDate.setHours(0, 0, 0, 0);
+  
+  // Only true if date is STRICTLY in the PAST (not today)
+  if (serviceDate < today) {
+    return { isDue: true, reason: 'Service Date Passed' };
   }
   
   return { isDue: false, reason: null };
@@ -252,6 +273,94 @@ const StatusBadge = ({ status, label }: { status: 'ok' | 'due_soon' | 'overdue';
   );
 };
 
+// Add Expense Dialog Component
+const AddExpenseDialog = ({ deal, onClose }: { deal: DealRecord; onClose: () => void }) => {
+  const addExpense = useAddDealExpense();
+  const [expenseType, setExpenseType] = useState('');
+  const [expenseAmount, setExpenseAmount] = useState('');
+
+  const handleSubmit = () => {
+    if (!expenseType.trim() || !expenseAmount) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+
+    addExpense.mutate({
+      dealId: deal.id,
+      expense: { type: expenseType.trim(), amount: parseFloat(expenseAmount) },
+      currentExpenses: deal.aftersales_expenses || [],
+    });
+    
+    setExpenseType('');
+    setExpenseAmount('');
+    onClose();
+  };
+
+  const currentExpensesTotal = (deal.aftersales_expenses || []).reduce((sum, exp) => sum + (exp.amount || 0), 0);
+  const purchasePrice = (deal.vehicle as any)?.purchase_price || 0;
+  const reconditioningCost = (deal.vehicle as any)?.reconditioning_cost || 0;
+  const currentProfit = (deal.sold_price || 0) - purchasePrice - reconditioningCost - currentExpensesTotal - (deal.sales_rep_commission || 0);
+
+  return (
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>Add Post-Sale Expense</DialogTitle>
+        <DialogDescription>
+          {deal.vehicle && `${deal.vehicle.year} ${deal.vehicle.make} ${deal.vehicle.model}`}
+        </DialogDescription>
+      </DialogHeader>
+      
+      {/* Current Expenses */}
+      {(deal.aftersales_expenses || []).length > 0 && (
+        <div className="bg-secondary/30 rounded-lg p-3 space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">Existing Expenses:</p>
+          {deal.aftersales_expenses!.map((exp, idx) => (
+            <div key={idx} className="flex justify-between text-sm">
+              <span>{exp.type}</span>
+              <span className="text-red-400">-{formatPrice(exp.amount)}</span>
+            </div>
+          ))}
+          <div className="border-t border-border pt-2 flex justify-between text-sm font-medium">
+            <span>Current Profit</span>
+            <span className={currentProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+              {formatPrice(currentProfit)}
+            </span>
+          </div>
+        </div>
+      )}
+
+      <div className="grid gap-4 py-4">
+        <div className="space-y-2">
+          <Label htmlFor="expenseType">Description</Label>
+          <Input
+            id="expenseType"
+            placeholder="e.g., Late Recon, Tow Fee"
+            value={expenseType}
+            onChange={(e) => setExpenseType(e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="expenseAmount">Amount (R)</Label>
+          <Input
+            id="expenseAmount"
+            type="number"
+            placeholder="0.00"
+            value={expenseAmount}
+            onChange={(e) => setExpenseAmount(e.target.value)}
+          />
+        </div>
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button onClick={handleSubmit} disabled={addExpense.isPending}>
+          {addExpense.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+          Add Expense
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+};
+
 const AdminAftersales = () => {
   const { data: aftersalesRecords = [], isLoading: aftersalesLoading } = useAftersalesRecords();
   const { data: dealRecords = [], isLoading: dealsLoading } = useDealRecords();
@@ -260,16 +369,18 @@ const AdminAftersales = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editNotes, setEditNotes] = useState('');
   const [selectedRecord, setSelectedRecord] = useState<AftersalesRecord | null>(null);
+  const [expenseDealId, setExpenseDealId] = useState<string | null>(null);
 
   const isLoading = aftersalesLoading || dealsLoading;
 
-  // Calculate analytics from deal records
+  // Calculate analytics from deal records (includes all expenses)
   const totalProfit = dealRecords.reduce((sum, deal) => {
     const soldPrice = deal.sold_price || 0;
     const purchasePrice = (deal.vehicle as any)?.purchase_price || 0;
     const reconditioningCost = (deal.vehicle as any)?.reconditioning_cost || 0;
     const expensesTotal = (deal.aftersales_expenses || []).reduce((e, exp) => e + (exp.amount || 0), 0);
-    return sum + (soldPrice - purchasePrice - reconditioningCost - expensesTotal);
+    const commission = deal.sales_rep_commission || 0;
+    return sum + (soldPrice - purchasePrice - reconditioningCost - expensesTotal - commission);
   }, 0);
 
   const totalCommission = dealRecords.reduce((sum, deal) => {
@@ -446,8 +557,15 @@ const AdminAftersales = () => {
                         <span className="text-muted-foreground">Vehicle removed</span>
                       )}
                     </TableCell>
-                    <TableCell className="font-semibold">
-                      {deal.sold_price ? formatPrice(deal.sold_price) : 'N/A'}
+                    <TableCell>
+                      <div>
+                        <p className="font-semibold">{deal.sold_price ? formatPrice(deal.sold_price) : 'N/A'}</p>
+                        {(deal.aftersales_expenses || []).length > 0 && (
+                          <p className="text-xs text-red-400">
+                            -{formatPrice((deal.aftersales_expenses || []).reduce((s, e) => s + (e.amount || 0), 0))} expenses
+                          </p>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div>
@@ -463,6 +581,20 @@ const AdminAftersales = () => {
                       {format(new Date(deal.created_at), 'dd MMM yyyy')}
                     </TableCell>
                     <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Dialog open={expenseDealId === deal.id} onOpenChange={(open) => setExpenseDealId(open ? deal.id : null)}>
+                          <DialogTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-blue-500 hover:text-blue-400 hover:bg-blue-500/10"
+                              title="Add Post-Sale Expense"
+                            >
+                              <Receipt className="w-4 h-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <AddExpenseDialog deal={deal} onClose={() => setExpenseDealId(null)} />
+                        </Dialog>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button
@@ -502,6 +634,7 @@ const AdminAftersales = () => {
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
