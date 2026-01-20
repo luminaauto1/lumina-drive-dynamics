@@ -53,51 +53,53 @@ const Inventory = () => {
     return suggestions.slice(0, 5);
   }, [searchQuery, vehicles]);
 
-  // Filter vehicles (main stock - excludes generic/sourcing/hidden listings)
+  // Filter and sort all vehicles in unified display
   const filteredVehicles = useMemo(() => {
-    return vehicles.filter((vehicle) => {
-      // Search filter
-      const searchLower = searchQuery.toLowerCase();
-      const matchesSearch =
-        !searchQuery ||
-        vehicle.make.toLowerCase().includes(searchLower) ||
-        vehicle.model.toLowerCase().includes(searchLower) ||
-        (vehicle.variant?.toLowerCase().includes(searchLower) ?? false);
+    return vehicles
+      .filter((vehicle) => {
+        // Search filter
+        const searchLower = searchQuery.toLowerCase();
+        const matchesSearch =
+          !searchQuery ||
+          vehicle.make.toLowerCase().includes(searchLower) ||
+          vehicle.model.toLowerCase().includes(searchLower) ||
+          (vehicle.variant?.toLowerCase().includes(searchLower) ?? false);
 
-      // Price filter
-      const matchesPrice =
-        vehicle.price >= priceRange[0] && vehicle.price <= priceRange[1];
+        // Price filter
+        const matchesPrice =
+          vehicle.price >= priceRange[0] && vehicle.price <= priceRange[1];
 
-      // Monthly payment filter
-      const monthlyPayment = vehicle.finance_available
-        ? calculateMonthlyPayment(vehicle.price)
-        : 0;
-      const matchesMonthly =
-        !vehicle.finance_available || monthlyPayment <= monthlyPaymentMax;
+        // Monthly payment filter
+        const monthlyPayment = vehicle.finance_available
+          ? calculateMonthlyPayment(vehicle.price)
+          : 0;
+        const matchesMonthly =
+          !vehicle.finance_available || monthlyPayment <= monthlyPaymentMax;
 
-      // Make filter
-      const matchesMake =
-        selectedMakes.length === 0 || selectedMakes.includes(vehicle.make);
+        // Make filter
+        const matchesMake =
+          selectedMakes.length === 0 || selectedMakes.includes(vehicle.make);
 
-      // Body type filter (using body_type column from database)
-      const matchesBodyType =
-        selectedBodyType === 'all' || 
-        ((vehicle as any).body_type?.toLowerCase() === selectedBodyType.toLowerCase());
+        // Body type filter (using body_type column from database)
+        const matchesBodyType =
+          selectedBodyType === 'all' || 
+          ((vehicle as any).body_type?.toLowerCase() === selectedBodyType.toLowerCase());
 
-      // Variant search filter
-      const matchesVariant = 
-        !variantSearch || 
-        (vehicle.variant?.toLowerCase().includes(variantSearch.toLowerCase()) ?? false);
+        // Variant search filter
+        const matchesVariant = 
+          !variantSearch || 
+          (vehicle.variant?.toLowerCase().includes(variantSearch.toLowerCase()) ?? false);
 
-      // Finance availability filter
-      const matchesFinance = 
-        financeFilter === 'all' ||
-        (financeFilter === 'finance' && vehicle.finance_available !== false) ||
-        (financeFilter === 'cash' && vehicle.finance_available === false);
+        // Finance availability filter
+        const matchesFinance = 
+          financeFilter === 'all' ||
+          (financeFilter === 'finance' && vehicle.finance_available !== false) ||
+          (financeFilter === 'cash' && vehicle.finance_available === false);
 
-      // All vehicles in unified display (hidden already excluded by query)
-      return matchesSearch && matchesPrice && matchesMonthly && matchesMake && matchesBodyType && matchesVariant && matchesFinance;
-    });
+        return matchesSearch && matchesPrice && matchesMonthly && matchesMake && matchesBodyType && matchesVariant && matchesFinance;
+      })
+      // Sort by created_at descending (newest first)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [searchQuery, priceRange, monthlyPaymentMax, selectedMakes, selectedBodyType, variantSearch, financeFilter, vehicles]);
 
 
