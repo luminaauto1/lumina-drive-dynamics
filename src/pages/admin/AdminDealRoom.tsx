@@ -308,6 +308,7 @@ const AdminDealRoom = () => {
       // Financials
       gross_salary: application.gross_salary,
       net_salary: application.net_salary,
+      additional_income: (application as any).additional_income,
       expenses_summary: application.expenses_summary,
       // Banking
       bank_name: application.bank_name,
@@ -682,10 +683,25 @@ const AdminDealRoom = () => {
                     field="net_salary" 
                     inputType="number" 
                   />
+                  <DetailItem 
+                    label="Second/Spouse Income" 
+                    value={isEditing ? (application as any).additional_income : ((application as any).additional_income ? formatPrice((application as any).additional_income) : null)} 
+                    field="additional_income" 
+                    inputType="number" 
+                  />
                   <DetailItem label="Bank" value={application.bank_name} field="bank_name" inputType="select" selectOptions={bankOptions} />
                   <DetailItem label="Account Type" value={application.account_type} field="account_type" inputType="select" selectOptions={accountTypeOptions} />
                   <DetailItem label="Account Number" value={application.account_number} field="account_number" />
                 </div>
+                {/* Total Household Income Display */}
+                {(application.gross_salary || (application as any).additional_income) && (
+                  <div className="mt-4 p-3 bg-primary/10 border border-primary/30 rounded-lg">
+                    <p className="text-sm text-muted-foreground">Total Household Income</p>
+                    <p className="text-lg font-bold text-primary">
+                      {formatPrice((application.gross_salary || 0) + ((application as any).additional_income || 0))}
+                    </p>
+                  </div>
+                )}
                 <div className="mt-4">
                   <DetailItem 
                     label="Expenses Summary" 

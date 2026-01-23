@@ -158,11 +158,24 @@ const Calculator = () => {
               </Select>
             </div>
 
-            {/* Deposit Slider */}
+            {/* Deposit Slider with Manual Input */}
             <div className="space-y-3">
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between items-center text-sm">
                 <span className="text-muted-foreground">Deposit</span>
-                <span className="font-medium">{deposit}% ({formatPrice(depositAmount)})</span>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={deposit}
+                    onChange={(e) => {
+                      const val = Math.min(50, Math.max(0, Number(e.target.value) || 0));
+                      setDeposit(val);
+                    }}
+                    className="w-16 h-8 text-center text-sm px-2 bg-secondary border-border"
+                    min={0}
+                    max={50}
+                  />
+                  <span className="font-medium text-muted-foreground">% ({formatPrice(depositAmount)})</span>
+                </div>
               </div>
               <Slider
                 value={[deposit]}
