@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Search, MessageCircle, ExternalLink, Trash2, Archive, UserPlus } from 'lucide-react';
+import { Search, MessageCircle, ExternalLink, Trash2, Archive, UserPlus, Copy } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,9 +13,47 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useFinanceApplications, useUpdateFinanceApplication, useDeleteFinanceApplication, FinanceApplication } from '@/hooks/useFinanceApplications';
 import { formatPrice } from '@/hooks/useVehicles';
 import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, getWhatsAppMessage } from '@/lib/statusConfig';
+import { useToast } from '@/hooks/use-toast';
+
+const FINANCE_INFO_REQUEST_TEMPLATE = `*Lumina Auto | Finance Application Request*
+
+Hi, to assist you with your finance application manually, please reply with the following details:
+
+Personal Details:
+1. Full Names:
+2. Surname:
+3. ID Number:
+4. Email Address:
+5. Cell Number:
+6. Marital Status:
+7. Physical Address (with Code):
+
+Employment:
+8. Current Employer:
+9. Job Title:
+10. Start Date (Year/Month):
+11. Employment Status (Permanent/Contract/Self):
+
+Financials:
+12. Gross Salary (Basic): R
+13. Net Salary (In Bank): R
+14. Total Living Expenses (Est): R
+15. Bank Name:
+
+Next of Kin (Relative not living with you):
+16. Name & Relation:
+17. Contact Number:
+
+Please also send clear photos/PDFs of:
+• ID Card
+• Driver's License
+• Latest 3 Months Payslips
+• Latest 3 Months Bank Statements
+• Proof of Residence`;
 
 const AdminFinance = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'active' | 'archived'>('active');
@@ -23,6 +61,22 @@ const AdminFinance = () => {
   const { data: applications = [], isLoading } = useFinanceApplications();
   const updateApplication = useUpdateFinanceApplication();
   const deleteApplication = useDeleteFinanceApplication();
+
+  const copyInfoRequestTemplate = async () => {
+    try {
+      await navigator.clipboard.writeText(FINANCE_INFO_REQUEST_TEMPLATE);
+      toast({
+        title: "Template copied to clipboard",
+        description: "Paste it in WhatsApp to request finance info from clients.",
+      });
+    } catch (err) {
+      toast({
+        title: "Failed to copy",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const filteredApplications = applications.filter(app => {
     const searchLower = searchQuery.toLowerCase();
@@ -81,10 +135,16 @@ const AdminFinance = () => {
             <h1 className="text-3xl font-semibold mb-2">Finance Applications</h1>
             <p className="text-muted-foreground">Manage and process finance applications</p>
           </div>
-          <Button onClick={() => navigate('/admin/finance/create')} className="w-fit">
-            <UserPlus className="w-4 h-4 mr-2" />
-            Create Application
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={copyInfoRequestTemplate} className="w-fit">
+              <Copy className="w-4 h-4 mr-2" />
+              Copy Info Request
+            </Button>
+            <Button onClick={() => navigate('/admin/finance/create')} className="w-fit">
+              <UserPlus className="w-4 h-4 mr-2" />
+              Create Application
+            </Button>
+          </div>
         </motion.div>
 
         {/* View Mode Tabs */}
