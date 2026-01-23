@@ -12,6 +12,7 @@ import AdminLayout from '@/components/admin/AdminLayout';
 import FinancePodiumModal from '@/components/admin/FinancePodiumModal';
 import FinalizeDealModal from '@/components/admin/FinalizeDealModal';
 import OTPModal from '@/components/admin/OTPModal';
+import ClientDocumentViewer from '@/components/admin/ClientDocumentViewer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -1000,6 +1001,12 @@ const AdminDealRoom = () => {
                 </div>
               )}
             </div>
+
+            {/* Client Documents */}
+            <ClientDocumentViewer 
+              accessToken={(application as any).access_token}
+              clientName={application.first_name || application.full_name}
+            />
 
             {/* Quick Contact */}
             <div className="glass-card rounded-xl p-6">
