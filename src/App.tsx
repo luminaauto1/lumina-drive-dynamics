@@ -31,6 +31,7 @@ import AdminSettings from "./pages/admin/AdminSettings";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminAftersales from "./pages/admin/AdminAftersales";
 import AdminCreateApplication from "./pages/admin/AdminCreateApplication";
+import AdminQuoteGenerator from "./pages/admin/AdminQuoteGenerator";
 import UpdatePassword from "./pages/UpdatePassword";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
@@ -78,6 +79,7 @@ const AppLayout = () => {
           <Route path="/admin/finance" element={<ProtectedRoute requireAdmin><AdminFinance /></ProtectedRoute>} />
           <Route path="/admin/finance/create" element={<ProtectedRoute requireAdmin><AdminCreateApplication /></ProtectedRoute>} />
           <Route path="/admin/finance/:id" element={<ProtectedRoute requireAdmin><AdminDealRoom /></ProtectedRoute>} />
+          <Route path="/admin/quotes" element={<ProtectedRoute requireAdmin><AdminQuoteGenerator /></ProtectedRoute>} />
           <Route path="/admin/aftersales" element={<ProtectedRoute requireAdmin><AdminAftersales /></ProtectedRoute>} />
           <Route path="/admin/analytics" element={<ProtectedRoute requireAdmin><AdminAnalytics /></ProtectedRoute>} />
           <Route path="/admin/settings" element={<ProtectedRoute requireAdmin><AdminSettings /></ProtectedRoute>} />
