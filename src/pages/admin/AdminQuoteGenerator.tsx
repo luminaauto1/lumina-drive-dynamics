@@ -50,37 +50,66 @@ const AdminQuoteGenerator = () => {
   const [vehiclePrice, setVehiclePrice] = useState(250000);
   const [interestRate, setInterestRate] = useState(12);
   const [term, setTerm] = useState(72);
-  const [deposit, setDeposit] = useState(0);
+  
+  // Deposit state (amount + percent synced)
+  const [depositAmount, setDepositAmount] = useState(0);
+  const [depositPercent, setDepositPercent] = useState(0);
+  
+  // Balloon state (amount + percent synced)
   const [balloonPercent, setBalloonPercent] = useState(0);
   const [balloonAmount, setBalloonAmount] = useState(0);
+  
   const [installment, setInstallment] = useState(0);
   
   // Quote Cart State
   const [quoteOptions, setQuoteOptions] = useState<QuoteOption[]>([]);
   const [copied, setCopied] = useState(false);
 
-  // Sync balloon amount when percent changes
-  useEffect(() => {
-    const amount = Math.round(vehiclePrice * (balloonPercent / 100));
+  // Sync deposit amount when percent slider changes
+  const handleDepositPercentChange = (percent: number) => {
+    setDepositPercent(percent);
+    const amount = Math.round(vehiclePrice * (percent / 100));
+    setDepositAmount(amount);
+  };
+
+  // Sync deposit percent when amount input changes
+  const handleDepositAmountChange = (amount: number) => {
+    setDepositAmount(amount);
+    if (vehiclePrice > 0) {
+      const percent = Math.round((amount / vehiclePrice) * 100);
+      setDepositPercent(Math.min(50, Math.max(0, percent)));
+    }
+  };
+
+  // Sync balloon amount when percent slider changes
+  const handleBalloonPercentChange = (percent: number) => {
+    setBalloonPercent(percent);
+    const amount = Math.round(vehiclePrice * (percent / 100));
     setBalloonAmount(amount);
-  }, [balloonPercent, vehiclePrice]);
+  };
 
-  // Calculate installment when inputs change
-  useEffect(() => {
-    const principal = vehiclePrice - deposit;
-    const balloon = vehiclePrice * (balloonPercent / 100);
-    const pmt = calculatePMT(principal, interestRate, term, balloon);
-    setInstallment(pmt);
-  }, [vehiclePrice, interestRate, term, deposit, balloonPercent]);
-
-  // Handle balloon amount input (reverse sync to percent)
+  // Sync balloon percent when amount input changes
   const handleBalloonAmountChange = (amount: number) => {
     setBalloonAmount(amount);
     if (vehiclePrice > 0) {
       const percent = Math.round((amount / vehiclePrice) * 100);
-      setBalloonPercent(Math.min(50, Math.max(0, percent)));
+      setBalloonPercent(Math.min(75, Math.max(0, percent)));
     }
   };
+
+  // Recalculate deposit/balloon amounts when vehicle price changes
+  useEffect(() => {
+    setDepositAmount(Math.round(vehiclePrice * (depositPercent / 100)));
+    setBalloonAmount(Math.round(vehiclePrice * (balloonPercent / 100)));
+  }, [vehiclePrice]);
+
+  // Calculate installment when inputs change
+  useEffect(() => {
+    const principal = vehiclePrice - depositAmount;
+    const balloon = vehiclePrice * (balloonPercent / 100);
+    const pmt = calculatePMT(principal, interestRate, term, balloon);
+    setInstallment(pmt);
+  }, [vehiclePrice, interestRate, term, depositAmount, balloonPercent]);
 
   // Add option to cart
   const handleAddOption = () => {
@@ -95,7 +124,7 @@ const AdminQuoteGenerator = () => {
       price: vehiclePrice,
       rate: interestRate,
       term: term,
-      deposit: deposit,
+      deposit: depositAmount,
       balloon: balloonPercent,
       installment: installment,
     };
@@ -206,66 +235,128 @@ const AdminQuoteGenerator = () => {
                   <p className="text-xs text-muted-foreground">This value is NOT shown in the WhatsApp message</p>
                 </div>
 
-                {/* Interest Rate */}
-                <div className="space-y-2">
-                  <Label>Interest Rate: {interestRate}%</Label>
+                {/* Interest Rate - Smart Input */}
+                <div className="space-y-3 p-4 rounded-lg border border-border bg-muted/30">
+                  <Label className="font-semibold">Interest Rate</Label>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      type="number"
+                      value={interestRate}
+                      onChange={(e) => {
+                        const val = Math.min(25, Math.max(7, Number(e.target.value)));
+                        setInterestRate(val);
+                      }}
+                      className="font-mono w-24"
+                      step={0.25}
+                      min={7}
+                      max={25}
+                    />
+                    <span className="text-muted-foreground">%</span>
+                  </div>
                   <Slider
                     value={[interestRate]}
                     onValueChange={(v) => setInterestRate(v[0])}
                     min={7}
-                    max={18}
+                    max={25}
                     step={0.25}
                   />
-                </div>
-
-                {/* Term */}
-                <div className="space-y-2">
-                  <Label>Term (Months)</Label>
-                  <Select value={term.toString()} onValueChange={(v) => setTerm(Number(v))}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[48, 54, 60, 66, 72, 84, 96].map((t) => (
-                        <SelectItem key={t} value={t.toString()}>
-                          {t} Months
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Deposit */}
-                <div className="space-y-2">
-                  <Label>Deposit (R)</Label>
-                  <Input
-                    type="number"
-                    value={deposit}
-                    onChange={(e) => setDeposit(Number(e.target.value))}
-                    className="font-mono"
-                  />
-                </div>
-
-                {/* Balloon */}
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Balloon: {balloonPercent}%</Label>
-                    <Slider
-                      value={[balloonPercent]}
-                      onValueChange={(v) => setBalloonPercent(v[0])}
-                      min={0}
-                      max={50}
-                      step={5}
-                    />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>7%</span>
+                    <span>25%</span>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Balloon Amount (R)</Label>
+                </div>
+
+                {/* Term - Smart Input */}
+                <div className="space-y-3 p-4 rounded-lg border border-border bg-muted/30">
+                  <Label className="font-semibold">Term (Months)</Label>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      type="number"
+                      value={term}
+                      onChange={(e) => {
+                        const val = Math.min(96, Math.max(12, Math.round(Number(e.target.value) / 12) * 12));
+                        setTerm(val);
+                      }}
+                      className="font-mono w-24"
+                      step={12}
+                      min={12}
+                      max={96}
+                    />
+                    <span className="text-muted-foreground">months</span>
+                  </div>
+                  <Slider
+                    value={[term]}
+                    onValueChange={(v) => setTerm(v[0])}
+                    min={12}
+                    max={96}
+                    step={12}
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>12</span>
+                    <span>24</span>
+                    <span>36</span>
+                    <span>48</span>
+                    <span>60</span>
+                    <span>72</span>
+                    <span>84</span>
+                    <span>96</span>
+                  </div>
+                </div>
+
+                {/* Deposit - Smart Input */}
+                <div className="space-y-3 p-4 rounded-lg border border-border bg-muted/30">
+                  <Label className="font-semibold">Deposit</Label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground font-medium">R</span>
+                    <Input
+                      type="number"
+                      value={depositAmount}
+                      onChange={(e) => handleDepositAmountChange(Number(e.target.value))}
+                      className="font-mono flex-1"
+                      placeholder="0"
+                    />
+                    <span className="text-sm text-muted-foreground w-12 text-right">{depositPercent}%</span>
+                  </div>
+                  <Slider
+                    value={[depositPercent]}
+                    onValueChange={(v) => handleDepositPercentChange(v[0])}
+                    min={0}
+                    max={50}
+                    step={5}
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>0%</span>
+                    <span>25%</span>
+                    <span>50%</span>
+                  </div>
+                </div>
+
+                {/* Balloon - Smart Input */}
+                <div className="space-y-3 p-4 rounded-lg border border-border bg-muted/30">
+                  <Label className="font-semibold">Balloon Payment</Label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground font-medium">R</span>
                     <Input
                       type="number"
                       value={balloonAmount}
                       onChange={(e) => handleBalloonAmountChange(Number(e.target.value))}
-                      className="font-mono"
+                      className="font-mono flex-1"
+                      placeholder="0"
                     />
+                    <span className="text-sm text-muted-foreground w-12 text-right">{balloonPercent}%</span>
+                  </div>
+                  <Slider
+                    value={[balloonPercent]}
+                    onValueChange={(v) => handleBalloonPercentChange(v[0])}
+                    min={0}
+                    max={75}
+                    step={5}
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>0%</span>
+                    <span>25%</span>
+                    <span>50%</span>
+                    <span>75%</span>
                   </div>
                 </div>
 
