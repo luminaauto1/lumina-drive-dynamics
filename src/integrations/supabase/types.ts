@@ -196,8 +196,11 @@ export type Database = {
           delivery_address: string | null
           delivery_date: string | null
           id: string
+          is_shared_capital: boolean | null
           next_service_date: string | null
           next_service_km: number | null
+          partner_profit_amount: number | null
+          partner_split_percent: number | null
           sales_rep_commission: number | null
           sales_rep_name: string | null
           sold_mileage: number | null
@@ -211,8 +214,11 @@ export type Database = {
           delivery_address?: string | null
           delivery_date?: string | null
           id?: string
+          is_shared_capital?: boolean | null
           next_service_date?: string | null
           next_service_km?: number | null
+          partner_profit_amount?: number | null
+          partner_split_percent?: number | null
           sales_rep_commission?: number | null
           sales_rep_name?: string | null
           sold_mileage?: number | null
@@ -226,8 +232,11 @@ export type Database = {
           delivery_address?: string | null
           delivery_date?: string | null
           id?: string
+          is_shared_capital?: boolean | null
           next_service_date?: string | null
           next_service_km?: number | null
+          partner_profit_amount?: number | null
+          partner_split_percent?: number | null
           sales_rep_commission?: number | null
           sales_rep_name?: string | null
           sold_mileage?: number | null

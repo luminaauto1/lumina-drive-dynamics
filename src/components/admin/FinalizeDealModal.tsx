@@ -56,6 +56,10 @@ const FinalizeDealModal = ({
   // Cost price for profit calculation
   const [costPrice, setCostPrice] = useState(0);
   
+  // Shared Capital (Joint Venture)
+  const [isSharedCapital, setIsSharedCapital] = useState(false);
+  const [partnerSplitPercent, setPartnerSplitPercent] = useState(50);
+  
   // Sales Rep
   const [selectedRepName, setSelectedRepName] = useState('');
   const [repCommission, setRepCommission] = useState(0);
@@ -111,10 +115,18 @@ const FinalizeDealModal = ({
   };
 
   const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
-  // Commission is calculated on GROSS PROFIT (Sold Price - Cost Price - Expenses)
-  const grossProfit = soldPrice - costPrice - totalExpenses;
-  const commissionAmount = grossProfit * (repCommission / 100);
-  const calculatedProfit = grossProfit - commissionAmount;
+  
+  // SHARED CAPITAL LOGIC:
+  // Base Profit = Sold Price - Cost Price - Expenses (Do NOT subtract commission yet)
+  // Partner Payout = Base Profit * (Partner % / 100)
+  // Lumina Retained = Base Profit - Partner Payout
+  // Commission = Lumina Retained * (Commission % / 100)
+  // Final Recorded Profit = Lumina Retained - Commission
+  const baseProfit = soldPrice - costPrice - totalExpenses;
+  const partnerPayout = isSharedCapital ? baseProfit * (partnerSplitPercent / 100) : 0;
+  const luminaRetained = baseProfit - partnerPayout;
+  const commissionAmount = luminaRetained * (repCommission / 100);
+  const calculatedProfit = luminaRetained - commissionAmount;
 
   const handleSubmit = async () => {
     if (!selectedRepName || !deliveryAddress || !deliveryDate) {
@@ -137,6 +149,10 @@ const FinalizeDealModal = ({
         costPrice, // Include cost price
         calculatedProfit, // Include calculated profit
         isSourcingVehicle: vehicleStatus === 'sourcing', // Flag for evergreen logic
+        // Shared Capital fields
+        isSharedCapital,
+        partnerSplitPercent: isSharedCapital ? partnerSplitPercent : 0,
+        partnerProfitAmount: partnerPayout,
       });
       
       onSuccess();
@@ -211,13 +227,56 @@ const FinalizeDealModal = ({
             </div>
            {repCommission > 0 && (
               <div className="text-sm text-muted-foreground space-y-1">
-                <p>Gross Profit: <span className="font-semibold">{formatPrice(grossProfit)}</span></p>
-                <p>Commission ({repCommission}% of profit): <span className="font-semibold text-primary">{formatPrice(commissionAmount)}</span></p>
+                <p>Base Profit: <span className="font-semibold">{formatPrice(baseProfit)}</span></p>
+                {isSharedCapital && (
+                  <>
+                    <p>Partner Payout ({partnerSplitPercent}%): <span className="font-semibold text-orange-400">-{formatPrice(partnerPayout)}</span></p>
+                    <p>Lumina Retained: <span className="font-semibold">{formatPrice(luminaRetained)}</span></p>
+                  </>
+                )}
+                <p>Commission ({repCommission}% of {isSharedCapital ? 'retained' : 'profit'}): <span className="font-semibold text-primary">{formatPrice(commissionAmount)}</span></p>
               </div>
             )}
           </div>
 
           <Separator />
+
+          {/* Shared Capital / Joint Venture Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+              <input
+                type="checkbox"
+                id="sharedCapital"
+                checked={isSharedCapital}
+                onChange={(e) => setIsSharedCapital(e.target.checked)}
+                className="w-4 h-4 rounded border-orange-500 text-orange-500 focus:ring-orange-500"
+              />
+              <Label htmlFor="sharedCapital" className="text-sm font-medium cursor-pointer">
+                Joint Venture / Shared Capital?
+              </Label>
+            </div>
+            
+            {isSharedCapital && (
+              <div className="grid grid-cols-2 gap-4 p-3 bg-orange-500/5 rounded-lg">
+                <div className="space-y-2">
+                  <Label>Partner Share (%)</Label>
+                  <Input
+                    type="number"
+                    value={partnerSplitPercent}
+                    onChange={(e) => setPartnerSplitPercent(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                    min={0}
+                    max={100}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Partner Payout</Label>
+                  <div className="p-2 rounded-lg border bg-orange-500/10 border-orange-500/30">
+                    <span className="text-lg font-bold text-orange-400">{formatPrice(partnerPayout)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Cost Price Section */}
           <div className="space-y-4">

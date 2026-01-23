@@ -32,6 +32,10 @@ interface DealRecord {
   delivery_date: string | null;
   aftersales_expenses: Array<{ type: string; amount: number }> | null;
   created_at: string;
+  // Shared Capital fields
+  is_shared_capital: boolean | null;
+  partner_split_percent: number | null;
+  partner_profit_amount: number | null;
   vehicle?: {
     make: string;
     model: string;
@@ -40,6 +44,7 @@ interface DealRecord {
     price: number;
     purchase_price?: number;
     reconditioning_cost?: number;
+    cost_price?: number;
   };
   application?: {
     first_name: string | null;
@@ -47,6 +52,8 @@ interface DealRecord {
     full_name: string;
     email: string;
     phone: string;
+    gross_salary?: number | null;
+    additional_income?: number | null;
   };
 }
 
@@ -79,13 +86,19 @@ const useDealRecords = () => {
         .from('deal_records')
         .select(`
           *,
-          vehicle:vehicles(make, model, variant, year, price, purchase_price, reconditioning_cost),
-          application:finance_applications(first_name, last_name, full_name, email, phone)
+          vehicle:vehicles(make, model, variant, year, price, purchase_price, reconditioning_cost, cost_price),
+          application:finance_applications(first_name, last_name, full_name, email, phone, gross_salary, additional_income)
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as DealRecord[];
+      // Parse aftersales_expenses from JSON
+      return (data || []).map(record => ({
+        ...record,
+        aftersales_expenses: Array.isArray(record.aftersales_expenses) 
+          ? record.aftersales_expenses as Array<{ type: string; amount: number }>
+          : [],
+      })) as DealRecord[];
     },
   });
 };
@@ -297,9 +310,18 @@ const AddExpenseDialog = ({ deal, onClose }: { deal: DealRecord; onClose: () => 
   };
 
   const currentExpensesTotal = (deal.aftersales_expenses || []).reduce((sum, exp) => sum + (exp.amount || 0), 0);
-  const purchasePrice = (deal.vehicle as any)?.purchase_price || 0;
-  const reconditioningCost = (deal.vehicle as any)?.reconditioning_cost || 0;
-  const currentProfit = (deal.sold_price || 0) - purchasePrice - reconditioningCost - currentExpensesTotal - (deal.sales_rep_commission || 0);
+  const costPrice = deal.vehicle?.cost_price || deal.vehicle?.purchase_price || 0;
+  
+  // Shared Capital calculation
+  let currentProfit: number;
+  if (deal.is_shared_capital && deal.partner_split_percent) {
+    const baseProfit = (deal.sold_price || 0) - costPrice - currentExpensesTotal;
+    const partnerPayout = baseProfit * (deal.partner_split_percent / 100);
+    const luminaRetained = baseProfit - partnerPayout;
+    currentProfit = luminaRetained - (deal.sales_rep_commission || 0);
+  } else {
+    currentProfit = (deal.sold_price || 0) - costPrice - currentExpensesTotal - (deal.sales_rep_commission || 0);
+  }
 
   return (
     <DialogContent>
@@ -373,14 +395,22 @@ const AdminAftersales = () => {
 
   const isLoading = aftersalesLoading || dealsLoading;
 
-  // Calculate analytics from deal records (includes all expenses)
+  // Calculate analytics from deal records (includes all expenses + shared capital logic)
   const totalProfit = dealRecords.reduce((sum, deal) => {
     const soldPrice = deal.sold_price || 0;
-    const purchasePrice = (deal.vehicle as any)?.purchase_price || 0;
-    const reconditioningCost = (deal.vehicle as any)?.reconditioning_cost || 0;
+    const costPrice = deal.vehicle?.cost_price || deal.vehicle?.purchase_price || 0;
     const expensesTotal = (deal.aftersales_expenses || []).reduce((e, exp) => e + (exp.amount || 0), 0);
     const commission = deal.sales_rep_commission || 0;
-    return sum + (soldPrice - purchasePrice - reconditioningCost - expensesTotal - commission);
+    
+    // Shared Capital calculation
+    if (deal.is_shared_capital && deal.partner_split_percent) {
+      const baseProfit = soldPrice - costPrice - expensesTotal;
+      const partnerPayout = baseProfit * (deal.partner_split_percent / 100);
+      const luminaRetained = baseProfit - partnerPayout;
+      return sum + (luminaRetained - commission);
+    }
+    
+    return sum + (soldPrice - costPrice - expensesTotal - commission);
   }, 0);
 
   const totalCommission = dealRecords.reduce((sum, deal) => {

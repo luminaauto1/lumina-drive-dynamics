@@ -23,6 +23,10 @@ export interface DealRecordInsert {
   costPrice?: number;
   calculatedProfit?: number;
   isSourcingVehicle?: boolean;
+  // Shared Capital fields
+  isSharedCapital?: boolean;
+  partnerSplitPercent?: number;
+  partnerProfitAmount?: number;
 }
 
 export const useCreateDealRecord = () => {
@@ -45,6 +49,10 @@ export const useCreateDealRecord = () => {
           delivery_address: record.deliveryAddress,
           delivery_date: record.deliveryDate,
           aftersales_expenses: record.aftersalesExpenses as any,
+          // Shared Capital fields
+          is_shared_capital: record.isSharedCapital || false,
+          partner_split_percent: record.partnerSplitPercent || 0,
+          partner_profit_amount: record.partnerProfitAmount || 0,
         })
         .select()
         .single();
