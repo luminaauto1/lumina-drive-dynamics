@@ -27,6 +27,15 @@ export interface DealRecordInsert {
   isSharedCapital?: boolean;
   partnerSplitPercent?: number;
   partnerProfitAmount?: number;
+  // NEW F&I fields
+  discountAmount?: number;
+  dealerDepositContribution?: number;
+  externalAdminFee?: number;
+  bankInitiationFee?: number;
+  totalFinancedAmount?: number;
+  clientDeposit?: number;
+  grossProfit?: number;
+  reconCost?: number;
 }
 
 export const useCreateDealRecord = () => {
@@ -49,10 +58,21 @@ export const useCreateDealRecord = () => {
           delivery_address: record.deliveryAddress,
           delivery_date: record.deliveryDate,
           aftersales_expenses: record.aftersalesExpenses as any,
+          // Cost and profit
+          cost_price: record.costPrice || 0,
+          gross_profit: record.grossProfit || 0,
+          recon_cost: record.reconCost || 0,
           // Shared Capital fields
           is_shared_capital: record.isSharedCapital || false,
           partner_split_percent: record.partnerSplitPercent || 0,
           partner_profit_amount: record.partnerProfitAmount || 0,
+          // NEW F&I fields
+          discount_amount: record.discountAmount || 0,
+          dealer_deposit_contribution: record.dealerDepositContribution || 0,
+          external_admin_fee: record.externalAdminFee || 0,
+          bank_initiation_fee: record.bankInitiationFee || 0,
+          total_financed_amount: record.totalFinancedAmount || 0,
+          client_deposit: record.clientDeposit || 0,
         })
         .select()
         .single();

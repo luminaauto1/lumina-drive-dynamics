@@ -192,55 +192,82 @@ export type Database = {
         Row: {
           aftersales_expenses: Json | null
           application_id: string | null
+          bank_initiation_fee: number | null
+          client_deposit: number | null
+          cost_price: number | null
           created_at: string | null
+          dealer_deposit_contribution: number | null
           delivery_address: string | null
           delivery_date: string | null
+          discount_amount: number | null
+          external_admin_fee: number | null
+          gross_profit: number | null
           id: string
           is_shared_capital: boolean | null
           next_service_date: string | null
           next_service_km: number | null
           partner_profit_amount: number | null
           partner_split_percent: number | null
+          recon_cost: number | null
           sales_rep_commission: number | null
           sales_rep_name: string | null
           sold_mileage: number | null
           sold_price: number | null
+          total_financed_amount: number | null
           vehicle_id: string | null
         }
         Insert: {
           aftersales_expenses?: Json | null
           application_id?: string | null
+          bank_initiation_fee?: number | null
+          client_deposit?: number | null
+          cost_price?: number | null
           created_at?: string | null
+          dealer_deposit_contribution?: number | null
           delivery_address?: string | null
           delivery_date?: string | null
+          discount_amount?: number | null
+          external_admin_fee?: number | null
+          gross_profit?: number | null
           id?: string
           is_shared_capital?: boolean | null
           next_service_date?: string | null
           next_service_km?: number | null
           partner_profit_amount?: number | null
           partner_split_percent?: number | null
+          recon_cost?: number | null
           sales_rep_commission?: number | null
           sales_rep_name?: string | null
           sold_mileage?: number | null
           sold_price?: number | null
+          total_financed_amount?: number | null
           vehicle_id?: string | null
         }
         Update: {
           aftersales_expenses?: Json | null
           application_id?: string | null
+          bank_initiation_fee?: number | null
+          client_deposit?: number | null
+          cost_price?: number | null
           created_at?: string | null
+          dealer_deposit_contribution?: number | null
           delivery_address?: string | null
           delivery_date?: string | null
+          discount_amount?: number | null
+          external_admin_fee?: number | null
+          gross_profit?: number | null
           id?: string
           is_shared_capital?: boolean | null
           next_service_date?: string | null
           next_service_km?: number | null
           partner_profit_amount?: number | null
           partner_split_percent?: number | null
+          recon_cost?: number | null
           sales_rep_commission?: number | null
           sales_rep_name?: string | null
           sold_mileage?: number | null
           sold_price?: number | null
+          total_financed_amount?: number | null
           vehicle_id?: string | null
         }
         Relationships: [
