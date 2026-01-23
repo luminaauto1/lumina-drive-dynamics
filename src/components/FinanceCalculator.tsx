@@ -152,24 +152,11 @@ const FinanceCalculator = ({ vehiclePrice, vehicleYear, vehicleBodyType }: Finan
       {/* Finance options - only show for finance buyers */}
       {!isCashBuyer && (
         <>
-          {/* Deposit Slider with Manual Input */}
+          {/* Deposit Slider with Absolute ZAR Input */}
           <div className="space-y-3">
             <div className="flex justify-between items-center text-sm">
               <span className="text-muted-foreground">Deposit</span>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  value={deposit}
-                  onChange={(e) => {
-                    const val = Math.min(50, Math.max(0, Number(e.target.value) || 0));
-                    setDeposit(val);
-                  }}
-                  className="w-16 h-7 text-center text-sm px-2"
-                  min={0}
-                  max={50}
-                />
-                <span className="font-medium text-muted-foreground">% ({formatPrice(depositAmount)})</span>
-              </div>
+              <span className="font-medium">{deposit}%</span>
             </div>
             <Slider
               value={[deposit]}
@@ -182,6 +169,21 @@ const FinanceCalculator = ({ vehiclePrice, vehicleYear, vehicleBodyType }: Finan
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>0%</span>
               <span>50%</span>
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-sm text-muted-foreground">R</span>
+              <Input
+                type="number"
+                value={Math.round(depositAmount) || ''}
+                onChange={(e) => {
+                  const absValue = Math.max(0, Number(e.target.value) || 0);
+                  // Convert absolute ZAR to percentage
+                  const percentValue = vehiclePrice > 0 ? Math.min(50, Math.round((absValue / vehiclePrice) * 100)) : 0;
+                  setDeposit(percentValue);
+                }}
+                className="flex-1 h-8 text-sm"
+                placeholder="Enter deposit amount"
+              />
             </div>
           </div>
 

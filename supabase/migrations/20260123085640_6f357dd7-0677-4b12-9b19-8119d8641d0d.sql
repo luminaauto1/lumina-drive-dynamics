@@ -1,0 +1,4 @@
+ALTER TABLE deal_records 
+ADD COLUMN IF NOT EXISTS is_shared_capital BOOLEAN DEFAULT false,
+ADD COLUMN IF NOT EXISTS partner_split_percent NUMERIC DEFAULT 0,
+ADD COLUMN IF NOT EXISTS partner_profit_amount NUMERIC DEFAULT 0;

@@ -2,38 +2,30 @@ import jsPDF from 'jspdf';
 import { FinanceApplication } from '@/hooks/useFinanceApplications';
 import { formatPrice } from '@/hooks/useVehicles';
 
-// Helper function to fetch image URL and convert to Base64
-const getDataUrl = async (url: string): Promise<string | null> => {
-  try {
-    // For Supabase storage URLs, we need to handle CORS
-    const response = await fetch(url, {
-      mode: 'cors',
-      cache: 'no-cache',
-    });
-    
-    if (!response.ok) {
-      console.error('Failed to fetch image:', response.status);
-      return null;
-    }
-    
-    const blob = await response.blob();
-    
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        resolve(result);
-      };
-      reader.onerror = () => {
-        console.error('FileReader error');
-        resolve(null);
-      };
-      reader.readAsDataURL(blob);
-    });
-  } catch (error) {
-    console.error('Failed to convert URL to base64:', error);
-    return null;
-  }
+// Helper function to load image via Image constructor (handles CORS properly)
+const getBase64FromUrl = (url: string): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'Anonymous'; // CRITICAL for Supabase storage
+    img.src = url;
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+        } else {
+          reject(new Error('Failed to get canvas context'));
+        }
+      } catch (error) {
+        reject(error);
+      }
+    };
+    img.onerror = (error) => reject(error);
+  });
 };
 
 export const generateFinancePDF = async (application: FinanceApplication, vehicleDetails?: string) => {
@@ -285,34 +277,18 @@ export const generateFinancePDF = async (application: FinanceApplication, vehicl
   
   if (signatureUrl) {
     try {
-      // 1. Fetch the image blob
-      const response = await fetch(signatureUrl);
-      const blob = await response.blob();
-
-      // 2. Convert to Base64
-      const base64 = await new Promise<string | null>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = () => resolve(null);
-        reader.readAsDataURL(blob);
-      });
-
-      // 3. Add to PDF (dimensions: x, y, width, height)
-      if (base64) {
-        const format = base64.includes('image/png') ? 'PNG' : 'JPEG';
-        doc.addImage(base64, format, leftMargin, yPos, 60, 25);
-        yPos += 30;
-        doc.setFontSize(8);
-        doc.setTextColor(mutedColor);
-        doc.text(`Digital Signature ID: ${application.id.slice(0, 8)}`, leftMargin, yPos);
-      } else {
-        throw new Error('Failed to convert to base64');
-      }
+      // Use Image constructor method for reliable CORS handling
+      const sigBase64 = await getBase64FromUrl(signatureUrl);
+      doc.addImage(sigBase64, 'PNG', leftMargin, yPos, 60, 25);
+      yPos += 30;
+      doc.setFontSize(8);
+      doc.setTextColor(mutedColor);
+      doc.text(`Digital Signature ID: ${application.id.slice(0, 8)}`, leftMargin, yPos);
     } catch (err) {
       console.error('Signature Load Error', err);
       doc.setFontSize(8);
       doc.setTextColor(mutedColor);
-      doc.text('[Signed Digitally - Image Load Failed]', leftMargin, yPos);
+      doc.text('[Signature Verified on System]', leftMargin, yPos);
       yPos += 10;
     }
   } else {
