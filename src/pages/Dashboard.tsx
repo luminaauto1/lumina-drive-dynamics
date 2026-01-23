@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Heart, FileText, User, LogOut, Car, AlertTriangle, Sparkles, HelpCircle, ChevronDown, Edit3, Trash2, Upload } from 'lucide-react';
+import { Heart, FileText, User, LogOut, Car, AlertTriangle, Sparkles, HelpCircle, ChevronDown, Edit3, Trash2, Upload, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,15 +35,13 @@ const Dashboard = () => {
   const { data: vehicles = [], isLoading: vehiclesLoading } = useVehicles();
   const { data: matchedVehicles = [], isLoading: matchesLoading, refetch: refetchMatches } = useUserApplicationMatches(user?.id || '');
 
-  // Check if user has an approved application (includes new flow statuses)
-  const approvedApplication = applications.find(app => 
-    ['approved', 'pre_approved', 'documents_received', 'validations_pending', 'validations_complete', 'contract_sent', 'contract_signed'].includes(app.status)
-  );
-  const hasApprovedApplication = !!approvedApplication;
-  
   // Check if user needs to upload documents (pre_approved status)
   const preApprovedApplication = applications.find(app => app.status === 'pre_approved');
   const needsDocumentUpload = !!preApprovedApplication;
+  
+  // Check if user has budget confirmed (approved status) - can select vehicle
+  const approvedApplication = applications.find(app => app.status === 'approved');
+  const canSelectVehicle = !!approvedApplication;
   
   // Check if user has already selected a vehicle
   const vehicleSelectedApplication = applications.find(app => app.status === 'vehicle_selected');
@@ -241,6 +239,148 @@ const Dashboard = () => {
             </Button>
           </div>
 
+          {/* Pre-Approved: Upload Documents Section */}
+          {needsDocumentUpload && preApprovedApplication && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-12"
+            >
+              <div className="glass-card rounded-xl p-6 border-2 border-yellow-500/40 bg-gradient-to-br from-yellow-500/10 to-yellow-600/5">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center shadow-lg shadow-yellow-500/20 animate-pulse">
+                    <Upload className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <span className="inline-block px-3 py-1 mb-1 text-xs font-bold uppercase tracking-wider bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded-full">
+                      Bank Requires Documents
+                    </span>
+                    <h2 className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-yellow-200 bg-clip-text text-transparent">
+                      You're Pre-Approved!
+                    </h2>
+                  </div>
+                </div>
+
+                <p className="text-muted-foreground mb-6">
+                  Congratulations! To proceed with your finance application, please upload the required documents.
+                </p>
+
+                <div className="bg-background/50 rounded-lg p-4 mb-6">
+                  <h4 className="font-semibold mb-3">Required Documents:</h4>
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    <li className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-yellow-400"></span>
+                      ID Card / Passport
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-yellow-400"></span>
+                      Driver's License
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-yellow-400"></span>
+                      Latest 3 Months Payslips
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-yellow-400"></span>
+                      Latest 3 Months Bank Statements
+                    </li>
+                  </ul>
+                </div>
+
+                <Link to={`/upload-documents/${preApprovedApplication.access_token}`}>
+                  <Button size="lg" className="w-full bg-yellow-600 hover:bg-yellow-700 text-white">
+                    <Upload className="w-5 h-5 mr-2" />
+                    Upload Documents Now
+                  </Button>
+                </Link>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Approved: Select Your Vehicle Section */}
+          {canSelectVehicle && !hasSelectedVehicle && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-12"
+            >
+              <div className="glass-card rounded-xl p-6 border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 to-emerald-600/5">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                    <ShoppingCart className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <span className="inline-block px-3 py-1 mb-1 text-xs font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full">
+                      Budget Confirmed
+                    </span>
+                    <h2 className="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-emerald-200 bg-clip-text text-transparent">
+                      Select Your Vehicle
+                    </h2>
+                  </div>
+                </div>
+
+                <p className="text-muted-foreground mb-6">
+                  Your finance has been approved! Browse our inventory and select the car you want. Click "I want this car" on any vehicle to reserve it.
+                </p>
+
+                {approvedApplication?.approved_budget && (
+                  <div className="bg-background/50 rounded-lg p-4 mb-6">
+                    <p className="text-sm text-muted-foreground">Your Approved Budget:</p>
+                    <p className="text-3xl font-bold text-emerald-400">
+                      R {approvedApplication.approved_budget.toLocaleString()}
+                    </p>
+                  </div>
+                )}
+
+                {/* Show curated vehicles if available */}
+                {curatedVehicles.length > 0 ? (
+                  <>
+                    <h3 className="text-lg font-semibold mb-4 text-amber-400 flex items-center gap-2">
+                      <Sparkles className="w-5 h-5" />
+                      Vehicles Selected For You
+                    </h3>
+                    {matchesLoading ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <SkeletonCard count={3} />
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                        {curatedVehicles.map((vehicle: any) => (
+                          <div key={vehicle.id} className="relative">
+                            <VehicleCard vehicle={vehicle} />
+                            <Button
+                              onClick={() => handleSelectVehicle(vehicle.id)}
+                              disabled={isSelectingVehicle}
+                              className="w-full mt-2 bg-emerald-600 hover:bg-emerald-700"
+                            >
+                              {isSelectingVehicle ? 'Selecting...' : 'I Want This Car'}
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="text-center">
+                      <p className="text-muted-foreground mb-3">Or browse all available vehicles:</p>
+                      <Link to="/inventory">
+                        <Button variant="outline" size="lg" className="border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10">
+                          <Car className="w-5 h-5 mr-2" />
+                          View Full Inventory
+                        </Button>
+                      </Link>
+                    </div>
+                  </>
+                ) : (
+                  <Link to="/inventory">
+                    <Button size="lg" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white">
+                      <Car className="w-5 h-5 mr-2" />
+                      Select Your Vehicle
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            </motion.div>
+          )}
+
           {/* Vehicle Reserved Section - Show when user has selected a vehicle */}
           {hasSelectedVehicle && selectedVehicle && (
             <motion.div
@@ -286,81 +426,6 @@ const Dashboard = () => {
                     Our team is preparing your contract and will contact you shortly via WhatsApp to finalize the deal.
                   </AlertDescription>
                 </Alert>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Curated Vehicles Section - Show when user has approved application but hasn't selected yet */}
-          {hasApprovedApplication && !hasSelectedVehicle && curatedVehicles.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-12"
-            >
-              <div className="glass-card rounded-xl p-6 border-2 border-amber-500/40 bg-gradient-to-br from-amber-500/10 to-amber-600/5">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
-                    <Sparkles className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <span className="inline-block px-3 py-1 mb-1 text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-full">
-                      Budget Confirmed - Select Your Vehicle
-                    </span>
-                    <h2 className="text-2xl font-bold bg-gradient-to-r from-amber-400 to-amber-200 bg-clip-text text-transparent">
-                      Exclusively Selected For You
-                    </h2>
-                  </div>
-                </div>
-
-                {matchesLoading ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <SkeletonCard count={3} />
-                  </div>
-                ) : (
-                  <>
-                    {/* Ready to Drive Section */}
-                    {curatedVehicles.filter((v: any) => !v.is_generic_listing).length > 0 && (
-                      <div className="mb-8">
-                        <h3 className="text-lg font-semibold mb-4 text-emerald-400">Ready to Drive</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                          {curatedVehicles.filter((v: any) => !v.is_generic_listing).map((vehicle: any) => (
-                            <div key={vehicle.id} className="relative">
-                              <VehicleCard vehicle={vehicle} />
-                              <Button
-                                onClick={() => handleSelectVehicle(vehicle.id)}
-                                disabled={isSelectingVehicle}
-                                className="w-full mt-2 bg-primary hover:bg-primary/90"
-                              >
-                                {isSelectingVehicle ? 'Selecting...' : 'Select This Car'}
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Sourcing Opportunities Section */}
-                    {curatedVehicles.filter((v: any) => v.is_generic_listing).length > 0 && (
-                      <div>
-                        <h3 className="text-lg font-semibold mb-4 text-amber-400">Sourcing Opportunities</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                          {curatedVehicles.filter((v: any) => v.is_generic_listing).map((vehicle: any) => (
-                            <div key={vehicle.id} className="relative">
-                              <VehicleCard vehicle={vehicle} />
-                              <Button
-                                onClick={() => handleSelectVehicle(vehicle.id)}
-                                disabled={isSelectingVehicle}
-                                className="w-full mt-2 bg-primary hover:bg-primary/90"
-                              >
-                                {isSelectingVehicle ? 'Selecting...' : 'Select This Car'}
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
               </div>
             </motion.div>
           )}
@@ -525,15 +590,14 @@ const Dashboard = () => {
                         </Link>
                       )}
                       
-                      {/* Show curated options message when approved */}
-                      {app.status === 'approved' && curatedVehicles.length > 0 && (
-                        <Alert className="mt-4 bg-primary/10 border-primary/30">
-                          <Sparkles className="h-4 w-4 text-primary" />
-                          <AlertTitle className="text-primary">Vehicle Options Ready</AlertTitle>
-                          <AlertDescription>
-                            We have selected {curatedVehicles.length} vehicle{curatedVehicles.length === 1 ? '' : 's'} that match your budget perfectly. View them above!
-                          </AlertDescription>
-                        </Alert>
+                      {/* Select Vehicle button for approved */}
+                      {app.status === 'approved' && (
+                        <Link to="/inventory">
+                          <Button className="w-full mt-4 bg-emerald-600 hover:bg-emerald-700">
+                            <Car className="w-4 h-4 mr-2" />
+                            Select Your Vehicle
+                          </Button>
+                        </Link>
                       )}
                       
                       {/* Show declined reason if application was declined */}
