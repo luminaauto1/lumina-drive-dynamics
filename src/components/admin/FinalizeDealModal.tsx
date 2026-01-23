@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { format } from 'date-fns';
-import { Plus, X, Calendar, MapPin, Car, DollarSign, User } from 'lucide-react';
+import { Plus, X, MapPin, Car, DollarSign, User, Receipt, Calculator, TrendingUp } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,6 +22,7 @@ interface VehicleInfo {
   stock_number?: string;
   cost_price?: number;
   purchase_price?: number;
+  reconditioning_cost?: number;
 }
 
 interface FinalizeDealModalProps {
@@ -53,8 +53,19 @@ const FinalizeDealModal = ({
   const { data: settings } = useSiteSettings();
   const createDealRecord = useCreateDealRecord();
   
-  // Cost price for profit calculation
+  // === SECTION 1: Pricing & Structure ===
+  const [sellingPrice, setSellingPrice] = useState(vehiclePrice);
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [externalAdminFee, setExternalAdminFee] = useState(7000);
+  const [bankInitiationFee, setBankInitiationFee] = useState(1207);
+  
+  // === SECTION 2: Deposits ===
+  const [clientDeposit, setClientDeposit] = useState(0);
+  const [dealerDepositContribution, setDealerDepositContribution] = useState(0);
+  
+  // === SECTION 3: Internal Costs ===
   const [costPrice, setCostPrice] = useState(0);
+  const [reconCost, setReconCost] = useState(0);
   
   // Shared Capital (Joint Venture)
   const [isSharedCapital, setIsSharedCapital] = useState(false);
@@ -70,12 +81,11 @@ const FinalizeDealModal = ({
   const [deliveryAddress, setDeliveryAddress] = useState('');
   
   // Vehicle Info
-  const [soldPrice, setSoldPrice] = useState(vehiclePrice);
   const [soldMileage, setSoldMileage] = useState(vehicleMileage);
   const [nextServiceDate, setNextServiceDate] = useState('');
   const [nextServiceKm, setNextServiceKm] = useState<number | ''>('');
   
-  // Expenses
+  // Aftersales Expenses
   const [expenses, setExpenses] = useState<AftersalesExpense[]>([]);
   
   // Get sales reps from settings
@@ -89,16 +99,51 @@ const FinalizeDealModal = ({
     }
   }, [selectedRepName, salesReps]);
 
-  // Auto-fill cost price from vehicle data
+  // Auto-fill from vehicle data
   useEffect(() => {
     if (vehicle) {
-      // Use cost_price first, fallback to purchase_price
       const vehicleCostPrice = vehicle.cost_price || vehicle.purchase_price || 0;
       if (vehicleCostPrice > 0 && costPrice === 0) {
         setCostPrice(vehicleCostPrice);
       }
+      if (vehicle.reconditioning_cost && vehicle.reconditioning_cost > 0 && reconCost === 0) {
+        setReconCost(vehicle.reconditioning_cost);
+      }
     }
   }, [vehicle]);
+
+  // === CALCULATIONS ===
+  // Adjusted Selling Price (after discount)
+  const adjustedSellingPrice = sellingPrice - discountAmount;
+  
+  // Gross Deal (what we invoice including fees)
+  const grossDeal = adjustedSellingPrice + externalAdminFee + bankInitiationFee;
+  
+  // Total Deposits
+  const totalDeposits = clientDeposit + dealerDepositContribution;
+  
+  // Total Finance Amount (what bank pays us)
+  const totalFinanceAmount = grossDeal - totalDeposits;
+  
+  // Total aftersales expenses
+  const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
+  
+  // PROFIT CALCULATION (Admin/Bank fees are pass-through, NOT included)
+  // Total Costs = Purchase Cost + Recon + Expenses + Dealer Deposit Contribution
+  const totalCosts = costPrice + reconCost + totalExpenses + dealerDepositContribution;
+  
+  // Gross Profit = Adjusted Selling Price - Total Costs
+  const grossProfit = adjustedSellingPrice - totalCosts;
+  
+  // Shared Capital Logic
+  const partnerPayout = isSharedCapital ? grossProfit * (partnerSplitPercent / 100) : 0;
+  const luminaRetained = grossProfit - partnerPayout;
+  
+  // Commission (calculated from Lumina's retained profit)
+  const commissionAmount = luminaRetained * (repCommission / 100);
+  
+  // Net Profit after commission
+  const netProfit = luminaRetained - commissionAmount;
 
   const addExpense = () => {
     setExpenses(prev => [...prev, { type: 'Gift', amount: 0, description: '' }]);
@@ -114,20 +159,6 @@ const FinalizeDealModal = ({
     ));
   };
 
-  const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
-  
-  // SHARED CAPITAL LOGIC:
-  // Base Profit = Sold Price - Cost Price - Expenses (Do NOT subtract commission yet)
-  // Partner Payout = Base Profit * (Partner % / 100)
-  // Lumina Retained = Base Profit - Partner Payout
-  // Commission = Lumina Retained * (Commission % / 100)
-  // Final Recorded Profit = Lumina Retained - Commission
-  const baseProfit = soldPrice - costPrice - totalExpenses;
-  const partnerPayout = isSharedCapital ? baseProfit * (partnerSplitPercent / 100) : 0;
-  const luminaRetained = baseProfit - partnerPayout;
-  const commissionAmount = luminaRetained * (repCommission / 100);
-  const calculatedProfit = luminaRetained - commissionAmount;
-
   const handleSubmit = async () => {
     if (!selectedRepName || !deliveryAddress || !deliveryDate) {
       return;
@@ -138,21 +169,30 @@ const FinalizeDealModal = ({
         applicationId,
         vehicleId,
         salesRepName: selectedRepName,
-        salesRepCommission: commissionAmount, // Store actual amount, not percentage
-        soldPrice,
+        salesRepCommission: commissionAmount,
+        soldPrice: adjustedSellingPrice, // Store the adjusted (post-discount) price
         soldMileage,
         nextServiceDate: nextServiceDate || undefined,
         nextServiceKm: nextServiceKm || undefined,
         deliveryAddress,
         deliveryDate: `${deliveryDate}T${deliveryTime}:00`,
         aftersalesExpenses: expenses,
-        costPrice, // Include cost price
-        calculatedProfit, // Include calculated profit
-        isSourcingVehicle: vehicleStatus === 'sourcing', // Flag for evergreen logic
+        costPrice,
+        calculatedProfit: netProfit,
+        isSourcingVehicle: vehicleStatus === 'sourcing',
         // Shared Capital fields
         isSharedCapital,
         partnerSplitPercent: isSharedCapital ? partnerSplitPercent : 0,
         partnerProfitAmount: partnerPayout,
+        // NEW F&I fields
+        discountAmount,
+        dealerDepositContribution,
+        externalAdminFee,
+        bankInitiationFee,
+        totalFinancedAmount: totalFinanceAmount,
+        clientDeposit,
+        grossProfit,
+        reconCost,
       });
       
       onSuccess();
@@ -164,35 +204,168 @@ const FinalizeDealModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-primary" />
-            Finalize Deal
+            <Calculator className="w-5 h-5 text-primary" />
+            Finalize Deal - Advanced Calculator
           </DialogTitle>
           <DialogDescription>
-            Complete the deal details before finalizing the sale.
+            Complete deal structure with F&I breakdown.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Vehicle Summary - Enhanced display with null check */}
+          {/* Vehicle Summary */}
           {vehicle ? (
-            <div className="bg-blue-500/10 p-4 rounded-md mb-4 border border-blue-500/20">
+            <div className="bg-blue-500/10 p-4 rounded-md border border-blue-500/20">
               <h3 className="font-bold text-blue-400 text-sm uppercase mb-1">Closing Deal For:</h3>
               <p className="text-xl font-semibold text-foreground">{vehicle.year} {vehicle.make} {vehicle.model}</p>
               <p className="text-sm text-muted-foreground">Stock: {vehicle.stock_number || 'N/A'}</p>
             </div>
           ) : (
-            <div className="bg-red-500/10 p-4 rounded-md mb-4 border border-red-500/20">
+            <div className="bg-red-500/10 p-4 rounded-md border border-red-500/20">
               <p className="text-red-400 font-bold">⚠️ WARNING: No Vehicle Assigned</p>
               <p className="text-xs text-red-300">Please close this modal and assign a vehicle first.</p>
             </div>
           )}
+
+          {/* === SECTION 1: Pricing & Structure === */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+              <Receipt className="w-4 h-4" />
+              Section 1: Pricing & Structure
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Selling Price</Label>
+                <Input
+                  type="number"
+                  value={sellingPrice || ''}
+                  onChange={(e) => setSellingPrice(parseFloat(e.target.value) || 0)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Less: Discount</Label>
+                <Input
+                  type="number"
+                  value={discountAmount || ''}
+                  onChange={(e) => setDiscountAmount(parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Plus: External Admin Fee</Label>
+                <Input
+                  type="number"
+                  value={externalAdminFee || ''}
+                  onChange={(e) => setExternalAdminFee(parseFloat(e.target.value) || 0)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Plus: Bank Initiation Fee</Label>
+                <Input
+                  type="number"
+                  value={bankInitiationFee || ''}
+                  onChange={(e) => setBankInitiationFee(parseFloat(e.target.value) || 0)}
+                />
+              </div>
+            </div>
+
+            <div className="p-3 bg-muted/50 rounded-lg border">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Subtotal (Gross Deal):</span>
+                <span className="text-lg font-bold text-primary">{formatPrice(grossDeal)}</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                = {formatPrice(sellingPrice)} - {formatPrice(discountAmount)} + {formatPrice(externalAdminFee)} + {formatPrice(bankInitiationFee)}
+              </p>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* === SECTION 2: Deductions / Deposits === */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+              <DollarSign className="w-4 h-4" />
+              Section 2: Deductions / Deposits
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Less: Client Cash Deposit</Label>
+                <Input
+                  type="number"
+                  value={clientDeposit || ''}
+                  onChange={(e) => setClientDeposit(parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Less: Dealer Deposit Contribution</Label>
+                <Input
+                  type="number"
+                  value={dealerDepositContribution || ''}
+                  onChange={(e) => setDealerDepositContribution(parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                />
+                <p className="text-xs text-muted-foreground">We pay this - reduces profit</p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/30">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Total Finance Amount:</span>
+                <span className="text-lg font-bold text-emerald-400">{formatPrice(totalFinanceAmount)}</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Invoice to Bank = Gross Deal - Deposits
+              </p>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* === SECTION 3: Internal Costs === */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+              <TrendingUp className="w-4 h-4" />
+              Section 3: Internal Costs
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Purchase Cost (Cost Price)</Label>
+                <Input
+                  type="number"
+                  value={costPrice || ''}
+                  onChange={(e) => setCostPrice(parseFloat(e.target.value) || 0)}
+                  placeholder="What we paid for the car"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Recon / Expenses</Label>
+                <Input
+                  type="number"
+                  value={reconCost || ''}
+                  onChange={(e) => setReconCost(parseFloat(e.target.value) || 0)}
+                  placeholder="Total reconditioning"
+                />
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
           {/* Sales Rep Section */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <User className="w-4 h-4 text-primary" />
+            <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+              <User className="w-4 h-4" />
               Sales Representative
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -225,21 +398,7 @@ const FinalizeDealModal = ({
                 />
               </div>
             </div>
-           {repCommission > 0 && (
-              <div className="text-sm text-muted-foreground space-y-1">
-                <p>Base Profit: <span className="font-semibold">{formatPrice(baseProfit)}</span></p>
-                {isSharedCapital && (
-                  <>
-                    <p>Partner Payout ({partnerSplitPercent}%): <span className="font-semibold text-orange-400">-{formatPrice(partnerPayout)}</span></p>
-                    <p>Lumina Retained: <span className="font-semibold">{formatPrice(luminaRetained)}</span></p>
-                  </>
-                )}
-                <p>Commission ({repCommission}% of {isSharedCapital ? 'retained' : 'profit'}): <span className="font-semibold text-primary">{formatPrice(commissionAmount)}</span></p>
-              </div>
-            )}
           </div>
-
-          <Separator />
 
           {/* Shared Capital / Joint Venture Section */}
           <div className="space-y-4">
@@ -278,42 +437,12 @@ const FinalizeDealModal = ({
             )}
           </div>
 
-          {/* Cost Price Section */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <DollarSign className="w-4 h-4 text-primary" />
-              Cost & Profit
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Cost Price (Bought For) *</Label>
-                <Input
-                  type="number"
-                  value={costPrice || ''}
-                  onChange={(e) => setCostPrice(parseFloat(e.target.value) || 0)}
-                  placeholder="Enter purchase price"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Calculated Profit</Label>
-                <div className={`p-2 rounded-lg border ${calculatedProfit >= 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
-                  <span className={`text-lg font-bold ${calculatedProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {formatPrice(calculatedProfit)}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Profit = Sold Price - Cost - Expenses - Commission
-            </p>
-          </div>
-
           <Separator />
 
           {/* Delivery Section */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <MapPin className="w-4 h-4 text-primary" />
+            <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+              <MapPin className="w-4 h-4" />
               Delivery Details
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -348,35 +477,17 @@ const FinalizeDealModal = ({
 
           {/* Vehicle Info Section */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Car className="w-4 h-4 text-primary" />
+            <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+              <Car className="w-4 h-4" />
               Vehicle Information
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Final Sale Price</Label>
-                <Input
-                  type="number"
-                  value={soldPrice}
-                  onChange={(e) => setSoldPrice(parseFloat(e.target.value) || 0)}
-                />
-              </div>
               <div className="space-y-2">
                 <Label>Current Mileage (km)</Label>
                 <Input
                   type="number"
                   value={soldMileage}
                   onChange={(e) => setSoldMileage(parseInt(e.target.value) || 0)}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Next Service Date (Optional)</Label>
-                <Input
-                  type="date"
-                  value={nextServiceDate}
-                  onChange={(e) => setNextServiceDate(e.target.value)}
                 />
               </div>
               <div className="space-y-2">
@@ -389,15 +500,23 @@ const FinalizeDealModal = ({
                 />
               </div>
             </div>
+            <div className="space-y-2">
+              <Label>Next Service Date (Optional)</Label>
+              <Input
+                type="date"
+                value={nextServiceDate}
+                onChange={(e) => setNextServiceDate(e.target.value)}
+              />
+            </div>
           </div>
 
           <Separator />
 
-          {/* Expenses Section */}
+          {/* Aftersales Expenses Section */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <DollarSign className="w-4 h-4 text-primary" />
+              <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                <DollarSign className="w-4 h-4" />
                 Aftersales Expenses
               </div>
               <Button type="button" variant="outline" size="sm" onClick={addExpense}>
@@ -458,6 +577,58 @@ const FinalizeDealModal = ({
                 </div>
               </div>
             )}
+          </div>
+
+          <Separator />
+
+          {/* === DEAL BREAKDOWN SUMMARY CARD === */}
+          <div className="p-4 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent rounded-xl border-2 border-primary/30">
+            <h3 className="text-lg font-bold text-primary mb-4 flex items-center gap-2">
+              <Calculator className="w-5 h-5" />
+              Deal Breakdown
+            </h3>
+            
+            <div className="space-y-3">
+              <div className="flex justify-between items-center py-2 border-b border-border/50">
+                <span className="text-sm text-muted-foreground">Invoice to Bank:</span>
+                <span className="text-lg font-bold text-emerald-400">{formatPrice(totalFinanceAmount)}</span>
+              </div>
+              
+              <div className="flex justify-between items-center py-2 border-b border-border/50">
+                <span className="text-sm text-muted-foreground">Total Costs:</span>
+                <span className="font-medium text-red-400">-{formatPrice(totalCosts)}</span>
+              </div>
+              
+              <div className="flex justify-between items-center py-2 border-b border-border/50">
+                <span className="text-sm text-muted-foreground">Lumina Gross Profit:</span>
+                <span className={`text-lg font-bold ${grossProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {formatPrice(grossProfit)}
+                </span>
+              </div>
+              
+              {isSharedCapital && (
+                <div className="flex justify-between items-center py-2 border-b border-border/50">
+                  <span className="text-sm text-muted-foreground">Partner Payout ({partnerSplitPercent}%):</span>
+                  <span className="font-medium text-orange-400">-{formatPrice(partnerPayout)}</span>
+                </div>
+              )}
+              
+              <div className="flex justify-between items-center py-2 border-b border-border/50">
+                <span className="text-sm text-muted-foreground">Commission ({repCommission}%):</span>
+                <span className="font-medium text-blue-400">-{formatPrice(commissionAmount)}</span>
+              </div>
+              
+              <div className="flex justify-between items-center py-3 bg-primary/10 rounded-lg px-3 -mx-1">
+                <span className="text-sm font-semibold">Net Profit:</span>
+                <span className={`text-xl font-bold ${netProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {formatPrice(netProfit)}
+                </span>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground mt-3">
+              Note: Admin & Bank fees are pass-through and not included in profit calculation.
+            </p>
           </div>
         </div>
 
