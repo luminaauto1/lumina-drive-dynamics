@@ -559,6 +559,38 @@ export type Database = {
           },
         ]
       }
+      lead_notes: {
+        Row: {
+          admin_id: string
+          content: string
+          created_at: string | null
+          id: string
+          profile_id: string
+        }
+        Insert: {
+          admin_id: string
+          content: string
+          created_at?: string | null
+          id?: string
+          profile_id: string
+        }
+        Update: {
+          admin_id?: string
+          content?: string
+          created_at?: string | null
+          id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_notes_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           client_email: string | null
@@ -608,28 +640,40 @@ export type Database = {
       }
       profiles: {
         Row: {
+          admin_notes: string | null
           created_at: string
           email: string | null
           full_name: string | null
           id: string
+          internal_status: string | null
+          last_active_at: string | null
+          last_contacted_at: string | null
           phone: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          admin_notes?: string | null
           created_at?: string
           email?: string | null
           full_name?: string | null
           id?: string
+          internal_status?: string | null
+          last_active_at?: string | null
+          last_contacted_at?: string | null
           phone?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          admin_notes?: string | null
           created_at?: string
           email?: string | null
           full_name?: string | null
           id?: string
+          internal_status?: string | null
+          last_active_at?: string | null
+          last_contacted_at?: string | null
           phone?: string | null
           updated_at?: string
           user_id?: string
