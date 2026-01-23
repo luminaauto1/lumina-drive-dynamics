@@ -260,6 +260,45 @@ export type Database = {
           },
         ]
       }
+      email_templates: {
+        Row: {
+          body_content: string
+          created_at: string
+          cta_text: string | null
+          cta_url: string | null
+          heading: string
+          id: string
+          is_active: boolean | null
+          status_key: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          body_content: string
+          created_at?: string
+          cta_text?: string | null
+          cta_url?: string | null
+          heading: string
+          id?: string
+          is_active?: boolean | null
+          status_key: string
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          body_content?: string
+          created_at?: string
+          cta_text?: string | null
+          cta_url?: string | null
+          heading?: string
+          id?: string
+          is_active?: boolean | null
+          status_key?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       finance_applications: {
         Row: {
           access_token: string | null

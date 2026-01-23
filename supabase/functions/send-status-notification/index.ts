@@ -1,6 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,9 +19,90 @@ interface StatusNotificationRequest {
   vehicleName?: string;
 }
 
-// Email templates for each status
-const getEmailContent = (
-  status: string,
+interface EmailTemplate {
+  status_key: string;
+  subject: string;
+  heading: string;
+  body_content: string;
+  cta_text: string;
+  cta_url: string | null;
+  is_active: boolean;
+}
+
+// Replace template placeholders with actual values
+const replaceTemplatePlaceholders = (
+  text: string,
+  clientName: string,
+  vehicleName?: string,
+  dashboardUrl?: string,
+  uploadUrl?: string
+): string => {
+  let result = text;
+  
+  // Simple placeholders
+  result = result.replace(/\{\{clientName\}\}/g, clientName);
+  result = result.replace(/\{\{vehicleName\}\}/g, vehicleName || 'your vehicle');
+  result = result.replace(/\{\{dashboardUrl\}\}/g, dashboardUrl || '');
+  result = result.replace(/\{\{uploadUrl\}\}/g, uploadUrl || dashboardUrl || '');
+  
+  // Conditional blocks: {{#if vehicleName}}...{{else}}...{{/if}}
+  const conditionalRegex = /\{\{#if vehicleName\}\}([\s\S]*?)\{\{else\}\}([\s\S]*?)\{\{\/if\}\}/g;
+  result = result.replace(conditionalRegex, (_, ifContent, elseContent) => {
+    return vehicleName ? ifContent : elseContent;
+  });
+  
+  // Simple conditional: {{#if vehicleName}}...{{/if}}
+  const simpleConditionalRegex = /\{\{#if vehicleName\}\}([\s\S]*?)\{\{\/if\}\}/g;
+  result = result.replace(simpleConditionalRegex, (_, content) => {
+    return vehicleName ? content : '';
+  });
+  
+  return result;
+};
+
+// Convert markdown-style formatting to HTML
+const markdownToHtml = (text: string): string => {
+  let html = text;
+  
+  // Bold: **text** -> <strong>text</strong>
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  
+  // Bullet lists: - item -> <li>item</li>
+  const lines = html.split('\n');
+  let inList = false;
+  const processedLines: string[] = [];
+  
+  for (const line of lines) {
+    if (line.trim().startsWith('- ') || line.trim().startsWith('• ') || line.trim().startsWith('✅')) {
+      if (!inList) {
+        processedLines.push('<ul style="margin: 10px 0; padding-left: 20px;">');
+        inList = true;
+      }
+      const content = line.replace(/^[\s]*[-•✅]\s*/, '');
+      processedLines.push(`<li style="margin: 5px 0;">${content}</li>`);
+    } else {
+      if (inList) {
+        processedLines.push('</ul>');
+        inList = false;
+      }
+      if (line.trim()) {
+        processedLines.push(`<p style="margin: 10px 0;">${line}</p>`);
+      } else {
+        processedLines.push('<br>');
+      }
+    }
+  }
+  
+  if (inList) {
+    processedLines.push('</ul>');
+  }
+  
+  return processedLines.join('\n');
+};
+
+// Generate email HTML from template
+const generateEmailHtml = (
+  template: EmailTemplate,
   clientName: string,
   accessToken?: string,
   vehicleName?: string
@@ -28,299 +112,79 @@ const getEmailContent = (
     ? `https://lumina-auto.lovable.app/upload-documents/${accessToken}`
     : dashboardUrl;
 
-  const baseStyle = `
-    <style>
-      body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; }
-      .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-      .header { text-align: center; padding: 20px 0; border-bottom: 2px solid #f0f0f0; }
-      .logo { font-size: 24px; font-weight: bold; color: #1a1a1a; }
-      .content { padding: 30px 0; }
-      .status-badge { display: inline-block; padding: 8px 16px; border-radius: 20px; font-weight: 600; margin: 10px 0; }
-      .cta-button { display: inline-block; background: #0070f3; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 20px 0; }
-      .footer { text-align: center; padding: 20px 0; border-top: 2px solid #f0f0f0; color: #666; font-size: 12px; }
-      .step-indicator { background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 20px 0; }
-    </style>
-  `;
+  // Replace placeholders in all fields
+  const subject = replaceTemplatePlaceholders(template.subject, clientName, vehicleName, dashboardUrl, uploadUrl);
+  const heading = replaceTemplatePlaceholders(template.heading, clientName, vehicleName, dashboardUrl, uploadUrl);
+  const bodyContent = replaceTemplatePlaceholders(template.body_content, clientName, vehicleName, dashboardUrl, uploadUrl);
+  const ctaText = replaceTemplatePlaceholders(template.cta_text, clientName, vehicleName, dashboardUrl, uploadUrl);
+  let ctaUrl = replaceTemplatePlaceholders(template.cta_url || '{{dashboardUrl}}', clientName, vehicleName, dashboardUrl, uploadUrl);
 
-  const header = `
-    <div class="header">
-      <div class="logo">🚗 Lumina Auto</div>
-      <p style="color: #666; margin: 5px 0;">Your Vehicle Finance Journey</p>
-    </div>
-  `;
+  // Convert body markdown to HTML
+  const bodyHtml = markdownToHtml(bodyContent);
 
-  const footer = `
-    <div class="footer">
-      <p>Lumina Auto | Premium Vehicle Finance</p>
-      <p>Questions? Reply to this email or WhatsApp us at +27 68 601 7462</p>
-    </div>
-  `;
-
-  const templates: Record<string, { subject: string; html: string }> = {
-    pending: {
-      subject: "✅ Application Received - Lumina Auto",
-      html: `
-        ${baseStyle}
-        <div class="container">
-          ${header}
-          <div class="content">
-            <h2>Hi ${clientName}! 👋</h2>
-            <p>Thank you for submitting your finance application with Lumina Auto.</p>
-            <div class="step-indicator">
-              <strong>📍 Current Step:</strong> Application Received<br>
-              <small>Step 1 of 9</small>
-            </div>
-            <p>Our team is currently analyzing your profile. We'll be in touch shortly with an update on your application.</p>
-            <p><strong>What happens next?</strong></p>
-            <ul>
-              <li>We review your application details</li>
-              <li>We assess your finance eligibility</li>
-              <li>You'll receive an update within 24-48 hours</li>
-            </ul>
-            <a href="${dashboardUrl}" class="cta-button">Track Your Application</a>
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5;">
+      <div style="max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff;">
+        <!-- Header -->
+        <div style="text-align: center; padding: 20px 0; border-bottom: 2px solid #f0f0f0;">
+          <div style="font-size: 24px; font-weight: bold; color: #1a1a1a;">🚗 Lumina Auto</div>
+          <p style="color: #666; margin: 5px 0;">Your Vehicle Finance Journey</p>
+        </div>
+        
+        <!-- Content -->
+        <div style="padding: 30px 0;">
+          <h2 style="margin: 0 0 20px 0; color: #1a1a1a;">${heading}</h2>
+          <div style="color: #333; line-height: 1.8;">
+            ${bodyHtml}
           </div>
-          ${footer}
-        </div>
-      `,
-    },
-    application_submitted: {
-      subject: "📋 Application Under Review - Lumina Auto",
-      html: `
-        ${baseStyle}
-        <div class="container">
-          ${header}
-          <div class="content">
-            <h2>Hi ${clientName}!</h2>
-            <p>Your finance application is now under review by our team.</p>
-            <div class="step-indicator">
-              <strong>📍 Current Step:</strong> Application Submitted<br>
-              <small>Step 2 of 9</small>
-            </div>
-            <p>We're carefully reviewing your details to determine the best finance options for you.</p>
-            <a href="${dashboardUrl}" class="cta-button">View Status</a>
+          
+          <!-- CTA Button -->
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${ctaUrl}" style="display: inline-block; background: linear-gradient(135deg, #0070f3 0%, #0050d0 100%); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; box-shadow: 0 4px 15px rgba(0, 112, 243, 0.3);">
+              ${ctaText}
+            </a>
           </div>
-          ${footer}
         </div>
-      `,
-    },
-    pre_approved: {
-      subject: "🎉 Pre-Approved! Documents Required - Lumina Auto",
-      html: `
-        ${baseStyle}
-        <div class="container">
-          ${header}
-          <div class="content">
-            <h2>Congratulations ${clientName}! 🎉</h2>
-            <p style="font-size: 18px; color: #22c55e;"><strong>You've been pre-approved for vehicle finance!</strong></p>
-            <div class="step-indicator">
-              <strong>📍 Current Step:</strong> Pre-Approved (Documents Required)<br>
-              <small>Step 3 of 9</small>
-            </div>
-            <p>To proceed, we need you to upload the following documents:</p>
-            <ul>
-              <li>✅ ID Card (front and back)</li>
-              <li>✅ Driver's License</li>
-              <li>✅ Latest 3 Months Payslips</li>
-              <li>✅ Latest 3 Months Bank Statements</li>
-            </ul>
-            <a href="${uploadUrl}" class="cta-button">📤 Upload Documents Now</a>
-            <p style="color: #666; font-size: 14px;">The sooner you upload, the faster we can proceed!</p>
-          </div>
-          ${footer}
+        
+        <!-- Footer -->
+        <div style="text-align: center; padding: 20px 0; border-top: 2px solid #f0f0f0; color: #666; font-size: 12px;">
+          <p style="margin: 5px 0;">Lumina Auto | Premium Vehicle Finance</p>
+          <p style="margin: 5px 0;">Questions? Reply to this email or WhatsApp us at +27 68 601 7462</p>
         </div>
-      `,
-    },
-    documents_received: {
-      subject: "📁 Documents Received - Lumina Auto",
-      html: `
-        ${baseStyle}
-        <div class="container">
-          ${header}
-          <div class="content">
-            <h2>Thank you ${clientName}!</h2>
-            <p>We have received your documents and are now verifying them.</p>
-            <div class="step-indicator">
-              <strong>📍 Current Step:</strong> Documents Received<br>
-              <small>Step 4 of 9</small>
-            </div>
-            <p>Our team is reviewing your documents to ensure everything is in order before submitting to the bank.</p>
-            <p>We'll update you as soon as the verification is complete.</p>
-            <a href="${dashboardUrl}" class="cta-button">Track Progress</a>
-          </div>
-          ${footer}
-        </div>
-      `,
-    },
-    validations_pending: {
-      subject: "🏦 Submitted to Bank - Lumina Auto",
-      html: `
-        ${baseStyle}
-        <div class="container">
-          ${header}
-          <div class="content">
-            <h2>Exciting News ${clientName}!</h2>
-            <p>Your application has been submitted to the bank for final approval.</p>
-            <div class="step-indicator">
-              <strong>📍 Current Step:</strong> At Bank - Awaiting Response<br>
-              <small>Step 5 of 9</small>
-            </div>
-            <p>The bank is now reviewing your application. This typically takes 1-3 business days.</p>
-            <p>We'll notify you immediately once we receive their response.</p>
-            <a href="${dashboardUrl}" class="cta-button">Track Progress</a>
-          </div>
-          ${footer}
-        </div>
-      `,
-    },
-    validations_complete: {
-      subject: "🎉 Bank Approved! - Lumina Auto",
-      html: `
-        ${baseStyle}
-        <div class="container">
-          ${header}
-          <div class="content">
-            <h2>Fantastic News ${clientName}! 🎉</h2>
-            <p style="font-size: 18px; color: #22c55e;"><strong>The bank has approved your finance application!</strong></p>
-            <div class="step-indicator">
-              <strong>📍 Current Step:</strong> Bank Approved<br>
-              <small>Step 6 of 9</small>
-            </div>
-            <p>We are now preparing your contract. You're just a few steps away from your new vehicle!</p>
-            <a href="${dashboardUrl}" class="cta-button">View Details</a>
-          </div>
-          ${footer}
-        </div>
-      `,
-    },
-    contract_sent: {
-      subject: "📝 Contract Ready for Signature - Lumina Auto",
-      html: `
-        ${baseStyle}
-        <div class="container">
-          ${header}
-          <div class="content">
-            <h2>Hi ${clientName}!</h2>
-            <p>Your contract has been sent and is ready for your signature.</p>
-            <div class="step-indicator">
-              <strong>📍 Current Step:</strong> Contract Sent<br>
-              <small>Step 7 of 9</small>
-            </div>
-            <p>Please review the contract carefully and sign at your earliest convenience.</p>
-            <p>If you have any questions about the contract, don't hesitate to reach out.</p>
-            <a href="${dashboardUrl}" class="cta-button">Review Contract</a>
-          </div>
-          ${footer}
-        </div>
-      `,
-    },
-    contract_signed: {
-      subject: "✍️ Contract Signed - Preparing Delivery! - Lumina Auto",
-      html: `
-        ${baseStyle}
-        <div class="container">
-          ${header}
-          <div class="content">
-            <h2>Thank you ${clientName}! ✍️</h2>
-            <p>Your contract has been signed successfully!</p>
-            <div class="step-indicator">
-              <strong>📍 Current Step:</strong> Contract Signed<br>
-              <small>Step 8 of 9</small>
-            </div>
-            ${vehicleName ? `<p>Your <strong>${vehicleName}</strong> is being prepared for delivery.</p>` : '<p>Your vehicle is being prepared for delivery.</p>'}
-            <p>We'll be in touch shortly with delivery details and scheduling.</p>
-            <a href="${dashboardUrl}" class="cta-button">View Status</a>
-          </div>
-          ${footer}
-        </div>
-      `,
-    },
-    vehicle_delivered: {
-      subject: "🚗🎉 Congratulations! Vehicle Delivered - Lumina Auto",
-      html: `
-        ${baseStyle}
-        <div class="container">
-          ${header}
-          <div class="content">
-            <h2>Congratulations ${clientName}! 🎉🚗</h2>
-            <p style="font-size: 20px; color: #f59e0b;"><strong>Your vehicle has been delivered!</strong></p>
-            <div class="step-indicator" style="background: #fef3c7;">
-              <strong>🏆 Journey Complete!</strong><br>
-              <small>Step 9 of 9 - All Done!</small>
-            </div>
-            ${vehicleName ? `<p>We hope you enjoy your new <strong>${vehicleName}</strong>!</p>` : '<p>We hope you enjoy your new vehicle!</p>'}
-            <p>Thank you for choosing Lumina Auto. It's been a pleasure serving you.</p>
-            <p><strong>Important Reminders:</strong></p>
-            <ul>
-              <li>Keep up with your service schedule</li>
-              <li>Contact us for any after-sales support</li>
-              <li>Refer friends and family for exclusive deals!</li>
-            </ul>
-            <a href="${dashboardUrl}" class="cta-button">Visit Dashboard</a>
-          </div>
-          ${footer}
-        </div>
-      `,
-    },
-    declined: {
-      subject: "Application Update - Lumina Auto",
-      html: `
-        ${baseStyle}
-        <div class="container">
-          ${header}
-          <div class="content">
-            <h2>Hi ${clientName},</h2>
-            <p>Unfortunately, we were unable to approve your finance application at this time.</p>
-            <p>This could be due to various factors, and we encourage you to:</p>
-            <ul>
-              <li>Contact us to discuss alternative options</li>
-              <li>Consider reapplying in the future</li>
-              <li>Explore our cash purchase options</li>
-            </ul>
-            <p>Please don't hesitate to reach out – we're here to help find solutions.</p>
-            <a href="https://wa.me/27686017462" class="cta-button">WhatsApp Us</a>
-          </div>
-          ${footer}
-        </div>
-      `,
-    },
-    vehicle_selected: {
-      subject: "🚗 Vehicle Reserved! - Lumina Auto",
-      html: `
-        ${baseStyle}
-        <div class="container">
-          ${header}
-          <div class="content">
-            <h2>Great Choice ${clientName}! 🚗</h2>
-            ${vehicleName ? `<p>Your <strong>${vehicleName}</strong> has been reserved!</p>` : '<p>Your selected vehicle has been reserved!</p>'}
-            <div class="step-indicator">
-              <strong>📍 Status:</strong> Vehicle Reserved<br>
-              <small>Preparing Contract</small>
-            </div>
-            <p>We're now preparing the contract and will be in touch shortly with the next steps.</p>
-            <a href="${dashboardUrl}" class="cta-button">View Details</a>
-          </div>
-          ${footer}
-        </div>
-      `,
-    },
-  };
-
-  return templates[status] || {
-    subject: "Application Update - Lumina Auto",
-    html: `
-      ${baseStyle}
-      <div class="container">
-        ${header}
-        <div class="content">
-          <h2>Hi ${clientName},</h2>
-          <p>There's been an update to your finance application.</p>
-          <p>Please log in to your dashboard to view the latest status.</p>
-          <a href="${dashboardUrl}" class="cta-button">View Dashboard</a>
-        </div>
-        ${footer}
       </div>
-    `,
+    </body>
+    </html>
+  `;
+
+  return { subject, html };
+};
+
+// Fallback templates if database fetch fails
+const getFallbackEmailContent = (
+  status: string,
+  clientName: string,
+  accessToken?: string,
+  vehicleName?: string
+): { subject: string; html: string } => {
+  const dashboardUrl = 'https://lumina-auto.lovable.app/dashboard';
+  
+  const fallbackTemplate: EmailTemplate = {
+    status_key: status,
+    subject: `Application Update - Lumina Auto`,
+    heading: `Hi ${clientName},`,
+    body_content: `There's been an update to your finance application.\n\nPlease log in to your dashboard to view the latest status.`,
+    cta_text: 'View Dashboard',
+    cta_url: dashboardUrl,
+    is_active: true,
   };
+
+  return generateEmailHtml(fallbackTemplate, clientName, accessToken, vehicleName);
 };
 
 const handler = async (req: Request): Promise<Response> => {
@@ -344,7 +208,34 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Missing required fields: clientEmail, clientName, or newStatus");
     }
 
-    const { subject, html } = getEmailContent(newStatus, clientName, accessToken, vehicleName);
+    // Try to fetch template from database
+    let emailContent: { subject: string; html: string };
+    
+    if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      
+      const { data: template, error } = await supabase
+        .from('email_templates')
+        .select('*')
+        .eq('status_key', newStatus)
+        .single();
+
+      if (error || !template) {
+        console.log(`No template found for status ${newStatus}, using fallback`);
+        emailContent = getFallbackEmailContent(newStatus, clientName, accessToken, vehicleName);
+      } else if (!template.is_active) {
+        console.log(`Template for ${newStatus} is disabled, skipping email`);
+        return new Response(
+          JSON.stringify({ success: true, message: 'Email disabled for this status' }),
+          { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      } else {
+        emailContent = generateEmailHtml(template as EmailTemplate, clientName, accessToken, vehicleName);
+      }
+    } else {
+      console.log('Supabase credentials not available, using fallback template');
+      emailContent = getFallbackEmailContent(newStatus, clientName, accessToken, vehicleName);
+    }
 
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -355,8 +246,8 @@ const handler = async (req: Request): Promise<Response> => {
       body: JSON.stringify({
         from: "Lumina Auto <onboarding@resend.dev>",
         to: [clientEmail],
-        subject,
-        html,
+        subject: emailContent.subject,
+        html: emailContent.html,
       }),
     });
 
