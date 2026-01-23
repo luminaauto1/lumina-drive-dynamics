@@ -670,24 +670,33 @@ export type Database = {
         Row: {
           body_type: string | null
           color: string | null
+          cost_price: number | null
           created_at: string
           description: string | null
           engine_code: string | null
           estimated_profit: number | null
           finance_available: boolean | null
+          fsh_status: string | null
           fuel_type: string
           id: string
           images: string[] | null
           is_featured: boolean | null
           is_generic_listing: boolean | null
+          last_service_date: string | null
+          last_service_km: number | null
           make: string
           mileage: number
           model: string
+          next_service_date: string | null
+          next_service_km: number | null
           price: number
           purchase_price: number | null
           reconditioning_cost: number | null
+          registration_number: string | null
           service_history: string | null
+          service_plan_expiry_date: string | null
           sourced_count: number | null
+          spare_keys: boolean | null
           status: string
           stock_number: string | null
           transmission: string
@@ -695,30 +704,40 @@ export type Database = {
           variant: string | null
           variants: Json | null
           vin: string | null
+          warranty_expiry_date: string | null
           year: number
           youtube_url: string | null
         }
         Insert: {
           body_type?: string | null
           color?: string | null
+          cost_price?: number | null
           created_at?: string
           description?: string | null
           engine_code?: string | null
           estimated_profit?: number | null
           finance_available?: boolean | null
+          fsh_status?: string | null
           fuel_type: string
           id?: string
           images?: string[] | null
           is_featured?: boolean | null
           is_generic_listing?: boolean | null
+          last_service_date?: string | null
+          last_service_km?: number | null
           make: string
           mileage: number
           model: string
+          next_service_date?: string | null
+          next_service_km?: number | null
           price: number
           purchase_price?: number | null
           reconditioning_cost?: number | null
+          registration_number?: string | null
           service_history?: string | null
+          service_plan_expiry_date?: string | null
           sourced_count?: number | null
+          spare_keys?: boolean | null
           status?: string
           stock_number?: string | null
           transmission: string
@@ -726,30 +745,40 @@ export type Database = {
           variant?: string | null
           variants?: Json | null
           vin?: string | null
+          warranty_expiry_date?: string | null
           year: number
           youtube_url?: string | null
         }
         Update: {
           body_type?: string | null
           color?: string | null
+          cost_price?: number | null
           created_at?: string
           description?: string | null
           engine_code?: string | null
           estimated_profit?: number | null
           finance_available?: boolean | null
+          fsh_status?: string | null
           fuel_type?: string
           id?: string
           images?: string[] | null
           is_featured?: boolean | null
           is_generic_listing?: boolean | null
+          last_service_date?: string | null
+          last_service_km?: number | null
           make?: string
           mileage?: number
           model?: string
+          next_service_date?: string | null
+          next_service_km?: number | null
           price?: number
           purchase_price?: number | null
           reconditioning_cost?: number | null
+          registration_number?: string | null
           service_history?: string | null
+          service_plan_expiry_date?: string | null
           sourced_count?: number | null
+          spare_keys?: boolean | null
           status?: string
           stock_number?: string | null
           transmission?: string
@@ -757,6 +786,7 @@ export type Database = {
           variant?: string | null
           variants?: Json | null
           vin?: string | null
+          warranty_expiry_date?: string | null
           year?: number
           youtube_url?: string | null
         }

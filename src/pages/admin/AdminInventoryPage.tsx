@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Plus, Search, Trash2, Edit2, Upload, X, GripVertical, Star, Clock, Truck, Ghost, ArrowRightCircle, Eye, EyeOff } from 'lucide-react';
+import { Plus, Search, Trash2, Edit2, Upload, X, GripVertical, Star, Clock, Truck, Ghost, ArrowRightCircle, Eye, EyeOff, PackageCheck } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -25,6 +25,7 @@ import {
 import AdminLayout from '@/components/admin/AdminLayout';
 import SortableImage from '@/components/admin/SortableImage';
 import ReconTasksTab from '@/components/admin/ReconTasksTab';
+import StockInModal from '@/components/admin/StockInModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -89,6 +90,7 @@ const AdminInventoryPage = () => {
   const [variants, setVariants] = useState<VariantSpec[]>([]);
   const [sheetTab, setSheetTab] = useState<'details' | 'recon'>('details');
   const [isConverting, setIsConverting] = useState(false);
+  const [stockInVehicle, setStockInVehicle] = useState<Vehicle | null>(null);
 
   const queryClient = useQueryClient();
   const { data: vehicles = [], isLoading } = useVehicles();
@@ -644,7 +646,19 @@ const AdminInventoryPage = () => {
                               {isHidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                             </Button>
                           )}
-                          {/* Convert to Real Stock button for sourcing vehicles */}
+                          {/* Stock-In button for sourcing/incoming vehicles */}
+                          {(vehicle.status === 'sourcing' || vehicle.status === 'incoming' || (vehicle as any).is_generic_listing) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setStockInVehicle(vehicle)}
+                              className="text-primary hover:text-primary/80"
+                              title="Stock-In Wizard"
+                            >
+                              <PackageCheck className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {/* Convert to Real Stock button for sourcing vehicles (legacy) */}
                           {(vehicle.status === 'sourcing' || (vehicle as any).is_generic_listing) && (
                             <Button
                               variant="ghost"
@@ -652,7 +666,7 @@ const AdminInventoryPage = () => {
                               onClick={() => handleConvertToRealStock(vehicle)}
                               disabled={isConverting}
                               className="text-emerald-400 hover:text-emerald-300"
-                              title="Convert to Real Stock"
+                              title="Quick Convert to Incoming"
                             >
                               <ArrowRightCircle className="w-4 h-4" />
                             </Button>
@@ -1274,6 +1288,15 @@ const AdminInventoryPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Stock-In Modal */}
+      {stockInVehicle && (
+        <StockInModal
+          vehicle={stockInVehicle}
+          isOpen={!!stockInVehicle}
+          onClose={() => setStockInVehicle(null)}
+        />
+      )}
     </AdminLayout>
   );
 };
