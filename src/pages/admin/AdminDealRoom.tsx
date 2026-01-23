@@ -30,6 +30,7 @@ import { useCreateAftersalesRecord } from '@/hooks/useAftersales';
 import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, getWhatsAppMessage, canShowDealActions } from '@/lib/statusConfig';
 import { generateFinancePDF } from '@/lib/generateFinancePDF';
 import { toast } from 'sonner';
+import { sendStatusNotification } from '@/hooks/useStatusNotification';
 
 const AdminDealRoom = () => {
   const { id } = useParams<{ id: string }>();
@@ -109,6 +110,22 @@ const AdminDealRoom = () => {
     try {
       await updateApplication.mutateAsync({ id: application.id, updates: { status: newStatus } });
       setApplication(prev => prev ? { ...prev, status: newStatus } : null);
+      
+      // Send email notification to client
+      const vehicleName = activeVehicle 
+        ? `${activeVehicle.year} ${activeVehicle.make} ${activeVehicle.model}`
+        : undefined;
+      
+      sendStatusNotification({
+        clientEmail: application.email,
+        clientName: application.first_name || application.full_name?.split(' ')[0] || 'Client',
+        newStatus,
+        applicationId: application.id,
+        accessToken: (application as any).access_token,
+        vehicleName,
+      });
+      
+      toast.success(`Status updated to ${newStatus}`);
     } catch (error) {
       console.error('Failed to update status:', error);
     }
@@ -127,6 +144,16 @@ const AdminDealRoom = () => {
       });
       setApplication(prev => prev ? { ...prev, status: 'declined', declined_reason: declineReason } : null);
       setDeclineDialogOpen(false);
+      
+      // Send decline notification
+      sendStatusNotification({
+        clientEmail: application.email,
+        clientName: application.first_name || application.full_name?.split(' ')[0] || 'Client',
+        newStatus: 'declined',
+        applicationId: application.id,
+      });
+      
+      toast.success('Application declined');
     } catch (error) {
       console.error('Failed to decline application:', error);
     }
