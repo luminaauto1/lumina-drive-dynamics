@@ -26,7 +26,7 @@ import { useVehicles, formatPrice } from '@/hooks/useVehicles';
 import { useUpdateFinanceApplication, FinanceApplication } from '@/hooks/useFinanceApplications';
 import { useApplicationMatches, useAddApplicationMatch, useRemoveApplicationMatch } from '@/hooks/useApplicationMatches';
 import { useCreateAftersalesRecord } from '@/hooks/useAftersales';
-import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, getWhatsAppMessage } from '@/lib/statusConfig';
+import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, getWhatsAppMessage, canShowDealActions } from '@/lib/statusConfig';
 import { generateFinancePDF } from '@/lib/generateFinancePDF';
 import { toast } from 'sonner';
 
@@ -566,7 +566,23 @@ const AdminDealRoom = () => {
                       <span className="hidden sm:inline">Create</span> OTP
                     </Button>
                   )}
-                  {application.status === 'approved' && (
+                  {/* Copy Upload Link for pre_approved */}
+                  {application.status === 'pre_approved' && (application as any).access_token && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        const link = `https://lumina-auto.lovable.app/upload-documents/${(application as any).access_token}`;
+                        await navigator.clipboard.writeText(link);
+                        toast.success('Upload link copied to clipboard!');
+                      }}
+                      className="text-xs md:text-sm border-yellow-500/30 text-yellow-600 hover:bg-yellow-500/10"
+                    >
+                      <Copy className="w-4 h-4 mr-1 md:mr-2" />
+                      Copy Upload Link
+                    </Button>
+                  )}
+                  {canShowDealActions(application.status) && (
                     <>
                       <Button
                         onClick={() => setPodiumModalOpen(true)}
@@ -588,7 +604,7 @@ const AdminDealRoom = () => {
                     </>
                   )}
                   {/* Finalize button for vehicle_selected status too */}
-                  {application.status === 'vehicle_selected' && (
+                  {application.status === 'vehicle_selected' && !canShowDealActions(application.status) && (
                     <Button
                       onClick={handleOpenFinalizeModal}
                       size="sm"

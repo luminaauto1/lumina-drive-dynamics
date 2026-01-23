@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Heart, FileText, User, LogOut, Car, AlertTriangle, Sparkles, HelpCircle, ChevronDown, Edit3, Trash2 } from 'lucide-react';
+import { Heart, FileText, User, LogOut, Car, AlertTriangle, Sparkles, HelpCircle, ChevronDown, Edit3, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +14,7 @@ import { Progress } from '@/components/ui/progress';
 import VehicleCard from '@/components/VehicleCard';
 import KineticText from '@/components/KineticText';
 import SkeletonCard from '@/components/SkeletonCard';
+import FinanceProgressStepper from '@/components/FinanceProgressStepper';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useVehicles } from '@/hooks/useVehicles';
@@ -34,13 +35,24 @@ const Dashboard = () => {
   const { data: vehicles = [], isLoading: vehiclesLoading } = useVehicles();
   const { data: matchedVehicles = [], isLoading: matchesLoading, refetch: refetchMatches } = useUserApplicationMatches(user?.id || '');
 
-  // Check if user has an approved application
-  const approvedApplication = applications.find(app => app.status === 'approved');
+  // Check if user has an approved application (includes new flow statuses)
+  const approvedApplication = applications.find(app => 
+    ['approved', 'pre_approved', 'documents_received', 'validations_pending', 'validations_complete', 'contract_sent', 'contract_signed'].includes(app.status)
+  );
   const hasApprovedApplication = !!approvedApplication;
+  
+  // Check if user needs to upload documents (pre_approved status)
+  const preApprovedApplication = applications.find(app => app.status === 'pre_approved');
+  const needsDocumentUpload = !!preApprovedApplication;
   
   // Check if user has already selected a vehicle
   const vehicleSelectedApplication = applications.find(app => app.status === 'vehicle_selected');
   const hasSelectedVehicle = !!vehicleSelectedApplication;
+  
+  // Get the main active application for stepper
+  const activeApplication = applications.find(app => 
+    !['draft', 'archived', 'declined'].includes(app.status)
+  );
 
   // Check for draft applications
   const draftApplications = applications.filter(app => app.status === 'draft');
@@ -482,7 +494,7 @@ const Dashboard = () => {
                       animate={{ opacity: 1, y: 0 }}
                       className="glass-card rounded-xl p-6"
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between mb-4">
                         <div>
                           <h3 className="font-semibold">Finance Application</h3>
                           <p className="text-sm text-muted-foreground">
@@ -495,6 +507,23 @@ const Dashboard = () => {
                           {USER_STATUS_LABELS[app.status] || app.status}
                         </span>
                       </div>
+                      
+                      {/* Progress Stepper */}
+                      {!['draft', 'archived'].includes(app.status) && (
+                        <div className="mb-4">
+                          <FinanceProgressStepper currentStatus={app.status} />
+                        </div>
+                      )}
+                      
+                      {/* Upload Documents Button for Pre-Approved */}
+                      {app.status === 'pre_approved' && app.access_token && (
+                        <Link to={`/upload-documents/${app.access_token}`}>
+                          <Button className="w-full mt-4 bg-yellow-600 hover:bg-yellow-700">
+                            <Upload className="w-4 h-4 mr-2" />
+                            Upload Required Documents
+                          </Button>
+                        </Link>
+                      )}
                       
                       {/* Show curated options message when approved */}
                       {app.status === 'approved' && curatedVehicles.length > 0 && (
