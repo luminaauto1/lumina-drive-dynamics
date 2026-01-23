@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileText, Image as ImageIcon, Download, Eye, Loader2, FolderOpen, X, ExternalLink } from 'lucide-react';
+import { FileText, Image as ImageIcon, Download, Eye, Loader2, FolderOpen, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import AdminDocumentUpload from './AdminDocumentUpload';
 
 interface ClientDocumentViewerProps {
   accessToken: string | null;
@@ -27,10 +28,10 @@ interface DocumentCategory {
 }
 
 const DOCUMENT_CATEGORIES = [
-  { id: 'id_card', label: 'ID Card' },
-  { id: 'drivers_license', label: "Driver's License" },
-  { id: 'payslip', label: 'Payslips' },
-  { id: 'bank_statement', label: 'Bank Statements' },
+  { id: 'id-card', label: 'ID Card' },
+  { id: 'drivers-license', label: "Driver's License" },
+  { id: 'payslips', label: 'Payslips' },
+  { id: 'bank-statements', label: 'Bank Statements' },
 ];
 
 const ClientDocumentViewer = ({ accessToken, clientName }: ClientDocumentViewerProps) => {
@@ -172,9 +173,16 @@ const ClientDocumentViewer = ({ accessToken, clientName }: ClientDocumentViewerP
               </Badge>
             )}
           </div>
-          <Button variant="ghost" size="sm" onClick={fetchDocuments} disabled={isLoading}>
-            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Refresh'}
-          </Button>
+          <div className="flex items-center gap-2">
+            <AdminDocumentUpload
+              accessToken={accessToken}
+              clientName={clientName}
+              onUploadComplete={fetchDocuments}
+            />
+            <Button variant="ghost" size="sm" onClick={fetchDocuments} disabled={isLoading}>
+              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Refresh'}
+            </Button>
+          </div>
         </div>
 
         {isLoading ? (

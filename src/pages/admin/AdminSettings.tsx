@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Settings, DollarSign, Phone, Palette, Loader2, MapPin, CreditCard, Users, Plus, X, Target } from 'lucide-react';
+import { Settings, DollarSign, Phone, Palette, Loader2, MapPin, CreditCard, Users, Plus, X, Target, Mail } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Switch } from '@/components/ui/switch';
@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSiteSettings, useUpdateSiteSettings, SiteSettings } from '@/hooks/useSiteSettings';
+import EmailTemplateEditor from '@/components/admin/EmailTemplateEditor';
 
 type SettingsFormData = Omit<SiteSettings, 'id' | 'created_at' | 'updated_at'> & { tiktok_url: string };
 
@@ -222,7 +223,7 @@ const AdminSettings = () => {
 
         <form onSubmit={handleSubmit(onSubmit)}>
           <Tabs defaultValue="finance" className="max-w-3xl">
-            <TabsList className="grid w-full grid-cols-6 mb-6">
+            <TabsList className="grid w-full grid-cols-7 mb-6">
               <TabsTrigger value="finance" className="gap-2">
                 <DollarSign className="w-4 h-4" />
                 Finance
@@ -246,6 +247,10 @@ const AdminSettings = () => {
               <TabsTrigger value="features" className="gap-2">
                 <CreditCard className="w-4 h-4" />
                 Features
+              </TabsTrigger>
+              <TabsTrigger value="emails" className="gap-2">
+                <Mail className="w-4 h-4" />
+                Emails
               </TabsTrigger>
             </TabsList>
 
@@ -632,6 +637,11 @@ const AdminSettings = () => {
                   />
                 </div>
               </motion.div>
+            </TabsContent>
+
+            {/* Email Templates Tab */}
+            <TabsContent value="emails">
+              <EmailTemplateEditor />
             </TabsContent>
           </Tabs>
 
