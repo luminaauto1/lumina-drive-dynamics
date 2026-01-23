@@ -5,6 +5,7 @@ export const STATUS_OPTIONS = [
   { value: 'pending', label: 'Pending' },
   { value: 'processing', label: 'Processing' },
   { value: 'validations_pending', label: 'Validations Pending' },
+  { value: 'validations_confirmed', label: 'Validations Confirmed' },
   { value: 'approved', label: 'Budget Confirmed' },
   { value: 'vehicle_selected', label: 'Vehicle Selected' },
   { value: 'declined', label: 'Declined' },
@@ -15,6 +16,7 @@ export const USER_STATUS_LABELS: Record<string, string> = {
   pending: 'Application Received - Analyzing Profile',
   processing: 'Application Received - We are processing your details',
   validations_pending: 'Validation Documents Required',
+  validations_confirmed: 'Documents Verified - Finalizing Budget',
   approved: 'Budget Confirmed - Preparing Vehicle Options',
   vehicle_selected: 'Vehicle Reserved - Preparing Contract',
   declined: 'Application Unsuccessful',
@@ -25,6 +27,7 @@ export const STATUS_STYLES: Record<string, string> = {
   pending: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
   processing: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
   validations_pending: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+  validations_confirmed: 'bg-teal-500/20 text-teal-400 border-teal-500/30',
   approved: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   vehicle_selected: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
   declined: 'bg-red-500/20 text-red-400 border-red-500/30',
@@ -35,6 +38,7 @@ export const ADMIN_STATUS_LABELS: Record<string, string> = {
   pending: 'Pending',
   processing: 'Received, Processing',
   validations_pending: 'Validations Pending',
+  validations_confirmed: 'Validations Confirmed',
   approved: 'Budget Confirmed',
   vehicle_selected: 'Vehicle Selected',
   declined: 'Declined',
@@ -55,6 +59,8 @@ export const getWhatsAppMessage = (
       return `Hi ${name}, we have received your finance application and are processing your details. We will be in touch shortly with an update.`;
     case 'validations_pending':
       return `Hi ${name}, great news! Your profile checks out. We just need to validate your documents to confirm the final budget. Please send us the following:\n\n• 3 months bank statements\n• Copy of ID\n• Valid Driver's License\n• 3 months payslips\n\nReply to this message with your documents.`;
+    case 'validations_confirmed':
+      return `Hi ${name}, thank you! We have verified your documents and are now finalizing your budget. We will be in touch shortly with your confirmed budget and vehicle options.`;
     case 'approved':
       return `Great news ${name}! Your budget is confirmed. We have selected ${matchedVehiclesCount || 'several'} vehicle${matchedVehiclesCount === 1 ? '' : 's'} that match your profile perfectly.\n\nView your exclusive options here: ${dashboardUrl}`;
     case 'declined':

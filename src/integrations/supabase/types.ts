@@ -255,6 +255,7 @@ export type Database = {
         Row: {
           account_number: string | null
           account_type: string | null
+          additional_income: number | null
           approved_budget: number | null
           area_code: string | null
           bank_name: string | null
@@ -300,6 +301,7 @@ export type Database = {
         Insert: {
           account_number?: string | null
           account_type?: string | null
+          additional_income?: number | null
           approved_budget?: number | null
           area_code?: string | null
           bank_name?: string | null
@@ -345,6 +347,7 @@ export type Database = {
         Update: {
           account_number?: string | null
           account_type?: string | null
+          additional_income?: number | null
           approved_budget?: number | null
           area_code?: string | null
           bank_name?: string | null
