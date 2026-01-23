@@ -21,6 +21,8 @@ interface VehicleInfo {
   make?: string;
   model?: string;
   stock_number?: string;
+  cost_price?: number;
+  purchase_price?: number;
 }
 
 interface FinalizeDealModalProps {
@@ -82,6 +84,17 @@ const FinalizeDealModal = ({
       setRepCommission(rep.commission);
     }
   }, [selectedRepName, salesReps]);
+
+  // Auto-fill cost price from vehicle data
+  useEffect(() => {
+    if (vehicle) {
+      // Use cost_price first, fallback to purchase_price
+      const vehicleCostPrice = vehicle.cost_price || vehicle.purchase_price || 0;
+      if (vehicleCostPrice > 0 && costPrice === 0) {
+        setCostPrice(vehicleCostPrice);
+      }
+    }
+  }, [vehicle]);
 
   const addExpense = () => {
     setExpenses(prev => [...prev, { type: 'Gift', amount: 0, description: '' }]);
