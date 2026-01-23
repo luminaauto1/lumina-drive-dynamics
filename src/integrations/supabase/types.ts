@@ -262,6 +262,7 @@ export type Database = {
       }
       finance_applications: {
         Row: {
+          access_token: string | null
           account_number: string | null
           account_type: string | null
           additional_income: number | null
@@ -308,6 +309,7 @@ export type Database = {
           vehicle_id: string | null
         }
         Insert: {
+          access_token?: string | null
           account_number?: string | null
           account_type?: string | null
           additional_income?: number | null
@@ -354,6 +356,7 @@ export type Database = {
           vehicle_id?: string | null
         }
         Update: {
+          access_token?: string | null
           account_number?: string | null
           account_type?: string | null
           additional_income?: number | null

@@ -37,18 +37,20 @@ import TermsOfService from "./pages/TermsOfService";
 import SystemFix from "./pages/SystemFix";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
+import SecureDocumentUpload from "./pages/public/SecureDocumentUpload";
 
 const queryClient = new QueryClient();
 
-// Layout wrapper to hide navbar/footer on admin routes
+// Layout wrapper to hide navbar/footer on admin and public routes
 const AppLayout = () => {
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith('/admin');
+  const isPublicRoute = location.pathname.startsWith('/upload-documents');
 
   return (
     <>
       <ScrollToTop />
-      {!isAdminRoute && <Navbar />}
+      {!isAdminRoute && !isPublicRoute && <Navbar />}
       <main>
         <Routes>
           <Route path="/" element={<Index />} />
@@ -67,6 +69,9 @@ const AppLayout = () => {
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="/system-fix" element={<SystemFix />} />
+          {/* Public Document Upload Route */}
+          <Route path="/upload-documents/:token" element={<SecureDocumentUpload />} />
+          {/* Admin Routes */}
           <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/inventory" element={<ProtectedRoute requireAdmin><AdminInventoryPage /></ProtectedRoute>} />
           <Route path="/admin/leads" element={<ProtectedRoute requireAdmin><AdminLeads /></ProtectedRoute>} />
@@ -80,8 +85,8 @@ const AppLayout = () => {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
-      {!isAdminRoute && <Footer />}
-      {!isAdminRoute && <FloatingWhatsApp />}
+      {!isAdminRoute && !isPublicRoute && <Footer />}
+      {!isAdminRoute && !isPublicRoute && <FloatingWhatsApp />}
     </>
   );
 };

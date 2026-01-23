@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Search, MessageCircle, ExternalLink, Trash2, Archive, UserPlus, Copy } from 'lucide-react';
+import { Search, MessageCircle, ExternalLink, Trash2, Archive, UserPlus, Copy, Link } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useFinanceApplications, useUpdateFinanceApplication, useDeleteFinanceApplication, FinanceApplication } from '@/hooks/useFinanceApplications';
 import { formatPrice } from '@/hooks/useVehicles';
-import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, getWhatsAppMessage } from '@/lib/statusConfig';
+import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, getWhatsAppMessage, canShowDealActions } from '@/lib/statusConfig';
 import { useToast } from '@/hooks/use-toast';
 
 const FINANCE_INFO_REQUEST_TEMPLATE = `*Lumina Auto | Finance Application Request*
@@ -68,6 +68,23 @@ const AdminFinance = () => {
       toast({
         title: "Template copied to clipboard",
         description: "Paste it in WhatsApp to request finance info from clients.",
+      });
+    } catch (err) {
+      toast({
+        title: "Failed to copy",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const copyUploadLink = async (accessToken: string) => {
+    try {
+      const link = `https://lumina-auto.lovable.app/upload-documents/${accessToken}`;
+      await navigator.clipboard.writeText(link);
+      toast({
+        title: "Upload link copied!",
+        description: "Send this link to the client to upload their documents.",
       });
     } catch (err) {
       toast({
@@ -312,6 +329,18 @@ const AdminFinance = () => {
                     </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
+                        {/* Copy Upload Link - Show for pre_approved status */}
+                        {app.status === 'pre_approved' && (app as any).access_token && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => copyUploadLink((app as any).access_token)}
+                            className="text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10"
+                            title="Copy Document Upload Link"
+                          >
+                            <Link className="w-4 h-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
