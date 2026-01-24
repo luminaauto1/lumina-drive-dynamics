@@ -426,7 +426,16 @@ const ClientGenomeDrawer = ({ profile, open, onOpenChange }: ClientGenomeDrawerP
                   <CreditCard className="w-12 h-12 mx-auto mb-4 opacity-50" />
                   <p>No finance applications</p>
                   <p className="text-sm mb-4">This client hasn't applied for finance yet</p>
-                  <Button onClick={() => navigate('/admin/create-application')} className="gap-2">
+                  <Button 
+                    onClick={() => navigate('/admin/finance/create', { 
+                      state: { 
+                        prefillEmail: profile.email,
+                        prefillPhone: profile.phone,
+                        prefillName: profile.full_name 
+                      } 
+                    })} 
+                    className="gap-2"
+                  >
                     <Plus className="w-4 h-4" />
                     Create Application
                   </Button>

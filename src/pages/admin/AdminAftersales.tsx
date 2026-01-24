@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Package, Calendar, AlertCircle, Loader2, MessageCircle, Edit2, Save, X, Eye, Undo2, TrendingUp, DollarSign, Users, Plus, Receipt } from 'lucide-react';
+import { 
+  Package, Calendar, AlertCircle, Loader2, MessageCircle, Edit2, Save, X, 
+  Eye, Undo2, TrendingUp, DollarSign, Users, Plus, Receipt, Wrench, 
+  FileText, ChevronDown, ChevronUp, FolderOpen
+} from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { differenceInDays, differenceInYears, format } from 'date-fns';
+import { differenceInDays, differenceInYears, format, addYears } from 'date-fns';
 import AdminLayout from '@/components/admin/AdminLayout';
 import ClientProfileModal from '@/components/admin/ClientProfileModal';
 import { Button } from '@/components/ui/button';
@@ -14,6 +18,10 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { formatPrice } from '@/hooks/useVehicles';
 import { toast } from 'sonner';
@@ -30,13 +38,17 @@ interface DealRecord {
   next_service_km: number | null;
   delivery_address: string | null;
   delivery_date: string | null;
-  aftersales_expenses: Array<{ type: string; amount: number }> | null;
+  aftersales_expenses: Array<{ type: string; amount: number; description?: string }> | null;
   created_at: string;
+  cost_price: number | null;
+  gross_profit: number | null;
+  recon_cost: number | null;
   // Shared Capital fields
   is_shared_capital: boolean | null;
   partner_split_percent: number | null;
   partner_profit_amount: number | null;
   vehicle?: {
+    id: string;
     make: string;
     model: string;
     variant: string | null;
@@ -45,8 +57,12 @@ interface DealRecord {
     purchase_price?: number;
     reconditioning_cost?: number;
     cost_price?: number;
+    last_service_date?: string;
+    next_service_date?: string;
+    next_service_km?: number;
   };
   application?: {
+    id: string;
     first_name: string | null;
     last_name: string | null;
     full_name: string;
@@ -78,6 +94,13 @@ interface AftersalesRecord {
   };
 }
 
+interface ClientDocument {
+  id: string;
+  name: string;
+  file_path: string;
+  uploaded_at: string;
+}
+
 const useDealRecords = () => {
   return useQuery({
     queryKey: ['deal-records'],
@@ -86,17 +109,16 @@ const useDealRecords = () => {
         .from('deal_records')
         .select(`
           *,
-          vehicle:vehicles(make, model, variant, year, price, purchase_price, reconditioning_cost, cost_price),
-          application:finance_applications(first_name, last_name, full_name, email, phone, gross_salary, additional_income)
+          vehicle:vehicles(id, make, model, variant, year, price, purchase_price, reconditioning_cost, cost_price, last_service_date, next_service_date, next_service_km),
+          application:finance_applications(id, first_name, last_name, full_name, email, phone, gross_salary, additional_income)
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      // Parse aftersales_expenses from JSON
       return (data || []).map(record => ({
         ...record,
         aftersales_expenses: Array.isArray(record.aftersales_expenses) 
-          ? record.aftersales_expenses as Array<{ type: string; amount: number }>
+          ? record.aftersales_expenses as Array<{ type: string; amount: number; description?: string }>
           : [],
       })) as DealRecord[];
     },
@@ -118,6 +140,24 @@ const useAftersalesRecords = () => {
       if (error) throw error;
       return data as AftersalesRecord[];
     },
+  });
+};
+
+const useClientDocuments = (clientId: string | undefined) => {
+  return useQuery({
+    queryKey: ['client-documents', clientId],
+    queryFn: async () => {
+      if (!clientId) return [];
+      const { data, error } = await supabase
+        .from('client_documents')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('uploaded_at', { ascending: false });
+      
+      if (error) throw error;
+      return data as ClientDocument[];
+    },
+    enabled: !!clientId,
   });
 };
 
@@ -148,7 +188,6 @@ const useRollbackDeal = () => {
 
   return useMutation({
     mutationFn: async ({ dealId, applicationId, vehicleId }: { dealId: string; applicationId: string | null; vehicleId: string | null }) => {
-      // 1. Update finance application status back to approved
       if (applicationId) {
         const { error: appError } = await supabase
           .from('finance_applications')
@@ -157,7 +196,6 @@ const useRollbackDeal = () => {
         if (appError) throw appError;
       }
 
-      // 2. Update vehicle status back to available
       if (vehicleId) {
         const { error: vehicleError } = await supabase
           .from('vehicles')
@@ -166,14 +204,12 @@ const useRollbackDeal = () => {
         if (vehicleError) throw vehicleError;
       }
 
-      // 3. Delete the deal record
       const { error: dealError } = await supabase
         .from('deal_records')
         .delete()
         .eq('id', dealId);
       if (dealError) throw dealError;
 
-      // 4. Delete associated aftersales record if exists
       if (applicationId) {
         await supabase
           .from('aftersales_records')
@@ -195,7 +231,6 @@ const useRollbackDeal = () => {
   });
 };
 
-// Add expense to deal record mutation
 const useAddDealExpense = () => {
   const queryClient = useQueryClient();
 
@@ -220,17 +255,88 @@ const useAddDealExpense = () => {
   });
 };
 
-// TASK 3 FIX: Proper service due badge logic - only show if date is STRICTLY in the past
+const useLogServiceRecord = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ 
+      vehicleId, 
+      dealId,
+      serviceDate, 
+      serviceMileage, 
+      workshopName, 
+      serviceCost,
+      currentExpenses 
+    }: { 
+      vehicleId: string; 
+      dealId: string;
+      serviceDate: string; 
+      serviceMileage: number; 
+      workshopName: string; 
+      serviceCost: number;
+      currentExpenses: Array<{ type: string; amount: number }>;
+    }) => {
+      // Calculate next service date (1 year from service)
+      const nextServiceDate = addYears(new Date(serviceDate), 1).toISOString().split('T')[0];
+      const nextServiceKm = serviceMileage + 15000; // Standard 15,000km interval
+
+      // Update vehicle with service info
+      const { error: vehicleError } = await supabase
+        .from('vehicles')
+        .update({ 
+          last_service_date: serviceDate,
+          last_service_km: serviceMileage,
+          next_service_date: nextServiceDate,
+          next_service_km: nextServiceKm,
+        })
+        .eq('id', vehicleId);
+
+      if (vehicleError) throw vehicleError;
+
+      // Update deal record with new next service date
+      const { error: dealError } = await supabase
+        .from('deal_records')
+        .update({ 
+          next_service_date: nextServiceDate,
+          next_service_km: nextServiceKm,
+        })
+        .eq('id', dealId);
+
+      if (dealError) throw dealError;
+
+      // If there's a cost, add it as an expense
+      if (serviceCost > 0) {
+        const updatedExpenses = [...currentExpenses, { 
+          type: `Service at ${workshopName}`, 
+          amount: serviceCost 
+        }];
+        
+        await supabase
+          .from('deal_records')
+          .update({ aftersales_expenses: updatedExpenses as any })
+          .eq('id', dealId);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deal-records'] });
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      toast.success('Service record logged. Next service date updated.');
+    },
+    onError: () => {
+      toast.error('Failed to log service');
+    },
+  });
+};
+
 const getServiceDueStatus = (deal: DealRecord) => {
   if (!deal.next_service_date) return { isDue: false, reason: null };
   
   const today = new Date();
-  today.setHours(0, 0, 0, 0); // Reset to start of day for fair comparison
+  today.setHours(0, 0, 0, 0);
   
   const serviceDate = new Date(deal.next_service_date);
   serviceDate.setHours(0, 0, 0, 0);
   
-  // Only true if date is STRICTLY in the PAST (not today)
   if (serviceDate < today) {
     return { isDue: true, reason: 'Service Date Passed' };
   }
@@ -242,25 +348,21 @@ const getServiceStatus = (saleDate: string) => {
   const days = differenceInDays(new Date(), new Date(saleDate));
   const years = differenceInYears(new Date(), new Date(saleDate));
   
-  // Annual service: due every 365 days
   const daysSinceLastService = days % 365;
   const daysUntilNextService = 365 - daysSinceLastService;
   
-  // 3-year follow-up
   const yearsRemaining = 3 - (years % 3);
   const daysUntil3Year = yearsRemaining * 365 - daysSinceLastService;
   
   let serviceStatus: 'ok' | 'due_soon' | 'overdue' = 'ok';
   let tradeInStatus: 'ok' | 'due_soon' | 'overdue' = 'ok';
   
-  // Service: due soon if within 30 days, overdue if past
   if (daysUntilNextService <= 0 || daysUntilNextService > 335) {
     serviceStatus = 'overdue';
   } else if (daysUntilNextService <= 30) {
     serviceStatus = 'due_soon';
   }
   
-  // 3-Year: due soon if within 90 days, approaching 3 year mark
   if (years >= 3 && daysUntil3Year <= 0) {
     tradeInStatus = 'overdue';
   } else if (daysUntil3Year <= 90 && daysUntil3Year > 0) {
@@ -286,13 +388,39 @@ const StatusBadge = ({ status, label }: { status: 'ok' | 'due_soon' | 'overdue';
   );
 };
 
-// Add Expense Dialog Component
-const AddExpenseDialog = ({ deal, onClose }: { deal: DealRecord; onClose: () => void }) => {
+// Deal Management Modal Component
+const DealManagementModal = ({ deal, open, onOpenChange }: { deal: DealRecord; open: boolean; onOpenChange: (open: boolean) => void }) => {
   const addExpense = useAddDealExpense();
+  const logService = useLogServiceRecord();
+  const { data: documents = [] } = useClientDocuments(deal.application?.id);
+  
   const [expenseType, setExpenseType] = useState('');
   const [expenseAmount, setExpenseAmount] = useState('');
+  const [serviceDate, setServiceDate] = useState('');
+  const [serviceMileage, setServiceMileage] = useState('');
+  const [workshopName, setWorkshopName] = useState('');
+  const [serviceCost, setServiceCost] = useState('');
 
-  const handleSubmit = () => {
+  const currentExpensesTotal = (deal.aftersales_expenses || []).reduce((sum, exp) => sum + (exp.amount || 0), 0);
+  const costPrice = deal.cost_price || deal.vehicle?.cost_price || deal.vehicle?.purchase_price || 0;
+  const reconCost = deal.recon_cost || deal.vehicle?.reconditioning_cost || 0;
+  
+  // Calculate profit
+  let originalProfit: number;
+  let currentProfit: number;
+  
+  if (deal.is_shared_capital && deal.partner_split_percent) {
+    const baseProfit = (deal.sold_price || 0) - costPrice - reconCost;
+    const partnerPayout = baseProfit * (deal.partner_split_percent / 100);
+    const luminaRetained = baseProfit - partnerPayout;
+    originalProfit = luminaRetained - (deal.sales_rep_commission || 0);
+    currentProfit = originalProfit - currentExpensesTotal;
+  } else {
+    originalProfit = (deal.sold_price || 0) - costPrice - reconCost - (deal.sales_rep_commission || 0);
+    currentProfit = originalProfit - currentExpensesTotal;
+  }
+
+  const handleAddExpense = () => {
     if (!expenseType.trim() || !expenseAmount) {
       toast.error('Please fill in all fields');
       return;
@@ -306,80 +434,314 @@ const AddExpenseDialog = ({ deal, onClose }: { deal: DealRecord; onClose: () => 
     
     setExpenseType('');
     setExpenseAmount('');
-    onClose();
   };
 
-  const currentExpensesTotal = (deal.aftersales_expenses || []).reduce((sum, exp) => sum + (exp.amount || 0), 0);
-  const costPrice = deal.vehicle?.cost_price || deal.vehicle?.purchase_price || 0;
-  
-  // Shared Capital calculation
-  let currentProfit: number;
-  if (deal.is_shared_capital && deal.partner_split_percent) {
-    const baseProfit = (deal.sold_price || 0) - costPrice - currentExpensesTotal;
-    const partnerPayout = baseProfit * (deal.partner_split_percent / 100);
-    const luminaRetained = baseProfit - partnerPayout;
-    currentProfit = luminaRetained - (deal.sales_rep_commission || 0);
-  } else {
-    currentProfit = (deal.sold_price || 0) - costPrice - currentExpensesTotal - (deal.sales_rep_commission || 0);
-  }
+  const handleLogService = () => {
+    if (!serviceDate || !serviceMileage || !workshopName) {
+      toast.error('Please fill in service date, mileage and workshop name');
+      return;
+    }
+
+    if (!deal.vehicle_id) {
+      toast.error('No vehicle linked to this deal');
+      return;
+    }
+
+    logService.mutate({
+      vehicleId: deal.vehicle_id,
+      dealId: deal.id,
+      serviceDate,
+      serviceMileage: parseInt(serviceMileage),
+      workshopName,
+      serviceCost: serviceCost ? parseFloat(serviceCost) : 0,
+      currentExpenses: deal.aftersales_expenses || [],
+    });
+
+    setServiceDate('');
+    setServiceMileage('');
+    setWorkshopName('');
+    setServiceCost('');
+    onOpenChange(false);
+  };
+
+  const serviceDue = getServiceDueStatus(deal);
 
   return (
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>Add Post-Sale Expense</DialogTitle>
-        <DialogDescription>
-          {deal.vehicle && `${deal.vehicle.year} ${deal.vehicle.make} ${deal.vehicle.model}`}
-        </DialogDescription>
-      </DialogHeader>
-      
-      {/* Current Expenses */}
-      {(deal.aftersales_expenses || []).length > 0 && (
-        <div className="bg-secondary/30 rounded-lg p-3 space-y-2">
-          <p className="text-xs font-medium text-muted-foreground">Existing Expenses:</p>
-          {deal.aftersales_expenses!.map((exp, idx) => (
-            <div key={idx} className="flex justify-between text-sm">
-              <span>{exp.type}</span>
-              <span className="text-red-400">-{formatPrice(exp.amount)}</span>
-            </div>
-          ))}
-          <div className="border-t border-border pt-2 flex justify-between text-sm font-medium">
-            <span>Current Profit</span>
-            <span className={currentProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-              {formatPrice(currentProfit)}
-            </span>
-          </div>
-        </div>
-      )}
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            Deal Management
+            {serviceDue.isDue && (
+              <Badge variant="destructive" className="text-xs">Service Overdue</Badge>
+            )}
+          </DialogTitle>
+          <DialogDescription>
+            {deal.vehicle && `${deal.vehicle.year} ${deal.vehicle.make} ${deal.vehicle.model}`} • 
+            {deal.application && ` ${deal.application.first_name} ${deal.application.last_name}`}
+          </DialogDescription>
+        </DialogHeader>
+        
+        <Tabs defaultValue="service" className="flex-1 overflow-hidden">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="service" className="gap-2">
+              <Wrench className="w-4 h-4" />
+              Service
+            </TabsTrigger>
+            <TabsTrigger value="expenses" className="gap-2">
+              <Receipt className="w-4 h-4" />
+              Expenses
+            </TabsTrigger>
+            <TabsTrigger value="documents" className="gap-2">
+              <FolderOpen className="w-4 h-4" />
+              Documents
+            </TabsTrigger>
+          </TabsList>
 
-      <div className="grid gap-4 py-4">
-        <div className="space-y-2">
-          <Label htmlFor="expenseType">Description</Label>
-          <Input
-            id="expenseType"
-            placeholder="e.g., Late Recon, Tow Fee"
-            value={expenseType}
-            onChange={(e) => setExpenseType(e.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="expenseAmount">Amount (R)</Label>
-          <Input
-            id="expenseAmount"
-            type="number"
-            placeholder="0.00"
-            value={expenseAmount}
-            onChange={(e) => setExpenseAmount(e.target.value)}
-          />
-        </div>
-      </div>
-      <DialogFooter>
-        <Button variant="outline" onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSubmit} disabled={addExpense.isPending}>
-          {addExpense.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-          Add Expense
-        </Button>
-      </DialogFooter>
-    </DialogContent>
+          {/* Service Tab */}
+          <TabsContent value="service" className="flex-1 overflow-auto">
+            <ScrollArea className="h-[400px]">
+              <div className="space-y-4 p-1">
+                {/* Current Service Status */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Current Service Status</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Next Service Date</p>
+                        <p className="font-medium">
+                          {deal.next_service_date 
+                            ? format(new Date(deal.next_service_date), 'dd MMM yyyy')
+                            : 'Not set'
+                          }
+                        </p>
+                        {serviceDue.isDue && (
+                          <Badge variant="destructive" className="mt-1 text-xs">{serviceDue.reason}</Badge>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Next Service KM</p>
+                        <p className="font-medium">
+                          {deal.next_service_km ? `${deal.next_service_km.toLocaleString()} km` : 'Not set'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Current Mileage</p>
+                        <p className="font-medium">
+                          {deal.sold_mileage ? `${deal.sold_mileage.toLocaleString()} km` : 'Not recorded'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Sale Date</p>
+                        <p className="font-medium">{format(new Date(deal.created_at), 'dd MMM yyyy')}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Log Service Form */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Wrench className="w-4 h-4" />
+                      Log Service Record
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Service Date</Label>
+                        <Input
+                          type="date"
+                          value={serviceDate}
+                          onChange={(e) => setServiceDate(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Mileage at Service</Label>
+                        <Input
+                          type="number"
+                          placeholder="e.g., 45000"
+                          value={serviceMileage}
+                          onChange={(e) => setServiceMileage(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Workshop Name</Label>
+                        <Input
+                          placeholder="e.g., Toyota Sandton"
+                          value={workshopName}
+                          onChange={(e) => setWorkshopName(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Service Cost (R) - Optional</Label>
+                        <Input
+                          type="number"
+                          placeholder="0.00"
+                          value={serviceCost}
+                          onChange={(e) => setServiceCost(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <Button onClick={handleLogService} disabled={logService.isPending} className="w-full">
+                      {logService.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Wrench className="w-4 h-4 mr-2" />}
+                      Log Service & Update Next Date
+                    </Button>
+                    <p className="text-xs text-muted-foreground text-center">
+                      This will set the next service date to 1 year from the service date
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          {/* Expenses Tab */}
+          <TabsContent value="expenses" className="flex-1 overflow-auto">
+            <ScrollArea className="h-[400px]">
+              <div className="space-y-4 p-1">
+                {/* Profit Summary */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Profit Summary</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-3 bg-secondary/30 rounded-lg">
+                        <p className="text-xs text-muted-foreground">Original Profit</p>
+                        <p className={`text-xl font-bold ${originalProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {formatPrice(originalProfit)}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-secondary/30 rounded-lg">
+                        <p className="text-xs text-muted-foreground">Current Profit</p>
+                        <p className={`text-xl font-bold ${currentProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {formatPrice(currentProfit)}
+                        </p>
+                      </div>
+                    </div>
+                    {currentExpensesTotal > 0 && (
+                      <p className="text-xs text-red-400 mt-2">
+                        Post-sale expenses: -{formatPrice(currentExpensesTotal)}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Current Expenses */}
+                {(deal.aftersales_expenses || []).length > 0 && (
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm">Existing Expenses</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {deal.aftersales_expenses!.map((exp, idx) => (
+                          <div key={idx} className="flex justify-between items-center p-2 bg-secondary/30 rounded">
+                            <span className="text-sm">{exp.type}</span>
+                            <span className="text-red-400 font-medium">-{formatPrice(exp.amount)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Add Expense Form */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Plus className="w-4 h-4" />
+                      Add Post-Sale Expense
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Description</Label>
+                        <Input
+                          placeholder="e.g., Traffic Fine, Repair"
+                          value={expenseType}
+                          onChange={(e) => setExpenseType(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Amount (R)</Label>
+                        <Input
+                          type="number"
+                          placeholder="0.00"
+                          value={expenseAmount}
+                          onChange={(e) => setExpenseAmount(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <Button onClick={handleAddExpense} disabled={addExpense.isPending} variant="outline" className="w-full">
+                      {addExpense.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+                      Add Expense
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          {/* Documents Tab */}
+          <TabsContent value="documents" className="flex-1 overflow-auto">
+            <ScrollArea className="h-[400px]">
+              <div className="space-y-4 p-1">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Digital Glovebox</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {documents.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <FolderOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                        <p>No documents uploaded</p>
+                        <p className="text-sm">Documents from the finance application will appear here</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {documents.map((doc) => (
+                          <div key={doc.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <FileText className="w-5 h-5 text-muted-foreground" />
+                              <div>
+                                <p className="text-sm font-medium">{doc.name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {format(new Date(doc.uploaded_at), 'dd MMM yyyy HH:mm')}
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={async () => {
+                                const { data } = await supabase.storage
+                                  .from('client-docs')
+                                  .createSignedUrl(doc.file_path, 3600);
+                                if (data?.signedUrl) {
+                                  window.open(data.signedUrl, '_blank');
+                                }
+                              }}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
   );
 };
 
@@ -391,31 +753,35 @@ const AdminAftersales = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editNotes, setEditNotes] = useState('');
   const [selectedRecord, setSelectedRecord] = useState<AftersalesRecord | null>(null);
-  const [expenseDealId, setExpenseDealId] = useState<string | null>(null);
+  const [manageDeal, setManageDeal] = useState<DealRecord | null>(null);
+  const [expandedDeals, setExpandedDeals] = useState<Set<string>>(new Set());
 
   const isLoading = aftersalesLoading || dealsLoading;
 
-  // Calculate analytics from deal records (includes all expenses + shared capital logic)
+  // Calculate analytics from deal records
   const totalProfit = dealRecords.reduce((sum, deal) => {
     const soldPrice = deal.sold_price || 0;
-    const costPrice = deal.vehicle?.cost_price || deal.vehicle?.purchase_price || 0;
+    const costPrice = deal.cost_price || deal.vehicle?.cost_price || deal.vehicle?.purchase_price || 0;
+    const reconCost = deal.recon_cost || deal.vehicle?.reconditioning_cost || 0;
     const expensesTotal = (deal.aftersales_expenses || []).reduce((e, exp) => e + (exp.amount || 0), 0);
     const commission = deal.sales_rep_commission || 0;
     
-    // Shared Capital calculation
     if (deal.is_shared_capital && deal.partner_split_percent) {
-      const baseProfit = soldPrice - costPrice - expensesTotal;
+      const baseProfit = soldPrice - costPrice - reconCost - expensesTotal;
       const partnerPayout = baseProfit * (deal.partner_split_percent / 100);
       const luminaRetained = baseProfit - partnerPayout;
       return sum + (luminaRetained - commission);
     }
     
-    return sum + (soldPrice - costPrice - expensesTotal - commission);
+    return sum + (soldPrice - costPrice - reconCost - expensesTotal - commission);
   }, 0);
 
   const totalCommission = dealRecords.reduce((sum, deal) => {
     return sum + (deal.sales_rep_commission || 0);
   }, 0);
+
+  // Count deals with service due
+  const serviceAlertCount = dealRecords.filter(deal => getServiceDueStatus(deal).isDue).length;
 
   const startEditing = (record: AftersalesRecord) => {
     setEditingId(record.id);
@@ -445,7 +811,18 @@ const AdminAftersales = () => {
     window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
-  // Sort records to show alerts first
+  const toggleDealExpand = (dealId: string) => {
+    setExpandedDeals(prev => {
+      const next = new Set(prev);
+      if (next.has(dealId)) {
+        next.delete(dealId);
+      } else {
+        next.add(dealId);
+      }
+      return next;
+    });
+  };
+
   const sortedRecords = [...aftersalesRecords].sort((a, b) => {
     const aStatus = getServiceStatus(a.sale_date);
     const bStatus = getServiceStatus(b.sale_date);
@@ -476,7 +853,7 @@ const AdminAftersales = () => {
           className="mb-6"
         >
           <h1 className="text-3xl font-semibold mb-2">Aftersales</h1>
-          <p className="text-muted-foreground">Manage customer relationships post-sale</p>
+          <p className="text-muted-foreground">Manage customer relationships and deal lifecycle post-sale</p>
         </motion.div>
 
         {/* Analytics Bar */}
@@ -510,8 +887,11 @@ const AdminAftersales = () => {
             <p className="text-2xl font-bold">{dealRecords.length}</p>
           </div>
           <div className="glass-card rounded-lg p-4">
-            <p className="text-2xl font-bold text-yellow-400">{alertCount}</p>
-            <p className="text-sm text-muted-foreground">Needs Attention</p>
+            <div className="flex items-center gap-2 mb-1">
+              <Wrench className="w-4 h-4 text-yellow-400" />
+              <p className="text-sm text-muted-foreground">Service Due</p>
+            </div>
+            <p className="text-2xl font-bold text-yellow-400">{serviceAlertCount}</p>
           </div>
           <div className="glass-card rounded-lg p-4">
             <p className="text-2xl font-bold text-emerald-400">
@@ -521,17 +901,17 @@ const AdminAftersales = () => {
           </div>
         </motion.div>
 
-        {/* Alert Banner */}
-        {alertCount > 0 && (
+        {/* Service Alert Banner */}
+        {serviceAlertCount > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center gap-3"
+            className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg flex items-center gap-3"
           >
-            <AlertCircle className="w-5 h-5 text-yellow-500" />
+            <Wrench className="w-5 h-5 text-red-500" />
             <p className="text-sm">
-              <span className="font-semibold">{alertCount} customer(s)</span> need follow-up for service reminders or trade-in opportunities.
+              <span className="font-semibold">{serviceAlertCount} deal(s)</span> have overdue service dates. Click on the row to manage.
             </p>
           </motion.div>
         )}
@@ -545,6 +925,7 @@ const AdminAftersales = () => {
         >
           <div className="p-4 border-b border-white/10">
             <h2 className="text-lg font-semibold">Deal Records</h2>
+            <p className="text-sm text-muted-foreground">Click any row to manage the deal lifecycle</p>
           </div>
           {isLoading ? (
             <div className="p-8 text-center">
@@ -559,115 +940,134 @@ const AdminAftersales = () => {
             <Table>
               <TableHeader>
                 <TableRow className="border-white/10 hover:bg-white/5">
+                  <TableHead className="text-muted-foreground w-8"></TableHead>
                   <TableHead className="text-muted-foreground">Customer</TableHead>
                   <TableHead className="text-muted-foreground">Vehicle</TableHead>
                   <TableHead className="text-muted-foreground">Sold Price</TableHead>
+                  <TableHead className="text-muted-foreground">Next Service</TableHead>
                   <TableHead className="text-muted-foreground">Sales Rep</TableHead>
-                  <TableHead className="text-muted-foreground">Date</TableHead>
                   <TableHead className="text-muted-foreground text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {dealRecords.map((deal) => (
-                  <TableRow key={deal.id} className="border-white/10 hover:bg-white/5">
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">
-                          {deal.application?.first_name} {deal.application?.last_name}
-                        </p>
-                        <p className="text-xs text-muted-foreground">{deal.application?.email}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {deal.vehicle ? (
-                        <p className="font-medium">
-                          {deal.vehicle.year} {deal.vehicle.make} {deal.vehicle.model}
-                        </p>
-                      ) : (
-                        <span className="text-muted-foreground">Vehicle removed</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <p className="font-semibold">{deal.sold_price ? formatPrice(deal.sold_price) : 'N/A'}</p>
-                        {(deal.aftersales_expenses || []).length > 0 && (
-                          <p className="text-xs text-red-400">
-                            -{formatPrice((deal.aftersales_expenses || []).reduce((s, e) => s + (e.amount || 0), 0))} expenses
-                          </p>
+                {dealRecords.map((deal) => {
+                  const serviceDue = getServiceDueStatus(deal);
+                  
+                  return (
+                    <TableRow 
+                      key={deal.id} 
+                      className={`border-white/10 hover:bg-white/5 cursor-pointer ${serviceDue.isDue ? 'bg-red-500/5' : ''}`}
+                      onClick={() => setManageDeal(deal)}
+                    >
+                      <TableCell className="w-8">
+                        {serviceDue.isDue && (
+                          <AlertCircle className="w-4 h-4 text-red-500" />
                         )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <p className="text-sm">{deal.sales_rep_name || 'N/A'}</p>
-                        {deal.sales_rep_commission && (
-                          <p className="text-xs text-muted-foreground">
-                            {formatPrice(deal.sales_rep_commission)} comm.
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">
+                            {deal.application?.first_name} {deal.application?.last_name}
                           </p>
+                          <p className="text-xs text-muted-foreground">{deal.application?.email}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {deal.vehicle ? (
+                          <p className="font-medium">
+                            {deal.vehicle.year} {deal.vehicle.make} {deal.vehicle.model}
+                          </p>
+                        ) : (
+                          <span className="text-muted-foreground">Vehicle removed</span>
                         )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {format(new Date(deal.created_at), 'dd MMM yyyy')}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Dialog open={expenseDealId === deal.id} onOpenChange={(open) => setExpenseDealId(open ? deal.id : null)}>
-                          <DialogTrigger asChild>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-blue-500 hover:text-blue-400 hover:bg-blue-500/10"
-                              title="Add Post-Sale Expense"
-                            >
-                              <Receipt className="w-4 h-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <AddExpenseDialog deal={deal} onClose={() => setExpenseDealId(null)} />
-                        </Dialog>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-semibold">{deal.sold_price ? formatPrice(deal.sold_price) : 'N/A'}</p>
+                          {(deal.aftersales_expenses || []).length > 0 && (
+                            <p className="text-xs text-red-400">
+                              -{formatPrice((deal.aftersales_expenses || []).reduce((s, e) => s + (e.amount || 0), 0))} expenses
+                            </p>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {deal.next_service_date ? (
+                          <div>
+                            <p className="text-sm">{format(new Date(deal.next_service_date), 'dd MMM yyyy')}</p>
+                            {serviceDue.isDue && (
+                              <Badge variant="destructive" className="text-xs mt-1">Overdue</Badge>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">Not set</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="text-sm">{deal.sales_rep_name || 'N/A'}</p>
+                          {deal.sales_rep_commission && (
+                            <p className="text-xs text-muted-foreground">
+                              {formatPrice(deal.sales_rep_commission)} comm.
+                            </p>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1">
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="text-amber-500 hover:text-amber-400 hover:bg-amber-500/10"
-                            title="Undo Deal / Return to Finance"
+                            className="text-blue-500 hover:text-blue-400 hover:bg-blue-500/10"
+                            onClick={() => setManageDeal(deal)}
+                            title="Manage Deal"
                           >
-                            <Undo2 className="w-4 h-4" />
+                            <Eye className="w-4 h-4" />
                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Undo This Deal?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This will:
-                              <ul className="list-disc list-inside mt-2 space-y-1">
-                                <li>Return the finance application status to "Approved"</li>
-                                <li>Set the vehicle status back to "Available"</li>
-                                <li>Delete this deal record permanently</li>
-                              </ul>
-                              <p className="mt-3 font-medium">This action cannot be undone.</p>
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => rollbackDeal.mutate({
-                                dealId: deal.id,
-                                applicationId: deal.application_id,
-                                vehicleId: deal.vehicle_id,
-                              })}
-                              className="bg-amber-600 hover:bg-amber-700"
-                            >
-                              Undo Deal
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-amber-500 hover:text-amber-400 hover:bg-amber-500/10"
+                                title="Undo Deal / Return to Finance"
+                              >
+                                <Undo2 className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Undo This Deal?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will:
+                                  <ul className="list-disc list-inside mt-2 space-y-1">
+                                    <li>Return the finance application status to "Approved"</li>
+                                    <li>Set the vehicle status back to "Available"</li>
+                                    <li>Delete this deal record permanently</li>
+                                  </ul>
+                                  <p className="mt-3 font-medium">This action cannot be undone.</p>
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => rollbackDeal.mutate({
+                                    dealId: deal.id,
+                                    applicationId: deal.application_id,
+                                    vehicleId: deal.vehicle_id,
+                                  })}
+                                  className="bg-amber-600 hover:bg-amber-700"
+                                >
+                                  Undo Deal
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
@@ -822,6 +1222,15 @@ const AdminAftersales = () => {
             isOpen={!!selectedRecord}
             onClose={() => setSelectedRecord(null)}
             record={selectedRecord}
+          />
+        )}
+
+        {/* Deal Management Modal */}
+        {manageDeal && (
+          <DealManagementModal
+            deal={manageDeal}
+            open={!!manageDeal}
+            onOpenChange={(open) => !open && setManageDeal(null)}
           />
         )}
       </div>

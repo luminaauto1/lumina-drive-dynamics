@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import {
@@ -36,6 +36,9 @@ const STEPS = [
 
 const AdminCreateApplication = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const prefillData = location.state as { prefillEmail?: string; prefillPhone?: string; prefillName?: string } | null;
+  
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -78,6 +81,19 @@ const AdminCreateApplication = () => {
     // Notes
     admin_notes: '',
   });
+
+  // Prefill from navigation state if coming from CRM
+  useEffect(() => {
+    if (prefillData) {
+      setFormData(prev => ({
+        ...prev,
+        client_email: prefillData.prefillEmail || '',
+        client_phone: prefillData.prefillPhone || '',
+        first_name: prefillData.prefillName?.split(' ')[0] || '',
+        last_name: prefillData.prefillName?.split(' ').slice(1).join(' ') || '',
+      }));
+    }
+  }, [prefillData]);
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -157,13 +173,21 @@ const AdminCreateApplication = () => {
       // Check if a profile/user exists for this email
       const { data: existingProfile } = await supabase
         .from('profiles')
-        .select('user_id')
+        .select('id, user_id, full_name')
         .eq('email', formData.client_email.toLowerCase().trim())
         .maybeSingle();
 
+      // If existing user found, notify admin
+      if (existingProfile) {
+        toast.info(`Existing client found: ${existingProfile.full_name || 'Unknown'}. Application will be linked to their profile.`);
+      }
+
+      // Use existing user_id if found, otherwise use shadow ID
+      const userId = existingProfile?.user_id || '00000000-0000-0000-0000-000000000000';
+
       // Prepare the application data
       const applicationData = {
-        user_id: existingProfile?.user_id || '00000000-0000-0000-0000-000000000000', // Shadow user ID if no profile
+        user_id: userId,
         full_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
         first_name: formData.first_name.trim(),
         last_name: formData.last_name.trim(),
@@ -204,17 +228,22 @@ const AdminCreateApplication = () => {
         return;
       }
 
-      // Also create a lead entry
-      await supabase.from('leads').insert({
-        client_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
-        client_email: formData.client_email.trim().toLowerCase(),
-        client_phone: formData.client_phone.trim(),
-        source: 'Admin Created',
-        status: 'new',
-        notes: `Application created by admin. ${formData.admin_notes || ''}`,
-      } as any);
+      // Also create a lead entry if this is a new client (no existing profile)
+      if (!existingProfile) {
+        await supabase.from('leads').insert({
+          client_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
+          client_email: formData.client_email.trim().toLowerCase(),
+          client_phone: formData.client_phone.trim(),
+          source: 'Admin Created',
+          status: 'new',
+          notes: `Application created by admin. ${formData.admin_notes || ''}`,
+        } as any);
+      }
 
-      toast.success('Application created successfully!');
+      toast.success(existingProfile 
+        ? `Application linked to existing client: ${existingProfile.full_name || formData.first_name}` 
+        : 'Application created successfully!'
+      );
       navigate('/admin/finance');
     } catch (err) {
       console.error('Error creating application:', err);
