@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
@@ -10,10 +10,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface ApplicationData {
-  id: string;
+  application_id: string;
   first_name: string;
-  last_name: string;
-  full_name: string;
   status: string;
   access_token: string;
 }
@@ -56,25 +54,30 @@ const SecureDocumentUpload = () => {
     }
 
     try {
-      const { data, error: fetchError } = await supabase
-        .from('finance_applications')
-        .select('id, first_name, last_name, full_name, status, access_token')
-        .eq('access_token', token)
-        .single();
+      // Use secure edge function to verify token instead of direct DB query
+      const { data, error: fetchError } = await supabase.functions.invoke('verify-upload-token', {
+        body: { token },
+      });
 
-      if (fetchError || !data) {
-        setError('Application not found or link has expired');
+      if (fetchError || !data?.valid) {
+        setError(data?.error || 'Application not found or link has expired');
         setIsLoading(false);
         return;
       }
 
-      setApplication(data as ApplicationData);
+      setApplication({
+        application_id: data.application_id,
+        first_name: data.first_name,
+        status: data.status,
+        access_token: data.access_token,
+      });
 
       // Check if already submitted documents
       if (data.status === 'documents_received' || ['validations_pending', 'validations_complete', 'contract_sent', 'contract_signed', 'vehicle_delivered'].includes(data.status)) {
         setIsSubmitted(true);
       }
     } catch (err) {
+      console.error('Fetch error:', err);
       setError('Failed to load application');
     } finally {
       setIsLoading(false);
@@ -148,7 +151,7 @@ const SecureDocumentUpload = () => {
   };
 
   const handleSubmitDocuments = async () => {
-    if (!application) return;
+    if (!application || !token) return;
 
     const totalUploaded = Object.values(uploadedFiles).flat().length;
     if (totalUploaded === 0) {
@@ -157,14 +160,16 @@ const SecureDocumentUpload = () => {
     }
 
     try {
-      // Update application status to documents_received
-      const { error: updateError } = await supabase
-        .from('finance_applications')
-        .update({ status: 'documents_received' })
-        .eq('access_token', token);
+      // Use secure edge function to update status
+      const { data, error: updateError } = await supabase.functions.invoke('verify-upload-token?action=update-status', {
+        body: { 
+          token,
+          status: 'documents_received'
+        },
+      });
 
-      if (updateError) {
-        throw updateError;
+      if (updateError || !data?.success) {
+        throw new Error(data?.error || 'Failed to update status');
       }
 
       setIsSubmitted(true);
@@ -179,7 +184,7 @@ const SecureDocumentUpload = () => {
     return uploadedFiles[docType]?.length || 0;
   };
 
-  const firstName = application?.first_name || application?.full_name?.split(' ')[0] || 'Client';
+  const firstName = application?.first_name || 'Client';
 
   if (isLoading) {
     return (

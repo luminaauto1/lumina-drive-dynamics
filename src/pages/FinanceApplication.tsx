@@ -1,4 +1,3 @@
-import emailjs from "@emailjs/browser";
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -405,45 +404,41 @@ const FinanceApplication = () => {
       toast.error("Failed to submit application. Please try again.");
       console.error("Submission error:", error);
     } else {
-      // 4. Auto-create Lead
+      // 4. Auto-create Lead via secure edge function
       try {
-        await supabase.from("leads").insert({
-          client_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
-          client_email: formData.email.trim().toLowerCase(),
-          client_phone: formData.phone.trim(),
-          source: "Finance Form",
-          status: "new",
-          notes: `Finance application submitted. Vehicle preference: ${formData.preferred_vehicle_text || "None specified"}`,
-          vehicle_id: vehicleId || null,
-        } as any);
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData?.session?.access_token;
+        
+        if (accessToken) {
+          await supabase.functions.invoke("create-lead", {
+            body: {
+              client_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
+              client_email: formData.email.trim().toLowerCase(),
+              client_phone: formData.phone.trim(),
+              source: "Finance Form",
+              notes: `Finance application submitted. Vehicle preference: ${formData.preferred_vehicle_text || "None specified"}`,
+              vehicle_id: vehicleId || null,
+            },
+          });
+        }
       } catch (leadError) {
         console.error("Lead creation failed:", leadError);
+        // Non-blocking - application was already saved
       }
 
-      // 5. SEND EMAIL (Manual Fix via EmailJS)
-      const SERVICE_ID = "service_myacl2m";
-      const TEMPLATE_ID = "template_ftu8rix";
-      const PUBLIC_KEY = "pWT3blntfZk-_syL4";
-
+      // 5. Send confirmation email via edge function
       try {
-        await emailjs.send(
-          SERVICE_ID,
-          TEMPLATE_ID,
-          {
-            email: formData.email,
-            to_email: formData.email,
-            reply_to: formData.email,
-            to_name: `${formData.first_name} ${formData.last_name}`,
-            phone: formData.phone,
-            id_number: formData.id_number,
-            net_salary: formData.net_salary,
-            vehicle_preference: formData.preferred_vehicle_text || "No preference listed",
+        await supabase.functions.invoke("send-finance-alert", {
+          body: {
+            applicationId: insertedApp?.id,
+            clientName: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
+            clientEmail: formData.email.trim().toLowerCase(),
+            netSalary: formData.net_salary ? parseFloat(formData.net_salary) : null,
           },
-          PUBLIC_KEY,
-        );
-        console.log("Email sent successfully");
+        });
       } catch (emailError) {
-        console.error("Email failed:", emailError);
+        console.error("Email notification failed:", emailError);
+        // Non-blocking - application was already saved
       }
 
       setIsSubmitted(true);
