@@ -937,6 +937,7 @@ const AdminAftersales = () => {
               <p>No finalized deals yet</p>
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="border-white/10 hover:bg-white/5">
@@ -1070,6 +1071,7 @@ const AdminAftersales = () => {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </motion.div>
 
@@ -1094,6 +1096,7 @@ const AdminAftersales = () => {
               <p className="text-sm mt-1">Finalized deals will appear here for follow-up</p>
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="border-white/10 hover:bg-white/5">
@@ -1213,6 +1216,7 @@ const AdminAftersales = () => {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </motion.div>
 
