@@ -289,9 +289,9 @@ const AdminDealRoom = () => {
     }
   };
 
-  // BLOCK 4 FIX: Fetch ALL vehicles (Available, Sourcing, Incoming) - not just available
+  // Fetch ALL vehicles including hidden - admins need full access
   const selectableVehicles = vehicles.filter(v => 
-    ['available', 'sourcing', 'incoming'].includes(v.status) && 
+    ['available', 'sourcing', 'incoming', 'hidden'].includes(v.status) && 
     !matches.some((m: any) => m.vehicle_id === v.id)
   );
 

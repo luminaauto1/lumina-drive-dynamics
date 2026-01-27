@@ -318,10 +318,24 @@ const FinanceApplication = () => {
   const handleSubmit = async () => {
     if (!user) return;
 
-    // 1. Validation
+    // Calculate total gross from income sources for validation
+    const totalGrossForValidation = formData.income_sources.reduce((sum, src) => 
+      sum + (parseFloat(src.amount) || 0), 0);
+
+    // 1. Validation - transform formData to match schema expectations
+    const validationData = {
+      ...formData,
+      gross_salary: totalGrossForValidation, // Pass computed number
+      employer_name: formData.income_sources
+        .filter(src => src.source && src.amount)
+        .map(src => src.source)
+        .join(" + ") || formData.employer_name || '',
+    };
+
     try {
-      financeApplicationFullSchema.parse(formData);
+      financeApplicationFullSchema.parse(validationData);
     } catch (error) {
+      console.error("Validation errors:", error);
       if (error instanceof Error && "errors" in error) {
         toast.error(getFirstZodError(error as any));
       } else {
