@@ -256,7 +256,13 @@ const AdminDealRoom = () => {
   const handleFinalizeDealSuccess = async () => {
     if (!application) return;
     
-    const selectedMatch = matches[0] as any;
+    // Get vehicle ID from application state (may have been updated via modal)
+    const finalVehicleId = application.vehicle_id || (matches[0] as any)?.vehicle_id;
+    
+    if (!finalVehicleId) {
+      toast.error('No vehicle assigned to this deal');
+      return;
+    }
     
     try {
       // Update status to finalized
@@ -267,7 +273,7 @@ const AdminDealRoom = () => {
 
       // Create aftersales record
       await createAftersalesRecord.mutateAsync({
-        vehicleId: selectedMatch.vehicle_id,
+        vehicleId: finalVehicleId,
         customerId: application.user_id,
         customerName: `${application.first_name || ''} ${application.last_name || ''}`.trim() || application.full_name,
         customerEmail: application.email,
@@ -279,7 +285,7 @@ const AdminDealRoom = () => {
       await supabase
         .from('vehicles')
         .update({ status: 'sold' })
-        .eq('id', selectedMatch.vehicle_id);
+        .eq('id', finalVehicleId);
 
       setApplication(prev => prev ? { ...prev, status: 'finalized' } : null);
       toast.success('Deal finalized! Aftersales record created.');
@@ -291,7 +297,7 @@ const AdminDealRoom = () => {
 
   // Fetch ALL vehicles including hidden - admins need full access
   const selectableVehicles = vehicles.filter(v => 
-    ['available', 'sourcing', 'incoming', 'hidden'].includes(v.status) && 
+    ['available', 'reserved', 'sourcing', 'incoming', 'hidden'].includes(v.status) && 
     !matches.some((m: any) => m.vehicle_id === v.id)
   );
 
@@ -1160,19 +1166,33 @@ const AdminDealRoom = () => {
       />
 
       {/* Finalize Deal Modal - Uses activeVehicle for fresh data */}
-      {(matches[0] as any)?.vehicle_id && (
-        <FinalizeDealModal
-          isOpen={finalizeDealModalOpen}
-          onClose={() => setFinalizeDealModalOpen(false)}
-          applicationId={application.id}
-          vehicleId={(matches[0] as any).vehicle_id}
-          vehiclePrice={activeVehicle?.price || 0}
-          vehicleMileage={activeVehicle?.mileage || 0}
-          vehicleStatus={activeVehicle?.status}
-          vehicle={activeVehicle}
-          onSuccess={handleFinalizeDealSuccess}
-        />
-      )}
+      <FinalizeDealModal
+        isOpen={finalizeDealModalOpen}
+        onClose={() => setFinalizeDealModalOpen(false)}
+        applicationId={application.id}
+        vehicleId={(matches[0] as any)?.vehicle_id || ''}
+        vehiclePrice={activeVehicle?.price || 0}
+        vehicleMileage={activeVehicle?.mileage || 0}
+        vehicleStatus={activeVehicle?.status}
+        vehicle={activeVehicle}
+        onSuccess={handleFinalizeDealSuccess}
+        onVehicleChange={async (newVehicleId) => {
+          // Update the application's vehicle_id when changed in the modal
+          await supabase
+            .from('finance_applications')
+            .update({ vehicle_id: newVehicleId })
+            .eq('id', application.id);
+          
+          // Refresh data
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ['application-matches', application.id] }),
+            queryClient.invalidateQueries({ queryKey: ['vehicles'] }),
+            queryClient.invalidateQueries({ queryKey: ['finance-applications'] }),
+          ]);
+          await refetchMatches();
+          await refetchVehicles();
+        }}
+      />
 
       {/* OTP Modal */}
       <OTPModal
