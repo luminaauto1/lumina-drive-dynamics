@@ -1,14 +1,16 @@
-import { useState, useEffect } from 'react';
-import { Plus, X, MapPin, Car, DollarSign, User, Receipt, Calculator, TrendingUp } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Plus, X, MapPin, Car, DollarSign, User, Receipt, Calculator, TrendingUp, Search, ChevronDown } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { useCreateDealRecord, AftersalesExpense } from '@/hooks/useDealRecords';
-import { formatPrice } from '@/hooks/useVehicles';
+import { formatPrice, useVehicles, Vehicle } from '@/hooks/useVehicles';
 
 interface SalesRep {
   name: string;
@@ -35,6 +37,7 @@ interface FinalizeDealModalProps {
   vehicleStatus?: string;
   vehicle?: VehicleInfo | null;
   onSuccess: () => void;
+  onVehicleChange?: (vehicleId: string) => void; // Optional callback when vehicle changes
 }
 
 const EXPENSE_TYPES = ['Gift', 'Car Wash', 'Fuel', 'Polish', 'Service', 'Repairs', 'Other'];
@@ -49,9 +52,85 @@ const FinalizeDealModal = ({
   vehicleStatus = 'available',
   vehicle,
   onSuccess,
+  onVehicleChange,
 }: FinalizeDealModalProps) => {
   const { data: settings } = useSiteSettings();
   const createDealRecord = useCreateDealRecord();
+  
+  // Fetch ALL vehicles including hidden for selection
+  const { data: allVehicles = [] } = useVehicles();
+  
+  // Vehicle selector state
+  const [activeVehicleId, setActiveVehicleId] = useState(vehicleId);
+  const [vehicleSearchOpen, setVehicleSearchOpen] = useState(false);
+  const [vehicleSearchQuery, setVehicleSearchQuery] = useState('');
+  
+  // Get the active vehicle from the full list or use prop vehicle
+  const activeVehicle = useMemo(() => {
+    if (activeVehicleId && allVehicles.length > 0) {
+      const found = allVehicles.find(v => v.id === activeVehicleId);
+      if (found) return found;
+    }
+    // Fall back to prop vehicle
+    if (vehicle) {
+      return {
+        id: vehicleId,
+        year: vehicle.year,
+        make: vehicle.make,
+        model: vehicle.model,
+        stock_number: vehicle.stock_number,
+        cost_price: vehicle.cost_price,
+        purchase_price: vehicle.purchase_price,
+        reconditioning_cost: vehicle.reconditioning_cost,
+        price: vehiclePrice,
+        mileage: vehicleMileage,
+        status: vehicleStatus,
+      } as Vehicle;
+    }
+    return null;
+  }, [activeVehicleId, allVehicles, vehicle, vehicleId, vehiclePrice, vehicleMileage, vehicleStatus]);
+  
+  // Filter vehicles for selector - include all admin-accessible statuses
+  const selectableVehicles = useMemo(() => {
+    return allVehicles.filter(v => 
+      ['available', 'reserved', 'incoming', 'sourcing', 'hidden'].includes(v.status)
+    );
+  }, [allVehicles]);
+  
+  // Filter by search
+  const filteredVehicles = useMemo(() => {
+    if (!vehicleSearchQuery) return selectableVehicles;
+    const query = vehicleSearchQuery.toLowerCase();
+    return selectableVehicles.filter(v => 
+      `${v.make} ${v.model} ${v.variant || ''} ${v.stock_number || ''}`.toLowerCase().includes(query)
+    );
+  }, [selectableVehicles, vehicleSearchQuery]);
+  
+  // Update active vehicle ID when prop changes
+  useEffect(() => {
+    if (vehicleId && vehicleId !== activeVehicleId) {
+      setActiveVehicleId(vehicleId);
+    }
+  }, [vehicleId]);
+  
+  // Handle vehicle selection change
+  const handleVehicleSelect = (newVehicleId: string) => {
+    setActiveVehicleId(newVehicleId);
+    setVehicleSearchOpen(false);
+    setVehicleSearchQuery('');
+    
+    // Update selling price and mileage from the new vehicle
+    const newVehicle = allVehicles.find(v => v.id === newVehicleId);
+    if (newVehicle) {
+      setSellingPrice(newVehicle.price);
+      setSoldMileage(newVehicle.mileage);
+      setCostPrice(newVehicle.cost_price || newVehicle.purchase_price || 0);
+      setReconCost(newVehicle.reconditioning_cost || 0);
+    }
+    
+    // Notify parent if callback provided
+    onVehicleChange?.(newVehicleId);
+  };
   
   // === SECTION 1: Pricing & Structure ===
   const [sellingPrice, setSellingPrice] = useState(vehiclePrice);
@@ -160,14 +239,14 @@ const FinalizeDealModal = ({
   };
 
   const handleSubmit = async () => {
-    if (!selectedRepName || !deliveryAddress || !deliveryDate) {
+    if (!selectedRepName || !deliveryAddress || !deliveryDate || !activeVehicleId) {
       return;
     }
 
     try {
       await createDealRecord.mutateAsync({
         applicationId,
-        vehicleId,
+        vehicleId: activeVehicleId, // Use the active vehicle from selector
         salesRepName: selectedRepName,
         salesRepCommission: commissionAmount,
         soldPrice: adjustedSellingPrice, // Store the adjusted (post-discount) price
@@ -179,7 +258,7 @@ const FinalizeDealModal = ({
         aftersalesExpenses: expenses,
         costPrice,
         calculatedProfit: netProfit,
-        isSourcingVehicle: vehicleStatus === 'sourcing',
+        isSourcingVehicle: activeVehicle?.status === 'sourcing',
         // Shared Capital fields
         isSharedCapital,
         partnerSplitPercent: isSharedCapital ? partnerSplitPercent : 0,
@@ -216,19 +295,89 @@ const FinalizeDealModal = ({
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Vehicle Summary */}
-          {vehicle ? (
-            <div className="bg-blue-500/10 p-4 rounded-md border border-blue-500/20">
-              <h3 className="font-bold text-blue-400 text-sm uppercase mb-1">Closing Deal For:</h3>
-              <p className="text-xl font-semibold text-foreground">{vehicle.year} {vehicle.make} {vehicle.model}</p>
-              <p className="text-sm text-muted-foreground">Stock: {vehicle.stock_number || 'N/A'}</p>
+          {/* Vehicle Selector */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-blue-400">
+              <Car className="w-4 h-4" />
+              Deal Vehicle
             </div>
-          ) : (
-            <div className="bg-red-500/10 p-4 rounded-md border border-red-500/20">
-              <p className="text-red-400 font-bold">⚠️ WARNING: No Vehicle Assigned</p>
-              <p className="text-xs text-red-300">Please close this modal and assign a vehicle first.</p>
-            </div>
-          )}
+            
+            <Popover open={vehicleSearchOpen} onOpenChange={setVehicleSearchOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={vehicleSearchOpen}
+                  className="w-full justify-between h-auto py-3"
+                >
+                  {activeVehicle ? (
+                    <div className="text-left">
+                      <p className="font-semibold">
+                        {activeVehicle.year} {activeVehicle.make} {activeVehicle.model}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Stock: {activeVehicle.stock_number || 'N/A'} • {formatPrice(activeVehicle.price || 0)}
+                        {activeVehicle.status === 'hidden' && (
+                          <span className="ml-2 text-amber-400">(Hidden)</span>
+                        )}
+                        {activeVehicle.status === 'sourcing' && (
+                          <span className="ml-2 text-purple-400">(Sourcing)</span>
+                        )}
+                      </p>
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground">Select a vehicle...</span>
+                  )}
+                  <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[400px] p-0" align="start">
+                <div className="p-2 border-b">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search vehicles..."
+                      value={vehicleSearchQuery}
+                      onChange={(e) => setVehicleSearchQuery(e.target.value)}
+                      className="pl-8"
+                    />
+                  </div>
+                </div>
+                <ScrollArea className="h-[300px]">
+                  {filteredVehicles.length === 0 ? (
+                    <p className="text-center text-sm text-muted-foreground py-4">No vehicles found</p>
+                  ) : (
+                    <div className="p-1">
+                      {filteredVehicles.map((v) => (
+                        <button
+                          key={v.id}
+                          onClick={() => handleVehicleSelect(v.id)}
+                          className={`w-full text-left px-3 py-2 rounded-md hover:bg-muted/50 transition-colors ${
+                            v.id === activeVehicleId ? 'bg-primary/10 border border-primary/30' : ''
+                          }`}
+                        >
+                          <p className="font-medium text-sm">
+                            {v.year} {v.make} {v.model} {v.variant || ''}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatPrice(v.price)} • {v.stock_number || 'No Stock #'}
+                            {v.status === 'hidden' && <span className="ml-2 text-amber-400">(Hidden)</span>}
+                            {v.status === 'sourcing' && <span className="ml-2 text-purple-400">(Sourcing)</span>}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </PopoverContent>
+            </Popover>
+            
+            {!activeVehicle && (
+              <div className="bg-red-500/10 p-3 rounded-md border border-red-500/20">
+                <p className="text-red-400 text-sm font-medium">⚠️ Please select a vehicle to finalize the deal</p>
+              </div>
+            )}
+          </div>
 
           {/* === SECTION 1: Pricing & Structure === */}
           <div className="space-y-4">
@@ -638,7 +787,7 @@ const FinalizeDealModal = ({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!selectedRepName || !deliveryAddress || !deliveryDate || createDealRecord.isPending}
+            disabled={!selectedRepName || !deliveryAddress || !deliveryDate || !activeVehicleId || createDealRecord.isPending}
             className="bg-emerald-600 hover:bg-emerald-700"
           >
             {createDealRecord.isPending ? 'Finalizing...' : 'Finalize Deal'}
