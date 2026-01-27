@@ -70,8 +70,16 @@ export const financeApplicationStep4Schema = z.object({
   bank_name: z.string().min(1, 'Please select a bank'),
   account_type: z.string().min(1, 'Account type is required'),
   account_number: z.string().min(1, 'Account number is required').regex(/^\d+$/, 'Account number must contain only digits').max(20, 'Account number must be less than 20 digits'),
-  gross_salary: salarySchema.refine((val) => val && val.trim() !== '' && parseFloat(val) >= 1, 'Gross salary is required (min R1)'),
-  net_salary: salarySchema.refine((val) => val && val.trim() !== '' && parseFloat(val) >= 1, 'Net salary is required (min R1)'),
+  gross_salary: z.string().refine((val) => {
+    if (!val || val.trim() === '') return false;
+    const num = parseFloat(val);
+    return !isNaN(num) && num >= 1;
+  }, 'Gross salary is required (min R1)'),
+  net_salary: z.string().refine((val) => {
+    if (!val || val.trim() === '') return false;
+    const num = parseFloat(val);
+    return !isNaN(num) && num >= 1;
+  }, 'Net salary is required (min R1)'),
   expenses_summary: z.string().min(2, 'Expenses breakdown is required (min 2 characters)').max(500, 'Field must be less than 500 characters'),
 });
 
@@ -92,7 +100,7 @@ export const financeApplicationFullSchema = z.object({
   phone: phoneSchema,
   street_address: z.string().min(5, 'Please enter a valid address').max(500, 'Address is too long'),
   area_code: z.string().max(10, 'Area code must be less than 10 characters').optional().or(z.literal('')),
-  employer_name: z.string().min(2, 'Employer name must be at least 2 characters').max(200, 'Employer name is too long'),
+  employer_name: shortTextSchema, // Made optional - income source names override this
   job_title: shortTextSchema,
   employment_period: shortTextSchema,
   kin_name: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name is too long'),
@@ -100,8 +108,17 @@ export const financeApplicationFullSchema = z.object({
   bank_name: z.string().min(1, 'Please select a bank'),
   account_type: shortTextSchema,
   account_number: accountNumberSchema,
-  gross_salary: salarySchema.refine((val) => val && val.trim() !== '', 'Gross salary is required'),
-  net_salary: salarySchema.refine((val) => val && val.trim() !== '', 'Net salary is required'),
+  // income_sources is the source of truth; gross_salary is computed
+  income_sources: z.array(z.object({
+    source: z.string(),
+    amount: z.string(),
+  })).optional(),
+  gross_salary: z.number().optional(), // Computed from income_sources
+  net_salary: z.string().refine((val) => {
+    if (!val || val.trim() === '') return false;
+    const num = parseFloat(val);
+    return !isNaN(num) && num >= 1;
+  }, 'Net salary is required (min R1)'),
   expenses_summary: z.string().min(1, 'Expenses breakdown is required').max(500, 'Field must be less than 500 characters'),
   preferred_vehicle_text: longTextSchema,
   popia_consent: z.boolean().refine((val) => val === true, 'You must consent to POPIA to proceed'),

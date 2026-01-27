@@ -195,8 +195,17 @@ const AdminInventoryPage = () => {
       v.variant?.toLowerCase().includes(search)
     );
     const isGeneric = (v as any).is_generic_listing === true || v.status === 'sourcing';
-    const matchesTab = activeTab === 'live' ? !isGeneric : isGeneric;
-    return matchesSearch && matchesTab;
+    const isHidden = v.status === 'hidden';
+    
+    // Tab filtering logic
+    if (activeTab === 'live') {
+      return matchesSearch && !isGeneric && !isHidden;
+    } else if (activeTab === 'sourcing') {
+      return matchesSearch && isGeneric;
+    } else if (activeTab === 'hidden') {
+      return matchesSearch && isHidden;
+    }
+    return matchesSearch;
   });
 
   const openAddSheet = async (sourcing: boolean = false) => {
@@ -489,6 +498,10 @@ const AdminInventoryPage = () => {
               </TabsTrigger>
               <TabsTrigger value="sourcing" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                 Sourcing Examples
+              </TabsTrigger>
+              <TabsTrigger value="hidden" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                <EyeOff className="w-3.5 h-3.5 mr-1.5" />
+                Hidden / Client Stock
               </TabsTrigger>
             </TabsList>
           </Tabs>
