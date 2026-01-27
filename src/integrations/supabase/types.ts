@@ -788,6 +788,47 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicle_expenses: {
+        Row: {
+          amount: number
+          category: string | null
+          created_at: string
+          date_incurred: string | null
+          description: string
+          id: string
+          receipt_url: string | null
+          vehicle_id: string
+        }
+        Insert: {
+          amount?: number
+          category?: string | null
+          created_at?: string
+          date_incurred?: string | null
+          description: string
+          id?: string
+          receipt_url?: string | null
+          vehicle_id: string
+        }
+        Update: {
+          amount?: number
+          category?: string | null
+          created_at?: string
+          date_incurred?: string | null
+          description?: string
+          id?: string
+          receipt_url?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_expenses_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicles: {
         Row: {
           body_type: string | null

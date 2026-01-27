@@ -24,7 +24,7 @@ import {
 } from '@dnd-kit/sortable';
 import AdminLayout from '@/components/admin/AdminLayout';
 import SortableImage from '@/components/admin/SortableImage';
-import ReconTasksTab from '@/components/admin/ReconTasksTab';
+import VehicleOperationsTab from '@/components/admin/VehicleOperationsTab';
 import StockInModal from '@/components/admin/StockInModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -531,6 +531,7 @@ const AdminInventoryPage = () => {
               {searchQuery ? 'No vehicles match your search' : 'No vehicles in inventory. Add your first vehicle!'}
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="border-white/10 hover:bg-white/5">
@@ -706,6 +707,7 @@ const AdminInventoryPage = () => {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </motion.div>
       </div>
@@ -742,7 +744,7 @@ const AdminInventoryPage = () => {
           {/* Reconditioning Tab Content */}
           {editingVehicle && sheetTab === 'recon' && !isSourcingMode && (
             <div className="mt-6">
-              <ReconTasksTab 
+              <VehicleOperationsTab 
                 vehicleId={editingVehicle.id}
                 purchasePrice={(editingVehicle as any).purchase_price || 0}
                 sellingPrice={editingVehicle.price}
