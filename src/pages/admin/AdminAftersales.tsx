@@ -43,6 +43,8 @@ interface DealRecord {
   cost_price: number | null;
   gross_profit: number | null;
   recon_cost: number | null;
+  // DIC (Bank Reward)
+  dic_amount: number | null;
   // Shared Capital fields
   is_shared_capital: boolean | null;
   partner_split_percent: number | null;
@@ -388,10 +390,34 @@ const StatusBadge = ({ status, label }: { status: 'ok' | 'due_soon' | 'overdue';
   );
 };
 
+// Hook for updating DIC amount
+const useUpdateDealDIC = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ dealId, dicAmount }: { dealId: string; dicAmount: number }) => {
+      const { error } = await supabase
+        .from('deal_records')
+        .update({ dic_amount: dicAmount })
+        .eq('id', dealId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deal-records'] });
+      toast.success('DIC amount updated');
+    },
+    onError: () => {
+      toast.error('Failed to update DIC amount');
+    },
+  });
+};
+
 // Deal Management Modal Component
 const DealManagementModal = ({ deal, open, onOpenChange }: { deal: DealRecord; open: boolean; onOpenChange: (open: boolean) => void }) => {
   const addExpense = useAddDealExpense();
   const logService = useLogServiceRecord();
+  const updateDIC = useUpdateDealDIC();
   const { data: documents = [] } = useClientDocuments(deal.application?.id);
   
   const [expenseType, setExpenseType] = useState('');
@@ -400,25 +426,33 @@ const DealManagementModal = ({ deal, open, onOpenChange }: { deal: DealRecord; o
   const [serviceMileage, setServiceMileage] = useState('');
   const [workshopName, setWorkshopName] = useState('');
   const [serviceCost, setServiceCost] = useState('');
+  const [dicAmount, setDicAmount] = useState(deal.dic_amount || 0);
+  const [isEditingDIC, setIsEditingDIC] = useState(false);
 
   const currentExpensesTotal = (deal.aftersales_expenses || []).reduce((sum, exp) => sum + (exp.amount || 0), 0);
   const costPrice = deal.cost_price || deal.vehicle?.cost_price || deal.vehicle?.purchase_price || 0;
   const reconCost = deal.recon_cost || deal.vehicle?.reconditioning_cost || 0;
+  const currentDIC = deal.dic_amount || 0;
   
-  // Calculate profit
+  // Calculate profit (including DIC)
   let originalProfit: number;
   let currentProfit: number;
   
   if (deal.is_shared_capital && deal.partner_split_percent) {
-    const baseProfit = (deal.sold_price || 0) - costPrice - reconCost;
+    const baseProfit = (deal.sold_price || 0) - costPrice - reconCost + currentDIC;
     const partnerPayout = baseProfit * (deal.partner_split_percent / 100);
     const luminaRetained = baseProfit - partnerPayout;
     originalProfit = luminaRetained - (deal.sales_rep_commission || 0);
     currentProfit = originalProfit - currentExpensesTotal;
   } else {
-    originalProfit = (deal.sold_price || 0) - costPrice - reconCost - (deal.sales_rep_commission || 0);
+    originalProfit = (deal.sold_price || 0) - costPrice - reconCost + currentDIC - (deal.sales_rep_commission || 0);
     currentProfit = originalProfit - currentExpensesTotal;
   }
+
+  const handleSaveDIC = () => {
+    updateDIC.mutate({ dealId: deal.id, dicAmount });
+    setIsEditingDIC(false);
+  };
 
   const handleAddExpense = () => {
     if (!expenseType.trim() || !expenseAmount) {
@@ -628,6 +662,60 @@ const DealManagementModal = ({ deal, open, onOpenChange }: { deal: DealRecord; o
                         Post-sale expenses: -{formatPrice(currentExpensesTotal)}
                       </p>
                     )}
+                    {currentDIC > 0 && (
+                      <p className="text-xs text-emerald-400 mt-1">
+                        DIC/Bank Reward: +{formatPrice(currentDIC)}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* DIC / Bank Reward Section */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2 text-emerald-400">
+                      <DollarSign className="w-4 h-4" />
+                      Bank Reward / DIC
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {isEditingDIC ? (
+                      <div className="space-y-3">
+                        <div className="space-y-2">
+                          <Label>DIC Amount (R)</Label>
+                          <Input
+                            type="number"
+                            placeholder="0.00"
+                            value={dicAmount}
+                            onChange={(e) => setDicAmount(parseFloat(e.target.value) || 0)}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Dealer Incentive Commission from bank. Updates profit calculations.
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button onClick={handleSaveDIC} disabled={updateDIC.isPending} size="sm">
+                            {updateDIC.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Save className="w-4 h-4 mr-1" />}
+                            Save
+                          </Button>
+                          <Button onClick={() => { setIsEditingDIC(false); setDicAmount(deal.dic_amount || 0); }} variant="ghost" size="sm">
+                            <X className="w-4 h-4 mr-1" />
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-2xl font-bold text-emerald-400">{formatPrice(currentDIC)}</p>
+                          <p className="text-xs text-muted-foreground mt-1">Pure profit from bank incentive</p>
+                        </div>
+                        <Button onClick={() => setIsEditingDIC(true)} variant="outline" size="sm">
+                          <Edit2 className="w-4 h-4 mr-1" />
+                          {currentDIC > 0 ? 'Edit' : 'Add'} DIC
+                        </Button>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -758,22 +846,23 @@ const AdminAftersales = () => {
 
   const isLoading = aftersalesLoading || dealsLoading;
 
-  // Calculate analytics from deal records
+  // Calculate analytics from deal records (including DIC)
   const totalProfit = dealRecords.reduce((sum, deal) => {
     const soldPrice = deal.sold_price || 0;
     const costPrice = deal.cost_price || deal.vehicle?.cost_price || deal.vehicle?.purchase_price || 0;
     const reconCost = deal.recon_cost || deal.vehicle?.reconditioning_cost || 0;
+    const dicAmount = deal.dic_amount || 0;
     const expensesTotal = (deal.aftersales_expenses || []).reduce((e, exp) => e + (exp.amount || 0), 0);
     const commission = deal.sales_rep_commission || 0;
     
     if (deal.is_shared_capital && deal.partner_split_percent) {
-      const baseProfit = soldPrice - costPrice - reconCost - expensesTotal;
+      const baseProfit = soldPrice - costPrice - reconCost + dicAmount - expensesTotal;
       const partnerPayout = baseProfit * (deal.partner_split_percent / 100);
       const luminaRetained = baseProfit - partnerPayout;
       return sum + (luminaRetained - commission);
     }
     
-    return sum + (soldPrice - costPrice - reconCost - expensesTotal - commission);
+    return sum + (soldPrice - costPrice - reconCost + dicAmount - expensesTotal - commission);
   }, 0);
 
   const totalCommission = dealRecords.reduce((sum, deal) => {
