@@ -8,6 +8,12 @@ export interface AftersalesExpense {
   description?: string;
 }
 
+export interface DealAddOnItem {
+  name: string;
+  cost: number;
+  price: number;
+}
+
 export interface DealRecordInsert {
   applicationId: string;
   vehicleId: string;
@@ -27,7 +33,9 @@ export interface DealRecordInsert {
   isSharedCapital?: boolean;
   partnerSplitPercent?: number;
   partnerProfitAmount?: number;
-  // NEW F&I fields
+  partnerSplitType?: 'percentage' | 'fixed';
+  partnerSplitValue?: number;
+  // F&I fields
   discountAmount?: number;
   dealerDepositContribution?: number;
   externalAdminFee?: number;
@@ -36,6 +44,8 @@ export interface DealRecordInsert {
   clientDeposit?: number;
   grossProfit?: number;
   reconCost?: number;
+  // Add-ons
+  addonsData?: DealAddOnItem[];
 }
 
 export const useCreateDealRecord = () => {
@@ -43,8 +53,8 @@ export const useCreateDealRecord = () => {
 
   return useMutation({
     mutationFn: async (record: DealRecordInsert) => {
-      // Insert deal record
-      const { data, error } = await supabase
+      // Insert deal record - cast as any because new columns may not be in types yet
+      const { data, error } = await (supabase as any)
         .from('deal_records')
         .insert({
           application_id: record.applicationId,
@@ -57,7 +67,7 @@ export const useCreateDealRecord = () => {
           next_service_km: record.nextServiceKm || null,
           delivery_address: record.deliveryAddress,
           delivery_date: record.deliveryDate,
-          aftersales_expenses: record.aftersalesExpenses as any,
+          aftersales_expenses: record.aftersalesExpenses,
           // Cost and profit
           cost_price: record.costPrice || 0,
           gross_profit: record.grossProfit || 0,
@@ -66,13 +76,17 @@ export const useCreateDealRecord = () => {
           is_shared_capital: record.isSharedCapital || false,
           partner_split_percent: record.partnerSplitPercent || 0,
           partner_profit_amount: record.partnerProfitAmount || 0,
-          // NEW F&I fields
+          partner_split_type: record.partnerSplitType || 'percentage',
+          partner_split_value: record.partnerSplitValue || 0,
+          // F&I fields
           discount_amount: record.discountAmount || 0,
           dealer_deposit_contribution: record.dealerDepositContribution || 0,
           external_admin_fee: record.externalAdminFee || 0,
           bank_initiation_fee: record.bankInitiationFee || 0,
           total_financed_amount: record.totalFinancedAmount || 0,
           client_deposit: record.clientDeposit || 0,
+          // Add-ons
+          addons_data: record.addonsData || [],
         })
         .select()
         .single();
