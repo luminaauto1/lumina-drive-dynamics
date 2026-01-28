@@ -62,9 +62,11 @@ interface DealRecord {
   total_financed_amount?: number | null;
   // Add-ons
   addons_data?: DealAddOnItem[] | null;
-  // Referral
+  // Referral Expense
   referral_commission_amount?: number | null;
   referral_person_name?: string | null;
+  // Referral Income
+  referral_income_amount?: number | null;
   vehicle?: {
     id: string;
     make: string;
@@ -867,46 +869,39 @@ const AdminAftersales = () => {
 
   const isLoading = aftersalesLoading || dealsLoading;
 
-  // Calculate analytics from deal records (including DIC and Referrals)
-  const totalProfit = dealRecords.reduce((sum, deal) => {
-    const soldPrice = deal.sold_price || 0;
-    const costPrice = deal.cost_price || deal.vehicle?.cost_price || deal.vehicle?.purchase_price || 0;
-    const reconCost = deal.recon_cost || deal.vehicle?.reconditioning_cost || 0;
-    const dicAmount = deal.dic_amount || 0;
-    const expensesTotal = (deal.aftersales_expenses || []).reduce((e, exp) => e + (exp.amount || 0), 0);
-    const commission = deal.sales_rep_commission || 0;
-    const referralCommission = (deal as any).referral_commission_amount || 0;
-    
-    if (deal.is_shared_capital && deal.partner_split_percent) {
-      const baseProfit = soldPrice - costPrice - reconCost + dicAmount - expensesTotal;
-      const partnerPayout = baseProfit * (deal.partner_split_percent / 100);
-      const luminaRetained = baseProfit - partnerPayout;
-      return sum + (luminaRetained - commission - referralCommission);
-    }
-    
-    return sum + (soldPrice - costPrice - reconCost + dicAmount - expensesTotal - commission - referralCommission);
+  // Calculate analytics from deal records
+  // NEW LOGIC: Total Net Profit = gross_profit column (which now excludes commission)
+  // This sums the profit BEFORE commission is subtracted
+  const totalNetProfit = dealRecords.reduce((sum, deal) => {
+    // Use the stored gross_profit which is Lumina Net Profit (before commission)
+    return sum + (deal.gross_profit || 0);
   }, 0);
 
-  // Total sales commission paid
+  // Total sales commission paid (separate tracking)
   const totalSalesCommission = dealRecords.reduce((sum, deal) => {
     return sum + (deal.sales_rep_commission || 0);
   }, 0);
   
-  // Total referral commission paid
+  // Total referral commission paid (expense)
   const totalReferralCommission = dealRecords.reduce((sum, deal) => {
-    return sum + ((deal as any).referral_commission_amount || 0);
+    return sum + (deal.referral_commission_amount || 0);
   }, 0);
   
-  // Total commission (sales + referral)
-  const totalCommission = totalSalesCommission + totalReferralCommission;
+  // Total referral income received
+  const totalReferralIncome = dealRecords.reduce((sum, deal) => {
+    return sum + (deal.referral_income_amount || 0);
+  }, 0);
+  
+  // Total commission payable (sales + referral expense)
+  const totalCommissionPayable = totalSalesCommission + totalReferralCommission;
   
   // Total DIC earned
   const totalDIC = dealRecords.reduce((sum, deal) => {
     return sum + (deal.dic_amount || 0);
   }, 0);
   
-  // Average profit per unit
-  const avgProfitPerUnit = dealRecords.length > 0 ? totalProfit / dealRecords.length : 0;
+  // Average profit per unit (based on stored gross_profit)
+  const avgProfitPerUnit = dealRecords.length > 0 ? totalNetProfit / dealRecords.length : 0;
 
   // Count deals with service due
   const serviceAlertCount = dealRecords.filter(deal => getServiceDueStatus(deal).isDue).length;
@@ -996,8 +991,8 @@ const AdminAftersales = () => {
               <TrendingUp className="w-4 h-4 text-emerald-400" />
               <p className="text-sm text-muted-foreground">Total Net Profit</p>
             </div>
-            <p className={`text-2xl font-bold ${totalProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {formatPrice(totalProfit)}
+            <p className={`text-2xl font-bold ${totalNetProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {formatPrice(totalNetProfit)}
             </p>
           </div>
           <div className="glass-card rounded-lg p-4">
@@ -1026,9 +1021,9 @@ const AdminAftersales = () => {
           <div className="glass-card rounded-lg p-4">
             <div className="flex items-center gap-2 mb-1">
               <DollarSign className="w-4 h-4 text-primary" />
-              <p className="text-sm text-muted-foreground">Commission Paid</p>
+              <p className="text-sm text-muted-foreground">Commission Payable</p>
             </div>
-            <p className="text-2xl font-bold text-primary">{formatPrice(totalCommission)}</p>
+            <p className="text-2xl font-bold text-primary">{formatPrice(totalCommissionPayable)}</p>
             <p className="text-xs text-muted-foreground mt-1">
               Sales: {formatPrice(totalSalesCommission)} | Ref: {formatPrice(totalReferralCommission)}
             </p>
