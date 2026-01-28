@@ -58,9 +58,11 @@ export interface ExistingDealData {
   next_service_km?: number | null;
   aftersales_expenses?: Array<{ type: string; amount: number; description?: string }> | null;
   addons_data?: DealAddOnItem[] | null;
-  // Referral fields
+  // Referral fields (Expense)
   referral_commission_amount?: number | null;
   referral_person_name?: string | null;
+  // Referral Income (what we receive)
+  referral_income_amount?: number | null;
   vehicle?: {
     id: string;
     make: string;
@@ -187,9 +189,12 @@ const FinalizeDealModal = ({
   const [selectedRepName, setSelectedRepName] = useState('');
   const [repCommission, setRepCommission] = useState(0);
   
-  // Referral Commission (NEW)
+  // Referral Expense (what we PAY OUT)
   const [referralName, setReferralName] = useState('');
   const [referralCommission, setReferralCommission] = useState(0);
+  
+  // Referral Income (what we RECEIVE)
+  const [referralIncome, setReferralIncome] = useState(0);
   
   // Delivery
   const [deliveryDate, setDeliveryDate] = useState('');
@@ -249,9 +254,12 @@ const FinalizeDealModal = ({
         // Just set rep name, commission will update from salesReps
       }
       
-      // Referrals
+      // Referrals (Expense)
       setReferralName(existingDeal.referral_person_name || '');
       setReferralCommission(existingDeal.referral_commission_amount || 0);
+      
+      // Referral Income
+      setReferralIncome(existingDeal.referral_income_amount || 0);
       
       // Delivery
       if (existingDeal.delivery_date) {
@@ -343,13 +351,15 @@ const FinalizeDealModal = ({
   // Total aftersales expenses
   const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
   
-  // PROFIT CALCULATION (Admin/Bank fees are pass-through, NOT included)
-  // Total Costs = Purchase Cost + Recon + Expenses + Dealer Deposit Contribution + Addon Costs
-  const totalCosts = costPrice + reconCost + totalExpenses + dealerDepositContribution + totalAddonCost;
+  // === UPDATED PROFIT CALCULATION ===
+  // Gross Income = (Selling Price - Discount) + VAP Revenue + DIC + Referral Income
+  const grossIncome = adjustedSellingPrice + totalAddonPrice + dicAmount + referralIncome;
   
-  // Gross Profit = Adjusted Selling Price + Addon Prices - Total Costs + DIC
-  // DIC is PURE PROFIT from the bank - it increases gross profit without affecting client invoice
-  const grossProfit = adjustedSellingPrice + totalAddonPrice - totalCosts + dicAmount;
+  // Total Costs = Vehicle Cost + Recon + Expenses + Dealer Deposit Contribution + Addon Costs + Referral Expense
+  const totalCosts = costPrice + reconCost + totalExpenses + dealerDepositContribution + totalAddonCost + referralCommission;
+  
+  // Gross Profit = Gross Income - Total Costs
+  const grossProfit = grossIncome - totalCosts;
   
   // Shared Capital Logic - supports both percentage and fixed
   const partnerPayout = useMemo(() => {
@@ -361,13 +371,14 @@ const FinalizeDealModal = ({
     return partnerSplitValue;
   }, [isSharedCapital, partnerSplitType, partnerSplitValue, grossProfit]);
   
-  const luminaRetained = grossProfit - partnerPayout;
+  // Lumina Net Profit = Gross Profit - Partner Share (THIS is what gets saved to DB)
+  const luminaNetProfit = grossProfit - partnerPayout;
   
-  // Commission (calculated from Lumina's retained profit)
-  const commissionAmount = luminaRetained * (repCommission / 100);
+  // Commission (calculated from Lumina's net profit, shown as separate payout)
+  const commissionAmount = luminaNetProfit * (repCommission / 100);
   
-  // Net Profit after commission AND referral
-  const netProfit = luminaRetained - commissionAmount - referralCommission;
+  // Final Net Profit After All Payouts (for display only - not saved to DB)
+  const finalNetAfterPayouts = luminaNetProfit - commissionAmount;
   
   // Add-on helpers
   const addAddon = () => {
@@ -416,7 +427,8 @@ const FinalizeDealModal = ({
       deliveryDate: `${deliveryDate}T${deliveryTime}:00`,
       aftersalesExpenses: expenses,
       costPrice,
-      calculatedProfit: netProfit,
+      // Save Lumina Net Profit BEFORE commission is subtracted
+      calculatedProfit: luminaNetProfit,
       isSourcingVehicle: activeVehicle?.status === 'sourcing',
       // Shared Capital fields
       isSharedCapital,
@@ -437,9 +449,11 @@ const FinalizeDealModal = ({
       dicAmount,
       // Add-ons
       addonsData: addons,
-      // Referral
+      // Referral Expense (what we pay out)
       referralPersonName: referralName || undefined,
       referralCommissionAmount: referralCommission,
+      // Referral Income (what we receive)
+      referralIncomeAmount: referralIncome,
     };
 
     try {
@@ -706,6 +720,26 @@ const FinalizeDealModal = ({
                 />
                 <p className="text-xs text-muted-foreground">
                   Dealer Incentive Commission from bank. This is pure profit and does NOT appear on client invoice.
+                </p>
+              </div>
+            </div>
+            
+            {/* Referral Income Section (Money we RECEIVE) */}
+            <div className="p-4 mt-4 bg-emerald-500/10 rounded-lg border border-emerald-500/30">
+              <div className="flex items-center gap-2 mb-3">
+                <TrendingUp className="w-4 h-4 text-emerald-400" />
+                <span className="text-sm font-semibold text-emerald-400">Referral Income (Received)</span>
+              </div>
+              <div className="space-y-2">
+                <Label>Referral Income Amount</Label>
+                <Input
+                  type="number"
+                  value={referralIncome || ''}
+                  onChange={(e) => setReferralIncome(parseFloat(e.target.value) || 0)}
+                  placeholder="Money received from referral"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Income we receive for referring clients. Pure profit - adds to Gross Profit.
                 </p>
               </div>
             </div>
@@ -1103,13 +1137,20 @@ const FinalizeDealModal = ({
                 <span className="font-medium text-red-400">-{formatPrice(totalCosts)}</span>
               </div>
               <p className="text-xs text-muted-foreground -mt-2 mb-2">
-                (Vehicle: {formatPrice(costPrice)} + Recon: {formatPrice(reconCost)} + Expenses: {formatPrice(totalExpenses)} + Dealer Deposit: {formatPrice(dealerDepositContribution)}{totalAddonCost > 0 ? ` + Addon Costs: ${formatPrice(totalAddonCost)}` : ''})
+                (Vehicle: {formatPrice(costPrice)} + Recon: {formatPrice(reconCost)} + Expenses: {formatPrice(totalExpenses)} + Dealer Deposit: {formatPrice(dealerDepositContribution)}{totalAddonCost > 0 ? ` + Addon Costs: ${formatPrice(totalAddonCost)}` : ''}{referralCommission > 0 ? ` + Referral Expense: ${formatPrice(referralCommission)}` : ''})
               </p>
               
               {dicAmount > 0 && (
                 <div className="flex justify-between items-center py-2 border-b border-border/50 bg-emerald-500/5">
                   <span className="text-sm text-muted-foreground">+ Bank Reward / DIC:</span>
                   <span className="font-medium text-emerald-400">+{formatPrice(dicAmount)}</span>
+                </div>
+              )}
+              
+              {referralIncome > 0 && (
+                <div className="flex justify-between items-center py-2 border-b border-border/50 bg-emerald-500/5">
+                  <span className="text-sm text-muted-foreground">+ Referral Income:</span>
+                  <span className="font-medium text-emerald-400">+{formatPrice(referralIncome)}</span>
                 </div>
               )}
               
@@ -1129,30 +1170,34 @@ const FinalizeDealModal = ({
                 </div>
               )}
               
-              <div className="flex justify-between items-center py-2 border-b border-border/50">
-                <span className="text-sm text-muted-foreground">Sales Commission ({repCommission}%):</span>
-                <span className="font-medium text-blue-400">-{formatPrice(commissionAmount)}</span>
+              {/* LUMINA NET PROFIT - This is what gets saved to DB */}
+              <div className="flex justify-between items-center py-3 bg-primary/10 rounded-lg px-3 -mx-1">
+                <span className="text-sm font-semibold">Lumina Net Profit:</span>
+                <span className={`text-xl font-bold ${luminaNetProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {formatPrice(luminaNetProfit)}
+                </span>
               </div>
               
-              {referralCommission > 0 && (
-                <div className="flex justify-between items-center py-2 border-b border-border/50">
-                  <span className="text-sm text-muted-foreground">
-                    Referral Commission{referralName ? ` (${referralName})` : ''}:
-                  </span>
-                  <span className="font-medium text-cyan-400">-{formatPrice(referralCommission)}</span>
+              {/* Payouts Section - Shown separately, not subtracted from saved profit */}
+              <div className="mt-4 pt-4 border-t border-border/50 space-y-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Payouts from Profit:</p>
+                
+                <div className="flex justify-between items-center py-2 bg-blue-500/5 rounded-lg px-3 -mx-1">
+                  <span className="text-sm text-muted-foreground">Sales Commission ({repCommission}%):</span>
+                  <span className="font-medium text-blue-400">{formatPrice(commissionAmount)}</span>
                 </div>
-              )}
-              
-              <div className="flex justify-between items-center py-3 bg-primary/10 rounded-lg px-3 -mx-1">
-                <span className="text-sm font-semibold">Net Profit:</span>
-                <span className={`text-xl font-bold ${netProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {formatPrice(netProfit)}
-                </span>
+                
+                <div className="flex justify-between items-center py-2 bg-muted/30 rounded-lg px-3 -mx-1">
+                  <span className="text-sm text-muted-foreground">After Commission:</span>
+                  <span className={`font-bold ${finalNetAfterPayouts >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {formatPrice(finalNetAfterPayouts)}
+                  </span>
+                </div>
               </div>
             </div>
 
             <p className="text-xs text-muted-foreground mt-3">
-              Note: Admin & Bank fees are pass-through and not included in profit calculation.
+              Note: Admin & Bank fees are pass-through and not included in profit calculation. Commission is tracked separately.
             </p>
           </div>
         </div>

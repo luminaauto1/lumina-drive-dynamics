@@ -48,9 +48,11 @@ export interface DealRecordInsert {
   addonsData?: DealAddOnItem[];
   // DIC (Dealer Incentive Commission)
   dicAmount?: number;
-  // Referral
+  // Referral Expense (what we PAY OUT)
   referralPersonName?: string;
   referralCommissionAmount?: number;
+  // Referral Income (what we RECEIVE)
+  referralIncomeAmount?: number;
 }
 
 export interface DealRecordUpdate extends DealRecordInsert {
@@ -98,9 +100,11 @@ export const useCreateDealRecord = () => {
           dic_amount: record.dicAmount || 0,
           // Add-ons
           addons_data: record.addonsData || [],
-          // Referral
+          // Referral Expense
           referral_person_name: record.referralPersonName || null,
           referral_commission_amount: record.referralCommissionAmount || 0,
+          // Referral Income
+          referral_income_amount: record.referralIncomeAmount || 0,
         })
         .select()
         .single();
@@ -174,9 +178,11 @@ export const useUpdateDealRecord = () => {
           dic_amount: record.dicAmount || 0,
           // Add-ons
           addons_data: record.addonsData || [],
-          // Referral
+          // Referral Expense
           referral_person_name: record.referralPersonName || null,
           referral_commission_amount: record.referralCommissionAmount || 0,
+          // Referral Income
+          referral_income_amount: record.referralIncomeAmount || 0,
         })
         .eq('id', record.dealId)
         .select()

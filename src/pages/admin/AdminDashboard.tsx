@@ -42,19 +42,17 @@ const AdminDashboard = () => {
     return dealDate.getMonth() === now.getMonth() && dealDate.getFullYear() === now.getFullYear();
   });
 
-  // Calculate financial metrics
-  const totalGrossProfit = dealRecords.reduce((sum: number, deal: any) => {
-    const soldPrice = deal.sold_price || 0;
-    const purchasePrice = deal.vehicles?.purchase_price || 0;
-    return sum + (soldPrice - purchasePrice);
+  // Calculate financial metrics - using stored gross_profit (Lumina Net Profit before commission)
+  const totalNetProfit = dealRecords.reduce((sum: number, deal: any) => {
+    return sum + (deal.gross_profit || 0);
   }, 0);
 
   const totalCommissions = dealRecords.reduce((sum: number, deal: any) => {
-    return sum + (deal.sales_rep_commission || 0);
+    return sum + (deal.sales_rep_commission || 0) + (deal.referral_commission_amount || 0);
   }, 0);
 
   const totalReconCosts = dealRecords.reduce((sum: number, deal: any) => {
-    return sum + (deal.vehicles?.reconditioning_cost || 0);
+    return sum + (deal.recon_cost || 0);
   }, 0);
 
   const totalAftersalesExpenses = dealRecords.reduce((sum: number, deal: any) => {
@@ -62,8 +60,7 @@ const AdminDashboard = () => {
     return sum + expenses.reduce((expSum: number, exp: any) => expSum + (exp.amount || 0), 0);
   }, 0);
 
-  const netProfit = totalGrossProfit - totalCommissions - totalReconCosts - totalAftersalesExpenses;
-  const avgGrossPerUnit = dealRecords.length > 0 ? totalGrossProfit / dealRecords.length : 0;
+  const avgGrossPerUnit = dealRecords.length > 0 ? totalNetProfit / dealRecords.length : 0;
   const unitsSoldThisMonth = currentMonthDeals.length;
   const salesProgress = (unitsSoldThisMonth / monthlySalesTarget) * 100;
 
@@ -162,27 +159,21 @@ const AdminDashboard = () => {
             
             <div className="space-y-4">
               <div className="flex justify-between items-center p-3 bg-emerald-500/10 rounded-lg">
-                <span className="text-sm">Gross Profit</span>
-                <span className="font-bold text-emerald-400">{formatPrice(totalGrossProfit)}</span>
+                <span className="text-sm">Total Net Profit</span>
+                <span className={`font-bold ${totalNetProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{formatPrice(totalNetProfit)}</span>
+              </div>
+              <div className="flex justify-between items-center p-3 bg-amber-500/10 rounded-lg">
+                <span className="text-sm">Recon Costs</span>
+                <span className="font-medium text-amber-400">{formatPrice(totalReconCosts)}</span>
               </div>
               <div className="flex justify-between items-center p-3 bg-red-500/10 rounded-lg">
-                <span className="text-sm">Less: Commissions</span>
-                <span className="font-medium text-red-400">-{formatPrice(totalCommissions)}</span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-red-500/10 rounded-lg">
-                <span className="text-sm">Less: Recon Costs</span>
-                <span className="font-medium text-red-400">-{formatPrice(totalReconCosts)}</span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-red-500/10 rounded-lg">
-                <span className="text-sm">Less: Aftersales Expenses</span>
-                <span className="font-medium text-red-400">-{formatPrice(totalAftersalesExpenses)}</span>
+                <span className="text-sm">Aftersales Expenses</span>
+                <span className="font-medium text-red-400">{formatPrice(totalAftersalesExpenses)}</span>
               </div>
               <div className="border-t border-border pt-4">
-                <div className="flex justify-between items-center">
-                  <span className="font-semibold">Net Profit</span>
-                  <span className={`text-2xl font-bold ${netProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {formatPrice(netProfit)}
-                  </span>
+                <div className="flex justify-between items-center p-3 bg-blue-500/10 rounded-lg">
+                  <span className="text-sm">Total Commission Payable</span>
+                  <span className="font-medium text-blue-400">{formatPrice(totalCommissions)}</span>
                 </div>
               </div>
             </div>
