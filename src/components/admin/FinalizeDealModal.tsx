@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, X, MapPin, Car, DollarSign, User, Receipt, Calculator, TrendingUp, Search, ChevronDown, Package } from 'lucide-react';
+import { Plus, X, MapPin, Car, DollarSign, User, Receipt, Calculator, TrendingUp, Search, ChevronDown, Package, UserPlus } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
-import { useCreateDealRecord, AftersalesExpense, DealAddOnItem } from '@/hooks/useDealRecords';
+import { useCreateDealRecord, useUpdateDealRecord, AftersalesExpense, DealAddOnItem } from '@/hooks/useDealRecords';
 import { formatPrice, useVehicles, Vehicle } from '@/hooks/useVehicles';
 
 interface SalesRep {
@@ -28,6 +28,51 @@ interface VehicleInfo {
   reconditioning_cost?: number;
 }
 
+// Existing deal data for edit mode
+export interface ExistingDealData {
+  id: string;
+  application_id?: string | null;
+  vehicle_id?: string | null;
+  sold_price?: number | null;
+  sold_mileage?: number | null;
+  cost_price?: number | null;
+  recon_cost?: number | null;
+  gross_profit?: number | null;
+  dic_amount?: number | null;
+  discount_amount?: number | null;
+  dealer_deposit_contribution?: number | null;
+  external_admin_fee?: number | null;
+  bank_initiation_fee?: number | null;
+  client_deposit?: number | null;
+  total_financed_amount?: number | null;
+  is_shared_capital?: boolean | null;
+  partner_split_type?: string | null;
+  partner_split_value?: number | null;
+  partner_split_percent?: number | null;
+  partner_profit_amount?: number | null;
+  sales_rep_name?: string | null;
+  sales_rep_commission?: number | null;
+  delivery_address?: string | null;
+  delivery_date?: string | null;
+  next_service_date?: string | null;
+  next_service_km?: number | null;
+  aftersales_expenses?: Array<{ type: string; amount: number; description?: string }> | null;
+  addons_data?: DealAddOnItem[] | null;
+  // Referral fields
+  referral_commission_amount?: number | null;
+  referral_person_name?: string | null;
+  vehicle?: {
+    id: string;
+    make: string;
+    model: string;
+    year: number;
+    price: number;
+    cost_price?: number;
+    purchase_price?: number;
+    reconditioning_cost?: number;
+  };
+}
+
 interface FinalizeDealModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -38,7 +83,9 @@ interface FinalizeDealModalProps {
   vehicleStatus?: string;
   vehicle?: VehicleInfo | null;
   onSuccess: () => void;
-  onVehicleChange?: (vehicleId: string) => void; // Optional callback when vehicle changes
+  onVehicleChange?: (vehicleId: string) => void;
+  // Edit mode prop
+  existingDeal?: ExistingDealData | null;
 }
 
 const EXPENSE_TYPES = ['Gift', 'Car Wash', 'Fuel', 'Polish', 'Service', 'Repairs', 'Other'];
@@ -54,9 +101,13 @@ const FinalizeDealModal = ({
   vehicle,
   onSuccess,
   onVehicleChange,
+  existingDeal,
 }: FinalizeDealModalProps) => {
   const { data: settings } = useSiteSettings();
   const createDealRecord = useCreateDealRecord();
+  const updateDealRecord = useUpdateDealRecord();
+  
+  const isEditMode = !!existingDeal;
   
   // Fetch ALL vehicles including hidden for selection
   const { data: allVehicles = [] } = useVehicles();
@@ -107,32 +158,6 @@ const FinalizeDealModal = ({
     );
   }, [selectableVehicles, vehicleSearchQuery]);
   
-  // Update active vehicle ID when prop changes
-  useEffect(() => {
-    if (vehicleId && vehicleId !== activeVehicleId) {
-      setActiveVehicleId(vehicleId);
-    }
-  }, [vehicleId]);
-  
-  // Handle vehicle selection change
-  const handleVehicleSelect = (newVehicleId: string) => {
-    setActiveVehicleId(newVehicleId);
-    setVehicleSearchOpen(false);
-    setVehicleSearchQuery('');
-    
-    // Update selling price and mileage from the new vehicle
-    const newVehicle = allVehicles.find(v => v.id === newVehicleId);
-    if (newVehicle) {
-      setSellingPrice(newVehicle.price);
-      setSoldMileage(newVehicle.mileage);
-      setCostPrice(newVehicle.cost_price || newVehicle.purchase_price || 0);
-      setReconCost(newVehicle.reconditioning_cost || 0);
-    }
-    
-    // Notify parent if callback provided
-    onVehicleChange?.(newVehicleId);
-  };
-  
   // === SECTION 1: Pricing & Structure ===
   const [sellingPrice, setSellingPrice] = useState(vehiclePrice);
   const [discountAmount, setDiscountAmount] = useState(0);
@@ -162,6 +187,10 @@ const FinalizeDealModal = ({
   const [selectedRepName, setSelectedRepName] = useState('');
   const [repCommission, setRepCommission] = useState(0);
   
+  // Referral Commission (NEW)
+  const [referralName, setReferralName] = useState('');
+  const [referralCommission, setReferralCommission] = useState(0);
+  
   // Delivery
   const [deliveryDate, setDeliveryDate] = useState('');
   const [deliveryTime, setDeliveryTime] = useState('10:00');
@@ -178,6 +207,100 @@ const FinalizeDealModal = ({
   // Get sales reps from settings
   const salesReps: SalesRep[] = (settings as any)?.sales_reps || [];
   
+  // Initialize from existing deal data (EDIT MODE)
+  useEffect(() => {
+    if (existingDeal && isOpen) {
+      // Vehicle
+      if (existingDeal.vehicle_id) {
+        setActiveVehicleId(existingDeal.vehicle_id);
+      }
+      
+      // Pricing
+      setSellingPrice(existingDeal.sold_price || vehiclePrice);
+      setDiscountAmount(existingDeal.discount_amount || 0);
+      setExternalAdminFee(existingDeal.external_admin_fee ?? 7000);
+      setBankInitiationFee(existingDeal.bank_initiation_fee ?? 1207);
+      
+      // Deposits
+      setClientDeposit(existingDeal.client_deposit || 0);
+      setDealerDepositContribution(existingDeal.dealer_deposit_contribution || 0);
+      
+      // Costs
+      setCostPrice(existingDeal.cost_price || 0);
+      setReconCost(existingDeal.recon_cost || 0);
+      setDicAmount(existingDeal.dic_amount || 0);
+      
+      // Partner Split
+      setIsSharedCapital(existingDeal.is_shared_capital || false);
+      setPartnerSplitType((existingDeal.partner_split_type as 'percentage' | 'fixed') || 'percentage');
+      setPartnerSplitValue(existingDeal.partner_split_value || existingDeal.partner_split_percent || 50);
+      
+      // Add-ons
+      if (existingDeal.addons_data && Array.isArray(existingDeal.addons_data)) {
+        setAddons(existingDeal.addons_data);
+      } else {
+        setAddons([]);
+      }
+      
+      // Sales Rep
+      setSelectedRepName(existingDeal.sales_rep_name || '');
+      // Calculate commission percentage from amount
+      if (existingDeal.sales_rep_commission && existingDeal.gross_profit) {
+        // Just set rep name, commission will update from salesReps
+      }
+      
+      // Referrals
+      setReferralName(existingDeal.referral_person_name || '');
+      setReferralCommission(existingDeal.referral_commission_amount || 0);
+      
+      // Delivery
+      if (existingDeal.delivery_date) {
+        const deliveryDateTime = new Date(existingDeal.delivery_date);
+        setDeliveryDate(deliveryDateTime.toISOString().split('T')[0]);
+        setDeliveryTime(deliveryDateTime.toTimeString().slice(0, 5));
+      }
+      setDeliveryAddress(existingDeal.delivery_address || '');
+      
+      // Vehicle Info
+      setSoldMileage(existingDeal.sold_mileage || vehicleMileage);
+      setNextServiceDate(existingDeal.next_service_date || '');
+      setNextServiceKm(existingDeal.next_service_km || '');
+      
+      // Expenses
+      if (existingDeal.aftersales_expenses && Array.isArray(existingDeal.aftersales_expenses)) {
+        setExpenses(existingDeal.aftersales_expenses);
+      } else {
+        setExpenses([]);
+      }
+    }
+  }, [existingDeal, isOpen]);
+  
+  // Update active vehicle ID when prop changes (for new deals)
+  useEffect(() => {
+    if (!existingDeal && vehicleId && vehicleId !== activeVehicleId) {
+      setActiveVehicleId(vehicleId);
+    }
+  }, [vehicleId, existingDeal]);
+  
+  // Handle vehicle selection change
+  const handleVehicleSelect = (newVehicleId: string) => {
+    setActiveVehicleId(newVehicleId);
+    setVehicleSearchOpen(false);
+    setVehicleSearchQuery('');
+    
+    // Update selling price and mileage from the new vehicle
+    const newVehicle = allVehicles.find(v => v.id === newVehicleId);
+    if (newVehicle) {
+      setSellingPrice(newVehicle.price);
+      setSoldMileage(newVehicle.mileage);
+      setCostPrice(newVehicle.cost_price || newVehicle.purchase_price || 0);
+      setReconCost(newVehicle.reconditioning_cost || 0);
+    }
+    
+    // Notify parent if callback provided
+    onVehicleChange?.(newVehicleId);
+  };
+  
   // Update commission when rep changes
   useEffect(() => {
     const rep = salesReps.find(r => r.name === selectedRepName);
@@ -186,9 +309,9 @@ const FinalizeDealModal = ({
     }
   }, [selectedRepName, salesReps]);
 
-  // Auto-fill from vehicle data
+  // Auto-fill from vehicle data (for new deals without existingDeal)
   useEffect(() => {
-    if (vehicle) {
+    if (vehicle && !existingDeal) {
       const vehicleCostPrice = vehicle.cost_price || vehicle.purchase_price || 0;
       if (vehicleCostPrice > 0 && costPrice === 0) {
         setCostPrice(vehicleCostPrice);
@@ -197,7 +320,7 @@ const FinalizeDealModal = ({
         setReconCost(vehicle.reconditioning_cost);
       }
     }
-  }, [vehicle]);
+  }, [vehicle, existingDeal]);
 
   // === CALCULATIONS ===
   // Add-ons totals
@@ -243,8 +366,8 @@ const FinalizeDealModal = ({
   // Commission (calculated from Lumina's retained profit)
   const commissionAmount = luminaRetained * (repCommission / 100);
   
-  // Net Profit after commission
-  const netProfit = luminaRetained - commissionAmount;
+  // Net Profit after commission AND referral
+  const netProfit = luminaRetained - commissionAmount - referralCommission;
   
   // Add-on helpers
   const addAddon = () => {
@@ -280,49 +403,65 @@ const FinalizeDealModal = ({
       return;
     }
 
+    const dealData = {
+      applicationId: isEditMode ? (existingDeal?.application_id || applicationId) : applicationId,
+      vehicleId: activeVehicleId,
+      salesRepName: selectedRepName,
+      salesRepCommission: commissionAmount,
+      soldPrice: adjustedSellingPrice + totalAddonPrice,
+      soldMileage,
+      nextServiceDate: nextServiceDate || undefined,
+      nextServiceKm: nextServiceKm || undefined,
+      deliveryAddress,
+      deliveryDate: `${deliveryDate}T${deliveryTime}:00`,
+      aftersalesExpenses: expenses,
+      costPrice,
+      calculatedProfit: netProfit,
+      isSourcingVehicle: activeVehicle?.status === 'sourcing',
+      // Shared Capital fields
+      isSharedCapital,
+      partnerSplitPercent: isSharedCapital && partnerSplitType === 'percentage' ? partnerSplitValue : 0,
+      partnerProfitAmount: partnerPayout,
+      partnerSplitType,
+      partnerSplitValue: isSharedCapital ? partnerSplitValue : 0,
+      // F&I fields
+      discountAmount,
+      dealerDepositContribution,
+      externalAdminFee,
+      bankInitiationFee,
+      totalFinancedAmount: totalFinanceAmount,
+      clientDeposit,
+      grossProfit,
+      reconCost,
+      // DIC (Bank Reward)
+      dicAmount,
+      // Add-ons
+      addonsData: addons,
+      // Referral
+      referralPersonName: referralName || undefined,
+      referralCommissionAmount: referralCommission,
+    };
+
     try {
-      await createDealRecord.mutateAsync({
-        applicationId,
-        vehicleId: activeVehicleId, // Use the active vehicle from selector
-        salesRepName: selectedRepName,
-        salesRepCommission: commissionAmount,
-        soldPrice: adjustedSellingPrice + totalAddonPrice, // Include addon prices in sold price
-        soldMileage,
-        nextServiceDate: nextServiceDate || undefined,
-        nextServiceKm: nextServiceKm || undefined,
-        deliveryAddress,
-        deliveryDate: `${deliveryDate}T${deliveryTime}:00`,
-        aftersalesExpenses: expenses,
-        costPrice,
-        calculatedProfit: netProfit,
-        isSourcingVehicle: activeVehicle?.status === 'sourcing',
-        // Shared Capital fields
-        isSharedCapital,
-        partnerSplitPercent: isSharedCapital && partnerSplitType === 'percentage' ? partnerSplitValue : 0,
-        partnerProfitAmount: partnerPayout,
-        partnerSplitType,
-        partnerSplitValue: isSharedCapital ? partnerSplitValue : 0,
-        // F&I fields
-        discountAmount,
-        dealerDepositContribution,
-        externalAdminFee,
-        bankInitiationFee,
-        totalFinancedAmount: totalFinanceAmount,
-        clientDeposit,
-        grossProfit,
-        reconCost,
-        // DIC (Bank Reward)
-        dicAmount,
-        // Add-ons
-        addonsData: addons,
-      });
+      if (isEditMode && existingDeal) {
+        // UPDATE existing deal
+        await updateDealRecord.mutateAsync({
+          dealId: existingDeal.id,
+          ...dealData,
+        });
+      } else {
+        // INSERT new deal
+        await createDealRecord.mutateAsync(dealData);
+      }
       
       onSuccess();
       onClose();
     } catch (error) {
-      console.error('Failed to finalize deal:', error);
+      console.error('Failed to save deal:', error);
     }
   };
+
+  const isPending = createDealRecord.isPending || updateDealRecord.isPending;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -330,10 +469,10 @@ const FinalizeDealModal = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calculator className="w-5 h-5 text-primary" />
-            Finalize Deal - Advanced Calculator
+            {isEditMode ? 'Edit Deal Structure' : 'Finalize Deal - Advanced Calculator'}
           </DialogTitle>
           <DialogDescription>
-            Complete deal structure with F&I breakdown.
+            {isEditMode ? 'Update deal structure and recalculate profit.' : 'Complete deal structure with F&I breakdown.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -689,6 +828,35 @@ const FinalizeDealModal = ({
             </div>
           </div>
 
+          {/* === REFERRAL COMMISSION SECTION === */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-lg">
+              <UserPlus className="w-4 h-4 text-cyan-400" />
+              <span className="text-sm font-semibold text-cyan-400">Referral Commission (Optional)</span>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Referral Person Name</Label>
+                <Input
+                  placeholder="Who referred this deal?"
+                  value={referralName}
+                  onChange={(e) => setReferralName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Referral Commission (R)</Label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={referralCommission || ''}
+                  onChange={(e) => setReferralCommission(parseFloat(e.target.value) || 0)}
+                />
+                <p className="text-xs text-muted-foreground">Deducted from net profit</p>
+              </div>
+            </div>
+          </div>
+
           {/* Shared Capital / Joint Venture Section */}
           <div className="space-y-4">
             <div className="flex items-center gap-3 p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg">
@@ -962,9 +1130,18 @@ const FinalizeDealModal = ({
               )}
               
               <div className="flex justify-between items-center py-2 border-b border-border/50">
-                <span className="text-sm text-muted-foreground">Commission ({repCommission}%):</span>
+                <span className="text-sm text-muted-foreground">Sales Commission ({repCommission}%):</span>
                 <span className="font-medium text-blue-400">-{formatPrice(commissionAmount)}</span>
               </div>
+              
+              {referralCommission > 0 && (
+                <div className="flex justify-between items-center py-2 border-b border-border/50">
+                  <span className="text-sm text-muted-foreground">
+                    Referral Commission{referralName ? ` (${referralName})` : ''}:
+                  </span>
+                  <span className="font-medium text-cyan-400">-{formatPrice(referralCommission)}</span>
+                </div>
+              )}
               
               <div className="flex justify-between items-center py-3 bg-primary/10 rounded-lg px-3 -mx-1">
                 <span className="text-sm font-semibold">Net Profit:</span>
@@ -986,10 +1163,10 @@ const FinalizeDealModal = ({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!selectedRepName || !deliveryAddress || !deliveryDate || !activeVehicleId || createDealRecord.isPending}
+            disabled={!selectedRepName || !deliveryAddress || !deliveryDate || !activeVehicleId || isPending}
             className="bg-emerald-600 hover:bg-emerald-700"
           >
-            {createDealRecord.isPending ? 'Finalizing...' : 'Finalize Deal'}
+            {isPending ? 'Saving...' : isEditMode ? 'Update Deal' : 'Finalize Deal'}
           </Button>
         </DialogFooter>
       </DialogContent>

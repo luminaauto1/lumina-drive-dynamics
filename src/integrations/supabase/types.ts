@@ -213,6 +213,8 @@ export type Database = {
           partner_split_type: string | null
           partner_split_value: number | null
           recon_cost: number | null
+          referral_commission_amount: number | null
+          referral_person_name: string | null
           sales_rep_commission: number | null
           sales_rep_name: string | null
           sold_mileage: number | null
@@ -244,6 +246,8 @@ export type Database = {
           partner_split_type?: string | null
           partner_split_value?: number | null
           recon_cost?: number | null
+          referral_commission_amount?: number | null
+          referral_person_name?: string | null
           sales_rep_commission?: number | null
           sales_rep_name?: string | null
           sold_mileage?: number | null
@@ -275,6 +279,8 @@ export type Database = {
           partner_split_type?: string | null
           partner_split_value?: number | null
           recon_cost?: number | null
+          referral_commission_amount?: number | null
+          referral_person_name?: string | null
           sales_rep_commission?: number | null
           sales_rep_name?: string | null
           sold_mileage?: number | null
