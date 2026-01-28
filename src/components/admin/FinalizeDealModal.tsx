@@ -147,6 +147,9 @@ const FinalizeDealModal = ({
   const [costPrice, setCostPrice] = useState(0);
   const [reconCost, setReconCost] = useState(0);
   
+  // DIC (Dealer Incentive Commission - Bank Reward)
+  const [dicAmount, setDicAmount] = useState(0);
+  
   // Shared Capital (Joint Venture)
   const [isSharedCapital, setIsSharedCapital] = useState(false);
   const [partnerSplitType, setPartnerSplitType] = useState<'percentage' | 'fixed'>('percentage');
@@ -221,8 +224,9 @@ const FinalizeDealModal = ({
   // Total Costs = Purchase Cost + Recon + Expenses + Dealer Deposit Contribution + Addon Costs
   const totalCosts = costPrice + reconCost + totalExpenses + dealerDepositContribution + totalAddonCost;
   
-  // Gross Profit = Adjusted Selling Price + Addon Prices - Total Costs
-  const grossProfit = adjustedSellingPrice + totalAddonPrice - totalCosts;
+  // Gross Profit = Adjusted Selling Price + Addon Prices - Total Costs + DIC
+  // DIC is PURE PROFIT from the bank - it increases gross profit without affecting client invoice
+  const grossProfit = adjustedSellingPrice + totalAddonPrice - totalCosts + dicAmount;
   
   // Shared Capital Logic - supports both percentage and fixed
   const partnerPayout = useMemo(() => {
@@ -307,6 +311,8 @@ const FinalizeDealModal = ({
         clientDeposit,
         grossProfit,
         reconCost,
+        // DIC (Bank Reward)
+        dicAmount,
         // Add-ons
         addonsData: addons,
       });
@@ -542,6 +548,26 @@ const FinalizeDealModal = ({
                   onChange={(e) => setReconCost(parseFloat(e.target.value) || 0)}
                   placeholder="Total reconditioning"
                 />
+              </div>
+            </div>
+            
+            {/* DIC / Bank Reward Section */}
+            <div className="p-4 mt-4 bg-emerald-500/10 rounded-lg border border-emerald-500/30">
+              <div className="flex items-center gap-2 mb-3">
+                <DollarSign className="w-4 h-4 text-emerald-400" />
+                <span className="text-sm font-semibold text-emerald-400">Bank Reward / DIC</span>
+              </div>
+              <div className="space-y-2">
+                <Label>DIC Amount (Pure Profit)</Label>
+                <Input
+                  type="number"
+                  value={dicAmount || ''}
+                  onChange={(e) => setDicAmount(parseFloat(e.target.value) || 0)}
+                  placeholder="Bank incentive commission"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Dealer Incentive Commission from bank. This is pure profit and does NOT appear on client invoice.
+                </p>
               </div>
             </div>
           </div>
@@ -911,6 +937,13 @@ const FinalizeDealModal = ({
               <p className="text-xs text-muted-foreground -mt-2 mb-2">
                 (Vehicle: {formatPrice(costPrice)} + Recon: {formatPrice(reconCost)} + Expenses: {formatPrice(totalExpenses)} + Dealer Deposit: {formatPrice(dealerDepositContribution)}{totalAddonCost > 0 ? ` + Addon Costs: ${formatPrice(totalAddonCost)}` : ''})
               </p>
+              
+              {dicAmount > 0 && (
+                <div className="flex justify-between items-center py-2 border-b border-border/50 bg-emerald-500/5">
+                  <span className="text-sm text-muted-foreground">+ Bank Reward / DIC:</span>
+                  <span className="font-medium text-emerald-400">+{formatPrice(dicAmount)}</span>
+                </div>
+              )}
               
               <div className="flex justify-between items-center py-2 border-b border-border/50">
                 <span className="text-sm text-muted-foreground">Gross Profit:</span>

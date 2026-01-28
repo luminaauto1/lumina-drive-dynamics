@@ -46,6 +46,8 @@ export interface DealRecordInsert {
   reconCost?: number;
   // Add-ons
   addonsData?: DealAddOnItem[];
+  // DIC (Dealer Incentive Commission)
+  dicAmount?: number;
 }
 
 export const useCreateDealRecord = () => {
@@ -85,6 +87,8 @@ export const useCreateDealRecord = () => {
           bank_initiation_fee: record.bankInitiationFee || 0,
           total_financed_amount: record.totalFinancedAmount || 0,
           client_deposit: record.clientDeposit || 0,
+          // DIC (Bank Reward)
+          dic_amount: record.dicAmount || 0,
           // Add-ons
           addons_data: record.addonsData || [],
         })
