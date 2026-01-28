@@ -4,12 +4,13 @@ import { Helmet } from 'react-helmet-async';
 import { 
   Package, Calendar, AlertCircle, Loader2, MessageCircle, Edit2, Save, X, 
   Eye, Undo2, TrendingUp, DollarSign, Users, Plus, Receipt, Wrench, 
-  FileText, ChevronDown, ChevronUp, FolderOpen
+  FileText, ChevronDown, ChevronUp, FolderOpen, Settings, Calculator, UserPlus
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { differenceInDays, differenceInYears, format, addYears } from 'date-fns';
 import AdminLayout from '@/components/admin/AdminLayout';
 import ClientProfileModal from '@/components/admin/ClientProfileModal';
+import FinalizeDealModal, { ExistingDealData } from '@/components/admin/FinalizeDealModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,6 +26,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { formatPrice } from '@/hooks/useVehicles';
 import { toast } from 'sonner';
+import { DealAddOnItem } from '@/hooks/useDealRecords';
 
 interface DealRecord {
   id: string;
@@ -49,6 +51,20 @@ interface DealRecord {
   is_shared_capital: boolean | null;
   partner_split_percent: number | null;
   partner_profit_amount: number | null;
+  partner_split_type?: string | null;
+  partner_split_value?: number | null;
+  // F&I fields
+  discount_amount?: number | null;
+  dealer_deposit_contribution?: number | null;
+  external_admin_fee?: number | null;
+  bank_initiation_fee?: number | null;
+  client_deposit?: number | null;
+  total_financed_amount?: number | null;
+  // Add-ons
+  addons_data?: DealAddOnItem[] | null;
+  // Referral
+  referral_commission_amount?: number | null;
+  referral_person_name?: string | null;
   vehicle?: {
     id: string;
     make: string;
@@ -120,9 +136,12 @@ const useDealRecords = () => {
       return (data || []).map(record => ({
         ...record,
         aftersales_expenses: Array.isArray(record.aftersales_expenses) 
-          ? record.aftersales_expenses as Array<{ type: string; amount: number; description?: string }>
+          ? record.aftersales_expenses as unknown as Array<{ type: string; amount: number; description?: string }>
           : [],
-      })) as DealRecord[];
+        addons_data: Array.isArray(record.addons_data)
+          ? record.addons_data as unknown as DealAddOnItem[]
+          : [],
+      })) as unknown as DealRecord[];
     },
   });
 };
@@ -834,6 +853,7 @@ const DealManagementModal = ({ deal, open, onOpenChange }: { deal: DealRecord; o
 };
 
 const AdminAftersales = () => {
+  const queryClient = useQueryClient();
   const { data: aftersalesRecords = [], isLoading: aftersalesLoading } = useAftersalesRecords();
   const { data: dealRecords = [], isLoading: dealsLoading } = useDealRecords();
   const updateNotes = useUpdateAftersalesNotes();
@@ -842,11 +862,12 @@ const AdminAftersales = () => {
   const [editNotes, setEditNotes] = useState('');
   const [selectedRecord, setSelectedRecord] = useState<AftersalesRecord | null>(null);
   const [manageDeal, setManageDeal] = useState<DealRecord | null>(null);
+  const [editDeal, setEditDeal] = useState<DealRecord | null>(null);
   const [expandedDeals, setExpandedDeals] = useState<Set<string>>(new Set());
 
   const isLoading = aftersalesLoading || dealsLoading;
 
-  // Calculate analytics from deal records (including DIC)
+  // Calculate analytics from deal records (including DIC and Referrals)
   const totalProfit = dealRecords.reduce((sum, deal) => {
     const soldPrice = deal.sold_price || 0;
     const costPrice = deal.cost_price || deal.vehicle?.cost_price || deal.vehicle?.purchase_price || 0;
@@ -854,20 +875,38 @@ const AdminAftersales = () => {
     const dicAmount = deal.dic_amount || 0;
     const expensesTotal = (deal.aftersales_expenses || []).reduce((e, exp) => e + (exp.amount || 0), 0);
     const commission = deal.sales_rep_commission || 0;
+    const referralCommission = (deal as any).referral_commission_amount || 0;
     
     if (deal.is_shared_capital && deal.partner_split_percent) {
       const baseProfit = soldPrice - costPrice - reconCost + dicAmount - expensesTotal;
       const partnerPayout = baseProfit * (deal.partner_split_percent / 100);
       const luminaRetained = baseProfit - partnerPayout;
-      return sum + (luminaRetained - commission);
+      return sum + (luminaRetained - commission - referralCommission);
     }
     
-    return sum + (soldPrice - costPrice - reconCost + dicAmount - expensesTotal - commission);
+    return sum + (soldPrice - costPrice - reconCost + dicAmount - expensesTotal - commission - referralCommission);
   }, 0);
 
-  const totalCommission = dealRecords.reduce((sum, deal) => {
+  // Total sales commission paid
+  const totalSalesCommission = dealRecords.reduce((sum, deal) => {
     return sum + (deal.sales_rep_commission || 0);
   }, 0);
+  
+  // Total referral commission paid
+  const totalReferralCommission = dealRecords.reduce((sum, deal) => {
+    return sum + ((deal as any).referral_commission_amount || 0);
+  }, 0);
+  
+  // Total commission (sales + referral)
+  const totalCommission = totalSalesCommission + totalReferralCommission;
+  
+  // Total DIC earned
+  const totalDIC = dealRecords.reduce((sum, deal) => {
+    return sum + (deal.dic_amount || 0);
+  }, 0);
+  
+  // Average profit per unit
+  const avgProfitPerUnit = dealRecords.length > 0 ? totalProfit / dealRecords.length : 0;
 
   // Count deals with service due
   const serviceAlertCount = dealRecords.filter(deal => getServiceDueStatus(deal).isDue).length;
@@ -945,17 +984,17 @@ const AdminAftersales = () => {
           <p className="text-muted-foreground">Manage customer relationships and deal lifecycle post-sale</p>
         </motion.div>
 
-        {/* Analytics Bar */}
+        {/* Enhanced Analytics Bar */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6"
+          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6"
         >
           <div className="glass-card rounded-lg p-4">
             <div className="flex items-center gap-2 mb-1">
               <TrendingUp className="w-4 h-4 text-emerald-400" />
-              <p className="text-sm text-muted-foreground">Total Profit</p>
+              <p className="text-sm text-muted-foreground">Total Net Profit</p>
             </div>
             <p className={`text-2xl font-bold ${totalProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {formatPrice(totalProfit)}
@@ -963,17 +1002,36 @@ const AdminAftersales = () => {
           </div>
           <div className="glass-card rounded-lg p-4">
             <div className="flex items-center gap-2 mb-1">
-              <DollarSign className="w-4 h-4 text-primary" />
-              <p className="text-sm text-muted-foreground">Total Commission</p>
+              <Users className="w-4 h-4 text-blue-400" />
+              <p className="text-sm text-muted-foreground">Total Volume</p>
             </div>
-            <p className="text-2xl font-bold text-primary">{formatPrice(totalCommission)}</p>
+            <p className="text-2xl font-bold">{dealRecords.length}</p>
           </div>
           <div className="glass-card rounded-lg p-4">
             <div className="flex items-center gap-2 mb-1">
-              <Users className="w-4 h-4 text-blue-400" />
-              <p className="text-sm text-muted-foreground">Total Sales</p>
+              <Calculator className="w-4 h-4 text-purple-400" />
+              <p className="text-sm text-muted-foreground">Avg Profit / Unit</p>
             </div>
-            <p className="text-2xl font-bold">{dealRecords.length}</p>
+            <p className={`text-2xl font-bold ${avgProfitPerUnit >= 0 ? 'text-purple-400' : 'text-red-400'}`}>
+              {formatPrice(avgProfitPerUnit)}
+            </p>
+          </div>
+          <div className="glass-card rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <DollarSign className="w-4 h-4 text-cyan-400" />
+              <p className="text-sm text-muted-foreground">Total DIC Earned</p>
+            </div>
+            <p className="text-2xl font-bold text-cyan-400">{formatPrice(totalDIC)}</p>
+          </div>
+          <div className="glass-card rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <DollarSign className="w-4 h-4 text-primary" />
+              <p className="text-sm text-muted-foreground">Commission Paid</p>
+            </div>
+            <p className="text-2xl font-bold text-primary">{formatPrice(totalCommission)}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Sales: {formatPrice(totalSalesCommission)} | Ref: {formatPrice(totalReferralCommission)}
+            </p>
           </div>
           <div className="glass-card rounded-lg p-4">
             <div className="flex items-center gap-2 mb-1">
@@ -981,12 +1039,6 @@ const AdminAftersales = () => {
               <p className="text-sm text-muted-foreground">Service Due</p>
             </div>
             <p className="text-2xl font-bold text-yellow-400">{serviceAlertCount}</p>
-          </div>
-          <div className="glass-card rounded-lg p-4">
-            <p className="text-2xl font-bold text-emerald-400">
-              {aftersalesRecords.filter(r => getServiceStatus(r.sale_date).years >= 3).length}
-            </p>
-            <p className="text-sm text-muted-foreground">Trade-In Candidates</p>
           </div>
         </motion.div>
 
@@ -1105,6 +1157,15 @@ const AdminAftersales = () => {
                       </TableCell>
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-purple-500 hover:text-purple-400 hover:bg-purple-500/10"
+                            onClick={() => setEditDeal(deal)}
+                            title="Edit Deal Structure"
+                          >
+                            <Settings className="w-4 h-4" />
+                          </Button>
                           <Button
                             size="sm"
                             variant="ghost"
@@ -1324,6 +1385,32 @@ const AdminAftersales = () => {
             deal={manageDeal}
             open={!!manageDeal}
             onOpenChange={(open) => !open && setManageDeal(null)}
+          />
+        )}
+
+        {/* Edit Deal Structure Modal */}
+        {editDeal && (
+          <FinalizeDealModal
+            isOpen={!!editDeal}
+            onClose={() => setEditDeal(null)}
+            applicationId={editDeal.application_id || ''}
+            vehicleId={editDeal.vehicle_id || ''}
+            vehiclePrice={editDeal.vehicle?.price || editDeal.sold_price || 0}
+            vehicleMileage={editDeal.sold_mileage || 0}
+            vehicleStatus="sold"
+            vehicle={editDeal.vehicle ? {
+              year: editDeal.vehicle.year,
+              make: editDeal.vehicle.make,
+              model: editDeal.vehicle.model,
+              cost_price: editDeal.vehicle.cost_price,
+              purchase_price: editDeal.vehicle.purchase_price,
+              reconditioning_cost: editDeal.vehicle.reconditioning_cost,
+            } : null}
+            onSuccess={() => {
+              queryClient.invalidateQueries({ queryKey: ['deal-records'] });
+              setEditDeal(null);
+            }}
+            existingDeal={editDeal as ExistingDealData}
           />
         )}
       </div>

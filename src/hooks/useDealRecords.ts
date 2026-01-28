@@ -48,6 +48,13 @@ export interface DealRecordInsert {
   addonsData?: DealAddOnItem[];
   // DIC (Dealer Incentive Commission)
   dicAmount?: number;
+  // Referral
+  referralPersonName?: string;
+  referralCommissionAmount?: number;
+}
+
+export interface DealRecordUpdate extends DealRecordInsert {
+  dealId: string;
 }
 
 export const useCreateDealRecord = () => {
@@ -91,6 +98,9 @@ export const useCreateDealRecord = () => {
           dic_amount: record.dicAmount || 0,
           // Add-ons
           addons_data: record.addonsData || [],
+          // Referral
+          referral_person_name: record.referralPersonName || null,
+          referral_commission_amount: record.referralCommissionAmount || 0,
         })
         .select()
         .single();
@@ -121,6 +131,67 @@ export const useCreateDealRecord = () => {
     onError: (error: any) => {
       console.error('Error creating deal record:', error);
       toast.error('Failed to create deal record');
+    },
+  });
+};
+
+export const useUpdateDealRecord = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (record: DealRecordUpdate) => {
+      const { data, error } = await (supabase as any)
+        .from('deal_records')
+        .update({
+          vehicle_id: record.vehicleId,
+          sales_rep_name: record.salesRepName,
+          sales_rep_commission: record.salesRepCommission,
+          sold_price: record.soldPrice,
+          sold_mileage: record.soldMileage,
+          next_service_date: record.nextServiceDate || null,
+          next_service_km: record.nextServiceKm || null,
+          delivery_address: record.deliveryAddress,
+          delivery_date: record.deliveryDate,
+          aftersales_expenses: record.aftersalesExpenses,
+          // Cost and profit
+          cost_price: record.costPrice || 0,
+          gross_profit: record.grossProfit || 0,
+          recon_cost: record.reconCost || 0,
+          // Shared Capital fields
+          is_shared_capital: record.isSharedCapital || false,
+          partner_split_percent: record.partnerSplitPercent || 0,
+          partner_profit_amount: record.partnerProfitAmount || 0,
+          partner_split_type: record.partnerSplitType || 'percentage',
+          partner_split_value: record.partnerSplitValue || 0,
+          // F&I fields
+          discount_amount: record.discountAmount || 0,
+          dealer_deposit_contribution: record.dealerDepositContribution || 0,
+          external_admin_fee: record.externalAdminFee || 0,
+          bank_initiation_fee: record.bankInitiationFee || 0,
+          total_financed_amount: record.totalFinancedAmount || 0,
+          client_deposit: record.clientDeposit || 0,
+          // DIC (Bank Reward)
+          dic_amount: record.dicAmount || 0,
+          // Add-ons
+          addons_data: record.addonsData || [],
+          // Referral
+          referral_person_name: record.referralPersonName || null,
+          referral_commission_amount: record.referralCommissionAmount || 0,
+        })
+        .eq('id', record.dealId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deal-records'] });
+      toast.success('Deal record updated');
+    },
+    onError: (error: any) => {
+      console.error('Error updating deal record:', error);
+      toast.error('Failed to update deal record');
     },
   });
 };
