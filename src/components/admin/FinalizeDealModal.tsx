@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, X, MapPin, Car, DollarSign, User, Receipt, Calculator, TrendingUp, Search, ChevronDown } from 'lucide-react';
+import { Plus, X, MapPin, Car, DollarSign, User, Receipt, Calculator, TrendingUp, Search, ChevronDown, Package } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
-import { useCreateDealRecord, AftersalesExpense } from '@/hooks/useDealRecords';
+import { useCreateDealRecord, AftersalesExpense, DealAddOnItem } from '@/hooks/useDealRecords';
 import { formatPrice, useVehicles, Vehicle } from '@/hooks/useVehicles';
 
 interface SalesRep {
@@ -148,7 +149,11 @@ const FinalizeDealModal = ({
   
   // Shared Capital (Joint Venture)
   const [isSharedCapital, setIsSharedCapital] = useState(false);
-  const [partnerSplitPercent, setPartnerSplitPercent] = useState(50);
+  const [partnerSplitType, setPartnerSplitType] = useState<'percentage' | 'fixed'>('percentage');
+  const [partnerSplitValue, setPartnerSplitValue] = useState(50);
+  
+  // Value Added Products (VAPS)
+  const [addons, setAddons] = useState<DealAddOnItem[]>([]);
   
   // Sales Rep
   const [selectedRepName, setSelectedRepName] = useState('');
@@ -192,11 +197,16 @@ const FinalizeDealModal = ({
   }, [vehicle]);
 
   // === CALCULATIONS ===
+  // Add-ons totals
+  const totalAddonCost = addons.reduce((sum, addon) => sum + (addon.cost || 0), 0);
+  const totalAddonPrice = addons.reduce((sum, addon) => sum + (addon.price || 0), 0);
+  const addonProfit = totalAddonPrice - totalAddonCost;
+  
   // Adjusted Selling Price (after discount)
   const adjustedSellingPrice = sellingPrice - discountAmount;
   
-  // Gross Deal (what we invoice including fees)
-  const grossDeal = adjustedSellingPrice + externalAdminFee + bankInitiationFee;
+  // Gross Deal (what we invoice including fees and addons)
+  const grossDeal = adjustedSellingPrice + totalAddonPrice + externalAdminFee + bankInitiationFee;
   
   // Total Deposits
   const totalDeposits = clientDeposit + dealerDepositContribution;
@@ -208,14 +218,22 @@ const FinalizeDealModal = ({
   const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
   
   // PROFIT CALCULATION (Admin/Bank fees are pass-through, NOT included)
-  // Total Costs = Purchase Cost + Recon + Expenses + Dealer Deposit Contribution
-  const totalCosts = costPrice + reconCost + totalExpenses + dealerDepositContribution;
+  // Total Costs = Purchase Cost + Recon + Expenses + Dealer Deposit Contribution + Addon Costs
+  const totalCosts = costPrice + reconCost + totalExpenses + dealerDepositContribution + totalAddonCost;
   
-  // Gross Profit = Adjusted Selling Price - Total Costs
-  const grossProfit = adjustedSellingPrice - totalCosts;
+  // Gross Profit = Adjusted Selling Price + Addon Prices - Total Costs
+  const grossProfit = adjustedSellingPrice + totalAddonPrice - totalCosts;
   
-  // Shared Capital Logic
-  const partnerPayout = isSharedCapital ? grossProfit * (partnerSplitPercent / 100) : 0;
+  // Shared Capital Logic - supports both percentage and fixed
+  const partnerPayout = useMemo(() => {
+    if (!isSharedCapital) return 0;
+    if (partnerSplitType === 'percentage') {
+      return grossProfit * (partnerSplitValue / 100);
+    }
+    // Fixed amount
+    return partnerSplitValue;
+  }, [isSharedCapital, partnerSplitType, partnerSplitValue, grossProfit]);
+  
   const luminaRetained = grossProfit - partnerPayout;
   
   // Commission (calculated from Lumina's retained profit)
@@ -223,6 +241,21 @@ const FinalizeDealModal = ({
   
   // Net Profit after commission
   const netProfit = luminaRetained - commissionAmount;
+  
+  // Add-on helpers
+  const addAddon = () => {
+    setAddons(prev => [...prev, { name: '', cost: 0, price: 0 }]);
+  };
+
+  const removeAddon = (index: number) => {
+    setAddons(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateAddon = (index: number, field: keyof DealAddOnItem, value: string | number) => {
+    setAddons(prev => prev.map((addon, i) => 
+      i === index ? { ...addon, [field]: value } : addon
+    ));
+  };
 
   const addExpense = () => {
     setExpenses(prev => [...prev, { type: 'Gift', amount: 0, description: '' }]);
@@ -249,7 +282,7 @@ const FinalizeDealModal = ({
         vehicleId: activeVehicleId, // Use the active vehicle from selector
         salesRepName: selectedRepName,
         salesRepCommission: commissionAmount,
-        soldPrice: adjustedSellingPrice, // Store the adjusted (post-discount) price
+        soldPrice: adjustedSellingPrice + totalAddonPrice, // Include addon prices in sold price
         soldMileage,
         nextServiceDate: nextServiceDate || undefined,
         nextServiceKm: nextServiceKm || undefined,
@@ -261,9 +294,11 @@ const FinalizeDealModal = ({
         isSourcingVehicle: activeVehicle?.status === 'sourcing',
         // Shared Capital fields
         isSharedCapital,
-        partnerSplitPercent: isSharedCapital ? partnerSplitPercent : 0,
+        partnerSplitPercent: isSharedCapital && partnerSplitType === 'percentage' ? partnerSplitValue : 0,
         partnerProfitAmount: partnerPayout,
-        // NEW F&I fields
+        partnerSplitType,
+        partnerSplitValue: isSharedCapital ? partnerSplitValue : 0,
+        // F&I fields
         discountAmount,
         dealerDepositContribution,
         externalAdminFee,
@@ -272,6 +307,8 @@ const FinalizeDealModal = ({
         clientDeposit,
         grossProfit,
         reconCost,
+        // Add-ons
+        addonsData: addons,
       });
       
       onSuccess();
@@ -511,7 +548,84 @@ const FinalizeDealModal = ({
 
           <Separator />
 
-          {/* Sales Rep Section */}
+          {/* === VALUE ADDED PRODUCTS (VAPS) SECTION === */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-semibold text-purple-400">
+                <Package className="w-4 h-4" />
+                Value Added Products (VAPs)
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={addAddon}>
+                <Plus className="w-4 h-4 mr-1" />
+                Add Product
+              </Button>
+            </div>
+            
+            {addons.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4 bg-muted/20 rounded-lg">
+                No add-ons. Add products like Android Auto, Tinting, Mats, etc.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {addons.map((addon, index) => (
+                  <div key={index} className="flex items-center gap-2 p-3 bg-purple-500/5 border border-purple-500/20 rounded-lg">
+                    <Input
+                      placeholder="Product name (e.g., Android Auto)"
+                      value={addon.name}
+                      onChange={(e) => updateAddon(index, 'name', e.target.value)}
+                      className="flex-1"
+                    />
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-muted-foreground">Cost:</span>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={addon.cost || ''}
+                        onChange={(e) => updateAddon(index, 'cost', parseFloat(e.target.value) || 0)}
+                        className="w-24"
+                      />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-muted-foreground">Sell:</span>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={addon.price || ''}
+                        onChange={(e) => updateAddon(index, 'price', parseFloat(e.target.value) || 0)}
+                        className="w-24"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeAddon(index)}
+                      className="text-destructive hover:text-destructive shrink-0"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+                
+                {/* Add-ons summary */}
+                <div className="flex justify-between items-center p-3 bg-purple-500/10 rounded-lg border border-purple-500/30">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Add-on Totals</p>
+                    <p className="text-xs text-muted-foreground">
+                      Cost: {formatPrice(totalAddonCost)} | Revenue: {formatPrice(totalAddonPrice)}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-lg font-bold text-purple-400">
+                      +{formatPrice(addonProfit)} profit
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <Separator />
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-primary">
               <User className="w-4 h-4" />
@@ -565,21 +679,50 @@ const FinalizeDealModal = ({
             </div>
             
             {isSharedCapital && (
-              <div className="grid grid-cols-2 gap-4 p-3 bg-orange-500/5 rounded-lg">
+              <div className="space-y-4 p-3 bg-orange-500/5 rounded-lg">
+                {/* Split Type Toggle */}
                 <div className="space-y-2">
-                  <Label>Partner Share (%)</Label>
-                  <Input
-                    type="number"
-                    value={partnerSplitPercent}
-                    onChange={(e) => setPartnerSplitPercent(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
-                    min={0}
-                    max={100}
-                  />
+                  <Label>Split Type</Label>
+                  <ToggleGroup
+                    type="single"
+                    value={partnerSplitType}
+                    onValueChange={(v) => v && setPartnerSplitType(v as 'percentage' | 'fixed')}
+                    className="justify-start"
+                  >
+                    <ToggleGroupItem value="percentage" className="px-4">
+                      % Percentage
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="fixed" className="px-4">
+                      R Fixed Amount
+                    </ToggleGroupItem>
+                  </ToggleGroup>
                 </div>
-                <div className="space-y-2">
-                  <Label>Partner Payout</Label>
-                  <div className="p-2 rounded-lg border bg-orange-500/10 border-orange-500/30">
-                    <span className="text-lg font-bold text-orange-400">{formatPrice(partnerPayout)}</span>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>
+                      {partnerSplitType === 'percentage' ? 'Partner Share (%)' : 'Partner Amount (R)'}
+                    </Label>
+                    <Input
+                      type="number"
+                      value={partnerSplitValue}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        if (partnerSplitType === 'percentage') {
+                          setPartnerSplitValue(Math.min(100, Math.max(0, val)));
+                        } else {
+                          setPartnerSplitValue(Math.max(0, val));
+                        }
+                      }}
+                      min={0}
+                      max={partnerSplitType === 'percentage' ? 100 : undefined}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Partner Payout</Label>
+                    <div className="p-2 rounded-lg border bg-orange-500/10 border-orange-500/30">
+                      <span className="text-lg font-bold text-orange-400">{formatPrice(partnerPayout)}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -738,8 +881,26 @@ const FinalizeDealModal = ({
             </h3>
             
             <div className="space-y-3">
+              {/* Total Deal Value */}
               <div className="flex justify-between items-center py-2 border-b border-border/50">
-                <span className="text-sm text-muted-foreground">Invoice to Bank:</span>
+                <span className="text-sm text-muted-foreground">Vehicle Sell Price:</span>
+                <span className="font-medium">{formatPrice(adjustedSellingPrice)}</span>
+              </div>
+              
+              {addons.length > 0 && (
+                <div className="flex justify-between items-center py-2 border-b border-border/50">
+                  <span className="text-sm text-muted-foreground">+ Add-on Revenue:</span>
+                  <span className="font-medium text-purple-400">+{formatPrice(totalAddonPrice)}</span>
+                </div>
+              )}
+              
+              <div className="flex justify-between items-center py-2 border-b border-border/50">
+                <span className="text-sm text-muted-foreground">+ Fees (Admin + Bank):</span>
+                <span className="font-medium">+{formatPrice(externalAdminFee + bankInitiationFee)}</span>
+              </div>
+              
+              <div className="flex justify-between items-center py-2 border-b border-border/50 bg-muted/30 -mx-2 px-2 rounded">
+                <span className="text-sm font-medium">Invoice to Bank:</span>
                 <span className="text-lg font-bold text-emerald-400">{formatPrice(totalFinanceAmount)}</span>
               </div>
               
@@ -747,9 +908,12 @@ const FinalizeDealModal = ({
                 <span className="text-sm text-muted-foreground">Total Costs:</span>
                 <span className="font-medium text-red-400">-{formatPrice(totalCosts)}</span>
               </div>
+              <p className="text-xs text-muted-foreground -mt-2 mb-2">
+                (Vehicle: {formatPrice(costPrice)} + Recon: {formatPrice(reconCost)} + Expenses: {formatPrice(totalExpenses)} + Dealer Deposit: {formatPrice(dealerDepositContribution)}{totalAddonCost > 0 ? ` + Addon Costs: ${formatPrice(totalAddonCost)}` : ''})
+              </p>
               
               <div className="flex justify-between items-center py-2 border-b border-border/50">
-                <span className="text-sm text-muted-foreground">Lumina Gross Profit:</span>
+                <span className="text-sm text-muted-foreground">Gross Profit:</span>
                 <span className={`text-lg font-bold ${grossProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                   {formatPrice(grossProfit)}
                 </span>
@@ -757,7 +921,9 @@ const FinalizeDealModal = ({
               
               {isSharedCapital && (
                 <div className="flex justify-between items-center py-2 border-b border-border/50">
-                  <span className="text-sm text-muted-foreground">Partner Payout ({partnerSplitPercent}%):</span>
+                  <span className="text-sm text-muted-foreground">
+                    Partner Payout ({partnerSplitType === 'percentage' ? `${partnerSplitValue}%` : 'Fixed'}):
+                  </span>
                   <span className="font-medium text-orange-400">-{formatPrice(partnerPayout)}</span>
                 </div>
               )}

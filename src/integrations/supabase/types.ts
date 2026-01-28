@@ -190,6 +190,7 @@ export type Database = {
       }
       deal_records: {
         Row: {
+          addons_data: Json | null
           aftersales_expenses: Json | null
           application_id: string | null
           bank_initiation_fee: number | null
@@ -208,6 +209,8 @@ export type Database = {
           next_service_km: number | null
           partner_profit_amount: number | null
           partner_split_percent: number | null
+          partner_split_type: string | null
+          partner_split_value: number | null
           recon_cost: number | null
           sales_rep_commission: number | null
           sales_rep_name: string | null
@@ -217,6 +220,7 @@ export type Database = {
           vehicle_id: string | null
         }
         Insert: {
+          addons_data?: Json | null
           aftersales_expenses?: Json | null
           application_id?: string | null
           bank_initiation_fee?: number | null
@@ -235,6 +239,8 @@ export type Database = {
           next_service_km?: number | null
           partner_profit_amount?: number | null
           partner_split_percent?: number | null
+          partner_split_type?: string | null
+          partner_split_value?: number | null
           recon_cost?: number | null
           sales_rep_commission?: number | null
           sales_rep_name?: string | null
@@ -244,6 +250,7 @@ export type Database = {
           vehicle_id?: string | null
         }
         Update: {
+          addons_data?: Json | null
           aftersales_expenses?: Json | null
           application_id?: string | null
           bank_initiation_fee?: number | null
@@ -262,6 +269,8 @@ export type Database = {
           next_service_km?: number | null
           partner_profit_amount?: number | null
           partner_split_percent?: number | null
+          partner_split_type?: string | null
+          partner_split_value?: number | null
           recon_cost?: number | null
           sales_rep_commission?: number | null
           sales_rep_name?: string | null
