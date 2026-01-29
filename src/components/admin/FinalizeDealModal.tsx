@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, X, MapPin, Car, DollarSign, User, Receipt, Calculator, TrendingUp, Search, ChevronDown, Package, UserPlus } from 'lucide-react';
+import { Plus, X, MapPin, Car, DollarSign, User, Receipt, Calculator, TrendingUp, Search, ChevronDown, Package, UserPlus, Eye, FileText } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,9 +9,12 @@ import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { useCreateDealRecord, useUpdateDealRecord, AftersalesExpense, DealAddOnItem } from '@/hooks/useDealRecords';
 import { formatPrice, useVehicles, Vehicle } from '@/hooks/useVehicles';
+import { useVehicleExpenses, VehicleExpense, EXPENSE_CATEGORIES } from '@/hooks/useVehicleExpenses';
+import { supabase } from '@/integrations/supabase/client';
 
 interface SalesRep {
   name: string;
@@ -172,7 +175,14 @@ const FinalizeDealModal = ({
   
   // === SECTION 3: Internal Costs ===
   const [costPrice, setCostPrice] = useState(0);
-  const [reconCost, setReconCost] = useState(0);
+  
+  // Vehicle Ledger Costs (from vehicle_expenses table - read-only)
+  const [vehicleLedgerCosts, setVehicleLedgerCosts] = useState(0);
+  const [vehicleLedgerBreakdown, setVehicleLedgerBreakdown] = useState<VehicleExpense[]>([]);
+  const [showLedgerBreakdown, setShowLedgerBreakdown] = useState(false);
+  
+  // Additional Deal Expenses (editable, for deal-specific costs)
+  const [additionalDealCosts, setAdditionalDealCosts] = useState(0);
   
   // DIC (Dealer Incentive Commission - Bank Reward)
   const [dicAmount, setDicAmount] = useState(0);
@@ -232,7 +242,9 @@ const FinalizeDealModal = ({
       
       // Costs
       setCostPrice(existingDeal.cost_price || 0);
-      setReconCost(existingDeal.recon_cost || 0);
+      // recon_cost in existing deal represents total (ledger + additional)
+      // We'll split this once we fetch ledger costs
+      setAdditionalDealCosts(existingDeal.recon_cost || 0);
       setDicAmount(existingDeal.dic_amount || 0);
       
       // Partner Split
@@ -302,7 +314,8 @@ const FinalizeDealModal = ({
       setSellingPrice(newVehicle.price);
       setSoldMileage(newVehicle.mileage);
       setCostPrice(newVehicle.cost_price || newVehicle.purchase_price || 0);
-      setReconCost(newVehicle.reconditioning_cost || 0);
+      // Reset additional costs when vehicle changes - ledger costs will be fetched automatically
+      setAdditionalDealCosts(0);
     }
     
     // Notify parent if callback provided
@@ -324,11 +337,56 @@ const FinalizeDealModal = ({
       if (vehicleCostPrice > 0 && costPrice === 0) {
         setCostPrice(vehicleCostPrice);
       }
-      if (vehicle.reconditioning_cost && vehicle.reconditioning_cost > 0 && reconCost === 0) {
-        setReconCost(vehicle.reconditioning_cost);
-      }
+      // Vehicle reconditioning_cost is now fetched from vehicle_expenses
     }
   }, [vehicle, existingDeal]);
+  
+  // Fetch vehicle expenses when activeVehicle changes
+  useEffect(() => {
+    const fetchVehicleExpenses = async () => {
+      if (!activeVehicleId || !isOpen) {
+        setVehicleLedgerCosts(0);
+        setVehicleLedgerBreakdown([]);
+        return;
+      }
+      
+      try {
+        const { data, error } = await (supabase as any)
+          .from('vehicle_expenses')
+          .select('*')
+          .eq('vehicle_id', activeVehicleId)
+          .order('date_incurred', { ascending: false });
+        
+        if (error) {
+          console.warn('Could not fetch vehicle expenses:', error.message);
+          setVehicleLedgerCosts(0);
+          setVehicleLedgerBreakdown([]);
+          return;
+        }
+        
+        const expenses = (data || []) as VehicleExpense[];
+        const total = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
+        
+        setVehicleLedgerBreakdown(expenses);
+        setVehicleLedgerCosts(total);
+        
+        // In edit mode, subtract ledger costs from stored recon_cost to get additional costs
+        if (existingDeal && existingDeal.recon_cost) {
+          const additionalFromDeal = Math.max(0, (existingDeal.recon_cost || 0) - total);
+          setAdditionalDealCosts(additionalFromDeal);
+        }
+      } catch (err) {
+        console.warn('Error fetching vehicle expenses:', err);
+        setVehicleLedgerCosts(0);
+        setVehicleLedgerBreakdown([]);
+      }
+    };
+    
+    fetchVehicleExpenses();
+  }, [activeVehicleId, isOpen, existingDeal]);
+
+  // Total recon cost (ledger + additional)
+  const totalReconCost = vehicleLedgerCosts + additionalDealCosts;
 
   // === CALCULATIONS ===
   // Add-ons totals
@@ -355,8 +413,8 @@ const FinalizeDealModal = ({
   // Gross Income = (Selling Price - Discount) + VAP Revenue + DIC + Referral Income
   const grossIncome = adjustedSellingPrice + totalAddonPrice + dicAmount + referralIncome;
   
-  // Total Costs = Vehicle Cost + Recon + Expenses + Dealer Deposit Contribution + Addon Costs + Referral Expense
-  const totalCosts = costPrice + reconCost + totalExpenses + dealerDepositContribution + totalAddonCost + referralCommission;
+  // Total Costs = Vehicle Cost + Recon (Ledger + Additional) + Expenses + Dealer Deposit Contribution + Addon Costs + Referral Expense
+  const totalCosts = costPrice + totalReconCost + totalExpenses + dealerDepositContribution + totalAddonCost + referralCommission;
   
   // Gross Profit = Gross Income - Total Costs
   const grossProfit = grossIncome - totalCosts;
@@ -444,7 +502,7 @@ const FinalizeDealModal = ({
       totalFinancedAmount: totalFinanceAmount,
       clientDeposit,
       grossProfit,
-      reconCost,
+      reconCost: totalReconCost, // Sum of ledger costs + additional deal costs
       // DIC (Bank Reward)
       dicAmount,
       // Add-ons
@@ -693,15 +751,78 @@ const FinalizeDealModal = ({
                   placeholder="What we paid for the car"
                 />
               </div>
+              {/* Vehicle Ledger Costs (Read-Only) */}
               <div className="space-y-2">
-                <Label>Recon / Expenses</Label>
+                <Label className="flex items-center gap-2">
+                  <FileText className="w-3 h-3" />
+                  Vehicle Ledger Total
+                </Label>
+                <Collapsible open={showLedgerBreakdown} onOpenChange={setShowLedgerBreakdown}>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      value={vehicleLedgerCosts || ''}
+                      disabled
+                      className="bg-muted/50 cursor-not-allowed pr-10"
+                      placeholder="Auto-fetched from expenses"
+                    />
+                    {vehicleLedgerBreakdown.length > 0 && (
+                      <CollapsibleTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </CollapsibleTrigger>
+                    )}
+                  </div>
+                  <CollapsibleContent className="mt-2">
+                    <div className="p-3 bg-muted/30 rounded-lg border text-sm space-y-2 max-h-40 overflow-y-auto">
+                      <p className="font-medium text-xs text-muted-foreground uppercase tracking-wide">Expense Breakdown:</p>
+                      {vehicleLedgerBreakdown.map((exp, idx) => {
+                        const categoryLabel = EXPENSE_CATEGORIES.find(c => c.value === exp.category)?.label || exp.category;
+                        return (
+                          <div key={idx} className="flex justify-between items-center text-xs">
+                            <span className="text-muted-foreground">
+                              {categoryLabel}: {exp.description}
+                            </span>
+                            <span className="font-medium">{formatPrice(exp.amount)}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+                <p className="text-xs text-muted-foreground">
+                  {vehicleLedgerBreakdown.length > 0 
+                    ? `${vehicleLedgerBreakdown.length} expense(s) from vehicle ledger`
+                    : 'No ledger expenses found'
+                  }
+                </p>
+              </div>
+              
+              {/* Additional Deal Costs (Editable) */}
+              <div className="space-y-2">
+                <Label>Additional Deal Expenses</Label>
                 <Input
                   type="number"
-                  value={reconCost || ''}
-                  onChange={(e) => setReconCost(parseFloat(e.target.value) || 0)}
-                  placeholder="Total reconditioning"
+                  value={additionalDealCosts || ''}
+                  onChange={(e) => setAdditionalDealCosts(parseFloat(e.target.value) || 0)}
+                  placeholder="Deal-specific costs"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Costs specific to this deal (e.g., urgent roadworthy)
+                </p>
               </div>
+            </div>
+            
+            {/* Total Recon Display */}
+            <div className="p-3 bg-muted/30 rounded-lg border flex justify-between items-center">
+              <span className="text-sm font-medium">Total Recon/Expenses:</span>
+              <span className="text-lg font-bold text-primary">{formatPrice(totalReconCost)}</span>
             </div>
             
             {/* DIC / Bank Reward Section */}
@@ -1137,7 +1258,7 @@ const FinalizeDealModal = ({
                 <span className="font-medium text-red-400">-{formatPrice(totalCosts)}</span>
               </div>
               <p className="text-xs text-muted-foreground -mt-2 mb-2">
-                (Vehicle: {formatPrice(costPrice)} + Recon: {formatPrice(reconCost)} + Expenses: {formatPrice(totalExpenses)} + Dealer Deposit: {formatPrice(dealerDepositContribution)}{totalAddonCost > 0 ? ` + Addon Costs: ${formatPrice(totalAddonCost)}` : ''}{referralCommission > 0 ? ` + Referral Expense: ${formatPrice(referralCommission)}` : ''})
+                (Vehicle: {formatPrice(costPrice)} + Recon: {formatPrice(totalReconCost)} + Expenses: {formatPrice(totalExpenses)} + Dealer Deposit: {formatPrice(dealerDepositContribution)}{totalAddonCost > 0 ? ` + Addon Costs: ${formatPrice(totalAddonCost)}` : ''}{referralCommission > 0 ? ` + Referral Expense: ${formatPrice(referralCommission)}` : ''})
               </p>
               
               {dicAmount > 0 && (
