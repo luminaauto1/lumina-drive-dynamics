@@ -164,6 +164,14 @@ const AdminCreateApplication = () => {
     setCurrentStep((prev) => Math.max(prev - 1, 1));
   };
 
+  // Helper to sanitize numeric values (strips R, spaces, commas)
+  const sanitizeNumeric = (value: string): number | null => {
+    if (!value) return null;
+    const cleaned = value.replace(/[R\s,]/gi, '').trim();
+    const num = parseFloat(cleaned);
+    return isNaN(num) ? null : num;
+  };
+
   const handleSubmit = async () => {
     if (!validateStep(currentStep)) return;
     
@@ -171,21 +179,29 @@ const AdminCreateApplication = () => {
 
     try {
       // Check if a profile/user exists for this email
-      const { data: existingProfile } = await supabase
+      const { data: existingProfile, error: profileError } = await supabase
         .from('profiles')
         .select('id, user_id, full_name')
         .eq('email', formData.client_email.toLowerCase().trim())
         .maybeSingle();
+
+      if (profileError) {
+        console.error('Profile lookup error:', profileError);
+        // Continue anyway - non-critical error
+      }
 
       // If existing user found, notify admin
       if (existingProfile) {
         toast.info(`Existing client found: ${existingProfile.full_name || 'Unknown'}. Application will be linked to their profile.`);
       }
 
-      // Use existing user_id if found, otherwise use shadow ID
+      // Use existing user_id if found, otherwise use shadow ID for admin-created applications
       const userId = existingProfile?.user_id || '00000000-0000-0000-0000-000000000000';
 
-      // Prepare the application data
+      // Sanitize and prepare the application data
+      const sanitizedGrossSalary = sanitizeNumeric(formData.gross_salary);
+      const sanitizedNetSalary = sanitizeNumeric(formData.net_salary);
+
       const applicationData = {
         user_id: userId,
         full_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
@@ -207,8 +223,8 @@ const AdminCreateApplication = () => {
         bank_name: formData.bank_name,
         account_type: formData.account_type || null,
         account_number: formData.account_number?.trim() || null,
-        gross_salary: formData.gross_salary ? parseFloat(formData.gross_salary) : null,
-        net_salary: formData.net_salary ? parseFloat(formData.net_salary) : null,
+        gross_salary: sanitizedGrossSalary,
+        net_salary: sanitizedNetSalary,
         expenses_summary: formData.expenses_summary?.trim() || null,
         popia_consent: formData.popia_consent,
         preferred_vehicle_text: formData.preferred_vehicle_text?.trim() || null,
@@ -218,19 +234,33 @@ const AdminCreateApplication = () => {
         status: 'pending',
       };
 
-      const { error } = await supabase
+      console.log('Submitting application data:', { ...applicationData, user_id: '[REDACTED]' });
+
+      const { data, error } = await supabase
         .from('finance_applications')
-        .insert(applicationData as any);
+        .insert(applicationData as any)
+        .select()
+        .single();
 
       if (error) {
-        console.error('Submission error:', error);
-        toast.error('Failed to create application');
+        console.error('Supabase insert error:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+        });
+        toast.error(`Submission Failed: ${error.message || 'Unknown database error'}`, {
+          description: error.hint || error.details || undefined,
+          duration: 8000,
+        });
         return;
       }
 
+      console.log('Application created successfully:', data?.id);
+
       // Also create a lead entry if this is a new client (no existing profile)
       if (!existingProfile) {
-        await supabase.from('leads').insert({
+        const { error: leadError } = await supabase.from('leads').insert({
           client_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
           client_email: formData.client_email.trim().toLowerCase(),
           client_phone: formData.client_phone.trim(),
@@ -238,6 +268,10 @@ const AdminCreateApplication = () => {
           status: 'new',
           notes: `Application created by admin. ${formData.admin_notes || ''}`,
         } as any);
+
+        if (leadError) {
+          console.warn('Lead creation failed (non-critical):', leadError.message);
+        }
       }
 
       toast.success(existingProfile 
@@ -245,9 +279,12 @@ const AdminCreateApplication = () => {
         : 'Application created successfully!'
       );
       navigate('/admin/finance');
-    } catch (err) {
-      console.error('Error creating application:', err);
-      toast.error('An error occurred');
+    } catch (err: any) {
+      console.error('Unexpected error creating application:', err);
+      toast.error(`Error: ${err?.message || 'An unexpected error occurred'}`, {
+        description: 'Check the console for details',
+        duration: 8000,
+      });
     } finally {
       setIsSubmitting(false);
     }
