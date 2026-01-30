@@ -84,6 +84,7 @@ const AppLayout = () => {
           <Route path="/admin/quotes" element={<ProtectedRoute requireAdmin><AdminQuoteGenerator /></ProtectedRoute>} />
           <Route path="/admin/aftersales" element={<ProtectedRoute requireAdmin><AdminAftersales /></ProtectedRoute>} />
           <Route path="/admin/reports" element={<ProtectedRoute requireAdmin><AdminReports /></ProtectedRoute>} />
+          <Route path="/admin/extra-incomes" element={<ProtectedRoute requireAdmin><AdminExtraIncomes /></ProtectedRoute>} />
           <Route path="/admin/analytics" element={<ProtectedRoute requireAdmin><AdminAnalytics /></ProtectedRoute>} />
           <Route path="/admin/settings" element={<ProtectedRoute requireAdmin><AdminSettings /></ProtectedRoute>} />
           <Route path="/update-password" element={<UpdatePassword />} />
