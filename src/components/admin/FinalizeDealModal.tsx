@@ -538,7 +538,10 @@ const FinalizeDealModal = ({
       bankInitiationFee,
       totalFinancedAmount: totalFinanceAmount,
       clientDeposit,
-      grossProfit,
+      // CRITICAL: Save Lumina Net Profit (AFTER partner split deduction)
+      // This is: Gross Profit - Partner Payout
+      // Commission is NOT subtracted - it's tracked separately
+      grossProfit: luminaNetProfit,
       reconCost: totalReconCost, // Sum of ledger costs + additional deal costs
       // DIC (Bank Reward)
       dicAmount,
