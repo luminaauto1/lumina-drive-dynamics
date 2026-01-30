@@ -236,7 +236,7 @@ const FinalizeDealModal = ({
   useEffect(() => {
     if (isOpen && !isFormInitialized) {
       if (existingDeal) {
-        // EDIT MODE: Load all saved deal values
+        // EDIT MODE: Load all saved deal values - NEVER use vehicle defaults
         // Vehicle
         if (existingDeal.vehicle_id) {
           setActiveVehicleId(existingDeal.vehicle_id);
@@ -341,7 +341,9 @@ const FinalizeDealModal = ({
         setIsFormInitialized(true);
       }
     }
-  }, [isOpen, isFormInitialized, existingDeal, vehicleId, vehiclePrice, vehicleMileage, vehicle]);
+    // CRITICAL: Do NOT include vehiclePrice, vehicleMileage, vehicle, vehicleId
+    // to prevent re-renders from resetting user input when editing
+  }, [isOpen, existingDeal]); // eslint-disable-line react-hooks/exhaustive-deps
   
   // Update active vehicle ID when prop changes (for new deals only, when not yet initialized)
   useEffect(() => {
