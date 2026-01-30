@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Settings, DollarSign, Phone, Palette, Loader2, MapPin, CreditCard, Users, Plus, X, Target, Mail } from 'lucide-react';
+import { Settings, DollarSign, Phone, Palette, Loader2, MapPin, CreditCard, Users, Plus, X, Target, Mail, TestTube } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Switch } from '@/components/ui/switch';
@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSiteSettings, useUpdateSiteSettings, SiteSettings } from '@/hooks/useSiteSettings';
 import EmailTemplateEditor from '@/components/admin/EmailTemplateEditor';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 type SettingsFormData = Omit<SiteSettings, 'id' | 'created_at' | 'updated_at'> & { tiktok_url: string };
 
@@ -117,6 +119,94 @@ const SalesRepsTab = ({ settings, updateSettings }: { settings: SiteSettings | u
         </div>
       )}
     </motion.div>
+  );
+};
+
+// Test Email Button Component
+const TestEmailButton = () => {
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const handleTestEmail = async () => {
+    setIsTesting(true);
+    setTestResult(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('send-finance-alert', {
+        body: {
+          applicationId: 'test-' + Date.now(),
+          clientName: 'Test User',
+          clientEmail: 'test@example.com', // Won't actually send - just tests the function
+          netSalary: 25000,
+          adminEmail: 'lumina.auto1@gmail.com',
+        },
+      });
+
+      if (error) {
+        console.error('Email test failed:', error);
+        setTestResult({
+          success: false,
+          message: `Edge Function Error: ${error.message || JSON.stringify(error)}`,
+        });
+        toast.error(`Email test failed: ${error.message}`);
+      } else {
+        setTestResult({
+          success: true,
+          message: 'Email system is working! Check your inbox.',
+        });
+        toast.success('Email test successful!');
+      }
+    } catch (err: any) {
+      console.error('Email test exception:', err);
+      setTestResult({
+        success: false,
+        message: `Exception: ${err.message || 'Unknown error'}`,
+      });
+      toast.error(`Email test failed: ${err.message}`);
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Test the email notification system. This will attempt to send a test email using your configured Resend API key.
+      </p>
+      <div className="flex items-center gap-4">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleTestEmail}
+          disabled={isTesting}
+          className="gap-2"
+        >
+          {isTesting ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Testing...
+            </>
+          ) : (
+            <>
+              <Mail className="w-4 h-4" />
+              Test Email System
+            </>
+          )}
+        </Button>
+      </div>
+      {testResult && (
+        <div
+          className={`p-4 rounded-lg text-sm ${
+            testResult.success
+              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+              : 'bg-destructive/10 text-destructive border border-destructive/30'
+          }`}
+        >
+          <p className="font-medium">{testResult.success ? '✓ Success' : '✗ Failed'}</p>
+          <p className="mt-1 text-xs opacity-80 break-all">{testResult.message}</p>
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -635,6 +725,15 @@ const AdminSettings = () => {
                     checked={showFinanceTab}
                     onCheckedChange={(checked) => setValue('show_finance_tab', checked)}
                   />
+                </div>
+
+                {/* Email System Test */}
+                <div className="border-t border-border pt-6 mt-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <TestTube className="w-5 h-5 text-amber-500" />
+                    <h3 className="text-lg font-semibold">System Diagnostics</h3>
+                  </div>
+                  <TestEmailButton />
                 </div>
               </motion.div>
             </TabsContent>
