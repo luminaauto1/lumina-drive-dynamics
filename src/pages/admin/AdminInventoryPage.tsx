@@ -196,14 +196,17 @@ const AdminInventoryPage = () => {
     );
     const isGeneric = (v as any).is_generic_listing === true || v.status === 'sourcing';
     const isHidden = v.status === 'hidden';
+    const isSold = v.status === 'sold';
     
     // Tab filtering logic
     if (activeTab === 'live') {
-      return matchesSearch && !isGeneric && !isHidden;
+      return matchesSearch && !isGeneric && !isHidden && !isSold;
     } else if (activeTab === 'sourcing') {
       return matchesSearch && isGeneric;
     } else if (activeTab === 'hidden') {
       return matchesSearch && isHidden;
+    } else if (activeTab === 'sold') {
+      return matchesSearch && isSold;
     }
     return matchesSearch;
   });
@@ -502,6 +505,10 @@ const AdminInventoryPage = () => {
               <TabsTrigger value="hidden" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                 <EyeOff className="w-3.5 h-3.5 mr-1.5" />
                 Hidden / Client Stock
+              </TabsTrigger>
+              <TabsTrigger value="sold" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                <PackageCheck className="w-3.5 h-3.5 mr-1.5" />
+                Sold Stock
               </TabsTrigger>
             </TabsList>
           </Tabs>

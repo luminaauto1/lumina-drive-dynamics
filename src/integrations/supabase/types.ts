@@ -360,6 +360,8 @@ export type Database = {
           area_code: string | null
           bank_name: string | null
           buyer_type: string | null
+          contract_bank_name: string | null
+          contract_url: string | null
           created_at: string
           credit_score_status: string | null
           declined_reason: string | null
@@ -407,6 +409,8 @@ export type Database = {
           area_code?: string | null
           bank_name?: string | null
           buyer_type?: string | null
+          contract_bank_name?: string | null
+          contract_url?: string | null
           created_at?: string
           credit_score_status?: string | null
           declined_reason?: string | null
@@ -454,6 +458,8 @@ export type Database = {
           area_code?: string | null
           bank_name?: string | null
           buyer_type?: string | null
+          contract_bank_name?: string | null
+          contract_url?: string | null
           created_at?: string
           credit_score_status?: string | null
           declined_reason?: string | null
@@ -508,6 +514,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      finance_banks: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          signing_url: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          signing_url?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          signing_url?: string | null
+        }
+        Relationships: []
       }
       finance_offers: {
         Row: {

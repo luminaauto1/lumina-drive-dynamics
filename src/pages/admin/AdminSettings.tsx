@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Settings, DollarSign, Phone, Palette, Loader2, MapPin, CreditCard, Users, Plus, X, Target, Mail, TestTube } from 'lucide-react';
+import { Settings, DollarSign, Phone, Palette, Loader2, MapPin, CreditCard, Users, Plus, X, Target, Mail, TestTube, Building2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Switch } from '@/components/ui/switch';
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSiteSettings, useUpdateSiteSettings, SiteSettings } from '@/hooks/useSiteSettings';
 import EmailTemplateEditor from '@/components/admin/EmailTemplateEditor';
+import BankIntegrationsTab from '@/components/admin/BankIntegrationsTab';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -313,10 +314,14 @@ const AdminSettings = () => {
 
         <form onSubmit={handleSubmit(onSubmit)}>
           <Tabs defaultValue="finance" className="max-w-3xl">
-            <TabsList className="grid w-full grid-cols-7 mb-6">
+            <TabsList className="grid w-full grid-cols-8 mb-6">
               <TabsTrigger value="finance" className="gap-2">
                 <DollarSign className="w-4 h-4" />
                 Finance
+              </TabsTrigger>
+              <TabsTrigger value="banks" className="gap-2">
+                <Building2 className="w-4 h-4" />
+                Banks
               </TabsTrigger>
               <TabsTrigger value="sales" className="gap-2">
                 <Users className="w-4 h-4" />
@@ -464,6 +469,11 @@ const AdminSettings = () => {
                   </div>
                 </div>
               </motion.div>
+            </TabsContent>
+
+            {/* Banks Tab */}
+            <TabsContent value="banks">
+              <BankIntegrationsTab />
             </TabsContent>
 
             {/* Sales Reps Tab */}

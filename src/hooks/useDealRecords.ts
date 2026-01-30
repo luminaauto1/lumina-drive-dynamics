@@ -115,19 +115,29 @@ export const useCreateDealRecord = () => {
 
       if (error) throw error;
 
-      // If sourcing vehicle, increment sourced_count instead of marking sold
-      if (record.isSourcingVehicle) {
-        // Update sourced_count directly
-        const { data: vehicle } = await supabase
-          .from('vehicles')
-          .select('sourced_count')
-          .eq('id', record.vehicleId)
-          .single();
-        
-        await supabase
-          .from('vehicles')
-          .update({ sourced_count: ((vehicle as any)?.sourced_count || 0) + 1 })
-          .eq('id', record.vehicleId);
+      // Handle vehicle status based on current status
+      // Get current vehicle status first
+      const { data: vehicleData } = await supabase
+        .from('vehicles')
+        .select('status, sourced_count')
+        .eq('id', record.vehicleId)
+        .single();
+
+      if (vehicleData) {
+        if (record.isSourcingVehicle || vehicleData.status === 'sourcing') {
+          // Sourcing vehicle: increment sourced_count, don't change status
+          await supabase
+            .from('vehicles')
+            .update({ sourced_count: ((vehicleData as any)?.sourced_count || 0) + 1 })
+            .eq('id', record.vehicleId);
+        } else if (vehicleData.status === 'available' || vehicleData.status === 'reserved' || vehicleData.status === 'incoming') {
+          // Real stock (available, reserved, incoming): mark as sold
+          await supabase
+            .from('vehicles')
+            .update({ status: 'sold' })
+            .eq('id', record.vehicleId);
+        }
+        // If hidden/client stock: DO NOT change status (keep hidden)
       }
 
       return data;
