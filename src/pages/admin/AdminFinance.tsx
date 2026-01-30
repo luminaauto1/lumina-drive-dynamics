@@ -14,7 +14,7 @@ import { useFinanceApplications, useUpdateFinanceApplication, useDeleteFinanceAp
 import { formatPrice } from '@/hooks/useVehicles';
 import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, getWhatsAppMessage, canShowDealActions } from '@/lib/statusConfig';
 import { useToast } from '@/hooks/use-toast';
-
+import { getUploadLink } from '@/lib/appConfig';
 const FINANCE_INFO_REQUEST_TEMPLATE = `*Lumina Auto | Finance Application Request*
 
 Hi, to assist you with your finance application manually, please reply with the following details:
@@ -80,7 +80,7 @@ const AdminFinance = () => {
 
   const copyUploadLink = async (accessToken: string) => {
     try {
-      const link = `https://lumina-auto.lovable.app/upload-documents/${accessToken}`;
+      const link = getUploadLink(accessToken);
       await navigator.clipboard.writeText(link);
       toast({
         title: "Upload link copied!",
