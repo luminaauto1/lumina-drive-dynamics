@@ -1,4 +1,4 @@
-import { LayoutDashboard, Car, Users, CreditCard, Settings, ChevronLeft, ChevronRight, BarChart3, Package, Home, MessageSquareQuote } from 'lucide-react';
+import { LayoutDashboard, Car, Users, CreditCard, Settings, ChevronLeft, ChevronRight, BarChart3, Package, Home, MessageSquareQuote, FileBarChart } from 'lucide-react';
 import { NavLink, useLocation, Link } from 'react-router-dom';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -11,6 +11,7 @@ const menuItems = [
   { title: 'Finance', icon: CreditCard, path: '/admin/finance' },
   { title: 'Quote Generator', icon: MessageSquareQuote, path: '/admin/quotes' },
   { title: 'Aftersales', icon: Package, path: '/admin/aftersales' },
+  { title: 'Reports', icon: FileBarChart, path: '/admin/reports' },
   { title: 'Analytics', icon: BarChart3, path: '/admin/analytics' },
   { title: 'Settings', icon: Settings, path: '/admin/settings' },
 ];

@@ -216,6 +216,7 @@ export type Database = {
           referral_commission_amount: number | null
           referral_income_amount: number | null
           referral_person_name: string | null
+          sale_date: string | null
           sales_rep_commission: number | null
           sales_rep_name: string | null
           sold_mileage: number | null
@@ -250,6 +251,7 @@ export type Database = {
           referral_commission_amount?: number | null
           referral_income_amount?: number | null
           referral_person_name?: string | null
+          sale_date?: string | null
           sales_rep_commission?: number | null
           sales_rep_name?: string | null
           sold_mileage?: number | null
@@ -284,6 +286,7 @@ export type Database = {
           referral_commission_amount?: number | null
           referral_income_amount?: number | null
           referral_person_name?: string | null
+          sale_date?: string | null
           sales_rep_commission?: number | null
           sales_rep_name?: string | null
           sold_mileage?: number | null

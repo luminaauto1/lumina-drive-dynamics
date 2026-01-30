@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, X, MapPin, Car, DollarSign, User, Receipt, Calculator, TrendingUp, Search, ChevronDown, Package, UserPlus, Eye, FileText } from 'lucide-react';
+import { Plus, X, MapPin, Car, DollarSign, User, Receipt, Calculator, TrendingUp, Search, ChevronDown, Package, UserPlus, Eye, FileText, CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,11 +11,13 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Calendar } from '@/components/ui/calendar';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { useCreateDealRecord, useUpdateDealRecord, AftersalesExpense, DealAddOnItem } from '@/hooks/useDealRecords';
 import { formatPrice, useVehicles, Vehicle } from '@/hooks/useVehicles';
 import { useVehicleExpenses, VehicleExpense, EXPENSE_CATEGORIES } from '@/hooks/useVehicleExpenses';
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 
 interface SalesRep {
   name: string;
@@ -66,6 +69,8 @@ export interface ExistingDealData {
   referral_person_name?: string | null;
   // Referral Income (what we receive)
   referral_income_amount?: number | null;
+  // Sale date for reporting
+  sale_date?: string | null;
   vehicle?: {
     id: string;
     make: string;
@@ -209,6 +214,9 @@ const FinalizeDealModal = ({
   // Referral Income (what we RECEIVE)
   const [referralIncome, setReferralIncome] = useState(0);
   
+  // Sale Date for reporting
+  const [saleDate, setSaleDate] = useState<Date>(new Date());
+  
   // Delivery
   const [deliveryDate, setDeliveryDate] = useState('');
   const [deliveryTime, setDeliveryTime] = useState('10:00');
@@ -294,6 +302,13 @@ const FinalizeDealModal = ({
         setNextServiceDate(existingDeal.next_service_date || '');
         setNextServiceKm(existingDeal.next_service_km || '');
         
+        // Sale Date
+        if (existingDeal.sale_date) {
+          setSaleDate(new Date(existingDeal.sale_date));
+        } else {
+          setSaleDate(new Date());
+        }
+        
         // Expenses
         if (existingDeal.aftersales_expenses && Array.isArray(existingDeal.aftersales_expenses)) {
           setExpenses(existingDeal.aftersales_expenses);
@@ -337,6 +352,7 @@ const FinalizeDealModal = ({
         setNextServiceDate('');
         setNextServiceKm('');
         setExpenses([]);
+        setSaleDate(new Date()); // Default to today for new deals
         
         setIsFormInitialized(true);
       }
@@ -524,6 +540,8 @@ const FinalizeDealModal = ({
       deliveryDate: `${deliveryDate}T${deliveryTime}:00`,
       aftersalesExpenses: expenses,
       costPrice,
+      // Sale date for reporting
+      saleDate: format(saleDate, 'yyyy-MM-dd'),
       // Save Lumina Net Profit BEFORE commission is subtracted
       calculatedProfit: luminaNetProfit,
       isSourcingVehicle: activeVehicle?.status === 'sourcing',
@@ -591,13 +609,46 @@ const FinalizeDealModal = ({
         </DialogHeader>
 
         <div className="space-y-6 py-4">
+          {/* Sale Date Picker */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-emerald-400">
+              <CalendarIcon className="w-4 h-4" />
+              Sale Date (for Reporting)
+            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !saleDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {saleDate ? format(saleDate, "PPP") : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={saleDate}
+                  onSelect={(date) => date && setSaleDate(date)}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+            <p className="text-xs text-muted-foreground">
+              Date the sale was finalized. Used for monthly reporting and analytics.
+            </p>
+          </div>
+
           {/* Vehicle Selector */}
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-blue-400">
               <Car className="w-4 h-4" />
               Deal Vehicle
             </div>
-            
             <Popover open={vehicleSearchOpen} onOpenChange={setVehicleSearchOpen}>
               <PopoverTrigger asChild>
                 <Button

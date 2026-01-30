@@ -29,6 +29,8 @@ export interface DealRecordInsert {
   costPrice?: number;
   calculatedProfit?: number;
   isSourcingVehicle?: boolean;
+  // Sale date for reporting
+  saleDate?: string;
   // Shared Capital fields
   isSharedCapital?: boolean;
   partnerSplitPercent?: number;
@@ -83,6 +85,8 @@ export const useCreateDealRecord = () => {
           cost_price: record.costPrice || 0,
           gross_profit: record.grossProfit || 0,
           recon_cost: record.reconCost || 0,
+          // Sale date for reporting
+          sale_date: record.saleDate || new Date().toISOString().split('T')[0],
           // Shared Capital fields
           is_shared_capital: record.isSharedCapital || false,
           partner_split_percent: record.partnerSplitPercent || 0,
@@ -161,6 +165,8 @@ export const useUpdateDealRecord = () => {
           cost_price: record.costPrice || 0,
           gross_profit: record.grossProfit || 0,
           recon_cost: record.reconCost || 0,
+          // Sale date for reporting
+          sale_date: record.saleDate || null,
           // Shared Capital fields
           is_shared_capital: record.isSharedCapital || false,
           partner_split_percent: record.partnerSplitPercent || 0,
