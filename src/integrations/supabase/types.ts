@@ -350,6 +350,42 @@ export type Database = {
         }
         Relationships: []
       }
+      extra_service_incomes: {
+        Row: {
+          category: string
+          cost_price: number | null
+          created_at: string | null
+          description: string
+          id: string
+          provider_name: string | null
+          selling_price: number | null
+          status: string | null
+          transaction_date: string | null
+        }
+        Insert: {
+          category: string
+          cost_price?: number | null
+          created_at?: string | null
+          description: string
+          id?: string
+          provider_name?: string | null
+          selling_price?: number | null
+          status?: string | null
+          transaction_date?: string | null
+        }
+        Update: {
+          category?: string
+          cost_price?: number | null
+          created_at?: string | null
+          description?: string
+          id?: string
+          provider_name?: string | null
+          selling_price?: number | null
+          status?: string | null
+          transaction_date?: string | null
+        }
+        Relationships: []
+      }
       finance_applications: {
         Row: {
           access_token: string | null
@@ -728,6 +764,104 @@ export type Database = {
           phone?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      rental_logs: {
+        Row: {
+          amount: number
+          created_at: string | null
+          description: string
+          id: string
+          log_date: string | null
+          rental_id: string | null
+          type: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          description: string
+          id?: string
+          log_date?: string | null
+          rental_id?: string | null
+          type: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          description?: string
+          id?: string
+          log_date?: string | null
+          rental_id?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rental_logs_rental_id_fkey"
+            columns: ["rental_id"]
+            isOneToOne: false
+            referencedRelation: "rentals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rentals: {
+        Row: {
+          created_at: string | null
+          deposit_amount: number | null
+          end_date: string | null
+          id: string
+          initial_recon_cost: number | null
+          monthly_rent: number
+          notes: string | null
+          payment_day: number | null
+          purchase_price: number | null
+          registration_number: string
+          renter_contact: string | null
+          renter_id_number: string | null
+          renter_name: string | null
+          start_date: string | null
+          status: string | null
+          vehicle_make_model: string
+          vin_number: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          deposit_amount?: number | null
+          end_date?: string | null
+          id?: string
+          initial_recon_cost?: number | null
+          monthly_rent: number
+          notes?: string | null
+          payment_day?: number | null
+          purchase_price?: number | null
+          registration_number: string
+          renter_contact?: string | null
+          renter_id_number?: string | null
+          renter_name?: string | null
+          start_date?: string | null
+          status?: string | null
+          vehicle_make_model: string
+          vin_number?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          deposit_amount?: number | null
+          end_date?: string | null
+          id?: string
+          initial_recon_cost?: number | null
+          monthly_rent?: number
+          notes?: string | null
+          payment_day?: number | null
+          purchase_price?: number | null
+          registration_number?: string
+          renter_contact?: string | null
+          renter_id_number?: string | null
+          renter_name?: string | null
+          start_date?: string | null
+          status?: string | null
+          vehicle_make_model?: string
+          vin_number?: string | null
         }
         Relationships: []
       }

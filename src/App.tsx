@@ -33,6 +33,7 @@ import AdminAftersales from "./pages/admin/AdminAftersales";
 import AdminCreateApplication from "./pages/admin/AdminCreateApplication";
 import AdminQuoteGenerator from "./pages/admin/AdminQuoteGenerator";
 import AdminReports from "./pages/admin/AdminReports";
+import AdminExtraIncomes from "./pages/admin/AdminExtraIncomes";
 import UpdatePassword from "./pages/UpdatePassword";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
