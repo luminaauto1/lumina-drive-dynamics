@@ -869,15 +869,13 @@ const AdminAftersales = () => {
 
   const isLoading = aftersalesLoading || dealsLoading;
 
-  // Calculate analytics from deal records
-  // NEW LOGIC: Total Net Profit = gross_profit column (which now excludes commission)
-  // This sums the profit BEFORE commission is subtracted
+  // === CLIENT-SIDE ANALYTICS CALCULATION ===
+  // Total Net Profit = Sum of gross_profit column (which is Lumina Net Profit BEFORE commission)
   const totalNetProfit = dealRecords.reduce((sum, deal) => {
-    // Use the stored gross_profit which is Lumina Net Profit (before commission)
     return sum + (deal.gross_profit || 0);
   }, 0);
 
-  // Total sales commission paid (separate tracking)
+  // Total sales commission payable (separate tracking)
   const totalSalesCommission = dealRecords.reduce((sum, deal) => {
     return sum + (deal.sales_rep_commission || 0);
   }, 0);
@@ -887,12 +885,7 @@ const AdminAftersales = () => {
     return sum + (deal.referral_commission_amount || 0);
   }, 0);
   
-  // Total referral income received
-  const totalReferralIncome = dealRecords.reduce((sum, deal) => {
-    return sum + (deal.referral_income_amount || 0);
-  }, 0);
-  
-  // Total commission payable (sales + referral expense)
+  // Total commission payable = Sales + Referral commissions
   const totalCommissionPayable = totalSalesCommission + totalReferralCommission;
   
   // Total DIC earned
@@ -900,10 +893,13 @@ const AdminAftersales = () => {
     return sum + (deal.dic_amount || 0);
   }, 0);
   
-  // Average profit per unit (based on stored gross_profit)
+  // Average profit per unit
   const avgProfitPerUnit = dealRecords.length > 0 ? totalNetProfit / dealRecords.length : 0;
-
-  // Count deals with service due
+  
+  // Count deals with zero cost_price (data quality warning)
+  const zeroCostDealsCount = dealRecords.filter(deal => !deal.cost_price || deal.cost_price === 0).length;
+  
+  // Service alerts
   const serviceAlertCount = dealRecords.filter(deal => getServiceDueStatus(deal).isDue).length;
 
   const startEditing = (record: AftersalesRecord) => {
@@ -1043,11 +1039,26 @@ const AdminAftersales = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg flex items-center gap-3"
+            className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg flex items-center gap-3"
           >
             <Wrench className="w-5 h-5 text-red-500" />
             <p className="text-sm">
               <span className="font-semibold">{serviceAlertCount} deal(s)</span> have overdue service dates. Click on the row to manage.
+            </p>
+          </motion.div>
+        )}
+
+        {/* Zero Cost Warning Banner */}
+        {zeroCostDealsCount > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.12 }}
+            className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center gap-3"
+          >
+            <AlertCircle className="w-5 h-5 text-yellow-500" />
+            <p className="text-sm">
+              <span className="font-semibold">{zeroCostDealsCount} deal(s)</span> have R0 cost price recorded, which may inflate profit figures. Edit these deals to correct.
             </p>
           </motion.div>
         )}
@@ -1061,7 +1072,7 @@ const AdminAftersales = () => {
         >
           <div className="p-4 border-b border-white/10">
             <h2 className="text-lg font-semibold">Deal Records</h2>
-            <p className="text-sm text-muted-foreground">Click any row to manage the deal lifecycle</p>
+            <p className="text-sm text-muted-foreground">Click any row to edit deal structure</p>
           </div>
           {isLoading ? (
             <div className="p-8 text-center">
@@ -1078,27 +1089,33 @@ const AdminAftersales = () => {
               <TableHeader>
                 <TableRow className="border-white/10 hover:bg-white/5">
                   <TableHead className="text-muted-foreground w-8"></TableHead>
-                  <TableHead className="text-muted-foreground">Customer</TableHead>
-                  <TableHead className="text-muted-foreground">Vehicle</TableHead>
+                  <TableHead className="text-muted-foreground">Client & Vehicle</TableHead>
                   <TableHead className="text-muted-foreground">Sold Price</TableHead>
-                  <TableHead className="text-muted-foreground">Next Service</TableHead>
-                  <TableHead className="text-muted-foreground">Sales Rep</TableHead>
+                  <TableHead className="text-muted-foreground">Net Profit</TableHead>
+                  <TableHead className="text-muted-foreground">Status / Date</TableHead>
                   <TableHead className="text-muted-foreground text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {dealRecords.map((deal) => {
                   const serviceDue = getServiceDueStatus(deal);
+                  const netProfit = deal.gross_profit || 0;
+                  const hasZeroCost = !deal.cost_price || deal.cost_price === 0;
                   
                   return (
                     <TableRow 
                       key={deal.id} 
                       className={`border-white/10 hover:bg-white/5 cursor-pointer ${serviceDue.isDue ? 'bg-red-500/5' : ''}`}
-                      onClick={() => setManageDeal(deal)}
+                      onClick={() => setEditDeal(deal)}
                     >
                       <TableCell className="w-8">
                         {serviceDue.isDue && (
                           <AlertCircle className="w-4 h-4 text-red-500" />
+                        )}
+                        {!serviceDue.isDue && hasZeroCost && (
+                          <span title="Zero cost price">
+                            <AlertCircle className="w-4 h-4 text-yellow-500" />
+                          </span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -1106,47 +1123,53 @@ const AdminAftersales = () => {
                           <p className="font-medium">
                             {deal.application?.first_name} {deal.application?.last_name}
                           </p>
-                          <p className="text-xs text-muted-foreground">{deal.application?.email}</p>
+                          {deal.vehicle ? (
+                            <p className="text-xs text-muted-foreground">
+                              {deal.vehicle.year} {deal.vehicle.make} {deal.vehicle.model}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-muted-foreground italic">Vehicle removed</p>
+                          )}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        {deal.vehicle ? (
-                          <p className="font-medium">
-                            {deal.vehicle.year} {deal.vehicle.make} {deal.vehicle.model}
-                          </p>
-                        ) : (
-                          <span className="text-muted-foreground">Vehicle removed</span>
-                        )}
                       </TableCell>
                       <TableCell>
                         <div>
                           <p className="font-semibold">{deal.sold_price ? formatPrice(deal.sold_price) : 'N/A'}</p>
                           {(deal.aftersales_expenses || []).length > 0 && (
                             <p className="text-xs text-red-400">
-                              -{formatPrice((deal.aftersales_expenses || []).reduce((s, e) => s + (e.amount || 0), 0))} expenses
+                              -{formatPrice((deal.aftersales_expenses || []).reduce((s, e) => s + (e.amount || 0), 0))} post-sale
                             </p>
                           )}
                         </div>
                       </TableCell>
                       <TableCell>
-                        {deal.next_service_date ? (
-                          <div>
-                            <p className="text-sm">{format(new Date(deal.next_service_date), 'dd MMM yyyy')}</p>
-                            {serviceDue.isDue && (
-                              <Badge variant="destructive" className="text-xs mt-1">Overdue</Badge>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">Not set</span>
-                        )}
+                        <div>
+                          <p className={`text-lg font-bold ${netProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatPrice(netProfit)}
+                          </p>
+                          {hasZeroCost && (
+                            <p className="text-xs text-yellow-500">⚠ No cost recorded</p>
+                          )}
+                          {deal.sales_rep_commission && deal.sales_rep_commission > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              -{formatPrice(deal.sales_rep_commission)} comm.
+                            </p>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div>
-                          <p className="text-sm">{deal.sales_rep_name || 'N/A'}</p>
-                          {deal.sales_rep_commission && (
-                            <p className="text-xs text-muted-foreground">
-                              {formatPrice(deal.sales_rep_commission)} comm.
-                            </p>
+                          <p className="text-sm">{format(new Date(deal.created_at), 'dd MMM yyyy')}</p>
+                          {deal.next_service_date && (
+                            <div className="mt-1">
+                              {serviceDue.isDue ? (
+                                <Badge variant="destructive" className="text-xs">Service Overdue</Badge>
+                              ) : (
+                                <p className="text-xs text-muted-foreground">
+                                  Service: {format(new Date(deal.next_service_date), 'dd MMM')}
+                                </p>
+                              )}
+                            </div>
                           )}
                         </div>
                       </TableCell>
@@ -1166,7 +1189,7 @@ const AdminAftersales = () => {
                             variant="ghost"
                             className="text-blue-500 hover:text-blue-400 hover:bg-blue-500/10"
                             onClick={() => setManageDeal(deal)}
-                            title="Manage Deal"
+                            title="Manage Deal Lifecycle"
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
