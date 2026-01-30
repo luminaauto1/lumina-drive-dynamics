@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import { 
@@ -7,7 +7,7 @@ import {
   FileText, ChevronDown, ChevronUp, FolderOpen, Settings, Calculator, UserPlus
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { differenceInDays, differenceInYears, format, addYears } from 'date-fns';
+import { differenceInDays, differenceInYears, format, addYears, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import AdminLayout from '@/components/admin/AdminLayout';
 import ClientProfileModal from '@/components/admin/ClientProfileModal';
 import FinalizeDealModal, { ExistingDealData } from '@/components/admin/FinalizeDealModal';
@@ -45,6 +45,8 @@ interface DealRecord {
   cost_price: number | null;
   gross_profit: number | null;
   recon_cost: number | null;
+  // Sale date for reporting
+  sale_date: string | null;
   // DIC (Bank Reward)
   dic_amount: number | null;
   // Shared Capital fields
@@ -869,19 +871,31 @@ const AdminAftersales = () => {
 
   const isLoading = aftersalesLoading || dealsLoading;
 
-  // === CLIENT-SIDE ANALYTICS CALCULATION ===
+  // === CURRENT MONTH FILTER ===
+  const currentMonthDeals = useMemo(() => {
+    const now = new Date();
+    const monthStart = startOfMonth(now);
+    const monthEnd = endOfMonth(now);
+    
+    return dealRecords.filter(deal => {
+      const saleDate = deal.sale_date ? new Date(deal.sale_date) : new Date(deal.created_at);
+      return isWithinInterval(saleDate, { start: monthStart, end: monthEnd });
+    });
+  }, [dealRecords]);
+
+  // === CLIENT-SIDE ANALYTICS CALCULATION (Current Month Only) ===
   // Total Net Profit = Sum of gross_profit column (which is Lumina Net Profit BEFORE commission)
-  const totalNetProfit = dealRecords.reduce((sum, deal) => {
+  const totalNetProfit = currentMonthDeals.reduce((sum, deal) => {
     return sum + (deal.gross_profit || 0);
   }, 0);
 
   // Total sales commission payable (separate tracking)
-  const totalSalesCommission = dealRecords.reduce((sum, deal) => {
+  const totalSalesCommission = currentMonthDeals.reduce((sum, deal) => {
     return sum + (deal.sales_rep_commission || 0);
   }, 0);
   
   // Total referral commission paid (expense)
-  const totalReferralCommission = dealRecords.reduce((sum, deal) => {
+  const totalReferralCommission = currentMonthDeals.reduce((sum, deal) => {
     return sum + (deal.referral_commission_amount || 0);
   }, 0);
   
@@ -889,12 +903,12 @@ const AdminAftersales = () => {
   const totalCommissionPayable = totalSalesCommission + totalReferralCommission;
   
   // Total DIC earned
-  const totalDIC = dealRecords.reduce((sum, deal) => {
+  const totalDIC = currentMonthDeals.reduce((sum, deal) => {
     return sum + (deal.dic_amount || 0);
   }, 0);
   
   // Average profit per unit
-  const avgProfitPerUnit = dealRecords.length > 0 ? totalNetProfit / dealRecords.length : 0;
+  const avgProfitPerUnit = currentMonthDeals.length > 0 ? totalNetProfit / currentMonthDeals.length : 0;
   
   // Count deals with zero cost_price (data quality warning)
   const zeroCostDealsCount = dealRecords.filter(deal => !deal.cost_price || deal.cost_price === 0).length;
@@ -975,29 +989,35 @@ const AdminAftersales = () => {
           <p className="text-muted-foreground">Manage customer relationships and deal lifecycle post-sale</p>
         </motion.div>
 
-        {/* Enhanced Analytics Bar */}
+        {/* This Month's Performance Bar */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6"
+          className="mb-6"
         >
-          <div className="glass-card rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingUp className="w-4 h-4 text-emerald-400" />
-              <p className="text-sm text-muted-foreground">Total Net Profit</p>
-            </div>
-            <p className={`text-2xl font-bold ${totalNetProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {formatPrice(totalNetProfit)}
-            </p>
+          <div className="flex items-center gap-2 mb-3">
+            <Calendar className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold">This Month's Performance</h2>
+            <Badge variant="outline" className="text-xs">{format(new Date(), 'MMMM yyyy')}</Badge>
           </div>
-          <div className="glass-card rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Users className="w-4 h-4 text-blue-400" />
-              <p className="text-sm text-muted-foreground">Total Volume</p>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="glass-card rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <TrendingUp className="w-4 h-4 text-emerald-400" />
+                <p className="text-sm text-muted-foreground">Net Profit</p>
+              </div>
+              <p className={`text-2xl font-bold ${totalNetProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {formatPrice(totalNetProfit)}
+              </p>
             </div>
-            <p className="text-2xl font-bold">{dealRecords.length}</p>
-          </div>
+            <div className="glass-card rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Users className="w-4 h-4 text-blue-400" />
+                <p className="text-sm text-muted-foreground">Volume</p>
+              </div>
+              <p className="text-2xl font-bold">{currentMonthDeals.length}</p>
+            </div>
           <div className="glass-card rounded-lg p-4">
             <div className="flex items-center gap-2 mb-1">
               <Calculator className="w-4 h-4 text-purple-400" />
@@ -1030,6 +1050,7 @@ const AdminAftersales = () => {
               <p className="text-sm text-muted-foreground">Service Due</p>
             </div>
             <p className="text-2xl font-bold text-yellow-400">{serviceAlertCount}</p>
+          </div>
           </div>
         </motion.div>
 
