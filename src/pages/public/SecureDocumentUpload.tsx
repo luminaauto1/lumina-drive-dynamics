@@ -265,23 +265,22 @@ const SecureDocumentUpload = () => {
               Hi {firstName}! 👋
             </h1>
             <p className="text-muted-foreground">
-              Please upload the required documents to complete your pre-approval.
+              Please upload the required documents to continue with your application.
             </p>
           </motion.div>
 
-          {/* Pre-Approval Badge */}
+          {/* Document Submission Info */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
             className="mb-8"
           >
-            <Alert className="bg-yellow-500/10 border-yellow-500/30">
-              <Check className="h-4 w-4 text-yellow-500" />
-              <AlertTitle className="text-yellow-500">Pre-Approved!</AlertTitle>
+            <Alert className="bg-primary/10 border-primary/30">
+              <FileText className="h-4 w-4 text-primary" />
+              <AlertTitle className="text-primary">Next Step: Document Submission</AlertTitle>
               <AlertDescription>
-                Your profile has been reviewed and you're pre-approved for vehicle finance.
-                Upload your documents below to proceed to the next step.
+                Please upload the required documents below so our finance team can proceed with your application validation.
               </AlertDescription>
             </Alert>
           </motion.div>
