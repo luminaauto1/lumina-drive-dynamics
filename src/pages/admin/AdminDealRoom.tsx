@@ -13,6 +13,7 @@ import FinancePodiumModal from '@/components/admin/FinancePodiumModal';
 import FinalizeDealModal from '@/components/admin/FinalizeDealModal';
 import OTPModal from '@/components/admin/OTPModal';
 import ClientDocumentViewer from '@/components/admin/ClientDocumentViewer';
+import ContractSentModal from '@/components/admin/ContractSentModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -49,6 +50,7 @@ const AdminDealRoom = () => {
   const [podiumModalOpen, setPodiumModalOpen] = useState(false);
   const [finalizeDealModalOpen, setFinalizeDealModalOpen] = useState(false);
   const [otpModalOpen, setOtpModalOpen] = useState(false);
+  const [contractSentModalOpen, setContractSentModalOpen] = useState(false);
 
   const { data: vehicles = [], refetch: refetchVehicles } = useVehicles();
   const { data: matches = [], isLoading: matchesLoading, refetch: refetchMatches } = useApplicationMatches(id || '');
@@ -107,6 +109,12 @@ const AdminDealRoom = () => {
       return;
     }
     
+    // Intercept contract_sent to open the Contract Sent modal
+    if (newStatus === 'contract_sent') {
+      setContractSentModalOpen(true);
+      return;
+    }
+    
     try {
       await updateApplication.mutateAsync({ id: application.id, updates: { status: newStatus } });
       setApplication(prev => prev ? { ...prev, status: newStatus } : null);
@@ -128,6 +136,23 @@ const AdminDealRoom = () => {
       toast.success(`Status updated to ${newStatus}`);
     } catch (error) {
       console.error('Failed to update status:', error);
+    }
+  };
+  
+  const handleContractSentSuccess = () => {
+    // Refresh application data after contract sent
+    fetchApplication();
+    queryClient.invalidateQueries({ queryKey: ['finance-applications'] });
+    
+    // Send notification
+    if (application) {
+      sendStatusNotification({
+        clientEmail: application.email,
+        clientName: application.first_name || application.full_name?.split(' ')[0] || 'Client',
+        newStatus: 'contract_sent',
+        applicationId: application.id,
+        accessToken: (application as any).access_token,
+      });
     }
   };
 
@@ -1218,6 +1243,15 @@ const AdminDealRoom = () => {
           stockNumber: activeVehicle.stock_number || undefined,
         } : undefined}
         dealId={application.id}
+      />
+
+      {/* Contract Sent Modal */}
+      <ContractSentModal
+        isOpen={contractSentModalOpen}
+        onClose={() => setContractSentModalOpen(false)}
+        applicationId={application.id}
+        clientName={`${application.first_name || ''} ${application.last_name || ''}`.trim() || application.full_name}
+        onSuccess={handleContractSentSuccess}
       />
     </AdminLayout>
   );

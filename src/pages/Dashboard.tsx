@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Heart, FileText, User, LogOut, Car, AlertTriangle, Sparkles, HelpCircle, ChevronDown, Edit3, Trash2, Upload, ShoppingCart } from 'lucide-react';
+import { Heart, FileText, User, LogOut, Car, AlertTriangle, Sparkles, HelpCircle, ChevronDown, Edit3, Trash2, Upload, ShoppingCart, FileSignature, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -46,6 +46,10 @@ const Dashboard = () => {
   // Check if user has already selected a vehicle
   const vehicleSelectedApplication = applications.find(app => app.status === 'vehicle_selected');
   const hasSelectedVehicle = !!vehicleSelectedApplication;
+  
+  // Check if user has contract to sign
+  const contractSentApplication = applications.find(app => app.status === 'contract_sent');
+  const hasContractToSign = !!contractSentApplication;
   
   // Get the main active application for stepper
   const activeApplication = applications.find(app => 
@@ -426,6 +430,57 @@ const Dashboard = () => {
                     Our team is preparing your contract and will contact you shortly via WhatsApp to finalize the deal.
                   </AlertDescription>
                 </Alert>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Contract Signing Section - Show when contract_sent */}
+          {hasContractToSign && contractSentApplication && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-12"
+            >
+              <div className="glass-card rounded-xl p-6 border-2 border-indigo-500/40 bg-gradient-to-br from-indigo-500/10 to-indigo-600/5">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 animate-pulse">
+                    <FileSignature className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <span className="inline-block px-3 py-1 mb-1 text-xs font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded-full">
+                      Action Required
+                    </span>
+                    <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-400 to-indigo-200 bg-clip-text text-transparent">
+                      Sign Your Contract
+                    </h2>
+                  </div>
+                </div>
+
+                <p className="text-muted-foreground mb-6">
+                  Your finance contract with <span className="font-semibold text-foreground">{(contractSentApplication as any).contract_bank_name || 'our partner bank'}</span> is ready for signing!
+                </p>
+
+                {(contractSentApplication as any).contract_url ? (
+                  <a 
+                    href={(contractSentApplication as any).contract_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                  >
+                    <Button size="lg" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
+                      <FileSignature className="w-5 h-5" />
+                      Go to Signing Page
+                      <ExternalLink className="w-4 h-4" />
+                    </Button>
+                  </a>
+                ) : (
+                  <Alert className="bg-indigo-500/10 border-indigo-500/30">
+                    <FileSignature className="h-4 w-4 text-indigo-400" />
+                    <AlertTitle className="text-indigo-400">Signing Link Coming Soon</AlertTitle>
+                    <AlertDescription>
+                      Our team will share the signing link with you shortly via WhatsApp or email.
+                    </AlertDescription>
+                  </Alert>
+                )}
               </div>
             </motion.div>
           )}
