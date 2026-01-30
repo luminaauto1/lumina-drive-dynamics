@@ -163,8 +163,11 @@ const FinalizeDealModal = ({
     );
   }, [selectableVehicles, vehicleSearchQuery]);
   
+  // Track if form has been initialized from existing deal (prevent overwrites)
+  const [isFormInitialized, setIsFormInitialized] = useState(false);
+  
   // === SECTION 1: Pricing & Structure ===
-  const [sellingPrice, setSellingPrice] = useState(vehiclePrice);
+  const [sellingPrice, setSellingPrice] = useState(0);
   const [discountAmount, setDiscountAmount] = useState(0);
   const [externalAdminFee, setExternalAdminFee] = useState(7000);
   const [bankInitiationFee, setBankInitiationFee] = useState(1207);
@@ -212,7 +215,7 @@ const FinalizeDealModal = ({
   const [deliveryAddress, setDeliveryAddress] = useState('');
   
   // Vehicle Info
-  const [soldMileage, setSoldMileage] = useState(vehicleMileage);
+  const [soldMileage, setSoldMileage] = useState(0);
   const [nextServiceDate, setNextServiceDate] = useState('');
   const [nextServiceKm, setNextServiceKm] = useState<number | ''>('');
   
@@ -222,87 +225,132 @@ const FinalizeDealModal = ({
   // Get sales reps from settings
   const salesReps: SalesRep[] = (settings as any)?.sales_reps || [];
   
-  // Initialize from existing deal data (EDIT MODE)
+  // Reset form initialization when modal closes
   useEffect(() => {
-    if (existingDeal && isOpen) {
-      // Vehicle
-      if (existingDeal.vehicle_id) {
-        setActiveVehicleId(existingDeal.vehicle_id);
-      }
-      
-      // Pricing
-      setSellingPrice(existingDeal.sold_price || vehiclePrice);
-      setDiscountAmount(existingDeal.discount_amount || 0);
-      setExternalAdminFee(existingDeal.external_admin_fee ?? 7000);
-      setBankInitiationFee(existingDeal.bank_initiation_fee ?? 1207);
-      
-      // Deposits
-      setClientDeposit(existingDeal.client_deposit || 0);
-      setDealerDepositContribution(existingDeal.dealer_deposit_contribution || 0);
-      
-      // Costs
-      setCostPrice(existingDeal.cost_price || 0);
-      // recon_cost in existing deal represents total (ledger + additional)
-      // We'll split this once we fetch ledger costs
-      setAdditionalDealCosts(existingDeal.recon_cost || 0);
-      setDicAmount(existingDeal.dic_amount || 0);
-      
-      // Partner Split
-      setIsSharedCapital(existingDeal.is_shared_capital || false);
-      setPartnerSplitType((existingDeal.partner_split_type as 'percentage' | 'fixed') || 'percentage');
-      setPartnerSplitValue(existingDeal.partner_split_value || existingDeal.partner_split_percent || 50);
-      
-      // Add-ons
-      if (existingDeal.addons_data && Array.isArray(existingDeal.addons_data)) {
-        setAddons(existingDeal.addons_data);
+    if (!isOpen) {
+      setIsFormInitialized(false);
+    }
+  }, [isOpen]);
+
+  // Initialize from existing deal data (EDIT MODE) - PRIORITY over vehicle defaults
+  useEffect(() => {
+    if (isOpen && !isFormInitialized) {
+      if (existingDeal) {
+        // EDIT MODE: Load all saved deal values
+        // Vehicle
+        if (existingDeal.vehicle_id) {
+          setActiveVehicleId(existingDeal.vehicle_id);
+        }
+        
+        // CRITICAL: Use saved sold_price, NOT vehiclePrice
+        setSellingPrice(Number(existingDeal.sold_price) || 0);
+        setDiscountAmount(Number(existingDeal.discount_amount) || 0);
+        setExternalAdminFee(existingDeal.external_admin_fee ?? 7000);
+        setBankInitiationFee(existingDeal.bank_initiation_fee ?? 1207);
+        
+        // Deposits
+        setClientDeposit(Number(existingDeal.client_deposit) || 0);
+        setDealerDepositContribution(Number(existingDeal.dealer_deposit_contribution) || 0);
+        
+        // Costs - CRITICAL: Use saved cost_price
+        setCostPrice(Number(existingDeal.cost_price) || 0);
+        // recon_cost in existing deal represents total (ledger + additional)
+        // We'll split this once we fetch ledger costs
+        setAdditionalDealCosts(Number(existingDeal.recon_cost) || 0);
+        setDicAmount(Number(existingDeal.dic_amount) || 0);
+        
+        // Partner Split
+        setIsSharedCapital(existingDeal.is_shared_capital || false);
+        setPartnerSplitType((existingDeal.partner_split_type as 'percentage' | 'fixed') || 'percentage');
+        setPartnerSplitValue(Number(existingDeal.partner_split_value) || Number(existingDeal.partner_split_percent) || 50);
+        
+        // Add-ons
+        if (existingDeal.addons_data && Array.isArray(existingDeal.addons_data)) {
+          setAddons(existingDeal.addons_data);
+        } else {
+          setAddons([]);
+        }
+        
+        // Sales Rep
+        setSelectedRepName(existingDeal.sales_rep_name || '');
+        
+        // Referrals (Expense)
+        setReferralName(existingDeal.referral_person_name || '');
+        setReferralCommission(Number(existingDeal.referral_commission_amount) || 0);
+        
+        // Referral Income
+        setReferralIncome(Number(existingDeal.referral_income_amount) || 0);
+        
+        // Delivery
+        if (existingDeal.delivery_date) {
+          const deliveryDateTime = new Date(existingDeal.delivery_date);
+          setDeliveryDate(deliveryDateTime.toISOString().split('T')[0]);
+          setDeliveryTime(deliveryDateTime.toTimeString().slice(0, 5));
+        }
+        setDeliveryAddress(existingDeal.delivery_address || '');
+        
+        // Vehicle Info
+        setSoldMileage(Number(existingDeal.sold_mileage) || 0);
+        setNextServiceDate(existingDeal.next_service_date || '');
+        setNextServiceKm(existingDeal.next_service_km || '');
+        
+        // Expenses
+        if (existingDeal.aftersales_expenses && Array.isArray(existingDeal.aftersales_expenses)) {
+          setExpenses(existingDeal.aftersales_expenses);
+        } else {
+          setExpenses([]);
+        }
+        
+        // Mark as initialized to prevent overwrites
+        setIsFormInitialized(true);
       } else {
+        // NEW DEAL: Initialize from vehicle props
+        setActiveVehicleId(vehicleId);
+        setSellingPrice(vehiclePrice);
+        setSoldMileage(vehicleMileage);
+        
+        // Set cost price from vehicle
+        const vehicleCostPrice = vehicle?.cost_price || vehicle?.purchase_price || 0;
+        if (vehicleCostPrice > 0) {
+          setCostPrice(vehicleCostPrice);
+        }
+        
+        // Reset other fields to defaults
+        setDiscountAmount(0);
+        setExternalAdminFee(7000);
+        setBankInitiationFee(1207);
+        setClientDeposit(0);
+        setDealerDepositContribution(0);
+        setAdditionalDealCosts(0);
+        setDicAmount(0);
+        setIsSharedCapital(false);
+        setPartnerSplitType('percentage');
+        setPartnerSplitValue(50);
         setAddons([]);
-      }
-      
-      // Sales Rep
-      setSelectedRepName(existingDeal.sales_rep_name || '');
-      // Calculate commission percentage from amount
-      if (existingDeal.sales_rep_commission && existingDeal.gross_profit) {
-        // Just set rep name, commission will update from salesReps
-      }
-      
-      // Referrals (Expense)
-      setReferralName(existingDeal.referral_person_name || '');
-      setReferralCommission(existingDeal.referral_commission_amount || 0);
-      
-      // Referral Income
-      setReferralIncome(existingDeal.referral_income_amount || 0);
-      
-      // Delivery
-      if (existingDeal.delivery_date) {
-        const deliveryDateTime = new Date(existingDeal.delivery_date);
-        setDeliveryDate(deliveryDateTime.toISOString().split('T')[0]);
-        setDeliveryTime(deliveryDateTime.toTimeString().slice(0, 5));
-      }
-      setDeliveryAddress(existingDeal.delivery_address || '');
-      
-      // Vehicle Info
-      setSoldMileage(existingDeal.sold_mileage || vehicleMileage);
-      setNextServiceDate(existingDeal.next_service_date || '');
-      setNextServiceKm(existingDeal.next_service_km || '');
-      
-      // Expenses
-      if (existingDeal.aftersales_expenses && Array.isArray(existingDeal.aftersales_expenses)) {
-        setExpenses(existingDeal.aftersales_expenses);
-      } else {
+        setSelectedRepName('');
+        setReferralName('');
+        setReferralCommission(0);
+        setReferralIncome(0);
+        setDeliveryDate('');
+        setDeliveryTime('10:00');
+        setDeliveryAddress('');
+        setNextServiceDate('');
+        setNextServiceKm('');
         setExpenses([]);
+        
+        setIsFormInitialized(true);
       }
     }
-  }, [existingDeal, isOpen]);
+  }, [isOpen, isFormInitialized, existingDeal, vehicleId, vehiclePrice, vehicleMileage, vehicle]);
   
-  // Update active vehicle ID when prop changes (for new deals)
+  // Update active vehicle ID when prop changes (for new deals only, when not yet initialized)
   useEffect(() => {
-    if (!existingDeal && vehicleId && vehicleId !== activeVehicleId) {
+    if (!existingDeal && !isFormInitialized && vehicleId && vehicleId !== activeVehicleId) {
       setActiveVehicleId(vehicleId);
     }
-  }, [vehicleId, existingDeal]);
+  }, [vehicleId, existingDeal, isFormInitialized, activeVehicleId]);
   
-  // Handle vehicle selection change
+  // Handle vehicle selection change (user explicitly changes vehicle)
   const handleVehicleSelect = (newVehicleId: string) => {
     setActiveVehicleId(newVehicleId);
     setVehicleSearchOpen(false);
@@ -329,17 +377,6 @@ const FinalizeDealModal = ({
       setRepCommission(rep.commission);
     }
   }, [selectedRepName, salesReps]);
-
-  // Auto-fill from vehicle data (for new deals without existingDeal)
-  useEffect(() => {
-    if (vehicle && !existingDeal) {
-      const vehicleCostPrice = vehicle.cost_price || vehicle.purchase_price || 0;
-      if (vehicleCostPrice > 0 && costPrice === 0) {
-        setCostPrice(vehicleCostPrice);
-      }
-      // Vehicle reconditioning_cost is now fetched from vehicle_expenses
-    }
-  }, [vehicle, existingDeal]);
   
   // Fetch vehicle expenses when activeVehicle changes
   useEffect(() => {
