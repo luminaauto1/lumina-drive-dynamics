@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Plus, X, MapPin, Car, DollarSign, User, Receipt, Calculator, TrendingUp, Search, ChevronDown, Package, UserPlus, Eye, FileText, CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -169,6 +169,8 @@ const FinalizeDealModal = ({
   }, [selectableVehicles, vehicleSearchQuery]);
   
   // Track if form has been initialized from existing deal (prevent overwrites)
+  // Using useRef to prevent re-initialization on re-renders
+  const isInitialized = useRef(false);
   const [isFormInitialized, setIsFormInitialized] = useState(false);
   
   // === SECTION 1: Pricing & Structure ===
@@ -237,13 +239,18 @@ const FinalizeDealModal = ({
   useEffect(() => {
     if (!isOpen) {
       setIsFormInitialized(false);
+      isInitialized.current = false;
     }
   }, [isOpen]);
 
   // Initialize from existing deal data (EDIT MODE) - PRIORITY over vehicle defaults
+  // CRITICAL FIX: Using ref to ensure we only initialize ONCE and never reset from vehicle price
   useEffect(() => {
-    if (isOpen && !isFormInitialized) {
+    if (isOpen && !isFormInitialized && !isInitialized.current) {
       if (existingDeal) {
+        // EDIT MODE: Load all saved deal values - NEVER use vehicle defaults
+        console.log('[FinalizeDealModal] EDIT MODE: Loading saved deal data, ignoring vehicle price');
+        isInitialized.current = true; // Lock initialization immediately
         // EDIT MODE: Load all saved deal values - NEVER use vehicle defaults
         // Vehicle
         if (existingDeal.vehicle_id) {
@@ -319,7 +326,10 @@ const FinalizeDealModal = ({
         // Mark as initialized to prevent overwrites
         setIsFormInitialized(true);
       } else {
-        // NEW DEAL: Initialize from vehicle props
+        // NEW DEAL: Initialize from vehicle props (ONLY ONCE)
+        console.log('[FinalizeDealModal] NEW DEAL: Initializing from vehicle price');
+        isInitialized.current = true; // Lock initialization immediately
+        
         setActiveVehicleId(vehicleId);
         setSellingPrice(vehiclePrice);
         setSoldMileage(vehicleMileage);
