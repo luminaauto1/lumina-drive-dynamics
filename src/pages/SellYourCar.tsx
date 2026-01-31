@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Upload, ChevronRight, Check, Camera, Car, ClipboardList } from 'lucide-react';
+import { Upload, Check, Camera, Car, ClipboardList, Loader2, X } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -12,16 +13,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import KineticText from '@/components/KineticText';
 
 const steps = [
   { id: 1, title: 'Vehicle Details', icon: Car },
   { id: 2, title: 'Condition', icon: ClipboardList },
-  { id: 3, title: 'Photos', icon: Camera },
+  { id: 3, title: 'Photos & Contact', icon: Camera },
 ];
+
+// SA-relevant vehicle makes
+const VEHICLE_MAKES = [
+  "Toyota", "Volkswagen", "Ford", "BMW", "Mercedes-Benz", "Audi", "Hyundai", 
+  "Kia", "Nissan", "Renault", "Isuzu", "Suzuki", "Mazda", "Honda", "Jeep", 
+  "Land Rover", "Volvo", "Porsche", "Chevrolet", "Lexus", "Mitsubishi", 
+  "Chery", "Haval", "Mahindra", "Peugeot", "Opel", "Mini", "Jaguar", 
+  "Alfa Romeo", "Fiat", "GWM", "BAIC", "JAC", "Other"
+].sort();
 
 const SellYourCar = () => {
   const [currentStep, setCurrentStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [formData, setFormData] = useState({
     // Step 1
     make: '',
@@ -30,36 +44,72 @@ const SellYourCar = () => {
     mileage: '',
     transmission: '',
     color: '',
+    desiredPrice: '',
     // Step 2
     condition: '',
     accidents: '',
     serviceHistory: '',
-    modifications: '',
     description: '',
     // Step 3
     photos: [] as File[],
+    photoUrls: [] as string[],
     // Contact
     name: '',
     email: '',
     phone: '',
   });
 
-  const updateForm = (field: string, value: string | File[]) => {
+  const updateForm = (field: string, value: string | File[] | string[]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files) {
-      updateForm('photos', [...formData.photos, ...Array.from(files)]);
+    if (!files || files.length === 0) return;
+
+    setUploadingPhotos(true);
+    const newPhotos = [...formData.photos];
+    const newUrls = [...formData.photoUrls];
+
+    try {
+      for (const file of Array.from(files)) {
+        // Upload to Supabase Storage
+        const timestamp = Date.now();
+        const fileName = `sell-requests/${timestamp}_${file.name.replace(/\s/g, '_')}`;
+        
+        const { data, error } = await supabase.storage
+          .from('client-docs')
+          .upload(fileName, file);
+
+        if (error) {
+          console.error('Upload error:', error);
+          toast.error(`Failed to upload ${file.name}`);
+          continue;
+        }
+
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('client-docs')
+          .getPublicUrl(data.path);
+
+        newPhotos.push(file);
+        newUrls.push(publicUrl);
+      }
+
+      updateForm('photos', newPhotos);
+      updateForm('photoUrls', newUrls);
+      toast.success(`${files.length} photo(s) uploaded`);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to upload photos');
+    } finally {
+      setUploadingPhotos(false);
     }
   };
 
   const removePhoto = (index: number) => {
-    updateForm(
-      'photos',
-      formData.photos.filter((_, i) => i !== index)
-    );
+    updateForm('photos', formData.photos.filter((_, i) => i !== index));
+    updateForm('photoUrls', formData.photoUrls.filter((_, i) => i !== index));
   };
 
   const nextStep = () => {
@@ -70,11 +120,47 @@ const SellYourCar = () => {
     if (currentStep > 1) setCurrentStep(currentStep - 1);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission
-    console.log('Form submitted:', formData);
-    alert('Thank you! We will be in touch shortly.');
+    
+    if (!formData.name || !formData.phone || !formData.make || !formData.model) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const { error } = await supabase.from('sell_car_requests').insert({
+        client_name: formData.name,
+        client_contact: formData.phone,
+        client_email: formData.email || null,
+        vehicle_make: formData.make,
+        vehicle_model: formData.model,
+        vehicle_year: formData.year ? Number(formData.year) : null,
+        vehicle_mileage: formData.mileage ? Number(formData.mileage) : null,
+        desired_price: formData.desiredPrice ? Number(formData.desiredPrice) : null,
+        condition: formData.condition || null,
+        photos_urls: formData.photoUrls,
+      });
+
+      if (error) throw error;
+
+      toast.success('Your vehicle has been submitted! We will contact you shortly.');
+      
+      // Reset form
+      setFormData({
+        make: '', model: '', year: '', mileage: '', transmission: '', color: '', desiredPrice: '',
+        condition: '', accidents: '', serviceHistory: '', description: '',
+        photos: [], photoUrls: [], name: '', email: '', phone: '',
+      });
+      setCurrentStep(1);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Failed to submit. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -88,7 +174,7 @@ const SellYourCar = () => {
       </Helmet>
 
       <div className="min-h-screen pt-24 pb-20">
-        <div className="container mx-auto px-6">
+        <div className="container mx-auto px-4 md:px-6">
           {/* Header */}
           <div className="text-center max-w-3xl mx-auto mb-12">
             <motion.span
@@ -121,13 +207,13 @@ const SellYourCar = () => {
                             ? 'hsl(var(--primary))'
                             : 'hsl(var(--secondary))',
                       }}
-                      className="w-12 h-12 rounded-full flex items-center justify-center transition-colors"
+                      className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-colors"
                     >
                       {currentStep > step.id ? (
-                        <Check className="w-6 h-6 text-primary-foreground" />
+                        <Check className="w-5 h-5 md:w-6 md:h-6 text-primary-foreground" />
                       ) : (
                         <step.icon
-                          className={`w-6 h-6 ${
+                          className={`w-5 h-5 md:w-6 md:h-6 ${
                             currentStep >= step.id
                               ? 'text-primary-foreground'
                               : 'text-muted-foreground'
@@ -136,7 +222,7 @@ const SellYourCar = () => {
                       )}
                     </motion.div>
                     <span
-                      className={`mt-2 text-sm font-medium ${
+                      className={`mt-2 text-xs md:text-sm font-medium text-center ${
                         currentStep >= step.id
                           ? 'text-foreground'
                           : 'text-muted-foreground'
@@ -147,7 +233,7 @@ const SellYourCar = () => {
                   </div>
                   {index < steps.length - 1 && (
                     <div
-                      className={`h-0.5 w-20 md:w-32 mx-4 transition-colors ${
+                      className={`h-0.5 w-12 md:w-32 mx-2 md:mx-4 transition-colors ${
                         currentStep > step.id ? 'bg-primary' : 'bg-border'
                       }`}
                     />
@@ -159,7 +245,7 @@ const SellYourCar = () => {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
-            <div className="bg-card border border-border rounded-xl p-8">
+            <div className="bg-card border border-border rounded-xl p-6 md:p-8">
               {/* Step 1: Vehicle Details */}
               {currentStep === 1 && (
                 <motion.div
@@ -174,7 +260,7 @@ const SellYourCar = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium mb-2">Make</label>
+                      <Label className="mb-2 block">Make *</Label>
                       <Select
                         value={formData.make}
                         onValueChange={(value) => updateForm('make', value)}
@@ -182,29 +268,27 @@ const SellYourCar = () => {
                         <SelectTrigger>
                           <SelectValue placeholder="Select make" />
                         </SelectTrigger>
-                        <SelectContent>
-                          {['BMW', 'Mercedes-Benz', 'Audi', 'Porsche', 'Ferrari', 'Lamborghini'].map(
-                            (make) => (
-                              <SelectItem key={make} value={make}>
-                                {make}
-                              </SelectItem>
-                            )
-                          )}
+                        <SelectContent className="max-h-60">
+                          {VEHICLE_MAKES.map((make) => (
+                            <SelectItem key={make} value={make}>
+                              {make}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">Model</label>
+                      <Label className="mb-2 block">Model *</Label>
                       <Input
-                        placeholder="e.g., M4, C63, 911"
+                        placeholder="e.g., Corolla, Polo, Ranger"
                         value={formData.model}
                         onChange={(e) => updateForm('model', e.target.value)}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">Year</label>
+                      <Label className="mb-2 block">Year</Label>
                       <Select
                         value={formData.year}
                         onValueChange={(value) => updateForm('year', value)}
@@ -212,8 +296,8 @@ const SellYourCar = () => {
                         <SelectTrigger>
                           <SelectValue placeholder="Select year" />
                         </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: 15 }, (_, i) => 2024 - i).map((year) => (
+                        <SelectContent className="max-h-60">
+                          {Array.from({ length: 25 }, (_, i) => new Date().getFullYear() - i).map((year) => (
                             <SelectItem key={year} value={year.toString()}>
                               {year}
                             </SelectItem>
@@ -223,21 +307,17 @@ const SellYourCar = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Mileage (km)
-                      </label>
+                      <Label className="mb-2 block">Mileage (km)</Label>
                       <Input
                         type="number"
-                        placeholder="e.g., 45000"
+                        placeholder="e.g., 85000"
                         value={formData.mileage}
                         onChange={(e) => updateForm('mileage', e.target.value)}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Transmission
-                      </label>
+                      <Label className="mb-2 block">Transmission</Label>
                       <Select
                         value={formData.transmission}
                         onValueChange={(value) => updateForm('transmission', value)}
@@ -248,17 +328,17 @@ const SellYourCar = () => {
                         <SelectContent>
                           <SelectItem value="automatic">Automatic</SelectItem>
                           <SelectItem value="manual">Manual</SelectItem>
-                          <SelectItem value="dct">DCT / Dual Clutch</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">Color</label>
+                      <Label className="mb-2 block">Your Asking Price (R)</Label>
                       <Input
-                        placeholder="e.g., Alpine White"
-                        value={formData.color}
-                        onChange={(e) => updateForm('color', e.target.value)}
+                        type="number"
+                        placeholder="e.g., 250000"
+                        value={formData.desiredPrice}
+                        onChange={(e) => updateForm('desiredPrice', e.target.value)}
                       />
                     </div>
                   </div>
@@ -277,11 +357,9 @@ const SellYourCar = () => {
                     Vehicle Condition
                   </h2>
 
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Overall Condition
-                      </label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <Label className="mb-2 block">Overall Condition</Label>
                       <Select
                         value={formData.condition}
                         onValueChange={(value) => updateForm('condition', value)}
@@ -290,22 +368,16 @@ const SellYourCar = () => {
                           <SelectValue placeholder="Select condition" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="excellent">
-                            Excellent - Like new
-                          </SelectItem>
-                          <SelectItem value="good">Good - Minor wear</SelectItem>
-                          <SelectItem value="fair">Fair - Visible wear</SelectItem>
-                          <SelectItem value="poor">
-                            Poor - Needs attention
-                          </SelectItem>
+                          <SelectItem value="Excellent">Excellent - Like new</SelectItem>
+                          <SelectItem value="Good">Good - Minor wear</SelectItem>
+                          <SelectItem value="Fair">Fair - Visible wear</SelectItem>
+                          <SelectItem value="Poor">Poor - Needs attention</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Accident History
-                      </label>
+                      <Label className="mb-2 block">Accident History</Label>
                       <Select
                         value={formData.accidents}
                         onValueChange={(value) => updateForm('accidents', value)}
@@ -322,9 +394,7 @@ const SellYourCar = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Service History
-                      </label>
+                      <Label className="mb-2 block">Service History</Label>
                       <Select
                         value={formData.serviceHistory}
                         onValueChange={(value) => updateForm('serviceHistory', value)}
@@ -340,10 +410,8 @@ const SellYourCar = () => {
                       </Select>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Additional Notes (Optional)
-                      </label>
+                    <div className="md:col-span-2">
+                      <Label className="mb-2 block">Additional Notes (Optional)</Label>
                       <Textarea
                         placeholder="Any modifications, special features, or issues we should know about..."
                         value={formData.description}
@@ -369,7 +437,7 @@ const SellYourCar = () => {
                     </h2>
 
                     {/* Upload Area */}
-                    <div className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-primary/50 transition-colors">
+                    <div className="border-2 border-dashed border-border rounded-xl p-6 md:p-8 text-center hover:border-primary/50 transition-colors">
                       <input
                         type="file"
                         id="photos"
@@ -377,14 +445,19 @@ const SellYourCar = () => {
                         multiple
                         onChange={handleFileUpload}
                         className="hidden"
+                        disabled={uploadingPhotos}
                       />
                       <label
                         htmlFor="photos"
                         className="cursor-pointer flex flex-col items-center"
                       >
-                        <Upload className="w-12 h-12 text-muted-foreground mb-4" />
+                        {uploadingPhotos ? (
+                          <Loader2 className="w-12 h-12 text-primary mb-4 animate-spin" />
+                        ) : (
+                          <Upload className="w-12 h-12 text-muted-foreground mb-4" />
+                        )}
                         <p className="text-foreground font-medium mb-1">
-                          Click to upload photos
+                          {uploadingPhotos ? 'Uploading...' : 'Tap to upload photos'}
                         </p>
                         <p className="text-sm text-muted-foreground">
                           JPG, PNG up to 10MB each
@@ -394,20 +467,20 @@ const SellYourCar = () => {
 
                     {/* Uploaded Photos Preview */}
                     {formData.photos.length > 0 && (
-                      <div className="mt-6 grid grid-cols-3 md:grid-cols-4 gap-4">
+                      <div className="mt-6 grid grid-cols-3 md:grid-cols-4 gap-3">
                         {formData.photos.map((photo, index) => (
-                          <div key={index} className="relative group">
+                          <div key={index} className="relative group aspect-square">
                             <img
                               src={URL.createObjectURL(photo)}
                               alt={`Upload ${index + 1}`}
-                              className="w-full aspect-square object-cover rounded-lg"
+                              className="w-full h-full object-cover rounded-lg"
                             />
                             <button
                               type="button"
                               onClick={() => removePhoto(index)}
-                              className="absolute top-2 right-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="absolute top-1 right-1 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center"
                             >
-                              ×
+                              <X className="w-4 h-4" />
                             </button>
                           </div>
                         ))}
@@ -422,9 +495,7 @@ const SellYourCar = () => {
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="md:col-span-2">
-                        <label className="block text-sm font-medium mb-2">
-                          Full Name
-                        </label>
+                        <Label className="mb-2 block">Full Name *</Label>
                         <Input
                           placeholder="John Smith"
                           value={formData.name}
@@ -433,27 +504,22 @@ const SellYourCar = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium mb-2">
-                          Email
-                        </label>
+                        <Label className="mb-2 block">Phone Number *</Label>
+                        <Input
+                          type="tel"
+                          placeholder="082 123 4567"
+                          value={formData.phone}
+                          onChange={(e) => updateForm('phone', e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label className="mb-2 block">Email (Optional)</Label>
                         <Input
                           type="email"
                           placeholder="john@example.com"
                           value={formData.email}
                           onChange={(e) => updateForm('email', e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">
-                          Phone
-                        </label>
-                        <Input
-                          type="tel"
-                          placeholder="+27 82 123 4567"
-                          value={formData.phone}
-                          onChange={(e) => updateForm('phone', e.target.value)}
-                          required
                         />
                       </div>
                     </div>
@@ -462,7 +528,7 @@ const SellYourCar = () => {
               )}
 
               {/* Navigation Buttons */}
-              <div className="flex justify-between mt-8 pt-6 border-t border-border">
+              <div className="flex justify-between mt-8">
                 {currentStep > 1 ? (
                   <Button type="button" variant="outline" onClick={prevStep}>
                     Back
@@ -472,16 +538,26 @@ const SellYourCar = () => {
                 )}
 
                 {currentStep < 3 ? (
-                  <Button type="button" onClick={nextStep} className="gap-2">
-                    Next
-                    <ChevronRight className="w-4 h-4" />
+                  <Button 
+                    type="button" 
+                    onClick={nextStep}
+                    disabled={currentStep === 1 && (!formData.make || !formData.model)}
+                  >
+                    Continue
                   </Button>
                 ) : (
-                  <Button
-                    type="submit"
-                    className="bg-gradient-gold text-primary-foreground hover:opacity-90"
+                  <Button 
+                    type="submit" 
+                    disabled={isSubmitting || !formData.name || !formData.phone}
                   >
-                    Submit for Valuation
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      'Submit for Valuation'
+                    )}
                   </Button>
                 )}
               </div>

@@ -1,4 +1,4 @@
-import { LayoutDashboard, Car, Users, CreditCard, Settings, ChevronLeft, ChevronRight, BarChart3, Package, Home, MessageSquareQuote, FileBarChart, Banknote } from 'lucide-react';
+import { LayoutDashboard, Car, Users, CreditCard, Settings, ChevronLeft, ChevronRight, BarChart3, Package, Home, MessageSquareQuote, FileBarChart, Banknote, ShoppingCart } from 'lucide-react';
 import { NavLink, useLocation, Link } from 'react-router-dom';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 const menuItems = [
   { title: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
   { title: 'Inventory', icon: Car, path: '/admin/inventory' },
+  { title: 'Cars To Buy', icon: ShoppingCart, path: '/admin/cars-to-buy' },
   { title: 'Leads', icon: Users, path: '/admin/leads' },
   { title: 'Finance', icon: CreditCard, path: '/admin/finance' },
   { title: 'Quote Generator', icon: MessageSquareQuote, path: '/admin/quotes' },
