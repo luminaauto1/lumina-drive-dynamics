@@ -865,6 +865,57 @@ export type Database = {
         }
         Relationships: []
       }
+      sell_car_requests: {
+        Row: {
+          admin_notes: string | null
+          client_contact: string
+          client_email: string | null
+          client_name: string
+          condition: string | null
+          created_at: string | null
+          desired_price: number | null
+          id: string
+          photos_urls: string[] | null
+          status: string | null
+          vehicle_make: string
+          vehicle_mileage: number | null
+          vehicle_model: string
+          vehicle_year: number | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          client_contact: string
+          client_email?: string | null
+          client_name: string
+          condition?: string | null
+          created_at?: string | null
+          desired_price?: number | null
+          id?: string
+          photos_urls?: string[] | null
+          status?: string | null
+          vehicle_make: string
+          vehicle_mileage?: number | null
+          vehicle_model: string
+          vehicle_year?: number | null
+        }
+        Update: {
+          admin_notes?: string | null
+          client_contact?: string
+          client_email?: string | null
+          client_name?: string
+          condition?: string | null
+          created_at?: string | null
+          desired_price?: number | null
+          id?: string
+          photos_urls?: string[] | null
+          status?: string | null
+          vehicle_make?: string
+          vehicle_mileage?: number | null
+          vehicle_model?: string
+          vehicle_year?: number | null
+        }
+        Relationships: []
+      }
       site_settings: {
         Row: {
           contact_email: string

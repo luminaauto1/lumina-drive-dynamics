@@ -288,7 +288,7 @@ const VehicleDetail = () => {
                     <Button className="w-full h-12 text-lg" onClick={() => window.open(whatsappUrl, "_blank")}>
                       Enquire on WhatsApp
                     </Button>
-                    <Link to="/apply">
+                    <Link to="/finance-application" state={{ vehicleId: vehicle.id }}>
                       <Button variant="outline" className="w-full">
                         Apply for Finance
                       </Button>
