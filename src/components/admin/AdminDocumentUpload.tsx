@@ -9,7 +9,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface AdminDocumentUploadProps {
-  accessToken: string | null;
+  applicationId: string | null;
+  accessToken?: string | null; // Legacy fallback  
   clientName?: string;
   onUploadComplete?: () => void;
 }
@@ -21,13 +22,16 @@ const DOCUMENT_CATEGORIES = [
   { id: 'bank-statements', label: 'Bank Statements' },
 ];
 
-const AdminDocumentUpload = ({ accessToken, clientName, onUploadComplete }: AdminDocumentUploadProps) => {
+const AdminDocumentUpload = ({ applicationId, accessToken, clientName, onUploadComplete }: AdminDocumentUploadProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Record<string, 'pending' | 'uploading' | 'done' | 'error'>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Use applicationId as primary, fallback to accessToken for legacy
+  const uploadPath = applicationId || accessToken;
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -43,7 +47,7 @@ const AdminDocumentUpload = ({ accessToken, clientName, onUploadComplete }: Admi
   };
 
   const handleUpload = async () => {
-    if (!accessToken || !selectedCategory || selectedFiles.length === 0) {
+    if (!uploadPath || !selectedCategory || selectedFiles.length === 0) {
       toast.error('Please select a category and at least one file');
       return;
     }
@@ -62,7 +66,7 @@ const AdminDocumentUpload = ({ accessToken, clientName, onUploadComplete }: Admi
       try {
         const timestamp = Date.now();
         const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-        const filePath = `${accessToken}/${selectedCategory}/${timestamp}-${sanitizedName}`;
+        const filePath = `${uploadPath}/${selectedCategory}/${timestamp}-${sanitizedName}`;
 
         const { error } = await supabase.storage
           .from('client-docs')
@@ -103,7 +107,7 @@ const AdminDocumentUpload = ({ accessToken, clientName, onUploadComplete }: Admi
     }, 1500);
   };
 
-  if (!accessToken) {
+  if (!uploadPath) {
     return null;
   }
 
