@@ -10,7 +10,8 @@ import { toast } from 'sonner';
 import AdminDocumentUpload from './AdminDocumentUpload';
 
 interface ClientDocumentViewerProps {
-  accessToken: string | null;
+  applicationId: string | null;
+  accessToken?: string | null; // Legacy fallback
   clientName?: string;
 }
 
@@ -34,48 +35,70 @@ const DOCUMENT_CATEGORIES = [
   { id: 'bank-statements', label: 'Bank Statements' },
 ];
 
-const ClientDocumentViewer = ({ accessToken, clientName }: ClientDocumentViewerProps) => {
+const ClientDocumentViewer = ({ applicationId, accessToken, clientName }: ClientDocumentViewerProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [documents, setDocuments] = useState<DocumentCategory[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewType, setPreviewType] = useState<'image' | 'pdf' | null>(null);
   const [previewName, setPreviewName] = useState<string>('');
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [activePath, setActivePath] = useState<string | null>(null); // Track which path has files
 
   useEffect(() => {
-    if (accessToken) {
+    if (applicationId || accessToken) {
       fetchDocuments();
     }
-  }, [accessToken]);
+  }, [applicationId, accessToken]);
 
   const fetchDocuments = async () => {
-    if (!accessToken) return;
+    if (!applicationId && !accessToken) return;
     
     setIsLoading(true);
     const categories: DocumentCategory[] = [];
 
-    try {
-      for (const category of DOCUMENT_CATEGORIES) {
-        const folderPath = `${accessToken}/${category.id}`;
-        
-        const { data, error } = await supabase.storage
-          .from('client-docs')
-          .list(folderPath);
+    // Try applicationId first (new path), then fallback to accessToken (legacy)
+    const pathsToTry = [applicationId, accessToken].filter(Boolean) as string[];
 
-        if (error) {
-          console.error(`Error listing ${category.id}:`, error);
-          continue;
+    try {
+      let foundPath: string | null = null;
+
+      for (const basePath of pathsToTry) {
+        let foundAnyFiles = false;
+        const tempCategories: DocumentCategory[] = [];
+
+        for (const category of DOCUMENT_CATEGORIES) {
+          const folderPath = `${basePath}/${category.id}`;
+          
+          const { data, error } = await supabase.storage
+            .from('client-docs')
+            .list(folderPath);
+
+          if (error) {
+            console.error(`Error listing ${category.id} at ${folderPath}:`, error);
+            continue;
+          }
+
+          const filteredFiles = data?.filter(f => f.name !== '.emptyFolderPlaceholder') || [];
+          
+          if (filteredFiles.length > 0) {
+            foundAnyFiles = true;
+            tempCategories.push({
+              id: category.id,
+              label: category.label,
+              files: filteredFiles as StorageFile[],
+            });
+          }
         }
 
-        if (data && data.length > 0) {
-          categories.push({
-            id: category.id,
-            label: category.label,
-            files: data.filter(f => f.name !== '.emptyFolderPlaceholder') as StorageFile[],
-          });
+        // If we found files in this path, use it and stop searching
+        if (foundAnyFiles) {
+          foundPath = basePath;
+          categories.push(...tempCategories);
+          break;
         }
       }
 
+      setActivePath(foundPath);
       setDocuments(categories);
     } catch (err) {
       console.error('Error fetching documents:', err);
@@ -86,9 +109,9 @@ const ClientDocumentViewer = ({ accessToken, clientName }: ClientDocumentViewerP
   };
 
   const getFileUrl = async (categoryId: string, fileName: string): Promise<string | null> => {
-    if (!accessToken) return null;
+    if (!activePath) return null;
     
-    const filePath = `${accessToken}/${categoryId}/${fileName}`;
+    const filePath = `${activePath}/${categoryId}/${fileName}`;
     
     const { data, error } = await supabase.storage
       .from('client-docs')
@@ -148,14 +171,14 @@ const ClientDocumentViewer = ({ accessToken, clientName }: ClientDocumentViewerP
 
   const totalFiles = documents.reduce((sum, cat) => sum + cat.files.length, 0);
 
-  if (!accessToken) {
+  if (!applicationId && !accessToken) {
     return (
       <div className="glass-card rounded-xl p-6">
         <div className="flex items-center gap-2 mb-4">
           <FolderOpen className="w-5 h-5 text-muted-foreground" />
           <h3 className="font-semibold">Client Documents</h3>
         </div>
-        <p className="text-sm text-muted-foreground">No access token available for this application.</p>
+        <p className="text-sm text-muted-foreground">No application ID available for this application.</p>
       </div>
     );
   }
@@ -175,7 +198,7 @@ const ClientDocumentViewer = ({ accessToken, clientName }: ClientDocumentViewerP
           </div>
           <div className="flex items-center gap-2">
             <AdminDocumentUpload
-              accessToken={accessToken}
+              applicationId={activePath}
               clientName={clientName}
               onUploadComplete={fetchDocuments}
             />

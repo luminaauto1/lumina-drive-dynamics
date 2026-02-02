@@ -96,7 +96,7 @@ const SecureDocumentUpload = () => {
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const fileName = `${application.access_token}/${docType}/${Date.now()}-${file.name}`;
+        const fileName = `${application.application_id}/${docType}/${Date.now()}-${file.name}`;
 
         const { error: uploadError } = await supabase.storage
           .from('client-docs')

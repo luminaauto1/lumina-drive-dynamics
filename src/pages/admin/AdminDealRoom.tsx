@@ -1062,6 +1062,7 @@ const AdminDealRoom = () => {
 
             {/* Client Documents */}
             <ClientDocumentViewer 
+              applicationId={application.id}
               accessToken={(application as any).access_token}
               clientName={application.first_name || application.full_name}
             />
