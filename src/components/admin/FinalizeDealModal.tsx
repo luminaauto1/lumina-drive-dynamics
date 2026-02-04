@@ -202,9 +202,10 @@ const FinalizeDealModal = ({
   const [partnerSplitType, setPartnerSplitType] = useState<'percentage' | 'fixed'>('percentage');
   const [partnerSplitValue, setPartnerSplitValue] = useState(50);
   
-  // Value Added Products (VAPS)
-  const [addons, setAddons] = useState<DealAddOnItem[]>([]);
-  
+  // Value Added Products (VAPS) - with stable IDs to prevent keyboard dismissal on Android
+  const [addons, setAddons] = useState<(DealAddOnItem & { _id: string })[]>([]);
+  const addonIdCounter = useRef(0);
+
   // Sales Rep
   const [selectedRepName, setSelectedRepName] = useState('');
   const [repCommission, setRepCommission] = useState(0);
@@ -279,9 +280,12 @@ const FinalizeDealModal = ({
         setPartnerSplitType((existingDeal.partner_split_type as 'percentage' | 'fixed') || 'percentage');
         setPartnerSplitValue(Number(existingDeal.partner_split_value) || Number(existingDeal.partner_split_percent) || 50);
         
-        // Add-ons
+        // Add-ons - add stable IDs for existing data
         if (existingDeal.addons_data && Array.isArray(existingDeal.addons_data)) {
-          setAddons(existingDeal.addons_data);
+          setAddons(existingDeal.addons_data.map((addon, idx) => ({
+            ...addon,
+            _id: `existing-${idx}-${Date.now()}`
+          })));
         } else {
           setAddons([]);
         }
@@ -503,18 +507,19 @@ const FinalizeDealModal = ({
   // Final Net Profit After All Payouts (for display only - not saved to DB)
   const finalNetAfterPayouts = luminaNetProfit - commissionAmount;
   
-  // Add-on helpers
+  // Add-on helpers - use stable _id to prevent Android keyboard issues
   const addAddon = () => {
-    setAddons(prev => [...prev, { name: '', cost: 0, price: 0 }]);
+    addonIdCounter.current += 1;
+    setAddons(prev => [...prev, { name: '', cost: 0, price: 0, _id: `addon-${addonIdCounter.current}-${Date.now()}` }]);
   };
 
-  const removeAddon = (index: number) => {
-    setAddons(prev => prev.filter((_, i) => i !== index));
+  const removeAddon = (id: string) => {
+    setAddons(prev => prev.filter(addon => addon._id !== id));
   };
 
-  const updateAddon = (index: number, field: keyof DealAddOnItem, value: string | number) => {
-    setAddons(prev => prev.map((addon, i) => 
-      i === index ? { ...addon, [field]: value } : addon
+  const updateAddon = (id: string, field: keyof DealAddOnItem, value: string | number) => {
+    setAddons(prev => prev.map(addon => 
+      addon._id === id ? { ...addon, [field]: value } : addon
     ));
   };
 
@@ -575,8 +580,8 @@ const FinalizeDealModal = ({
       reconCost: totalReconCost, // Sum of ledger costs + additional deal costs
       // DIC (Bank Reward)
       dicAmount,
-      // Add-ons
-      addonsData: addons,
+      // Add-ons (strip internal _id before saving)
+      addonsData: addons.map(({ _id, ...addon }) => addon),
       // Referral Expense (what we pay out)
       referralPersonName: referralName || undefined,
       referralCommissionAmount: referralCommission,
@@ -990,12 +995,12 @@ const FinalizeDealModal = ({
               </p>
             ) : (
               <div className="space-y-3">
-                {addons.map((addon, index) => (
-                  <div key={index} className="flex items-center gap-2 p-3 bg-purple-500/5 border border-purple-500/20 rounded-lg">
+                {addons.map((addon) => (
+                  <div key={addon._id} className="flex items-center gap-2 p-3 bg-purple-500/5 border border-purple-500/20 rounded-lg">
                     <Input
                       placeholder="Product name (e.g., Android Auto)"
                       value={addon.name}
-                      onChange={(e) => updateAddon(index, 'name', e.target.value)}
+                      onChange={(e) => updateAddon(addon._id, 'name', e.target.value)}
                       className="flex-1"
                     />
                     <div className="flex items-center gap-1">
@@ -1004,7 +1009,7 @@ const FinalizeDealModal = ({
                         type="number"
                         placeholder="0"
                         value={addon.cost || ''}
-                        onChange={(e) => updateAddon(index, 'cost', parseFloat(e.target.value) || 0)}
+                        onChange={(e) => updateAddon(addon._id, 'cost', parseFloat(e.target.value) || 0)}
                         className="w-24"
                       />
                     </div>
@@ -1014,7 +1019,7 @@ const FinalizeDealModal = ({
                         type="number"
                         placeholder="0"
                         value={addon.price || ''}
-                        onChange={(e) => updateAddon(index, 'price', parseFloat(e.target.value) || 0)}
+                        onChange={(e) => updateAddon(addon._id, 'price', parseFloat(e.target.value) || 0)}
                         className="w-24"
                       />
                     </div>
@@ -1022,7 +1027,7 @@ const FinalizeDealModal = ({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      onClick={() => removeAddon(index)}
+                      onClick={() => removeAddon(addon._id)}
                       className="text-destructive hover:text-destructive shrink-0"
                     >
                       <X className="w-4 h-4" />
