@@ -6,9 +6,16 @@ const saIdNumberSchema = z.string()
   .optional()
   .or(z.literal(''));
 
-// South African phone number validation - strict 10 digits starting with 0
+// South African phone number validation - relaxed to allow +27, spaces, and various formats
 const phoneSchema = z.string()
-  .regex(/^0\d{9}$/, 'Phone must be 10 digits starting with 0 (e.g., 0721234567)');
+  .min(10, 'Phone number is too short')
+  .max(15, 'Phone number is too long')
+  .regex(/^[0-9+\s]+$/, 'Only numbers, +, and spaces allowed')
+  .refine((val) => {
+    // Strip all non-digits for length validation
+    const digitsOnly = val.replace(/\D/g, '');
+    return digitsOnly.length >= 9 && digitsOnly.length <= 12;
+  }, 'Please enter a valid phone number');
 
 // Email validation
 const emailSchema = z.string()

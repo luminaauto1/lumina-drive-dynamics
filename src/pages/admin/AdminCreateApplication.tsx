@@ -110,8 +110,10 @@ const AdminCreateApplication = () => {
           toast.error('Please enter a valid email address');
           return false;
         }
-        if (!/^0\d{9}$/.test(formData.client_phone)) {
-          toast.error('Phone must be 10 digits starting with 0');
+        // Relaxed phone validation - allow various formats
+        const phoneDigits = formData.client_phone.replace(/\D/g, '');
+        if (phoneDigits.length < 9 || phoneDigits.length > 12) {
+          toast.error('Phone number must be 9-12 digits');
           return false;
         }
         return true;
@@ -127,13 +129,14 @@ const AdminCreateApplication = () => {
           return false;
         }
         return true;
-      case 4:
         if (!formData.kin_name || !formData.kin_contact) {
           toast.error('Next of kin details are required');
           return false;
         }
-        if (!/^0\d{9}$/.test(formData.kin_contact)) {
-          toast.error('Next of kin phone must be 10 digits starting with 0');
+        // Relaxed kin phone validation
+        const kinPhoneDigits = formData.kin_contact.replace(/\D/g, '');
+        if (kinPhoneDigits.length < 9 || kinPhoneDigits.length > 12) {
+          toast.error('Next of kin phone must be 9-12 digits');
           return false;
         }
         return true;
