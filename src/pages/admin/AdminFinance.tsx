@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Search, MessageCircle, ExternalLink, Trash2, Archive, UserPlus, Copy, Link } from 'lucide-react';
+import { Search, MessageCircle, ExternalLink, Trash2, Archive, UserPlus, Copy, Link, ClipboardList } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,8 +13,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useFinanceApplications, useUpdateFinanceApplication, useDeleteFinanceApplication, FinanceApplication } from '@/hooks/useFinanceApplications';
 import { formatPrice } from '@/hooks/useVehicles';
 import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, getWhatsAppMessage, canShowDealActions } from '@/lib/statusConfig';
+import { INTERNAL_STATUS_OPTIONS, INTERNAL_STATUS_STYLES, sortByUrgency, canShowDeliveryPrep } from '@/lib/internalStatusConfig';
 import { useToast } from '@/hooks/use-toast';
 import { getUploadLink } from '@/lib/appConfig';
+import DeliveryChecklistModal from '@/components/admin/DeliveryChecklistModal';
 const FINANCE_INFO_REQUEST_TEMPLATE = `*Lumina Auto | Finance Application Request*
 
 Hi, to assist you with your finance application manually, please reply with the following details:
@@ -57,6 +59,8 @@ const AdminFinance = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'active' | 'archived'>('active');
+  const [deliveryModalOpen, setDeliveryModalOpen] = useState(false);
+  const [selectedAppForDelivery, setSelectedAppForDelivery] = useState<FinanceApplication | null>(null);
 
   const { data: applications = [], isLoading } = useFinanceApplications();
   const updateApplication = useUpdateFinanceApplication();
@@ -95,7 +99,7 @@ const AdminFinance = () => {
     }
   };
 
-  const filteredApplications = applications.filter(app => {
+  const filteredApplications = sortByUrgency(applications.filter(app => {
     const searchLower = searchQuery.toLowerCase();
     const matchesSearch = !searchQuery || 
       app.full_name?.toLowerCase().includes(searchLower) ||
@@ -112,7 +116,20 @@ const AdminFinance = () => {
     const matchesViewMode = viewMode === 'archived' ? isArchived : !isArchived;
 
     return matchesSearch && matchesStatus && matchesViewMode;
-  });
+  }));
+
+  const handleInternalStatusChange = async (appId: string, newStatus: string) => {
+    await updateApplication.mutateAsync({ 
+      id: appId, 
+      updates: { internal_status: newStatus } as any 
+    });
+  };
+
+  const openDeliveryModal = (app: FinanceApplication, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedAppForDelivery(app);
+    setDeliveryModalOpen(true);
+  };
 
   const openWhatsApp = (app: FinanceApplication) => {
     const phone = app.phone?.replace(/\D/g, '') || '';
@@ -264,6 +281,7 @@ const AdminFinance = () => {
                   <TableHead className="text-muted-foreground">Mobile</TableHead>
                   <TableHead className="text-muted-foreground">Net Salary</TableHead>
                   <TableHead className="text-muted-foreground">Status</TableHead>
+                  <TableHead className="text-muted-foreground">Internal</TableHead>
                   <TableHead className="text-muted-foreground">Date</TableHead>
                   <TableHead className="text-muted-foreground text-right">Actions</TableHead>
                 </TableRow>
@@ -324,11 +342,40 @@ const AdminFinance = () => {
                         {ADMIN_STATUS_LABELS[app.status] || app.status}
                       </span>
                     </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Select 
+                        value={(app as any).internal_status || 'new_lead'} 
+                        onValueChange={(value) => handleInternalStatusChange(app.id, value)}
+                      >
+                        <SelectTrigger className={`w-[140px] h-7 text-xs border ${INTERNAL_STATUS_STYLES[(app as any).internal_status || 'new_lead'] || ''}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {INTERNAL_STATUS_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {new Date(app.created_at).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
+                        {/* Delivery Prep - Show for approved/signed statuses */}
+                        {canShowDeliveryPrep(app.status) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => openDeliveryModal(app, e)}
+                            className="text-purple-500 hover:text-purple-400 hover:bg-purple-500/10"
+                            title="Delivery Prep Checklist"
+                          >
+                            <ClipboardList className="w-4 h-4" />
+                          </Button>
+                        )}
                         {/* Copy Upload Link - Show for pre_approved status */}
                         {app.status === 'pre_approved' && (app as any).access_token && (
                           <Button
@@ -391,7 +438,7 @@ const AdminFinance = () => {
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
                               <AlertDialogAction
                                 onClick={() => handleDelete(app.id)}
-                                className="bg-red-600 hover:bg-red-700"
+                                className="bg-destructive hover:bg-destructive/90"
                               >
                                 Delete
                               </AlertDialogAction>
@@ -408,6 +455,16 @@ const AdminFinance = () => {
             </div>
           )}
         </motion.div>
+
+        {/* Delivery Checklist Modal */}
+        {selectedAppForDelivery && (
+          <DeliveryChecklistModal
+            open={deliveryModalOpen}
+            onOpenChange={setDeliveryModalOpen}
+            applicationId={selectedAppForDelivery.id}
+            clientName={`${selectedAppForDelivery.first_name} ${selectedAppForDelivery.last_name}`}
+          />
+        )}
       </div>
     </AdminLayout>
   );

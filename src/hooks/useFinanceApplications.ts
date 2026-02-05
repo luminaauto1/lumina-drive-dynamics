@@ -9,6 +9,7 @@ export type FinanceApplication = Tables<'finance_applications'> & {
     model: string;
     year: number;
   };
+  internal_status?: string | null;
 };
 
 export const useFinanceApplications = () => {

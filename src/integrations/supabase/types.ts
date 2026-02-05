@@ -311,6 +311,41 @@ export type Database = {
           },
         ]
       }
+      delivery_tasks: {
+        Row: {
+          application_id: string
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          is_completed: boolean | null
+          task_name: string
+        }
+        Insert: {
+          application_id: string
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          is_completed?: boolean | null
+          task_name: string
+        }
+        Update: {
+          application_id?: string
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          is_completed?: boolean | null
+          task_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_tasks_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "finance_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_templates: {
         Row: {
           body_content: string
@@ -414,6 +449,7 @@ export type Database = {
           has_drivers_license: boolean | null
           id: string
           id_number: string | null
+          internal_status: string | null
           job_title: string | null
           kin_contact: string | null
           kin_name: string | null
@@ -463,6 +499,7 @@ export type Database = {
           has_drivers_license?: boolean | null
           id?: string
           id_number?: string | null
+          internal_status?: string | null
           job_title?: string | null
           kin_contact?: string | null
           kin_name?: string | null
@@ -512,6 +549,7 @@ export type Database = {
           has_drivers_license?: boolean | null
           id?: string
           id_number?: string | null
+          internal_status?: string | null
           job_title?: string | null
           kin_contact?: string | null
           kin_name?: string | null
@@ -1092,6 +1130,7 @@ export type Database = {
           purchase_price: number | null
           reconditioning_cost: number | null
           registration_number: string | null
+          reserved_for_application_id: string | null
           service_history: string | null
           service_plan_expiry_date: string | null
           sourced_count: number | null
@@ -1133,6 +1172,7 @@ export type Database = {
           purchase_price?: number | null
           reconditioning_cost?: number | null
           registration_number?: string | null
+          reserved_for_application_id?: string | null
           service_history?: string | null
           service_plan_expiry_date?: string | null
           sourced_count?: number | null
@@ -1174,6 +1214,7 @@ export type Database = {
           purchase_price?: number | null
           reconditioning_cost?: number | null
           registration_number?: string | null
+          reserved_for_application_id?: string | null
           service_history?: string | null
           service_plan_expiry_date?: string | null
           sourced_count?: number | null
@@ -1189,7 +1230,15 @@ export type Database = {
           year?: number
           youtube_url?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "vehicles_reserved_for_application_id_fkey"
+            columns: ["reserved_for_application_id"]
+            isOneToOne: false
+            referencedRelation: "finance_applications"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       wishlists: {
         Row: {
