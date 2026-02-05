@@ -202,13 +202,27 @@ const AdminDealRoom = () => {
     if (!application) return;
     
     try {
+      // Find the vehicle being selected
+      const selectedVehicle = vehicles.find(v => v.id === vehicleId);
+      
       await addMatch.mutateAsync({ applicationId: application.id, vehicleId });
       
-      // BLOCK 4 FIX: Also update the finance_applications table with vehicle_id and status
+      // Update the finance_applications table with vehicle_id and status
       await supabase
         .from('finance_applications')
         .update({ vehicle_id: vehicleId, status: 'vehicle_selected' })
         .eq('id', application.id);
+      
+      // HARD-LINK LOGIC: If vehicle is hidden or available, reserve it for this application
+      if (selectedVehicle && ['hidden', 'available', 'incoming'].includes(selectedVehicle.status)) {
+        await supabase
+          .from('vehicles')
+          .update({ 
+            reserved_for_application_id: application.id,
+            status: selectedVehicle.status === 'hidden' ? 'hidden' : 'reserved' // Keep hidden vehicles hidden
+          })
+          .eq('id', vehicleId);
+      }
       
       // Update local state
       setApplication(prev => prev ? { ...prev, vehicle_id: vehicleId, status: 'vehicle_selected' } : null);
@@ -226,7 +240,9 @@ const AdminDealRoom = () => {
       
       setVehicleModalOpen(false);
       setVehicleSearch('');
-      toast.success('Vehicle assigned & status updated');
+      
+      const clientName = `${application.first_name || ''} ${application.last_name || ''}`.trim() || 'client';
+      toast.success(`Vehicle linked & reserved for ${clientName}`);
     } catch (error) {
       console.error('Failed to add vehicle:', error);
       toast.error('Failed to assign vehicle');
@@ -237,7 +253,25 @@ const AdminDealRoom = () => {
     if (!application) return;
     
     try {
+      // Find the vehicle to unreserve
+      const matchToRemove = matches.find((m: any) => m.id === matchId) as any;
+      const vehicleIdToUnreserve = matchToRemove?.vehicle_id;
+      
       await removeMatch.mutateAsync({ matchId, applicationId: application.id });
+      
+      // Clear the reservation link from the vehicle
+      if (vehicleIdToUnreserve) {
+        const vehicleToUnreserve = vehicles.find(v => v.id === vehicleIdToUnreserve);
+        if (vehicleToUnreserve && (vehicleToUnreserve as any).reserved_for_application_id === application.id) {
+          await supabase
+            .from('vehicles')
+            .update({ 
+              reserved_for_application_id: null,
+              status: vehicleToUnreserve.status === 'hidden' ? 'hidden' : 'available'
+            })
+            .eq('id', vehicleIdToUnreserve);
+        }
+      }
       
       // Force refresh after removal
       await Promise.all([
@@ -246,7 +280,8 @@ const AdminDealRoom = () => {
       ]);
       
       await refetchMatches();
-      toast.success('Vehicle removed');
+      await refetchVehicles();
+      toast.success('Vehicle removed & reservation cleared');
     } catch (error) {
       console.error('Failed to remove vehicle:', error);
     }
