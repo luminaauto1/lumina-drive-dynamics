@@ -208,6 +208,7 @@ export type Database = {
           is_shared_capital: boolean | null
           next_service_date: string | null
           next_service_km: number | null
+          partner_capital_contribution: number | null
           partner_profit_amount: number | null
           partner_split_percent: number | null
           partner_split_type: string | null
@@ -243,6 +244,7 @@ export type Database = {
           is_shared_capital?: boolean | null
           next_service_date?: string | null
           next_service_km?: number | null
+          partner_capital_contribution?: number | null
           partner_profit_amount?: number | null
           partner_split_percent?: number | null
           partner_split_type?: string | null
@@ -278,6 +280,7 @@ export type Database = {
           is_shared_capital?: boolean | null
           next_service_date?: string | null
           next_service_km?: number | null
+          partner_capital_contribution?: number | null
           partner_profit_amount?: number | null
           partner_split_percent?: number | null
           partner_split_type?: string | null
@@ -435,6 +438,7 @@ export type Database = {
           contract_url: string | null
           created_at: string
           credit_score_status: string | null
+          deal_type: string | null
           declined_reason: string | null
           deposit_amount: number | null
           email: string
@@ -485,6 +489,7 @@ export type Database = {
           contract_url?: string | null
           created_at?: string
           credit_score_status?: string | null
+          deal_type?: string | null
           declined_reason?: string | null
           deposit_amount?: number | null
           email: string
@@ -535,6 +540,7 @@ export type Database = {
           contract_url?: string | null
           created_at?: string
           credit_score_status?: string | null
+          deal_type?: string | null
           declined_reason?: string | null
           deposit_amount?: number | null
           email?: string

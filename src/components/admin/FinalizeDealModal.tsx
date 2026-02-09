@@ -56,6 +56,7 @@ export interface ExistingDealData {
   partner_split_value?: number | null;
   partner_split_percent?: number | null;
   partner_profit_amount?: number | null;
+  partner_capital_contribution?: number | null;
   sales_rep_name?: string | null;
   sales_rep_commission?: number | null;
   delivery_address?: string | null;
@@ -201,6 +202,7 @@ const FinalizeDealModal = ({
   const [isSharedCapital, setIsSharedCapital] = useState(false);
   const [partnerSplitType, setPartnerSplitType] = useState<'percentage' | 'fixed'>('percentage');
   const [partnerSplitValue, setPartnerSplitValue] = useState(50);
+  const [partnerCapitalContribution, setPartnerCapitalContribution] = useState(0);
   
   // Value Added Products (VAPS) - with stable IDs to prevent keyboard dismissal on Android
   const [addons, setAddons] = useState<(DealAddOnItem & { _id: string })[]>([]);
@@ -279,6 +281,7 @@ const FinalizeDealModal = ({
         setIsSharedCapital(existingDeal.is_shared_capital || false);
         setPartnerSplitType((existingDeal.partner_split_type as 'percentage' | 'fixed') || 'percentage');
         setPartnerSplitValue(Number(existingDeal.partner_split_value) || Number(existingDeal.partner_split_percent) || 50);
+        setPartnerCapitalContribution(Number(existingDeal.partner_capital_contribution) || 0);
         
         // Add-ons - add stable IDs for existing data
         if (existingDeal.addons_data && Array.isArray(existingDeal.addons_data)) {
@@ -355,6 +358,7 @@ const FinalizeDealModal = ({
         setIsSharedCapital(false);
         setPartnerSplitType('percentage');
         setPartnerSplitValue(50);
+        setPartnerCapitalContribution(0);
         setAddons([]);
         setSelectedRepName('');
         setReferralName('');
@@ -566,6 +570,7 @@ const FinalizeDealModal = ({
       partnerProfitAmount: partnerPayout,
       partnerSplitType,
       partnerSplitValue: isSharedCapital ? partnerSplitValue : 0,
+      partnerCapitalContribution: isSharedCapital ? partnerCapitalContribution : 0,
       // F&I fields
       discountAmount,
       dealerDepositContribution,
@@ -1176,11 +1181,35 @@ const FinalizeDealModal = ({
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Partner Payout</Label>
+                    <Label>Partner Capital Contribution</Label>
+                    <Input
+                      type="number"
+                      value={partnerCapitalContribution || ''}
+                      onChange={(e) => setPartnerCapitalContribution(parseFloat(e.target.value) || 0)}
+                      placeholder="Capital invested"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Refunded on payout (Capital + Profit Share).
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Partner Payout (Profit)</Label>
                     <div className="p-2 rounded-lg border bg-orange-500/10 border-orange-500/30">
                       <span className="text-lg font-bold text-orange-400">{formatPrice(partnerPayout)}</span>
                     </div>
                   </div>
+                  {partnerCapitalContribution > 0 && (
+                    <div className="space-y-2">
+                      <Label>Total Partner Payout</Label>
+                      <div className="p-2 rounded-lg border bg-orange-500/10 border-orange-500/30">
+                        <span className="text-lg font-bold text-orange-400">{formatPrice(partnerPayout + partnerCapitalContribution)}</span>
+                        <p className="text-xs text-muted-foreground mt-1">Capital + Profit</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -1431,7 +1460,17 @@ const FinalizeDealModal = ({
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          {isEditMode && isSharedCapital && existingDeal?.id && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => window.open(`/admin/reports/partner-payout/${existingDeal.id}`, '_blank')}
+              className="mr-auto"
+            >
+              🖨️ Print Partner Report
+            </Button>
+          )}
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>

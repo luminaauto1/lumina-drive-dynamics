@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Search, MessageCircle, ExternalLink, Trash2, Archive, UserPlus, Copy, Link, ClipboardList } from 'lucide-react';
+import { Search, MessageCircle, ExternalLink, Trash2, Archive, UserPlus, Copy, Link, ClipboardList, Banknote } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,7 @@ import { INTERNAL_STATUS_OPTIONS, INTERNAL_STATUS_STYLES, sortByUrgency, canShow
 import { useToast } from '@/hooks/use-toast';
 import { getUploadLink } from '@/lib/appConfig';
 import DeliveryChecklistModal from '@/components/admin/DeliveryChecklistModal';
+import QuickCashDealModal from '@/components/admin/QuickCashDealModal';
 const FINANCE_INFO_REQUEST_TEMPLATE = `*Lumina Auto | Finance Application Request*
 
 Hi, to assist you with your finance application manually, please reply with the following details:
@@ -61,6 +62,7 @@ const AdminFinance = () => {
   const [viewMode, setViewMode] = useState<'active' | 'archived'>('active');
   const [deliveryModalOpen, setDeliveryModalOpen] = useState(false);
   const [selectedAppForDelivery, setSelectedAppForDelivery] = useState<FinanceApplication | null>(null);
+  const [cashDealModalOpen, setCashDealModalOpen] = useState(false);
 
   const { data: applications = [], isLoading } = useFinanceApplications();
   const updateApplication = useUpdateFinanceApplication();
@@ -173,6 +175,10 @@ const AdminFinance = () => {
             <Button variant="outline" onClick={copyInfoRequestTemplate} className="w-fit">
               <Copy className="w-4 h-4 mr-2" />
               Copy Info Request
+            </Button>
+            <Button variant="outline" onClick={() => setCashDealModalOpen(true)} className="w-fit">
+              <Banknote className="w-4 h-4 mr-2" />
+              Cash Deal
             </Button>
             <Button onClick={() => navigate('/admin/finance/create')} className="w-fit">
               <UserPlus className="w-4 h-4 mr-2" />
@@ -465,6 +471,13 @@ const AdminFinance = () => {
             clientName={`${selectedAppForDelivery.first_name} ${selectedAppForDelivery.last_name}`}
           />
         )}
+
+        {/* Quick Cash Deal Modal */}
+        <QuickCashDealModal
+          open={cashDealModalOpen}
+          onOpenChange={setCashDealModalOpen}
+          onCreated={(appId) => navigate(`/admin/finance/${appId}`)}
+        />
       </div>
     </AdminLayout>
   );

@@ -55,6 +55,8 @@ export interface DealRecordInsert {
   referralCommissionAmount?: number;
   // Referral Income (what we RECEIVE)
   referralIncomeAmount?: number;
+  // Partner capital contribution
+  partnerCapitalContribution?: number;
 }
 
 export interface DealRecordUpdate extends DealRecordInsert {
@@ -109,6 +111,8 @@ export const useCreateDealRecord = () => {
           referral_commission_amount: record.referralCommissionAmount || 0,
           // Referral Income
           referral_income_amount: record.referralIncomeAmount || 0,
+          // Partner Capital
+          partner_capital_contribution: record.partnerCapitalContribution || 0,
         })
         .select()
         .single();
@@ -199,6 +203,8 @@ export const useUpdateDealRecord = () => {
           referral_commission_amount: record.referralCommissionAmount || 0,
           // Referral Income
           referral_income_amount: record.referralIncomeAmount || 0,
+          // Partner Capital
+          partner_capital_contribution: record.partnerCapitalContribution || 0,
         })
         .eq('id', record.dealId)
         .select()
