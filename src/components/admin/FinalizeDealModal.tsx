@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Plus, X, MapPin, Car, DollarSign, User, Receipt, Calculator, TrendingUp, Search, ChevronDown, Package, UserPlus, Eye, FileText, CalendarIcon } from 'lucide-react';
+import { PartnerPayoutModal } from './PartnerPayoutModal';
 import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -119,6 +120,7 @@ const FinalizeDealModal = ({
   const updateDealRecord = useUpdateDealRecord();
   
   const isEditMode = !!existingDeal;
+  const [showReport, setShowReport] = useState(false);
   
   // Fetch ALL vehicles including hidden for selection
   const { data: allVehicles = [] } = useVehicles();
@@ -1462,14 +1464,21 @@ const FinalizeDealModal = ({
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
           {isEditMode && isSharedCapital && existingDeal?.id && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => window.open(`/admin/reports/partner-payout/${existingDeal.id}`, '_blank')}
-              className="mr-auto"
-            >
-              🖨️ Print Partner Report
-            </Button>
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowReport(true)}
+                className="mr-auto"
+              >
+                🖨️ Print Partner Report
+              </Button>
+              <PartnerPayoutModal
+                isOpen={showReport}
+                onClose={() => setShowReport(false)}
+                dealId={existingDeal.id}
+              />
+            </>
           )}
           <Button variant="outline" onClick={onClose}>
             Cancel
