@@ -26,6 +26,7 @@ import AdminLayout from '@/components/admin/AdminLayout';
 import SortableImage from '@/components/admin/SortableImage';
 import VehicleOperationsTab from '@/components/admin/VehicleOperationsTab';
 import StockInModal from '@/components/admin/StockInModal';
+import { AddHiddenStockModal } from '@/components/admin/AddHiddenStockModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -475,7 +476,8 @@ const AdminInventoryPage = () => {
             <h1 className="text-3xl font-semibold mb-2">Inventory Manager</h1>
             <p className="text-muted-foreground">Manage your vehicle listings</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <AddHiddenStockModal onSuccess={() => queryClient.invalidateQueries({ queryKey: ['vehicles'] })} />
             <Button onClick={() => openAddSheet(true)} variant="outline" className="gap-2 border-purple-500/30 text-purple-400 hover:bg-purple-500/10">
               <Truck className="w-4 h-4" />
               Add Sourcing Example
