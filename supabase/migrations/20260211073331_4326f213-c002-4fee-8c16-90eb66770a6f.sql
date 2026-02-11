@@ -1,0 +1,7 @@
+
+ALTER TABLE public.leads 
+ADD COLUMN IF NOT EXISTS pipeline_stage TEXT DEFAULT 'new',
+ADD COLUMN IF NOT EXISTS lead_score INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS next_action_date TIMESTAMP WITH TIME ZONE,
+ADD COLUMN IF NOT EXISTS next_action_note TEXT,
+ADD COLUMN IF NOT EXISTS last_activity_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now());

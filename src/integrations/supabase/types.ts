@@ -729,7 +729,12 @@ export type Database = {
           client_phone: string | null
           created_at: string
           id: string
+          last_activity_at: string | null
+          lead_score: number | null
+          next_action_date: string | null
+          next_action_note: string | null
           notes: string | null
+          pipeline_stage: string | null
           source: string
           status: string
           updated_at: string
@@ -741,7 +746,12 @@ export type Database = {
           client_phone?: string | null
           created_at?: string
           id?: string
+          last_activity_at?: string | null
+          lead_score?: number | null
+          next_action_date?: string | null
+          next_action_note?: string | null
           notes?: string | null
+          pipeline_stage?: string | null
           source?: string
           status?: string
           updated_at?: string
@@ -753,7 +763,12 @@ export type Database = {
           client_phone?: string | null
           created_at?: string
           id?: string
+          last_activity_at?: string | null
+          lead_score?: number | null
+          next_action_date?: string | null
+          next_action_note?: string | null
           notes?: string | null
+          pipeline_stage?: string | null
           source?: string
           status?: string
           updated_at?: string
