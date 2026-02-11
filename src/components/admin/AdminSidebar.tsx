@@ -1,6 +1,6 @@
 import { LayoutDashboard, Car, Users, CreditCard, Settings, ChevronLeft, ChevronRight, BarChart3, Package, Home, MessageSquareQuote, FileBarChart, Banknote, ShoppingCart } from 'lucide-react';
 import { NavLink, useLocation, Link } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
@@ -20,11 +20,16 @@ const menuItems = [
 
 interface AdminSidebarProps {
   onNavigate?: () => void;
+  onCollapse?: (collapsed: boolean) => void;
 }
 
-const AdminSidebar = ({ onNavigate }: AdminSidebarProps) => {
+const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+
+  useEffect(() => {
+    onCollapse?.(collapsed);
+  }, [collapsed, onCollapse]);
 
   return (
     <aside

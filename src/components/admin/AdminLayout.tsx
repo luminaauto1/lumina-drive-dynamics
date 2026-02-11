@@ -13,6 +13,7 @@ interface AdminLayoutProps {
 const AdminLayout = ({ children }: AdminLayoutProps) => {
   const { user, isAdmin, loading } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   if (loading) {
     return (
@@ -27,13 +28,13 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Desktop Sidebar */}
-      <div className="hidden md:block">
-        <AdminSidebar />
+    <div className="min-h-screen bg-background flex w-full">
+      {/* Desktop Sidebar - spacer div matches fixed sidebar width */}
+      <div className={`hidden md:block flex-shrink-0 transition-all duration-300 ${collapsed ? 'w-16' : 'w-64'}`}>
+        <AdminSidebar onCollapse={setCollapsed} />
       </div>
-      
-      {/* Mobile Header */}
+
+      {/* Mobile Header + Drawer */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-50 h-14 bg-card border-b border-border flex items-center px-4">
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild>
@@ -47,9 +48,9 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         </Sheet>
         <span className="font-display text-lg font-bold text-gradient ml-3">Admin</span>
       </div>
-      
-      {/* Main Content */}
-      <main className="md:ml-64 min-h-screen transition-all duration-300 pt-14 md:pt-0">
+
+      {/* Main Content - flex-1 fills remaining space, min-w-0 prevents overflow */}
+      <main className="flex-1 min-w-0 min-h-screen pt-14 md:pt-0 overflow-x-hidden">
         {children}
       </main>
     </div>
