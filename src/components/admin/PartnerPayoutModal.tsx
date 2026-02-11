@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Printer, X } from "lucide-react";
+import { Loader2, Printer, X, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface PartnerPayoutModalProps {
@@ -40,42 +40,42 @@ export const PartnerPayoutModal = ({ isOpen, onClose, dealId }: PartnerPayoutMod
 
   if (!isOpen) return null;
 
-  // --- GOOGLE SCRIPT LOGIC IMPLEMENTATION ---
+  // --- STRICT "METAL" LOGIC ---
   const vehicle = deal?.vehicle || {};
 
-  // 1. Pricing Structure
-  const retailPrice = Number(deal?.sold_price || 0);
+  // 1. REVENUE (The Metal)
+  const sellingPrice = Number(deal?.sold_price || 0);
   const discount = Number(deal?.discount_amount || 0);
-  const soldPriceNet = retailPrice - discount;
+  const soldPriceNet = sellingPrice - discount;
+
+  // 2. CAPITAL (Partner's Input)
   const vehicleCost = Number(deal?.cost_price || 0);
+  const partnerCapital = Number(deal?.partner_capital_contribution || 0) || vehicleCost;
 
-  // 2. Expenses (Summing all costs like the script)
-  const reconCost = Number(deal?.recon_cost || 0);
-  const adminFee = Number(deal?.external_admin_fee || 0);
-  const bankFee = Number(deal?.bank_initiation_fee || 0);
-  const dealerDeposit = Number(deal?.dealer_deposit_contribution || 0);
-  const referralPaid = Number(deal?.referral_commission_amount || 0);
-  const expenses = reconCost + adminFee + bankFee + dealerDeposit + referralPaid;
+  // 3. GROSS PROFIT (Raw Money on Metal)
+  const grossProfit = soldPriceNet - vehicleCost;
 
-  // 3. Profit Distribution
-  const netProfitPot = (soldPriceNet - vehicleCost) - expenses;
+  // 4. DEDUCTIONS (Lumina's Expenses) — excludes Bank Fees/Admin Fees
+  const reconCosts = Number(deal?.recon_cost || 0);
+  const otherLuminaExpenses = Number(deal?.dealer_deposit_contribution || 0);
+  const totalDeductions = reconCosts + otherLuminaExpenses;
 
-  // Partner Settings
+  // 5. NET PROFIT (The Shared Pot)
+  const netSharedProfit = grossProfit - totalDeductions;
+
+  // 6. THE SPLIT
   const partnerPercent = deal?.partner_split_type === 'percentage'
     ? (Number(deal?.partner_split_value) / 100)
     : 0;
 
-  const partnerCapital = Number(deal?.partner_capital_contribution || 0);
-
-  // Shares
-  const partnerShareProfit = deal?.partner_split_type === 'percentage'
-    ? netProfitPot * partnerPercent
+  const partnerShareAmount = deal?.partner_split_type === 'percentage'
+    ? netSharedProfit * partnerPercent
     : Number(deal?.partner_profit_amount || 0);
-  const luminaShareProfit = netProfitPot - partnerShareProfit;
+  const luminaShareAmount = netSharedProfit - partnerShareAmount;
 
-  // 4. Final Payouts
-  const luminaTotal = luminaShareProfit + expenses;
-  const partnerTotal = partnerShareProfit + partnerCapital;
+  // 7. PAYOUTS
+  const partnerPayoutTotal = partnerCapital + partnerShareAmount;
+  const luminaKeepsTotal = totalDeductions + luminaShareAmount;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -83,18 +83,18 @@ export const PartnerPayoutModal = ({ isOpen, onClose, dealId }: PartnerPayoutMod
         <div id="partner-report-modal">
           {/* TOOLBAR */}
           <div className="no-print flex items-center justify-between p-4 border-b border-border">
-            <span className="font-bold text-lg">Partner Payout Preview</span>
+            <span className="font-bold text-lg">Partner Payout (Metal Logic)</span>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={onClose}>
                 <X className="h-4 w-4 mr-1" /> Close
               </Button>
               <Button size="sm" onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-700 text-white">
-                <Printer className="h-4 w-4 mr-1" /> Print / Save PDF
+                <Printer className="h-4 w-4 mr-1" /> Print Report
               </Button>
             </div>
           </div>
 
-          {/* REPORT CONTENT */}
+          {/* REPORT CANVAS */}
           <div className="p-6 bg-white text-black min-h-[600px]">
             {loading ? (
               <div className="flex items-center justify-center h-64">
@@ -106,131 +106,132 @@ export const PartnerPayoutModal = ({ isOpen, onClose, dealId }: PartnerPayoutMod
                 <div className="flex justify-between items-start border-b-2 border-gray-800 pb-4 mb-6">
                   <div>
                     <h1 className="text-2xl font-bold text-gray-900">Partner Payout</h1>
-                    <p className="text-sm text-gray-500">Lumina Deal Calculator | Generated: {new Date().toLocaleDateString()}</p>
+                    <p className="text-sm text-gray-500">Lumina Deal Record | {new Date().toLocaleDateString()}</p>
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-gray-900">{vehicle.make} {vehicle.model}</p>
                     <p className="text-sm text-gray-600">{vehicle.year} | {vehicle.registration_number}</p>
-                    <p className="text-xs text-gray-500">VIN: {vehicle.vin}</p>
                   </div>
                 </div>
 
+                {/* MAIN GRID */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                  {/* LEFT COLUMN: FINANCIAL BREAKDOWN */}
+                  {/* LEFT: THE MATH */}
                   <div className="space-y-4">
-                    {/* PRICING */}
+                    {/* 1. GROSS */}
                     <div className="border border-gray-300 rounded-lg p-4">
-                      <h2 className="font-bold text-lg mb-3 text-gray-900 border-b pb-2">Pricing Structure</h2>
+                      <h2 className="font-bold text-lg mb-3 text-gray-900 border-b pb-2">1. Gross Profit (The Metal)</h2>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-gray-700">Retail Price</span>
-                          <span className="font-medium text-gray-900">R {retailPrice.toLocaleString()}</span>
-                        </div>
-                        {discount > 0 && (
-                          <div className="flex justify-between text-red-700">
-                            <span>Less Discount</span>
-                            <span>- R {discount.toLocaleString()}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between font-bold border-t border-gray-300 pt-2 mt-2 text-gray-900">
-                          <span>SUB TOTAL (Sold Price)</span>
-                          <span>R {soldPriceNet.toLocaleString()}</span>
+                          <span className="text-gray-700">Sold Price (Net)</span>
+                          <span className="font-medium text-gray-900">R {soldPriceNet.toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between text-red-700">
-                          <span>Less Vehicle Cost</span>
+                          <span>Less: Vehicle Cost (Capital)</span>
                           <span>- R {vehicleCost.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between font-bold border-t border-gray-300 pt-2 mt-2 text-gray-900">
+                          <span>GROSS PROFIT</span>
+                          <span>R {grossProfit.toLocaleString()}</span>
                         </div>
                       </div>
                     </div>
 
-                    {/* EXPENSES */}
+                    {/* 2. DEDUCTIONS */}
                     <div className="border border-gray-300 rounded-lg p-4">
-                      <h2 className="font-bold text-lg mb-3 text-gray-900 border-b pb-2">Expenses (Recouped by Lumina)</h2>
+                      <h2 className="font-bold text-lg mb-3 text-gray-900 border-b pb-2">2. Deductions (Paid by Lumina)</h2>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-gray-700">Recon / Repairs</span>
-                          <span className="text-gray-900">R {reconCost.toLocaleString()}</span>
+                          <span className="text-gray-700">Recon & Prep</span>
+                          <span className="text-gray-900">R {reconCosts.toLocaleString()}</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-700">Admin / On Road</span>
-                          <span className="text-gray-900">R {adminFee.toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-700">Bank Fees</span>
-                          <span className="text-gray-900">R {bankFee.toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-700">Dealer Deposit</span>
-                          <span className="text-gray-900">R {dealerDeposit.toLocaleString()}</span>
-                        </div>
-                        {referralPaid > 0 && (
+                        {otherLuminaExpenses > 0 && (
                           <div className="flex justify-between">
-                            <span className="text-gray-700">Referral Paid Out</span>
-                            <span className="text-gray-900">R {referralPaid.toLocaleString()}</span>
+                            <span className="text-gray-700">Deposits/Other</span>
+                            <span className="text-gray-900">R {otherLuminaExpenses.toLocaleString()}</span>
                           </div>
                         )}
                         <div className="flex justify-between font-bold border-t border-gray-300 pt-2 mt-2 text-red-800">
-                          <span>TOTAL EXPENSES</span>
-                          <span>R {expenses.toLocaleString()}</span>
+                          <span>TOTAL DEDUCTIONS</span>
+                          <span>- R {totalDeductions.toLocaleString()}</span>
                         </div>
                       </div>
                     </div>
+
+                    {/* 3. NET POT */}
+                    <div className="border border-gray-300 rounded-lg p-4 text-center">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-lg text-gray-900">3. NET SHARED PROFIT</span>
+                        <span className="font-bold text-2xl text-gray-900">R {netSharedProfit.toLocaleString()}</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">(Gross Profit - Deductions)</p>
+                    </div>
                   </div>
 
-                  {/* RIGHT COLUMN: DISTRIBUTION */}
+                  {/* RIGHT: THE DISTRIBUTION */}
                   <div className="space-y-4">
-                    {/* PROFIT POT */}
-                    <div className="border border-gray-300 rounded-lg p-4 text-center">
-                      <h2 className="font-bold text-lg mb-2 text-gray-900">Net Profit (Pot)</h2>
-                      <p className="text-3xl font-bold text-gray-900">R {netProfitPot.toLocaleString()}</p>
-                      <p className="text-xs text-gray-500 mt-1">(Sold Price - Cost - Expenses)</p>
-                    </div>
-
-                    {/* SHARES */}
+                    {/* 4. THE SPLIT */}
                     <div className="border border-gray-300 rounded-lg p-4">
-                      <h2 className="font-bold text-lg mb-3 text-gray-900 border-b pb-2">Profit Shares</h2>
+                      <h2 className="font-bold text-lg mb-3 text-gray-900 border-b pb-2">4. The Split</h2>
                       <div className="space-y-3 text-sm">
                         <div className="flex justify-between items-center p-2 bg-gray-100 rounded">
                           <span className="text-gray-700">
                             Partner Share ({deal?.partner_split_type === 'percentage' ? (partnerPercent * 100).toFixed(0) + '%' : 'Fixed'})
                           </span>
-                          <span className="font-bold text-gray-900">R {partnerShareProfit.toLocaleString()}</span>
+                          <span className="font-bold text-gray-900">R {partnerShareAmount.toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between items-center p-2 bg-gray-100 rounded">
                           <span className="text-gray-700">
                             Lumina Share ({deal?.partner_split_type === 'percentage' ? (100 - partnerPercent * 100).toFixed(0) + '%' : ''})
                           </span>
-                          <span className="font-bold text-gray-900">R {luminaShareProfit.toLocaleString()}</span>
+                          <span className="font-bold text-gray-900">R {luminaShareAmount.toLocaleString()}</span>
                         </div>
                       </div>
                     </div>
 
-                    {/* FINAL PAYOUTS */}
+                    {/* 5. FINAL TRANSFERS */}
                     <div className="space-y-3">
-                      {/* LUMINA BOX */}
-                      <div className="border border-blue-300 rounded-lg p-4 bg-blue-50">
-                        <div className="flex justify-between items-center">
-                          <span className="font-bold text-blue-900">LUMINA KEEPS</span>
-                          <span className="font-bold text-xl text-blue-900">R {luminaTotal.toLocaleString()}</span>
+                      {/* PARTNER CARD */}
+                      <div className="border border-green-300 rounded-lg p-4 bg-green-50">
+                        <h3 className="font-bold text-green-900 mb-2">Transfer To Partner</h3>
+                        <div className="space-y-1 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-green-800">Capital Refund</span>
+                            <span className="text-green-900">R {partnerCapital.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-green-800">Profit Share</span>
+                            <span className="text-green-900">+ R {partnerShareAmount.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between font-bold border-t border-green-300 pt-2 mt-2 text-green-900">
+                            <span>PAYOUT</span>
+                            <span className="text-xl">R {partnerPayoutTotal.toLocaleString()}</span>
+                          </div>
                         </div>
-                        <p className="text-xs text-blue-700 mt-1">Share + Recouped Expenses</p>
                       </div>
 
-                      {/* PARTNER BOX */}
-                      <div className="border border-green-300 rounded-lg p-4 bg-green-50">
+                      {/* LUMINA CARD */}
+                      <div className="border border-blue-300 rounded-lg p-4 bg-blue-50">
+                        <h3 className="font-bold text-blue-900 mb-2">Lumina Keeps</h3>
                         <div className="flex justify-between items-center">
-                          <span className="font-bold text-green-900">TRANSFER TO PARTNER</span>
-                          <span className="font-bold text-xl text-green-900">R {partnerTotal.toLocaleString()}</span>
+                          <span className="text-blue-800">Total Retained</span>
+                          <span className="font-bold text-xl text-blue-900">R {luminaKeepsTotal.toLocaleString()}</span>
                         </div>
-                        <p className="text-xs text-green-700 mt-1">Share + Capital Refund (R {partnerCapital.toLocaleString()})</p>
+                        <p className="text-xs text-blue-700 mt-1">
+                          Reimbursement (R {totalDeductions.toLocaleString()}) + Share
+                        </p>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <p className="text-center text-xs text-gray-400 mt-8">
-                  System Generated Document | Lumina Auto Deal Records
-                </p>
+                {/* FOOTER NOTE */}
+                <div className="mt-6 border-t pt-4">
+                  <div className="flex items-start gap-2 text-xs text-gray-500">
+                    <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                    <span>* This calculation excludes external Banking Fees, Admin Fees, and DIC, which are handled separately.</span>
+                  </div>
+                </div>
               </>
             )}
           </div>
