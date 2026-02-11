@@ -7,7 +7,7 @@ import {
   FileText, ChevronDown, ChevronUp, FolderOpen, Settings, Calculator, UserPlus
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { differenceInDays, differenceInYears, format, addYears, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import { differenceInDays, differenceInYears, format, addYears, startOfMonth, endOfMonth, subMonths, isWithinInterval, parseISO } from 'date-fns';
 import AdminLayout from '@/components/admin/AdminLayout';
 import ClientProfileModal from '@/components/admin/ClientProfileModal';
 import FinalizeDealModal, { ExistingDealData } from '@/components/admin/FinalizeDealModal';
@@ -910,6 +910,33 @@ const AdminAftersales = () => {
   // Average profit per unit
   const avgProfitPerUnit = currentMonthDeals.length > 0 ? totalNetProfit / currentMonthDeals.length : 0;
   
+  // === LAST MONTH FILTER ===
+  const lastMonthDeals = useMemo(() => {
+    const now = new Date();
+    const lastMonth = subMonths(now, 1);
+    const monthStart = startOfMonth(lastMonth);
+    const monthEnd = endOfMonth(lastMonth);
+    
+    return dealRecords.filter(deal => {
+      const saleDate = deal.sale_date ? parseISO(deal.sale_date) : new Date(deal.created_at);
+      return isWithinInterval(saleDate, { start: monthStart, end: monthEnd });
+    });
+  }, [dealRecords]);
+
+  // === COMMISSION LEDGER HELPER ===
+  const getCommissionByPerson = (dealList: DealRecord[]) => {
+    const ledger: Record<string, number> = {};
+    dealList.forEach(deal => {
+      const person = deal.sales_rep_name || 'Admin';
+      const comm = Number(deal.sales_rep_commission || 0);
+      ledger[person] = (ledger[person] || 0) + comm;
+    });
+    return ledger;
+  };
+
+  const thisMonthLedger = getCommissionByPerson(currentMonthDeals);
+  const lastMonthLedger = getCommissionByPerson(lastMonthDeals);
+
   // Count deals with zero cost_price (data quality warning)
   const zeroCostDealsCount = dealRecords.filter(deal => !deal.cost_price || deal.cost_price === 0).length;
   
@@ -1001,7 +1028,7 @@ const AdminAftersales = () => {
             <h2 className="text-lg font-semibold">This Month's Performance</h2>
             <Badge variant="outline" className="text-xs">{format(new Date(), 'MMMM yyyy')}</Badge>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             <div className="glass-card rounded-lg p-4">
               <div className="flex items-center gap-2 mb-1">
                 <TrendingUp className="w-4 h-4 text-emerald-400" />
@@ -1010,47 +1037,68 @@ const AdminAftersales = () => {
               <p className={`text-2xl font-bold ${totalNetProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                 {formatPrice(totalNetProfit)}
               </p>
+              <p className="text-xs text-muted-foreground mt-1">{currentMonthDeals.length} units</p>
             </div>
             <div className="glass-card rounded-lg p-4">
               <div className="flex items-center gap-2 mb-1">
-                <Users className="w-4 h-4 text-blue-400" />
-                <p className="text-sm text-muted-foreground">Volume</p>
+                <Calculator className="w-4 h-4 text-purple-400" />
+                <p className="text-sm text-muted-foreground">Avg / Unit</p>
               </div>
-              <p className="text-2xl font-bold">{currentMonthDeals.length}</p>
+              <p className={`text-2xl font-bold ${avgProfitPerUnit >= 0 ? 'text-purple-400' : 'text-red-400'}`}>
+                {formatPrice(avgProfitPerUnit)}
+              </p>
             </div>
-          <div className="glass-card rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Calculator className="w-4 h-4 text-purple-400" />
-              <p className="text-sm text-muted-foreground">Avg Profit / Unit</p>
+            <div className="glass-card rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <DollarSign className="w-4 h-4 text-cyan-400" />
+                <p className="text-sm text-muted-foreground">DIC Earned</p>
+              </div>
+              <p className="text-2xl font-bold text-cyan-400">{formatPrice(totalDIC)}</p>
             </div>
-            <p className={`text-2xl font-bold ${avgProfitPerUnit >= 0 ? 'text-purple-400' : 'text-red-400'}`}>
-              {formatPrice(avgProfitPerUnit)}
-            </p>
-          </div>
-          <div className="glass-card rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <DollarSign className="w-4 h-4 text-cyan-400" />
-              <p className="text-sm text-muted-foreground">Total DIC Earned</p>
+
+            {/* COMMISSION BOARD: LAST MONTH */}
+            <div className="glass-card rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-primary" />
+                  <p className="text-sm font-semibold">Commissions (Last Month)</p>
+                </div>
+                <Badge variant="outline" className="text-xs">Paid Out</Badge>
+              </div>
+              <div className="space-y-1">
+                {Object.keys(lastMonthLedger).length === 0 && (
+                  <p className="text-xs text-muted-foreground">No commissions recorded.</p>
+                )}
+                {Object.entries(lastMonthLedger).map(([name, amount]) => (
+                  <div key={name} className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">{name}</span>
+                    <span className="font-medium">{formatPrice(amount)}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <p className="text-2xl font-bold text-cyan-400">{formatPrice(totalDIC)}</p>
-          </div>
-          <div className="glass-card rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <DollarSign className="w-4 h-4 text-primary" />
-              <p className="text-sm text-muted-foreground">Commission Payable</p>
+
+            {/* COMMISSION BOARD: THIS MONTH */}
+            <div className="glass-card rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-emerald-400" />
+                  <p className="text-sm font-semibold">Commissions (Current)</p>
+                </div>
+                <Badge variant="outline" className="text-xs">Pending</Badge>
+              </div>
+              <div className="space-y-1">
+                {Object.keys(thisMonthLedger).length === 0 && (
+                  <p className="text-xs text-muted-foreground">No sales yet this month.</p>
+                )}
+                {Object.entries(thisMonthLedger).map(([name, amount]) => (
+                  <div key={name} className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">{name}</span>
+                    <span className="font-medium text-emerald-400">{formatPrice(amount)}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <p className="text-2xl font-bold text-primary">{formatPrice(totalCommissionPayable)}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Sales: {formatPrice(totalSalesCommission)} | Ref: {formatPrice(totalReferralCommission)}
-            </p>
-          </div>
-          <div className="glass-card rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Wrench className="w-4 h-4 text-yellow-400" />
-              <p className="text-sm text-muted-foreground">Service Due</p>
-            </div>
-            <p className="text-2xl font-bold text-yellow-400">{serviceAlertCount}</p>
-          </div>
           </div>
         </motion.div>
 
