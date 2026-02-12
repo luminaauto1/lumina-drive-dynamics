@@ -39,6 +39,7 @@ import AdminPartnerPayout from "./pages/admin/AdminPartnerPayout";
 import ClientProfile from "./pages/admin/ClientProfile";
 import UpdatePassword from "./pages/UpdatePassword";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import ClientHandover from "./pages/ClientHandover";
 import TermsOfService from "./pages/TermsOfService";
 import SystemFix from "./pages/SystemFix";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -51,7 +52,7 @@ const queryClient = new QueryClient();
 const AppLayout = () => {
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith('/admin');
-  const isPublicRoute = location.pathname.startsWith('/upload-documents');
+  const isPublicRoute = location.pathname.startsWith('/upload-documents') || location.pathname.startsWith('/handover');
 
   return (
     <>
@@ -75,8 +76,9 @@ const AppLayout = () => {
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="/system-fix" element={<SystemFix />} />
-          {/* Public Document Upload Route */}
+          {/* Public Routes */}
           <Route path="/upload-documents/:token" element={<SecureDocumentUpload />} />
+          <Route path="/handover/:dealId" element={<ClientHandover />} />
           {/* Admin Routes */}
           <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/inventory" element={<ProtectedRoute requireAdmin><AdminInventoryPage /></ProtectedRoute>} />
