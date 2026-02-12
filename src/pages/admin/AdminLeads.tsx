@@ -15,21 +15,47 @@ import { LeadCockpit } from "@/components/admin/leads/LeadCockpit";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 
 const COLUMNS = [
-  { id: 'new', label: '📥 Inbox / New', color: 'border-t-red-500', headerBg: 'bg-red-500/10 text-red-400' },
+  { id: 'new', label: '📥 Inbox', color: 'border-t-red-500', headerBg: 'bg-red-500/10 text-red-400' },
   { id: 'actioned', label: '🗣️ Actioned', color: 'border-t-blue-500', headerBg: 'bg-blue-500/10 text-blue-400' },
-  { id: 'app_received', label: '📝 App Received', color: 'border-t-purple-500', headerBg: 'bg-purple-500/10 text-purple-400' },
-  { id: 'app_submitted', label: '📤 App Submitted', color: 'border-t-indigo-500', headerBg: 'bg-indigo-500/10 text-indigo-400' },
-  { id: 'pre_approved', label: '✅ Pre-Approved', color: 'border-t-yellow-500', headerBg: 'bg-yellow-500/10 text-yellow-400' },
-  { id: 'validation_pending', label: '⏳ Validations', color: 'border-t-orange-500', headerBg: 'bg-orange-500/10 text-orange-400' },
+  { id: 'docs_processing', label: '📝 Docs / Processing', color: 'border-t-purple-500', headerBg: 'bg-purple-500/10 text-purple-400' },
+  { id: 'submitted', label: '📤 Submitted to Banks', color: 'border-t-indigo-500', headerBg: 'bg-indigo-500/10 text-indigo-400' },
+  { id: 'approved', label: '✅ Finance Approved', color: 'border-t-yellow-500', headerBg: 'bg-yellow-500/10 text-yellow-400' },
+  { id: 'validations', label: '⏳ Validations', color: 'border-t-orange-500', headerBg: 'bg-orange-500/10 text-orange-400' },
   { id: 'validated', label: '🏁 Validated', color: 'border-t-emerald-500', headerBg: 'bg-emerald-500/10 text-emerald-400' },
+  { id: 'contract', label: '📄 Contract / Closing', color: 'border-t-cyan-500', headerBg: 'bg-cyan-500/10 text-cyan-400' },
+  { id: 'delivery', label: '🚗 Delivery / Handover', color: 'border-t-green-600', headerBg: 'bg-green-600/10 text-green-400' },
 ];
 
-const mapColumnToAppStatus = (colId: string) => {
-  switch (colId) {
-    case 'app_submitted': return 'submitted_to_banks';
+// Finance App Status -> Kanban Column
+const mapAppStatusToColumn = (status: string): string => {
+  switch (status) {
+    case 'pending': return 'docs_processing';
+    case 'application_submitted': return 'docs_processing';
     case 'pre_approved': return 'approved';
-    case 'validation_pending': return 'validations_pending';
-    case 'validated': return 'validated';
+    case 'documents_received': return 'docs_processing';
+    case 'validations_pending': return 'validations';
+    case 'validations_complete': return 'validated';
+    case 'contract_sent': return 'contract';
+    case 'contract_signed': return 'contract';
+    case 'vehicle_delivered': return 'delivery';
+    case 'vehicle_selected': return 'docs_processing';
+    case 'submitted_to_banks': return 'submitted';
+    case 'approved': return 'approved';
+    case 'declined': return 'new'; // Show declined back in inbox for review
+    default: return 'docs_processing';
+  }
+};
+
+// Kanban Column -> Finance App Status (when dragging)
+const mapColumnToAppStatus = (colId: string): string | null => {
+  switch (colId) {
+    case 'docs_processing': return 'documents_received';
+    case 'submitted': return 'submitted_to_banks';
+    case 'approved': return 'pre_approved';
+    case 'validations': return 'validations_pending';
+    case 'validated': return 'validations_complete';
+    case 'contract': return 'contract_sent';
+    case 'delivery': return 'vehicle_delivered';
     default: return null;
   }
 };
@@ -99,12 +125,9 @@ const AdminLeads = () => {
 
       let displayStatus = lead.pipeline_stage || 'new';
 
+      // If app exists, it dictates the column position
       if (app) {
-        if (app.status === 'validated') displayStatus = 'validated';
-        else if (app.status === 'validations_pending') displayStatus = 'validation_pending';
-        else if (app.status === 'approved') displayStatus = 'pre_approved';
-        else if (app.status === 'submitted_to_banks') displayStatus = 'app_submitted';
-        else if (displayStatus === 'new' || displayStatus === 'actioned') displayStatus = 'app_received';
+        displayStatus = mapAppStatusToColumn(app.status);
       }
 
       return {
