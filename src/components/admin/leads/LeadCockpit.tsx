@@ -37,17 +37,42 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
     if (leadId && isOpen) {
       setLoading(true);
       const fetchLead = async () => {
-        const { data } = await supabase
+        // 1. Fetch Lead
+        const { data: leadData } = await supabase
           .from('leads')
           .select('*, vehicle:vehicles(make, model, year)')
           .eq('id', leadId)
           .maybeSingle();
-        setLead(data);
-        setLoading(false);
-        // Mark as viewed
-        if (data) {
+
+        if (leadData) {
+          // 2. Try to find linked finance application
+          const filters: string[] = [];
+          if (leadData.client_email) filters.push(`email.eq.${leadData.client_email}`);
+          if (leadData.client_phone) filters.push(`phone.eq.${leadData.client_phone}`);
+
+          let linkedApp = null;
+          if (filters.length > 0) {
+            const { data: appData } = await supabase
+              .from('finance_applications')
+              .select('*, selected_vehicle:vehicles!finance_applications_selected_vehicle_id_fkey(make, model, year, vin, registration_number, color)')
+              .or(filters.join(','))
+              .order('created_at', { ascending: false })
+              .maybeSingle();
+            linkedApp = appData;
+          }
+
+          setLead({
+            ...leadData,
+            id_number: leadData.id_number || linkedApp?.id_number,
+            linkedApp,
+          });
+
+          // Mark as viewed
           await supabase.from('leads').update({ admin_last_viewed_at: new Date().toISOString() }).eq('id', leadId);
+        } else {
+          setLead(null);
         }
+        setLoading(false);
       };
       fetchLead();
     } else {
@@ -217,12 +242,30 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
                 {/* VEHICLE INTEREST */}
                 <div className="space-y-3">
                   <h3 className="text-sm font-semibold flex items-center gap-2"><CarFront className="w-4 h-4" /> Vehicle Interest</h3>
-                  {lead.vehicle ? (
+                  {lead.linkedApp?.selected_vehicle ? (
+                    <div className="p-3 rounded-lg bg-muted/50 border border-border space-y-1">
+                      <p className="font-medium text-sm">
+                        {lead.linkedApp.selected_vehicle.year} {lead.linkedApp.selected_vehicle.make} {lead.linkedApp.selected_vehicle.model}
+                      </p>
+                      <div className="flex gap-3 text-xs text-muted-foreground">
+                        <span>VIN: {lead.linkedApp.selected_vehicle.vin || 'N/A'}</span>
+                        <span>Reg: {lead.linkedApp.selected_vehicle.registration_number || 'N/A'}</span>
+                      </div>
+                      {lead.linkedApp.selected_vehicle.color && (
+                        <p className="text-xs text-muted-foreground">Color: {lead.linkedApp.selected_vehicle.color}</p>
+                      )}
+                    </div>
+                  ) : lead.vehicle ? (
                     <div className="p-3 rounded-lg bg-muted/50 border border-border">
                       <p className="font-medium text-sm">{lead.vehicle.year} {lead.vehicle.make} {lead.vehicle.model}</p>
                     </div>
                   ) : (
                     <p className="text-xs text-muted-foreground">No vehicle linked — {lead.notes || 'General inquiry'}</p>
+                  )}
+                  {lead.linkedApp && (
+                    <Badge variant="outline" className="text-[10px]">
+                      App Status: {lead.linkedApp.status?.replace(/_/g, ' ')}
+                    </Badge>
                   )}
                 </div>
 
