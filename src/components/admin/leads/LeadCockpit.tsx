@@ -23,6 +23,49 @@ interface LeadCockpitProps {
   onUpdate: () => void;
 }
 
+const STATUS_OPTIONS = [
+  { value: 'new', label: 'New Lead' },
+  { value: 'actioned', label: 'Actioned' },
+  { value: 'docs_collected', label: 'Docs Collected' },
+  { value: 'submitted_to_banks', label: 'Submitted to Banks' },
+  { value: 'pre_approved', label: 'Pre-Approved' },
+  { value: 'finance_approved', label: 'Finance Approved' },
+  { value: 'validation_pending', label: 'Validations Pending' },
+  { value: 'validated', label: 'Validated' },
+  { value: 'contract_generated', label: 'Contract Generated' },
+  { value: 'prepping_delivery', label: 'Prepping Delivery' },
+  { value: 'delivered', label: 'Delivered' },
+  { value: 'declined', label: 'Declined' },
+] as const;
+
+const getStatusStyle = (status: string) => {
+  const s = status?.toLowerCase() || 'new';
+  if (s.includes('deliver') && !s.includes('prep')) return 'bg-green-600 text-white border-green-500';
+  if (s.includes('prep')) return 'bg-green-900/30 text-green-400 border-green-800';
+  if (s.includes('contract')) return 'bg-cyan-900/30 text-cyan-400 border-cyan-800';
+  if (s.includes('validated') && !s.includes('pending')) return 'bg-emerald-900/30 text-emerald-400 border-emerald-800';
+  if (s.includes('validation') || s.includes('pending')) return 'bg-orange-900/30 text-orange-400 border-orange-800';
+  if (s.includes('approv')) return 'bg-yellow-900/30 text-yellow-400 border-yellow-800';
+  if (s.includes('subm')) return 'bg-indigo-900/30 text-indigo-400 border-indigo-800';
+  if (s.includes('doc')) return 'bg-purple-900/30 text-purple-400 border-purple-800';
+  if (s.includes('actioned')) return 'bg-blue-900/30 text-blue-400 border-blue-800';
+  if (s.includes('decline')) return 'bg-red-900/30 text-red-400 border-red-800';
+  return 'bg-zinc-800 text-zinc-400 border-zinc-700';
+};
+
+const mapStatusToPipeline = (status: string) => {
+  if (['submitted_to_banks'].includes(status)) return 'submitted';
+  if (['pre_approved', 'finance_approved'].includes(status)) return 'approved';
+  if (['validation_pending'].includes(status)) return 'validations';
+  if (['validated'].includes(status)) return 'validated';
+  if (['contract_generated', 'contract_signed'].includes(status)) return 'contract';
+  if (['prepping_delivery', 'delivered'].includes(status)) return 'delivery';
+  if (['docs_collected'].includes(status)) return 'finance';
+  if (['actioned'].includes(status)) return 'contacted';
+  if (['declined'].includes(status)) return 'cold';
+  return 'new';
+};
+
 export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitProps) => {
   const [lead, setLead] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -71,6 +114,23 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
     if (!lead) return;
     await supabase.from('leads').update({ deal_headline: headline } as any).eq('id', leadId!);
     toast.success("Context saved");
+    onUpdate();
+  };
+
+  const updateStatus = async (newStatus: string) => {
+    const pipelineStage = mapStatusToPipeline(newStatus);
+    await supabase.from('leads').update({
+      pipeline_stage: pipelineStage,
+      status: newStatus,
+      status_updated_at: new Date().toISOString(),
+    }).eq('id', leadId!);
+
+    if (lead.linkedApp) {
+      await supabase.from('finance_applications').update({ status: newStatus }).eq('id', lead.linkedApp.id);
+    }
+
+    setLead((prev: any) => ({ ...prev, status: newStatus, pipeline_stage: pipelineStage }));
+    toast.success(`Status → ${newStatus.replace(/_/g, ' ').toUpperCase()}`);
     onUpdate();
   };
 
@@ -142,6 +202,8 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
 
   if (!lead) return null;
 
+  const currentStatus = lead.linkedApp?.status || lead.status || 'new';
+
   return (
     <Sheet open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <SheetContent side="right" className="w-full sm:max-w-[95vw] lg:max-w-[85vw] p-0 bg-zinc-950 text-white border-zinc-800 overflow-hidden">
@@ -159,9 +221,20 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
                 <div>
                   <div className="flex items-center gap-2">
                     <h2 className="text-base font-bold text-white">{lead.client_name}</h2>
-                    <Badge variant="outline" className="text-[9px] border-zinc-700 text-zinc-400 px-1.5 py-0">
-                      {lead.pipeline_stage?.replace(/_/g, ' ') || 'New'}
-                    </Badge>
+                    {/* STATUS DROPDOWN */}
+                    <Select value={currentStatus} onValueChange={updateStatus}>
+                      <SelectTrigger className={`h-6 text-[10px] font-bold uppercase border rounded-full px-2.5 py-0 w-auto gap-1 ${getStatusStyle(currentStatus)}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-zinc-900 border-zinc-700 text-white z-[9999]">
+                        {STATUS_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                            <span className={`inline-block w-2 h-2 rounded-full mr-2 ${getStatusStyle(opt.value).split(' ')[0]}`} />
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-[10px] text-zinc-500">{lead.client_phone}</span>
@@ -269,7 +342,7 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
                     <label className="text-[10px] text-zinc-500 uppercase">Heat Level</label>
                     <Select value={lead.lead_temperature || 'warm'} onValueChange={(v) => updateField('lead_temperature', v)}>
                       <SelectTrigger className="bg-zinc-950 border-zinc-800 h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+                      <SelectContent className="bg-zinc-900 border-zinc-800 text-white z-[9999]">
                         <SelectItem value="cold">❄️ Cold</SelectItem>
                         <SelectItem value="warm">🟠 Warm</SelectItem>
                         <SelectItem value="hot">🔥 Hot</SelectItem>
@@ -309,7 +382,7 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
                     {inputType === 'reminder' && (
                       <Select value={reminderPreset} onValueChange={setReminderPreset}>
                         <SelectTrigger className="h-6 w-[120px] bg-zinc-900 border-zinc-700 text-[10px]"><SelectValue /></SelectTrigger>
-                        <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+                        <SelectContent className="bg-zinc-900 border-zinc-800 text-white z-[9999]">
                           <SelectItem value="1hr">In 1 Hour</SelectItem>
                           <SelectItem value="3hr">In 3 Hours</SelectItem>
                           <SelectItem value="tomorrow_9">Tomorrow 09:00</SelectItem>
