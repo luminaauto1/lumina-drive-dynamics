@@ -398,26 +398,29 @@ const getServiceStatus = (saleDate: string) => {
 };
 
 const getVehicleHealthStatus = (saleDateString: string | null) => {
-  if (!saleDateString) return { label: "No Sale Date", color: "text-muted-foreground", bg: "bg-muted/30" };
+  if (!saleDateString) return { label: "No Sale Date", color: "text-zinc-500", bg: "bg-zinc-900", days: 0 };
 
   const saleDate = new Date(saleDateString);
   const now = new Date();
-  const diffTime = Math.abs(now.getTime() - saleDate.getTime());
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
-  const yearCycle = 365;
-  const daysIntoCycle = diffDays % yearCycle;
-  const yearsOwned = Math.floor(diffDays / yearCycle);
 
-  if (diffDays < 60) {
-    return { label: "Recently Sold", color: "text-emerald-500", bg: "bg-emerald-500/10" };
+  if (isNaN(saleDate.getTime())) return { label: "Invalid Date", color: "text-red-500", bg: "bg-red-500/10", days: 0 };
+
+  const diffTime = now.getTime() - saleDate.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return { label: "Future Date?", color: "text-red-500", bg: "bg-red-500/10", days: diffDays };
+
+  if (diffDays < 90) {
+    return { label: "Recently Sold", color: "text-emerald-500", bg: "bg-emerald-500/10", days: diffDays };
   }
-  
-  if (daysIntoCycle > 330 || (daysIntoCycle < 30 && yearsOwned > 0)) {
-    return { label: "Service Due Soon", color: "text-yellow-500", bg: "bg-yellow-500/10" };
+
+  const daysIntoYear = diffDays % 365;
+
+  if (daysIntoYear >= 335) {
+    return { label: "Service Due Soon", color: "text-yellow-500", bg: "bg-yellow-500/10", days: diffDays };
   }
-  
-  return { label: "Vehicle Healthy", color: "text-blue-500", bg: "bg-blue-500/10" };
+
+  return { label: "Healthy", color: "text-blue-500", bg: "bg-blue-500/10", days: diffDays };
 };
 
 const StatusBadge = ({ status, label }: { status: 'ok' | 'due_soon' | 'overdue'; label: string }) => {
@@ -1254,9 +1257,16 @@ const AdminAftersales = () => {
                         {(() => {
                           const healthStatus = getVehicleHealthStatus(deal.sale_date);
                           return (
-                            <span className={`px-2 py-1 rounded text-xs font-bold ${healthStatus.bg} ${healthStatus.color}`}>
-                              {healthStatus.label}
-                            </span>
+                            <div className="group relative flex items-center">
+                              <span className={`px-2 py-1 rounded text-xs font-bold border border-transparent cursor-help ${healthStatus.bg} ${healthStatus.color}`}>
+                                {healthStatus.label}
+                              </span>
+                              <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-max bg-black text-white text-[10px] px-2 py-1 rounded border border-zinc-700 z-50 shadow-xl">
+                                Owned: {healthStatus.days} days
+                                <br/>
+                                Date: {deal.sale_date}
+                              </div>
+                            </div>
                           );
                         })()}
                       </TableCell>
