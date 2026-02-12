@@ -60,14 +60,10 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
           };
           setLead(fullLead);
 
-          // Set headline from saved value or auto-generate
           if ((fullLead as any).deal_headline) {
             setHeadline((fullLead as any).deal_headline);
           } else {
-            const car = fullLead.linkedApp?.vehicles
-              ? `${fullLead.linkedApp.vehicles.year} ${fullLead.linkedApp.vehicles.model}`
-              : (fullLead.notes || "Looking for car");
-            setHeadline(`${fullLead.client_name} - ${car}`);
+            setHeadline("");
           }
         }
         setLoading(false);
@@ -166,56 +162,54 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
       <SheetContent side="right" className="w-full sm:max-w-[95vw] lg:max-w-[85vw] p-0 bg-zinc-950 text-white border-zinc-800 overflow-hidden">
         <div className="flex flex-col h-full">
 
-          {/* --- HEADER (FIXED & CLEAN) --- */}
-          <div className="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur">
-            <div className="px-6 py-4">
-              {/* IDENTITY (STATIC) */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-lg shrink-0">
-                    {lead.client_name?.charAt(0)}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-lg font-bold text-white">{lead.client_name}</h2>
-                      <Badge variant="outline" className="text-[10px] border-zinc-700 text-zinc-400">
-                        {lead.pipeline_stage?.replace(/_/g, ' ') || 'New Lead'}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-3 text-xs text-zinc-400 mt-0.5">
-                      <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {lead.client_phone}</span>
-                      <span className="text-zinc-600">•</span>
-                      <span>ID: {lead.id_number || 'Missing'}</span>
-                    </div>
-                  </div>
+          {/* --- HEADER (CENTERED LAYOUT) --- */}
+          <div className="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur px-6 py-4">
+            <div className="flex items-center gap-4">
+
+              {/* LEFT: IDENTITY */}
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-lg">
+                  {lead.client_name?.charAt(0)}
                 </div>
-                {/* ACTIONS */}
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-red-400 text-xs h-7" onClick={archiveLead}>
-                    <Trash2 className="w-3 h-3 mr-1" /> Archive
-                  </Button>
-                  <Button size="sm" className="bg-blue-600 hover:bg-blue-500 text-xs h-7">
-                    Convert to Application <ArrowRight className="w-3 h-3 ml-1" />
-                  </Button>
+                <div>
+                  <h2 className="text-base font-bold text-white">{lead.client_name}</h2>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <Badge variant="outline" className="text-[9px] border-zinc-700 text-zinc-400 px-1.5 py-0">
+                      {lead.pipeline_stage?.replace(/_/g, ' ') || 'New'}
+                    </Badge>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* EDITABLE CONTEXT BAR */}
-            <div className="px-6 py-2 border-t border-zinc-800/50 bg-zinc-900/40 relative">
-              <Edit3 className="absolute left-6 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-600" />
-              <input
-                value={headline}
-                onChange={(e) => setHeadline(e.target.value)}
-                onBlur={saveHeadline}
-                className="w-full border-0 bg-transparent h-8 text-sm text-white placeholder:text-zinc-600 focus:outline-none pl-5 font-medium"
-                placeholder="Add Deal Context / Critical Note (e.g. BMW M4 - Urgent Delivery Friday)"
-              />
-              {headline === "" && getClientSummary() && (
-                <div className="absolute left-11 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-xs text-zinc-600 pointer-events-none">
-                  <Sparkles className="w-3 h-3" /> {getClientSummary()}
+              {/* CENTER: THE BIG EDITABLE HEADLINE */}
+              <div className="flex-1 min-w-0 px-4">
+                <div className="relative">
+                  <input
+                    value={headline}
+                    onChange={(e) => setHeadline(e.target.value)}
+                    onBlur={saveHeadline}
+                    className="w-full text-center text-xl md:text-2xl font-bold bg-transparent border-0 border-b-2 border-transparent hover:border-zinc-700 focus:border-blue-500 focus:outline-none rounded-none px-0 h-12 text-white placeholder:text-zinc-700 transition-all"
+                    placeholder="Add Deal Context (e.g. BMW M4 - Friday Delivery)"
+                  />
+                  {!headline && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <span className="text-xs text-zinc-600 flex items-center gap-1">
+                        <Edit3 className="w-3 h-3" /> Click to add Context
+                      </span>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
+
+              {/* RIGHT: ACTIONS */}
+              <div className="flex items-center gap-2 shrink-0">
+                <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-red-400 text-xs h-7" onClick={archiveLead}>
+                  <Trash2 className="w-3 h-3 mr-1" /> Archive
+                </Button>
+                <Button size="sm" className="bg-blue-600 hover:bg-blue-500 text-xs h-7">
+                  Convert <ArrowRight className="w-3 h-3 ml-1" />
+                </Button>
+              </div>
             </div>
           </div>
 
