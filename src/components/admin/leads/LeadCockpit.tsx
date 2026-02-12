@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   MessageCircle, Phone, Clock, CarFront,
   StickyNote, Bell, CheckCircle2,
-  ArrowRight, Trash2, Edit3
+  ArrowRight, Trash2, Edit3, Sparkles
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, formatDistanceToNow, addDays, setHours, setMinutes, addHours } from "date-fns";
@@ -149,6 +149,16 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
     onUpdate();
   };
 
+  // AI SUMMARY (fallback when no headline is set)
+  const getClientSummary = () => {
+    if (!lead) return "";
+    const parts: string[] = [];
+    if (lead.linkedApp?.vehicles) parts.push(`Wants ${lead.linkedApp.vehicles.year} ${lead.linkedApp.vehicles.model}`);
+    else if (lead.notes) parts.push(`Interest: ${lead.notes.substring(0, 25)}...`);
+    if (lead.trade_in_make_model) parts.push(`• Trade: ${lead.trade_in_make_model}`);
+    return parts.join(" ");
+  };
+
   if (!lead) return null;
 
   return (
@@ -156,31 +166,31 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
       <SheetContent side="right" className="w-full sm:max-w-[95vw] lg:max-w-[85vw] p-0 bg-zinc-950 text-white border-zinc-800 overflow-hidden">
         <div className="flex flex-col h-full">
 
-          {/* --- BIG EDITABLE HEADER --- */}
-          <div className="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur px-6 py-5">
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-[10px] text-zinc-500 uppercase tracking-widest">
-                <Edit3 className="w-3 h-3" /> Deal Title / Important Context
-              </div>
-
-              <input
-                value={headline}
-                onChange={(e) => setHeadline(e.target.value)}
-                onBlur={saveHeadline}
-                className="w-full text-3xl md:text-4xl font-black bg-transparent border-0 border-b border-zinc-700 rounded-none px-0 h-16 focus:outline-none focus:border-blue-500 placeholder:text-zinc-700 text-white truncate"
-                placeholder="Client Name - Car - Important Note"
-              />
-
+          {/* --- HEADER (FIXED & CLEAN) --- */}
+          <div className="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur">
+            <div className="px-6 py-4">
+              {/* IDENTITY (STATIC) */}
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 text-xs text-zinc-400">
-                  <Phone className="w-3 h-3" /> {lead.client_phone}
-                  <span className="text-zinc-600">•</span>
-                  ID: {lead.id_number || 'Missing'}
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-lg shrink-0">
+                    {lead.client_name?.charAt(0)}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-lg font-bold text-white">{lead.client_name}</h2>
+                      <Badge variant="outline" className="text-[10px] border-zinc-700 text-zinc-400">
+                        {lead.pipeline_stage?.replace(/_/g, ' ') || 'New Lead'}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-zinc-400 mt-0.5">
+                      <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {lead.client_phone}</span>
+                      <span className="text-zinc-600">•</span>
+                      <span>ID: {lead.id_number || 'Missing'}</span>
+                    </div>
+                  </div>
                 </div>
+                {/* ACTIONS */}
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-[10px] border-zinc-700 text-zinc-400">
-                    {lead.pipeline_stage?.replace(/_/g, ' ') || 'New Lead'}
-                  </Badge>
                   <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-red-400 text-xs h-7" onClick={archiveLead}>
                     <Trash2 className="w-3 h-3 mr-1" /> Archive
                   </Button>
@@ -189,6 +199,23 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
                   </Button>
                 </div>
               </div>
+            </div>
+
+            {/* EDITABLE CONTEXT BAR */}
+            <div className="px-6 py-2 border-t border-zinc-800/50 bg-zinc-900/40 relative">
+              <Edit3 className="absolute left-6 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-600" />
+              <input
+                value={headline}
+                onChange={(e) => setHeadline(e.target.value)}
+                onBlur={saveHeadline}
+                className="w-full border-0 bg-transparent h-8 text-sm text-white placeholder:text-zinc-600 focus:outline-none pl-5 font-medium"
+                placeholder="Add Deal Context / Critical Note (e.g. BMW M4 - Urgent Delivery Friday)"
+              />
+              {headline === "" && getClientSummary() && (
+                <div className="absolute left-11 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-xs text-zinc-600 pointer-events-none">
+                  <Sparkles className="w-3 h-3" /> {getClientSummary()}
+                </div>
+              )}
             </div>
           </div>
 
