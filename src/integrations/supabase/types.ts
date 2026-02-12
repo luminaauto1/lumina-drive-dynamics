@@ -724,62 +724,92 @@ export type Database = {
       }
       leads: {
         Row: {
+          activity_log: Json | null
           admin_last_viewed_at: string | null
           client_email: string | null
           client_name: string | null
           client_phone: string | null
           created_at: string
+          desired_deposit: number | null
+          desired_term: number | null
           id: string
+          id_number: string | null
           is_archived: boolean | null
           last_activity_at: string | null
           lead_score: number | null
+          lead_temperature: string | null
           next_action_date: string | null
           next_action_note: string | null
+          next_follow_up: string | null
           notes: string | null
           pipeline_stage: string | null
           source: string
           status: string
           status_updated_at: string | null
+          trade_in_estimated_value: number | null
+          trade_in_make_model: string | null
+          trade_in_mileage: number | null
+          trade_in_year: number | null
           updated_at: string
           vehicle_id: string | null
         }
         Insert: {
+          activity_log?: Json | null
           admin_last_viewed_at?: string | null
           client_email?: string | null
           client_name?: string | null
           client_phone?: string | null
           created_at?: string
+          desired_deposit?: number | null
+          desired_term?: number | null
           id?: string
+          id_number?: string | null
           is_archived?: boolean | null
           last_activity_at?: string | null
           lead_score?: number | null
+          lead_temperature?: string | null
           next_action_date?: string | null
           next_action_note?: string | null
+          next_follow_up?: string | null
           notes?: string | null
           pipeline_stage?: string | null
           source?: string
           status?: string
           status_updated_at?: string | null
+          trade_in_estimated_value?: number | null
+          trade_in_make_model?: string | null
+          trade_in_mileage?: number | null
+          trade_in_year?: number | null
           updated_at?: string
           vehicle_id?: string | null
         }
         Update: {
+          activity_log?: Json | null
           admin_last_viewed_at?: string | null
           client_email?: string | null
           client_name?: string | null
           client_phone?: string | null
           created_at?: string
+          desired_deposit?: number | null
+          desired_term?: number | null
           id?: string
+          id_number?: string | null
           is_archived?: boolean | null
           last_activity_at?: string | null
           lead_score?: number | null
+          lead_temperature?: string | null
           next_action_date?: string | null
           next_action_note?: string | null
+          next_follow_up?: string | null
           notes?: string | null
           pipeline_stage?: string | null
           source?: string
           status?: string
           status_updated_at?: string | null
+          trade_in_estimated_value?: number | null
+          trade_in_make_model?: string | null
+          trade_in_mileage?: number | null
+          trade_in_year?: number | null
           updated_at?: string
           vehicle_id?: string | null
         }
