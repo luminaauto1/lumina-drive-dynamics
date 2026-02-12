@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   MessageCircle, Phone, Clock, CarFront,
   StickyNote, Bell, CheckCircle2,
-  ArrowRight, Trash2, Edit3, Sparkles
+  ArrowRight, Trash2, Edit3
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, formatDistanceToNow, addDays, setHours, setMinutes, addHours } from "date-fns";
@@ -59,12 +59,7 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
             linkedApp: appData,
           };
           setLead(fullLead);
-
-          if ((fullLead as any).deal_headline) {
-            setHeadline((fullLead as any).deal_headline);
-          } else {
-            setHeadline("");
-          }
+          setHeadline((fullLead as any).deal_headline || "");
         }
         setLoading(false);
       };
@@ -75,7 +70,7 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
   const saveHeadline = async () => {
     if (!lead) return;
     await supabase.from('leads').update({ deal_headline: headline } as any).eq('id', leadId!);
-    toast.success("Title updated");
+    toast.success("Context saved");
     onUpdate();
   };
 
@@ -145,16 +140,6 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
     onUpdate();
   };
 
-  // AI SUMMARY (fallback when no headline is set)
-  const getClientSummary = () => {
-    if (!lead) return "";
-    const parts: string[] = [];
-    if (lead.linkedApp?.vehicles) parts.push(`Wants ${lead.linkedApp.vehicles.year} ${lead.linkedApp.vehicles.model}`);
-    else if (lead.notes) parts.push(`Interest: ${lead.notes.substring(0, 25)}...`);
-    if (lead.trade_in_make_model) parts.push(`• Trade: ${lead.trade_in_make_model}`);
-    return parts.join(" ");
-  };
-
   if (!lead) return null;
 
   return (
@@ -162,42 +147,42 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
       <SheetContent side="right" className="w-full sm:max-w-[95vw] lg:max-w-[85vw] p-0 bg-zinc-950 text-white border-zinc-800 overflow-hidden">
         <div className="flex flex-col h-full">
 
-          {/* --- HEADER (CENTERED LAYOUT) --- */}
+          {/* --- HEADER --- */}
           <div className="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur px-6 py-4">
             <div className="flex items-center gap-4">
 
-              {/* LEFT: IDENTITY */}
-              <div className="flex items-center gap-3 shrink-0">
-                <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-lg">
+              {/* LEFT: IDENTITY + CONTEXT INPUT */}
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-lg shrink-0">
                   {lead.client_name?.charAt(0)}
                 </div>
-                <div>
-                  <h2 className="text-base font-bold text-white">{lead.client_name}</h2>
-                  <div className="flex items-center gap-1.5 mt-0.5">
+
+                <div className="shrink-0">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base font-bold text-white">{lead.client_name}</h2>
                     <Badge variant="outline" className="text-[9px] border-zinc-700 text-zinc-400 px-1.5 py-0">
                       {lead.pipeline_stage?.replace(/_/g, ' ') || 'New'}
                     </Badge>
                   </div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[10px] text-zinc-500">{lead.client_phone}</span>
+                    {lead.id_number && <span className="text-[10px] text-zinc-600">ID: {lead.id_number}</span>}
+                  </div>
                 </div>
-              </div>
 
-              {/* CENTER: THE BIG EDITABLE HEADLINE */}
-              <div className="flex-1 min-w-0 px-4">
-                <div className="relative">
+                {/* DIVIDER */}
+                <div className="w-px h-8 bg-zinc-800 mx-2 shrink-0" />
+
+                {/* COMPACT CONTEXT INPUT */}
+                <div className="relative flex-1 min-w-0">
+                  <Edit3 className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
                   <input
                     value={headline}
                     onChange={(e) => setHeadline(e.target.value)}
                     onBlur={saveHeadline}
-                    className="w-full text-center text-xl md:text-2xl font-bold bg-transparent border-0 border-b-2 border-transparent hover:border-zinc-700 focus:border-blue-500 focus:outline-none rounded-none px-0 h-12 text-white placeholder:text-zinc-700 transition-all"
-                    placeholder="Add Deal Context (e.g. BMW M4 - Friday Delivery)"
+                    className="pl-8 h-9 w-full text-xs font-medium bg-zinc-950/50 border border-zinc-800 rounded-md text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-900 focus:border-blue-800 px-3"
+                    placeholder="Add Context (e.g. Urgent - BMW M4)"
                   />
-                  {!headline && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <span className="text-xs text-zinc-600 flex items-center gap-1">
-                        <Edit3 className="w-3 h-3" /> Click to add Context
-                      </span>
-                    </div>
-                  )}
                 </div>
               </div>
 
@@ -258,16 +243,16 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
                   <div className="space-y-2">
                     <div>
                       <label className="text-[10px] text-zinc-500 uppercase">Vehicle</label>
-                      <Input value={lead.trade_in_make_model || ''} onBlur={(e) => updateField('trade_in_make_model', e.target.value)} onChange={(e) => setLead((p: any) => ({ ...p, trade_in_make_model: e.target.value }))} className="bg-zinc-950 border-zinc-800 h-10 text-base" placeholder="e.g. 2015 VW Polo" />
+                      <Input value={lead.trade_in_make_model || ''} onBlur={(e) => updateField('trade_in_make_model', e.target.value)} onChange={(e) => setLead((p: any) => ({ ...p, trade_in_make_model: e.target.value }))} className="bg-zinc-950 border-zinc-800 h-8 text-xs" placeholder="e.g. 2015 VW Polo" />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="text-[10px] text-zinc-500 uppercase">Est. Value (R)</label>
-                        <Input value={lead.trade_in_estimated_value || ''} onBlur={(e) => updateField('trade_in_estimated_value', e.target.value)} onChange={(e) => setLead((p: any) => ({ ...p, trade_in_estimated_value: e.target.value }))} className="bg-zinc-950 border-zinc-800 h-10 text-base" />
+                        <Input value={lead.trade_in_estimated_value || ''} onBlur={(e) => updateField('trade_in_estimated_value', e.target.value)} onChange={(e) => setLead((p: any) => ({ ...p, trade_in_estimated_value: e.target.value }))} className="bg-zinc-950 border-zinc-800 h-8 text-xs" />
                       </div>
                       <div>
                         <label className="text-[10px] text-zinc-500 uppercase">Mileage</label>
-                        <Input value={lead.trade_in_mileage || ''} onBlur={(e) => updateField('trade_in_mileage', e.target.value)} onChange={(e) => setLead((p: any) => ({ ...p, trade_in_mileage: e.target.value }))} className="bg-zinc-950 border-zinc-800 h-10 text-base" />
+                        <Input value={lead.trade_in_mileage || ''} onBlur={(e) => updateField('trade_in_mileage', e.target.value)} onChange={(e) => setLead((p: any) => ({ ...p, trade_in_mileage: e.target.value }))} className="bg-zinc-950 border-zinc-800 h-8 text-xs" />
                       </div>
                     </div>
                   </div>
@@ -277,13 +262,13 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
 
                 {/* Identity */}
                 <div className="space-y-2">
-                  <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Identity</h3>
-                  <Input value={lead.client_email || ''} onBlur={(e) => updateField('client_email', e.target.value)} onChange={(e) => setLead((p: any) => ({ ...p, client_email: e.target.value }))} placeholder="Email Address" className="bg-zinc-950 border-zinc-800 h-9 text-xs" />
-                  <Input value={lead.id_number || ''} onBlur={(e) => updateField('id_number', e.target.value)} onChange={(e) => setLead((p: any) => ({ ...p, id_number: e.target.value }))} placeholder="ID Number" className="bg-zinc-950 border-zinc-800 h-9 text-xs" />
+                  <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Client Details</h3>
+                  <Input value={lead.client_email || ''} onBlur={(e) => updateField('client_email', e.target.value)} onChange={(e) => setLead((p: any) => ({ ...p, client_email: e.target.value }))} placeholder="Email" className="bg-zinc-950 border-zinc-800 h-8 text-xs" />
+                  <Input value={lead.id_number || ''} onBlur={(e) => updateField('id_number', e.target.value)} onChange={(e) => setLead((p: any) => ({ ...p, id_number: e.target.value }))} placeholder="ID Number" className="bg-zinc-950 border-zinc-800 h-8 text-xs" />
                   <div>
                     <label className="text-[10px] text-zinc-500 uppercase">Heat Level</label>
                     <Select value={lead.lead_temperature || 'warm'} onValueChange={(v) => updateField('lead_temperature', v)}>
-                      <SelectTrigger className="bg-zinc-950 border-zinc-800 h-9 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="bg-zinc-950 border-zinc-800 h-8 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
                         <SelectItem value="cold">❄️ Cold</SelectItem>
                         <SelectItem value="warm">🟠 Warm</SelectItem>
@@ -301,13 +286,13 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
               {/* Input Zone */}
               <div className="p-4 border-b border-zinc-800 bg-zinc-900/50">
                 <div className="flex gap-1 mb-3">
-                  <Button variant={inputType === 'note' ? 'default' : 'ghost'} size="sm" onClick={() => setInputType('note')} className="h-8 text-xs font-bold px-4">
+                  <Button variant={inputType === 'note' ? 'default' : 'ghost'} size="sm" onClick={() => setInputType('note')} className="h-7 text-xs font-bold px-3">
                     <StickyNote className="w-3 h-3 mr-1" /> Note
                   </Button>
-                  <Button variant={inputType === 'call' ? 'default' : 'ghost'} size="sm" onClick={() => setInputType('call')} className="h-8 text-xs font-bold px-4">
+                  <Button variant={inputType === 'call' ? 'default' : 'ghost'} size="sm" onClick={() => setInputType('call')} className="h-7 text-xs font-bold px-3">
                     <Phone className="w-3 h-3 mr-1" /> Log Call
                   </Button>
-                  <Button variant={inputType === 'reminder' ? 'default' : 'ghost'} size="sm" onClick={() => setInputType('reminder')} className="h-8 text-xs font-bold px-4">
+                  <Button variant={inputType === 'reminder' ? 'default' : 'ghost'} size="sm" onClick={() => setInputType('reminder')} className="h-7 text-xs font-bold px-3">
                     <Bell className="w-3 h-3 mr-1" /> Remind
                   </Button>
                 </div>
@@ -316,31 +301,26 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
                   <Textarea
                     value={noteText}
                     onChange={(e) => setNoteText(e.target.value)}
-                    placeholder={inputType === 'call' ? "Log call outcome..." : inputType === 'reminder' ? "What should I remind you about?" : "Add an internal note..."}
-                    className="min-h-[120px] bg-zinc-950 border-zinc-800 text-lg resize-none focus-visible:ring-blue-600 p-4 pb-14"
+                    placeholder={inputType === 'call' ? "Log call outcome..." : inputType === 'reminder' ? "What should I remind you about?" : "Add internal note..."}
+                    className="min-h-[100px] bg-zinc-950 border-zinc-800 text-sm resize-none focus-visible:ring-blue-600 p-4 pb-12"
                     onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addActivity(); } }}
                   />
-                  <div className="absolute bottom-3 right-3 flex items-center gap-3">
+                  <div className="absolute bottom-3 right-3 flex items-center gap-2">
                     {inputType === 'reminder' && (
-                      <div className="flex items-center gap-2 bg-zinc-900 p-1 rounded border border-zinc-700">
-                        <Clock className="w-3 h-3 text-yellow-500 ml-1" />
-                        <Select value={reminderPreset} onValueChange={setReminderPreset}>
-                          <SelectTrigger className="h-6 w-[140px] border-0 bg-transparent text-[10px] focus:ring-0 p-0 px-2">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
-                            <SelectItem value="1hr">In 1 Hour</SelectItem>
-                            <SelectItem value="3hr">In 3 Hours</SelectItem>
-                            <SelectItem value="tomorrow_9">Tomorrow Morning (09:00)</SelectItem>
-                            <SelectItem value="tomorrow_14">Tomorrow Afternoon (14:00)</SelectItem>
-                            <SelectItem value="2days">In 2 Days</SelectItem>
-                            <SelectItem value="next_week">Next Week</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      <Select value={reminderPreset} onValueChange={setReminderPreset}>
+                        <SelectTrigger className="h-6 w-[120px] bg-zinc-900 border-zinc-700 text-[10px]"><SelectValue /></SelectTrigger>
+                        <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+                          <SelectItem value="1hr">In 1 Hour</SelectItem>
+                          <SelectItem value="3hr">In 3 Hours</SelectItem>
+                          <SelectItem value="tomorrow_9">Tomorrow 09:00</SelectItem>
+                          <SelectItem value="tomorrow_14">Tomorrow 14:00</SelectItem>
+                          <SelectItem value="2days">In 2 Days</SelectItem>
+                          <SelectItem value="next_week">Next Week</SelectItem>
+                        </SelectContent>
+                      </Select>
                     )}
-                    <Button size="sm" className="bg-blue-600 hover:bg-blue-500 h-8 px-4 font-bold" onClick={addActivity}>
-                      Save Entry
+                    <Button size="sm" className="bg-blue-600 hover:bg-blue-500 h-7 text-xs font-bold" onClick={addActivity}>
+                      Save
                     </Button>
                   </div>
                 </div>
@@ -355,7 +335,7 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
                     return (
                       <div key={log.id || idx} className="flex gap-4 group">
                         <div className={`mt-1.5 w-2.5 h-2.5 rounded-full shrink-0 ${isCall ? 'bg-green-500' : isReminder ? 'bg-yellow-500' : 'bg-blue-500'}`} />
-                        <div className="flex-1 pb-6 border-b border-zinc-900 last:border-0">
+                        <div className="flex-1 pb-4 border-b border-zinc-900 last:border-0">
                           <div className="flex justify-between mb-1">
                             <div className="flex items-center gap-2">
                               <span className={`text-xs font-bold uppercase ${isCall ? 'text-green-400' : isReminder ? 'text-yellow-400' : 'text-blue-400'}`}>
@@ -367,7 +347,7 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
                               {formatDistanceToNow(new Date(log.date), { addSuffix: true })}
                             </span>
                           </div>
-                          <p className="text-base text-zinc-300 whitespace-pre-wrap leading-relaxed">{log.text}</p>
+                          <p className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">{log.text}</p>
                           {isReminder && log.reminderDue && (
                             <div className="mt-2 flex items-center gap-3">
                               <Badge variant="outline" className={`border-zinc-700 ${log.isCompleted ? 'text-green-500 bg-green-950/20' : 'text-yellow-500 bg-yellow-950/20'}`}>
@@ -385,7 +365,7 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
                       </div>
                     );
                   })}
-                  <div className="text-center text-xs text-zinc-600 italic pt-10">
+                  <div className="text-center text-xs text-zinc-700 pt-8">
                     {lead.created_at ? `Lead created ${format(new Date(lead.created_at), "MMM d, yyyy")}` : 'Start of history'}
                   </div>
                 </div>
