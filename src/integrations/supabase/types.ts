@@ -200,6 +200,7 @@ export type Database = {
           dealer_deposit_contribution: number | null
           delivery_address: string | null
           delivery_date: string | null
+          delivery_photos: string[] | null
           dic_amount: number | null
           discount_amount: number | null
           external_admin_fee: number | null
@@ -236,6 +237,7 @@ export type Database = {
           dealer_deposit_contribution?: number | null
           delivery_address?: string | null
           delivery_date?: string | null
+          delivery_photos?: string[] | null
           dic_amount?: number | null
           discount_amount?: number | null
           external_admin_fee?: number | null
@@ -272,6 +274,7 @@ export type Database = {
           dealer_deposit_contribution?: number | null
           delivery_address?: string | null
           delivery_date?: string | null
+          delivery_photos?: string[] | null
           dic_amount?: number | null
           discount_amount?: number | null
           external_admin_fee?: number | null

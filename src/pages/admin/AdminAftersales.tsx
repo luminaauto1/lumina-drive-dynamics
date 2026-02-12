@@ -27,6 +27,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatPrice } from '@/hooks/useVehicles';
 import { toast } from 'sonner';
 import { DealAddOnItem } from '@/hooks/useDealRecords';
+import { HandoverSetupModal } from '@/components/admin/HandoverSetupModal';
 
 interface DealRecord {
   id: string;
@@ -1306,6 +1307,7 @@ const AdminAftersales = () => {
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
+                          <HandoverSetupModal dealId={deal.id} currentPhotos={(deal as any).delivery_photos || []} />
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button
