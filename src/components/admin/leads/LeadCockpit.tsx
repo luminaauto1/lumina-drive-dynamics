@@ -149,15 +149,14 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
 
           {/* --- HEADER --- */}
           <div className="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur px-6 py-4">
-            <div className="flex items-center gap-4">
+            <div className="flex items-start gap-4">
 
-              {/* LEFT: IDENTITY + CONTEXT INPUT */}
-              <div className="flex items-center gap-3 flex-1 min-w-0">
+              {/* LEFT: IDENTITY */}
+              <div className="flex items-center gap-3 shrink-0">
                 <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-lg shrink-0">
                   {lead.client_name?.charAt(0)}
                 </div>
-
-                <div className="shrink-0">
+                <div>
                   <div className="flex items-center gap-2">
                     <h2 className="text-base font-bold text-white">{lead.client_name}</h2>
                     <Badge variant="outline" className="text-[9px] border-zinc-700 text-zinc-400 px-1.5 py-0">
@@ -169,21 +168,23 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
                     {lead.id_number && <span className="text-[10px] text-zinc-600">ID: {lead.id_number}</span>}
                   </div>
                 </div>
+              </div>
 
-                {/* DIVIDER */}
-                <div className="w-px h-8 bg-zinc-800 mx-2 shrink-0" />
+              {/* DIVIDER */}
+              <div className="w-px self-stretch bg-zinc-800 mx-2 shrink-0" />
 
-                {/* COMPACT CONTEXT INPUT */}
-                <div className="relative flex-1 min-w-0">
-                  <Edit3 className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
-                  <input
-                    value={headline}
-                    onChange={(e) => setHeadline(e.target.value)}
-                    onBlur={saveHeadline}
-                    className="pl-8 h-9 w-full text-xs font-medium bg-zinc-950/50 border border-zinc-800 rounded-md text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-900 focus:border-blue-800 px-3"
-                    placeholder="Add Context (e.g. Urgent - BMW M4)"
-                  />
-                </div>
+              {/* CENTER: WRAPPABLE TEXTAREA */}
+              <div className="relative flex-1 min-w-0">
+                <Edit3 className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-zinc-600 pointer-events-none" />
+                <textarea
+                  value={headline}
+                  onChange={(e) => setHeadline(e.target.value)}
+                  onBlur={saveHeadline}
+                  rows={1}
+                  className="pl-8 pr-3 py-2 min-h-[2.5rem] w-full text-xs font-medium bg-zinc-950/50 border border-zinc-800 rounded-md text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-900 focus:border-blue-800 resize-none leading-snug break-words"
+                  placeholder="Add Context (e.g. Urgent - BMW M4 - Needs delivery by Friday)"
+                  style={{ fieldSizing: 'content' } as React.CSSProperties}
+                />
               </div>
 
               {/* RIGHT: ACTIONS */}
@@ -191,7 +192,7 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
                 <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-red-400 text-xs h-7" onClick={archiveLead}>
                   <Trash2 className="w-3 h-3 mr-1" /> Archive
                 </Button>
-                <Button size="sm" className="bg-blue-600 hover:bg-blue-500 text-xs h-7">
+                <Button size="sm" className="bg-blue-600 hover:bg-blue-500 text-xs h-7 whitespace-nowrap">
                   Convert <ArrowRight className="w-3 h-3 ml-1" />
                 </Button>
               </div>
@@ -199,22 +200,19 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
           </div>
 
           {/* --- MAIN GRID --- */}
-          <div className="flex-1 flex overflow-hidden">
+          <div className="flex-1 grid grid-cols-1 md:grid-cols-12 overflow-hidden">
 
-            {/* COL 1: IDENTITY & VEHICLE (40%) */}
-            <div className="w-[40%] border-r border-zinc-800 overflow-y-auto">
+            {/* COL 1: DATA (40%) */}
+            <div className="md:col-span-5 border-r border-zinc-800 bg-zinc-900/10 overflow-y-auto">
               <div className="p-5 space-y-5">
 
                 {/* Contact Actions */}
-                <div className="flex flex-col gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <Button variant="outline" size="sm" className="justify-start border-zinc-800 text-emerald-400 hover:bg-emerald-950/30 text-xs h-8" onClick={() => openWhatsApp('intro')}>
-                    <MessageCircle className="w-3.5 h-3.5 mr-2" /> WhatsApp Intro
-                  </Button>
-                  <Button variant="outline" size="sm" className="justify-start border-zinc-800 text-emerald-400 hover:bg-emerald-950/30 text-xs h-8" onClick={() => openWhatsApp('docs')}>
-                    <MessageCircle className="w-3.5 h-3.5 mr-2" /> Request Docs
+                    <MessageCircle className="w-3.5 h-3.5 mr-2" /> WhatsApp
                   </Button>
                   <Button variant="outline" size="sm" className="justify-start border-zinc-800 text-blue-400 hover:bg-blue-950/30 text-xs h-8" onClick={() => window.open(`tel:${lead.client_phone}`)}>
-                    <Phone className="w-3.5 h-3.5 mr-2" /> Call {lead.client_phone}
+                    <Phone className="w-3.5 h-3.5 mr-2" /> Call
                   </Button>
                 </div>
 
@@ -222,24 +220,26 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
 
                 {/* Vehicle Interest */}
                 <div className="space-y-3">
-                  <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest border-b border-zinc-800 pb-2 flex items-center gap-1.5">
                     <CarFront className="w-3.5 h-3.5" /> Vehicle Interest
                   </h3>
-                  {lead.linkedApp?.vehicles ? (
-                    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
-                      <p className="text-sm font-bold">{lead.linkedApp.vehicles.year} {lead.linkedApp.vehicles.make} {lead.linkedApp.vehicles.model}</p>
-                      <p className="text-[10px] text-zinc-500 mt-0.5">{lead.linkedApp.vehicles.registration_number || 'No reg #'}</p>
-                    </div>
-                  ) : (
-                    <div className="text-xs text-zinc-600 italic">No vehicle linked</div>
-                  )}
+                  <div className="bg-black/40 p-3 rounded border border-zinc-800">
+                    {lead.linkedApp?.vehicles ? (
+                      <div>
+                        <p className="text-sm font-bold text-white">{lead.linkedApp.vehicles.year} {lead.linkedApp.vehicles.make} {lead.linkedApp.vehicles.model}</p>
+                        <p className="text-[10px] text-zinc-500 font-mono mt-1">{lead.linkedApp.vehicles.registration_number || 'No reg #'}</p>
+                      </div>
+                    ) : (
+                      <div className="text-xs text-zinc-600 italic">No vehicle linked</div>
+                    )}
+                  </div>
                 </div>
 
                 <Separator className="bg-zinc-800" />
 
                 {/* Trade-In */}
                 <div className="space-y-3">
-                  <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Trade-In</h3>
+                  <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest border-b border-zinc-800 pb-2">Trade-In</h3>
                   <div className="space-y-2">
                     <div>
                       <label className="text-[10px] text-zinc-500 uppercase">Vehicle</label>
@@ -260,9 +260,9 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
 
                 <Separator className="bg-zinc-800" />
 
-                {/* Identity */}
+                {/* Client Details */}
                 <div className="space-y-2">
-                  <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Client Details</h3>
+                  <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest border-b border-zinc-800 pb-2">Client Details</h3>
                   <Input value={lead.client_email || ''} onBlur={(e) => updateField('client_email', e.target.value)} onChange={(e) => setLead((p: any) => ({ ...p, client_email: e.target.value }))} placeholder="Email" className="bg-zinc-950 border-zinc-800 h-8 text-xs" />
                   <Input value={lead.id_number || ''} onBlur={(e) => updateField('id_number', e.target.value)} onChange={(e) => setLead((p: any) => ({ ...p, id_number: e.target.value }))} placeholder="ID Number" className="bg-zinc-950 border-zinc-800 h-8 text-xs" />
                   <div>
@@ -281,7 +281,7 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
             </div>
 
             {/* COL 2: THE BRAIN (60%) */}
-            <div className="flex-1 flex flex-col bg-zinc-950">
+            <div className="md:col-span-7 flex flex-col bg-zinc-950">
 
               {/* Input Zone */}
               <div className="p-4 border-b border-zinc-800 bg-zinc-900/50">
