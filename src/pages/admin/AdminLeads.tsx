@@ -116,11 +116,12 @@ const AdminLeads = () => {
 
     const { data: apps } = await supabase
       .from('finance_applications')
-      .select('id, user_id, status, full_name, email, vehicle_id, selected_vehicle:vehicles!finance_applications_selected_vehicle_id_fkey(make, model, year)');
+      .select('id, user_id, status, full_name, email, phone, vehicle_id, selected_vehicle:vehicles!finance_applications_selected_vehicle_id_fkey(make, model, year, vin, registration_number)');
 
     const merged: MergedLead[] = (leadData || []).map((lead: any) => {
       const app = apps?.find(a =>
-        lead.client_email && a.email && lead.client_email.toLowerCase() === a.email.toLowerCase()
+        (lead.client_email && a.email && lead.client_email.toLowerCase() === a.email.toLowerCase()) ||
+        (lead.client_phone && a.phone && lead.client_phone.replace(/\D/g, '') === a.phone.replace(/\D/g, ''))
       );
 
       let displayStatus = lead.pipeline_stage || 'new';
