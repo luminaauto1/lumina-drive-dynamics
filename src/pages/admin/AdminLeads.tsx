@@ -11,7 +11,7 @@ import { Archive, MessageCircle, Phone, RefreshCw, UserPlus, Loader2, GripVertic
 import { formatDistanceToNow, isToday } from "date-fns";
 import { toast } from "sonner";
 import AdminLayout from "@/components/admin/AdminLayout";
-import LeadEditModal from "@/components/admin/leads/LeadEditModal";
+import { LeadCockpit } from "@/components/admin/leads/LeadCockpit";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 
 const COLUMNS = [
@@ -68,8 +68,7 @@ const AdminLeads = () => {
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [editLead, setEditLead] = useState<MergedLead | null>(null);
-  const [editOpen, setEditOpen] = useState(false);
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
 
   // Manual Add State
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -208,8 +207,7 @@ const AdminLeads = () => {
 
   const handleEdit = (lead: MergedLead) => {
     markAsViewed(lead.id);
-    setEditLead(lead);
-    setEditOpen(true);
+    setSelectedLeadId(lead.id);
   };
 
   // SEARCH FILTER
@@ -425,11 +423,11 @@ const AdminLeads = () => {
         </DragDropContext>
       </div>
 
-      <LeadEditModal
-        lead={editLead as any}
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        onSaved={fetchLeads}
+      <LeadCockpit
+        leadId={selectedLeadId}
+        isOpen={!!selectedLeadId}
+        onClose={() => setSelectedLeadId(null)}
+        onUpdate={fetchLeads}
       />
     </AdminLayout>
   );
