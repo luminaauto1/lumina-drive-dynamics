@@ -302,11 +302,15 @@ const AdminFinance = () => {
                   const noLicense = (app as any).has_drivers_license === false;
                   const badCredit = ['bad', 'blacklisted'].includes((app as any).credit_score_status || '');
                   const hasWarning = lowSalary || noLicense || badCredit;
+
+                  // Freshness & stagnation
+                  const isNew = (Date.now() - new Date(app.created_at).getTime()) < (24 * 60 * 60 * 1000);
+                  const isStagnant = (Date.now() - new Date(app.updated_at || app.created_at).getTime()) > (72 * 60 * 60 * 1000);
                   
                   return (
                   <TableRow 
                     key={app.id} 
-                    className="border-white/10 hover:bg-white/5 cursor-pointer"
+                    className={`border-white/10 hover:bg-white/5 cursor-pointer ${isNew ? 'bg-emerald-500/5' : ''} ${isStagnant ? 'bg-orange-500/5' : ''}`}
                     onClick={() => navigate(`/admin/finance/${app.id}`)}
                   >
                     <TableCell>
@@ -315,6 +319,16 @@ const AdminFinance = () => {
                           <p className="font-medium">{app.first_name} {app.last_name}</p>
                           <p className="text-xs text-muted-foreground">{app.email}</p>
                         </div>
+                        {isNew && (
+                          <span className="px-1.5 py-0.5 text-[10px] uppercase font-bold rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse">
+                            🔥 NEW
+                          </span>
+                        )}
+                        {isStagnant && !isNew && (
+                          <span className="px-1.5 py-0.5 text-[10px] uppercase font-bold rounded bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                            ⏳ STALE
+                          </span>
+                        )}
                         {hasWarning && (
                           <span className="px-1.5 py-0.5 text-[10px] uppercase font-bold rounded bg-red-500/20 text-red-400 border border-red-500/30">
                             ⚠ RISK

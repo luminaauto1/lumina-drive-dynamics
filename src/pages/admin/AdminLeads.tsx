@@ -6,9 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Archive, MessageCircle, Phone, RefreshCw, Inbox, AlertTriangle, UserPlus, Loader2, GripVertical } from "lucide-react";
+import { Archive, MessageCircle, Phone, RefreshCw, UserPlus, Loader2, GripVertical, Search, Clock } from "lucide-react";
 import { formatDistanceToNow, isToday } from "date-fns";
 import { toast } from "sonner";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -68,6 +67,7 @@ const AdminLeads = () => {
   const [leads, setLeads] = useState<MergedLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [editLead, setEditLead] = useState<MergedLead | null>(null);
   const [editOpen, setEditOpen] = useState(false);
 
@@ -105,7 +105,7 @@ const AdminLeads = () => {
         else if (app.status === 'validations_pending') displayStatus = 'validation_pending';
         else if (app.status === 'approved') displayStatus = 'pre_approved';
         else if (app.status === 'submitted_to_banks') displayStatus = 'app_submitted';
-        else displayStatus = 'app_received';
+        else if (displayStatus === 'new' || displayStatus === 'actioned') displayStatus = 'app_received';
       }
 
       return {
@@ -126,23 +126,26 @@ const AdminLeads = () => {
 
   useEffect(() => {
     fetchLeads();
-    const interval = setInterval(fetchLeads, 30_000);
-    return () => clearInterval(interval);
+    // No aggressive auto-refresh — manual only
   }, [fetchLeads]);
 
-  // DRAG AND DROP
+  // STABLE DRAG AND DROP
   const onDragEnd = async (result: DropResult) => {
     const { destination, source, draggableId } = result;
     if (!destination) return;
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
 
     const newStage = destination.droppableId;
-    const lead = leads.find(l => l.id === draggableId);
-    if (!lead) return;
+    const leadIndex = leads.findIndex(l => l.id === draggableId);
+    if (leadIndex === -1) return;
+    const lead = leads[leadIndex];
 
-    // Optimistic update
-    setLeads(prev => prev.map(l => l.id === draggableId ? { ...l, displayStatus: newStage } : l));
+    // A. OPTIMISTIC UPDATE
+    const updatedLeads = [...leads];
+    updatedLeads[leadIndex] = { ...lead, displayStatus: newStage };
+    setLeads(updatedLeads);
 
+    // B. DATABASE UPDATE (fire and forget, revert on error)
     try {
       await supabase.from('leads').update({
         pipeline_stage: newStage,
@@ -156,10 +159,8 @@ const AdminLeads = () => {
       } else {
         toast.success(`Lead moved to ${newStage.replace(/_/g, ' ')}`);
       }
-
-      setTimeout(fetchLeads, 1000);
     } catch {
-      toast.error('Move failed');
+      toast.error('Move failed — reverting');
       fetchLeads();
     }
   };
@@ -196,26 +197,32 @@ const AdminLeads = () => {
   // ACTIONS
   const markAsViewed = async (leadId: string) => {
     await supabase.from('leads').update({ admin_last_viewed_at: new Date().toISOString() }).eq('id', leadId);
-    fetchLeads();
   };
 
   const archiveLead = async (leadId: string) => {
+    // Optimistic remove
+    setLeads(prev => prev.filter(l => l.id !== leadId));
     await supabase.from('leads').update({ is_archived: true }).eq('id', leadId);
     toast.success('Lead archived');
-    fetchLeads();
   };
 
   const handleEdit = (lead: MergedLead) => {
+    markAsViewed(lead.id);
     setEditLead(lead);
     setEditOpen(true);
   };
 
-  const todayLeads = leads.filter(l => isToday(new Date(l.created_at))).length;
-  const needsAttentionCount = leads.filter(l => {
-    const lastUpdate = new Date(l.status_updated_at || l.created_at).getTime();
-    const lastView = new Date(l.admin_last_viewed_at || 0).getTime();
-    return lastUpdate > lastView;
-  }).length;
+  // SEARCH FILTER
+  const filteredLeads = leads.filter(l => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      l.client_name?.toLowerCase().includes(q) ||
+      l.client_phone?.includes(q) ||
+      l.client_email?.toLowerCase().includes(q) ||
+      l.source?.toLowerCase().includes(q)
+    );
+  });
 
   return (
     <AdminLayout>
@@ -229,17 +236,19 @@ const AdminLeads = () => {
         <div className="flex items-center justify-between px-6 py-3 border-b border-border shrink-0 flex-wrap gap-2">
           <div>
             <h1 className="text-xl font-bold">Pipeline Command</h1>
-            <p className="text-xs text-muted-foreground">Drag cards to move • Auto-syncs with Finance Apps • Refreshes every 30s</p>
+            <p className="text-xs text-muted-foreground">Drag cards to move • Auto-syncs with Finance Apps • Click Refresh to update</p>
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
-            <div className="hidden md:flex items-center gap-2 text-sm">
-              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 text-red-400 font-medium">
-                <Inbox className="w-3.5 h-3.5" /> New Today: {todayLeads}
-              </span>
-              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-yellow-500/10 text-yellow-400 font-medium">
-                <AlertTriangle className="w-3.5 h-3.5" /> Needs Attention: {needsAttentionCount}
-              </span>
+            {/* SEARCH */}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Search leads..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="pl-8 h-8 w-48 text-sm"
+              />
             </div>
 
             {/* ADD LEAD DIALOG */}
@@ -291,7 +300,7 @@ const AdminLeads = () => {
           <div className="flex-1 overflow-x-auto overflow-y-hidden p-4">
             <div className="flex gap-4 h-full min-w-max">
               {COLUMNS.map(col => {
-                const columnLeads = leads.filter(l => l.displayStatus === col.id);
+                const columnLeads = filteredLeads.filter(l => l.displayStatus === col.id);
                 return (
                   <div key={col.id} className={`w-[280px] flex flex-col rounded-xl bg-muted/30 border border-border border-t-4 ${col.color}`}>
                     <div className={`flex items-center justify-between px-3 py-2 ${col.headerBg} rounded-t-lg`}>
@@ -312,6 +321,8 @@ const AdminLeads = () => {
                             const lastUpdate = new Date(lead.status_updated_at || lead.created_at).getTime();
                             const lastView = new Date(lead.admin_last_viewed_at || 0).getTime();
                             const needsAttention = lastUpdate > lastView;
+                            const isFresh = isToday(new Date(lead.created_at));
+                            const isStagnant = (Date.now() - new Date(lead.status_updated_at || lead.created_at).getTime()) > (3 * 24 * 60 * 60 * 1000);
 
                             const vehicleLabel = lead.appDetails?.vehicles
                               ? `${lead.appDetails.vehicles.year} ${lead.appDetails.vehicles.make} ${lead.appDetails.vehicles.model}`
@@ -325,7 +336,7 @@ const AdminLeads = () => {
                                   <Card
                                     ref={provided.innerRef}
                                     {...provided.draggableProps}
-                                    onClick={() => { markAsViewed(lead.id); handleEdit(lead); }}
+                                    onClick={() => handleEdit(lead)}
                                     className={`p-3 relative group transition-all cursor-pointer border-l-4 ${needsAttention ? 'border-l-red-500 bg-red-500/5 hover:bg-red-500/10' : 'border-l-blue-500 bg-card hover:bg-accent/50'} ${snapshot.isDragging ? 'shadow-lg ring-2 ring-primary/30' : ''}`}
                                   >
                                     {/* Drag Handle */}
@@ -333,11 +344,20 @@ const AdminLeads = () => {
                                       <GripVertical className="w-3.5 h-3.5 text-muted-foreground" />
                                     </div>
 
-                                    {needsAttention && (
-                                      <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-                                    )}
+                                    {/* Badges */}
+                                    <div className="absolute top-2 right-2 flex items-center gap-1">
+                                      {isFresh && (
+                                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400">NEW</span>
+                                      )}
+                                      {isStagnant && !isFresh && (
+                                        <span title="Stagnant > 3 days"><Clock className="w-3 h-3 text-orange-400" /></span>
+                                      )}
+                                      {needsAttention && (
+                                        <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+                                      )}
+                                    </div>
 
-                                    <div className="mb-1.5 ml-3">
+                                    <div className="mb-1.5 ml-3 mr-12">
                                       <p className="font-semibold text-sm truncate">{lead.client_name || 'Unknown Lead'}</p>
                                       {vehicleLabel && (
                                         <p className="text-xs text-muted-foreground mt-0.5">{vehicleLabel}</p>
