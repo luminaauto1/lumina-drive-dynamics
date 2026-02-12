@@ -724,11 +724,13 @@ export type Database = {
       }
       leads: {
         Row: {
+          admin_last_viewed_at: string | null
           client_email: string | null
           client_name: string | null
           client_phone: string | null
           created_at: string
           id: string
+          is_archived: boolean | null
           last_activity_at: string | null
           lead_score: number | null
           next_action_date: string | null
@@ -737,15 +739,18 @@ export type Database = {
           pipeline_stage: string | null
           source: string
           status: string
+          status_updated_at: string | null
           updated_at: string
           vehicle_id: string | null
         }
         Insert: {
+          admin_last_viewed_at?: string | null
           client_email?: string | null
           client_name?: string | null
           client_phone?: string | null
           created_at?: string
           id?: string
+          is_archived?: boolean | null
           last_activity_at?: string | null
           lead_score?: number | null
           next_action_date?: string | null
@@ -754,15 +759,18 @@ export type Database = {
           pipeline_stage?: string | null
           source?: string
           status?: string
+          status_updated_at?: string | null
           updated_at?: string
           vehicle_id?: string | null
         }
         Update: {
+          admin_last_viewed_at?: string | null
           client_email?: string | null
           client_name?: string | null
           client_phone?: string | null
           created_at?: string
           id?: string
+          is_archived?: boolean | null
           last_activity_at?: string | null
           lead_score?: number | null
           next_action_date?: string | null
@@ -771,6 +779,7 @@ export type Database = {
           pipeline_stage?: string | null
           source?: string
           status?: string
+          status_updated_at?: string | null
           updated_at?: string
           vehicle_id?: string | null
         }
