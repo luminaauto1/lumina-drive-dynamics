@@ -397,6 +397,29 @@ const getServiceStatus = (saleDate: string) => {
   return { serviceStatus, tradeInStatus, daysUntilNextService, daysUntil3Year, years };
 };
 
+const getVehicleHealthStatus = (saleDateString: string | null) => {
+  if (!saleDateString) return { label: "No Sale Date", color: "text-muted-foreground", bg: "bg-muted/30" };
+
+  const saleDate = new Date(saleDateString);
+  const now = new Date();
+  const diffTime = Math.abs(now.getTime() - saleDate.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  const yearCycle = 365;
+  const daysIntoCycle = diffDays % yearCycle;
+  const yearsOwned = Math.floor(diffDays / yearCycle);
+
+  if (diffDays < 60) {
+    return { label: "Recently Sold", color: "text-emerald-500", bg: "bg-emerald-500/10" };
+  }
+  
+  if (daysIntoCycle > 330 || (daysIntoCycle < 30 && yearsOwned > 0)) {
+    return { label: "Service Due Soon", color: "text-yellow-500", bg: "bg-yellow-500/10" };
+  }
+  
+  return { label: "Vehicle Healthy", color: "text-blue-500", bg: "bg-blue-500/10" };
+};
+
 const StatusBadge = ({ status, label }: { status: 'ok' | 'due_soon' | 'overdue'; label: string }) => {
   if (status === 'ok') return null;
   
@@ -1161,6 +1184,7 @@ const AdminAftersales = () => {
                   <TableHead className="text-muted-foreground">Client & Vehicle</TableHead>
                   <TableHead className="text-muted-foreground">Sold Price</TableHead>
                   <TableHead className="text-muted-foreground">Net Profit</TableHead>
+                  <TableHead className="text-muted-foreground">Health</TableHead>
                   <TableHead className="text-muted-foreground">Status / Date</TableHead>
                   <TableHead className="text-muted-foreground text-right">Actions</TableHead>
                 </TableRow>
@@ -1225,6 +1249,16 @@ const AdminAftersales = () => {
                             </p>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const healthStatus = getVehicleHealthStatus(deal.sale_date);
+                          return (
+                            <span className={`px-2 py-1 rounded text-xs font-bold ${healthStatus.bg} ${healthStatus.color}`}>
+                              {healthStatus.label}
+                            </span>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <div>
