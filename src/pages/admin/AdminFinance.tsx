@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Search, MessageCircle, ExternalLink, Trash2, Archive, UserPlus, Copy, Link, ClipboardList, Banknote } from 'lucide-react';
+import { Search, MessageCircle, ExternalLink, Trash2, Archive, UserPlus, Copy, Link, ClipboardList, Banknote, Calculator } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -179,6 +179,10 @@ const AdminFinance = () => {
             <Button variant="outline" onClick={() => setCashDealModalOpen(true)} className="w-fit">
               <Banknote className="w-4 h-4 mr-2" />
               Cash Deal
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/admin/quotes')} className="w-fit">
+              <Calculator className="w-4 h-4 mr-2" />
+              Quote Generator
             </Button>
             <Button onClick={() => navigate('/admin/finance/create')} className="w-fit">
               <UserPlus className="w-4 h-4 mr-2" />
