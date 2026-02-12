@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   MessageCircle, Phone, Clock, CarFront,
   StickyNote, Bell, CheckCircle2,
-  ArrowRight, Trash2, Edit3
+  ArrowRight, Trash2, Edit3, ChevronDown
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, formatDistanceToNow, addDays, setHours, setMinutes, addHours } from "date-fns";
@@ -223,8 +223,9 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
                     <h2 className="text-base font-bold text-white">{lead.client_name}</h2>
                     {/* STATUS DROPDOWN */}
                     <Select value={currentStatus} onValueChange={updateStatus}>
-                      <SelectTrigger className={`h-6 text-[10px] font-bold uppercase border rounded-full px-2.5 py-0 w-auto gap-1 ${getStatusStyle(currentStatus)}`}>
-                        <SelectValue />
+                      <SelectTrigger className={`h-6 text-[10px] font-bold uppercase border rounded-full px-2.5 py-0.5 w-auto gap-1 inline-flex items-center justify-center ${getStatusStyle(currentStatus)}`}>
+                        <span className="leading-none">{currentStatus.replace(/_/g, ' ')}</span>
+                        <ChevronDown className="w-3 h-3 shrink-0 opacity-70" />
                       </SelectTrigger>
                       <SelectContent className="bg-zinc-900 border-zinc-700 text-white z-[9999]">
                         {STATUS_OPTIONS.map((opt) => (
