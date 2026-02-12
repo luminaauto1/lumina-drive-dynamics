@@ -733,6 +733,7 @@ export type Database = {
           client_name: string | null
           client_phone: string | null
           created_at: string
+          deal_headline: string | null
           desired_deposit: number | null
           desired_term: number | null
           id: string
@@ -763,6 +764,7 @@ export type Database = {
           client_name?: string | null
           client_phone?: string | null
           created_at?: string
+          deal_headline?: string | null
           desired_deposit?: number | null
           desired_term?: number | null
           id?: string
@@ -793,6 +795,7 @@ export type Database = {
           client_name?: string | null
           client_phone?: string | null
           created_at?: string
+          deal_headline?: string | null
           desired_deposit?: number | null
           desired_term?: number | null
           id?: string
