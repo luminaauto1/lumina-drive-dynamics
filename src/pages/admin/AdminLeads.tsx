@@ -1,5 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
-import { Helmet } from "react-helmet-async";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,86 +6,73 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Archive, MessageCircle, Phone, RefreshCw, UserPlus, Loader2, GripVertical, Search, Clock } from "lucide-react";
-import { formatDistanceToNow, isToday } from "date-fns";
+import { MessageCircle, Clock, UserPlus, Loader2, GripVertical, Search, AlertTriangle, RefreshCw, Archive } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { LeadCockpit } from "@/components/admin/leads/LeadCockpit";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
+import { LeadCockpit } from "@/components/admin/leads/LeadCockpit";
 
 const COLUMNS = [
-  { id: 'new', label: '📥 Inbox', color: 'border-t-red-500', headerBg: 'bg-red-500/10 text-red-400' },
-  { id: 'actioned', label: '🗣️ Actioned', color: 'border-t-blue-500', headerBg: 'bg-blue-500/10 text-blue-400' },
-  { id: 'docs_processing', label: '📝 Docs / Processing', color: 'border-t-purple-500', headerBg: 'bg-purple-500/10 text-purple-400' },
-  { id: 'submitted', label: '📤 Submitted to Banks', color: 'border-t-indigo-500', headerBg: 'bg-indigo-500/10 text-indigo-400' },
-  { id: 'approved', label: '✅ Finance Approved', color: 'border-t-yellow-500', headerBg: 'bg-yellow-500/10 text-yellow-400' },
-  { id: 'validations', label: '⏳ Validations', color: 'border-t-orange-500', headerBg: 'bg-orange-500/10 text-orange-400' },
-  { id: 'validated', label: '🏁 Validated', color: 'border-t-emerald-500', headerBg: 'bg-emerald-500/10 text-emerald-400' },
-  { id: 'contract', label: '📄 Contract / Closing', color: 'border-t-cyan-500', headerBg: 'bg-cyan-500/10 text-cyan-400' },
-  { id: 'delivery', label: '🚗 Delivery / Handover', color: 'border-t-green-600', headerBg: 'bg-green-600/10 text-green-400' },
+  { id: 'new', label: 'Inbox', color: 'border-zinc-700' },
+  { id: 'actioned', label: 'Actioned', color: 'border-blue-500' },
+  { id: 'docs_processing', label: 'Docs / Processing', color: 'border-purple-500' },
+  { id: 'submitted', label: 'Submitted to Banks', color: 'border-indigo-500' },
+  { id: 'approved', label: 'Finance Approved', color: 'border-yellow-500' },
+  { id: 'validations', label: 'Validations', color: 'border-orange-500' },
+  { id: 'validated', label: 'Validated', color: 'border-emerald-500' },
+  { id: 'contract', label: 'Contract / Closing', color: 'border-cyan-500' },
+  { id: 'delivery', label: 'Delivery / Handover', color: 'border-green-600' },
 ];
 
-// Finance App Status -> Kanban Column
-const mapAppStatusToColumn = (status: string): string => {
+const mapAppStatusToColumn = (status: string) => {
   switch (status) {
-    case 'pending': return 'docs_processing';
-    case 'application_submitted': return 'docs_processing';
+    case 'new': return 'docs_processing';
+    case 'docs_collected': return 'docs_processing';
+    case 'submitted_to_banks': return 'submitted';
     case 'pre_approved': return 'approved';
-    case 'documents_received': return 'docs_processing';
-    case 'validations_pending': return 'validations';
-    case 'validations_complete': return 'validated';
+    case 'finance_approved': return 'approved';
+    case 'validation_pending': return 'validations';
+    case 'validated': return 'validated';
+    case 'contract_generated': return 'contract';
     case 'contract_sent': return 'contract';
     case 'contract_signed': return 'contract';
-    case 'vehicle_delivered': return 'delivery';
-    case 'vehicle_selected': return 'docs_processing';
-    case 'submitted_to_banks': return 'submitted';
-    case 'approved': return 'approved';
-    case 'declined': return 'new'; // Show declined back in inbox for review
+    case 'prepping_delivery': return 'delivery';
+    case 'delivered': return 'delivery';
     default: return 'docs_processing';
   }
 };
 
-// Kanban Column -> Finance App Status (when dragging)
 const mapColumnToAppStatus = (colId: string): string | null => {
   switch (colId) {
-    case 'docs_processing': return 'documents_received';
+    case 'docs_processing': return 'docs_collected';
     case 'submitted': return 'submitted_to_banks';
-    case 'approved': return 'pre_approved';
-    case 'validations': return 'validations_pending';
-    case 'validated': return 'validations_complete';
-    case 'contract': return 'contract_sent';
-    case 'delivery': return 'vehicle_delivered';
+    case 'approved': return 'finance_approved';
+    case 'validations': return 'validation_pending';
+    case 'validated': return 'validated';
+    case 'contract': return 'contract_generated';
+    case 'delivery': return 'prepping_delivery';
     default: return null;
   }
 };
 
 interface MergedLead {
   id: string;
+  isVirtual?: boolean;
   client_name: string | null;
   client_phone: string | null;
   client_email: string | null;
-  source: string;
-  status: string;
   notes: string | null;
+  source?: string;
+  status?: string;
   pipeline_stage: string | null;
-  lead_score: number | null;
-  next_action_date: string | null;
-  next_action_note: string | null;
-  last_activity_at: string | null;
   created_at: string;
-  updated_at: string;
-  is_archived: boolean;
   status_updated_at: string | null;
   admin_last_viewed_at: string | null;
-  vehicle_id: string | null;
-  vehicle?: { make: string; model: string; year: number } | null;
+  is_archived?: boolean;
   displayStatus: string;
-  appDetails?: {
-    id: string;
-    status: string;
-    full_name: string;
-    vehicles?: { make: string; model: string; year: number } | null;
-  } | null;
+  appDetails?: any;
+  [key: string]: any;
 }
 
 const AdminLeads = () => {
@@ -96,91 +82,149 @@ const AdminLeads = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
 
-  // Manual Add State
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [newLead, setNewLead] = useState({ name: "", phone: "", email: "", notes: "" });
+  const [newLead, setNewLead] = useState({ name: "", phone: "", notes: "" });
   const [adding, setAdding] = useState(false);
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+
   const fetchLeads = useCallback(async () => {
-    const { data: leadData, error: leadError } = await supabase
+    setLoading(true);
+    const { data: leadData } = await supabase
       .from('leads')
-      .select('*, vehicle:vehicles(make, model, year)')
+      .select('*')
       .eq('is_archived', showArchived)
       .order('created_at', { ascending: false });
 
-    if (leadError) {
-      toast.error('Failed to load leads');
-      setLoading(false);
-      return;
-    }
-
     const { data: apps } = await supabase
       .from('finance_applications')
-      .select('id, user_id, status, full_name, email, phone, vehicle_id, selected_vehicle:vehicles!finance_applications_selected_vehicle_id_fkey(make, model, year, vin, registration_number)');
+      .select('id, user_id, status, created_at, full_name, email, phone, selected_vehicle_id, vehicles:vehicles!finance_applications_selected_vehicle_id_fkey(make, model, year)');
 
-    const merged: MergedLead[] = (leadData || []).map((lead: any) => {
-      const app = apps?.find(a =>
-        (lead.client_email && a.email && lead.client_email.toLowerCase() === a.email.toLowerCase()) ||
-        (lead.client_phone && a.phone && lead.client_phone.replace(/\D/g, '') === a.phone.replace(/\D/g, ''))
+    let combined: MergedLead[] = (leadData || []).map((l: any) => ({
+      ...l,
+      displayStatus: l.pipeline_stage || 'new',
+    }));
+
+    // Find orphan apps (no matching lead)
+    apps?.forEach((app) => {
+      const exists = combined.find((l) =>
+        (l.client_email && app.email && l.client_email.toLowerCase() === app.email.toLowerCase()) ||
+        (l.client_phone && app.phone && l.client_phone.replace(/\D/g, '') === app.phone.replace(/\D/g, ''))
       );
-
-      let displayStatus = lead.pipeline_stage || 'new';
-
-      // If app exists, it dictates the column position
-      if (app) {
-        displayStatus = mapAppStatusToColumn(app.status);
+      if (!exists) {
+        combined.push({
+          id: `virtual-${app.id}`,
+          isVirtual: true,
+          client_name: app.full_name,
+          client_phone: app.phone,
+          client_email: app.email,
+          notes: null,
+          source: 'finance_app',
+          pipeline_stage: mapAppStatusToColumn(app.status),
+          created_at: app.created_at,
+          status_updated_at: app.created_at,
+          admin_last_viewed_at: null,
+          displayStatus: mapAppStatusToColumn(app.status),
+          appDetails: app,
+        });
       }
-
-      return {
-        ...lead,
-        displayStatus,
-        appDetails: app ? {
-          id: app.id,
-          status: app.status,
-          full_name: app.full_name,
-          vehicles: app.selected_vehicle as any,
-        } : null,
-      };
     });
 
-    setLeads(merged);
+    // Link apps to existing leads
+    const mapped = combined.map((lead) => {
+      if (!lead.isVirtual && !lead.appDetails) {
+        const app = apps?.find((a) =>
+          (lead.client_email && a.email && lead.client_email.toLowerCase() === a.email.toLowerCase()) ||
+          (lead.client_phone && a.phone && lead.client_phone.replace(/\D/g, '') === a.phone.replace(/\D/g, ''))
+        );
+        if (app) {
+          lead.appDetails = app;
+          lead.displayStatus = mapAppStatusToColumn(app.status);
+        }
+      }
+      return lead;
+    });
+
+    setLeads(mapped);
     setLoading(false);
   }, [showArchived]);
 
   useEffect(() => {
     fetchLeads();
-    // No aggressive auto-refresh — manual only
   }, [fetchLeads]);
 
-  // STABLE DRAG AND DROP
+  // Horizontal scroll handlers
+  const handleWheel = (e: React.WheelEvent) => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollLeft += e.deltaY;
+    }
+  };
+
+  const startDraggingScroll = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    setStartX(e.pageX - (scrollContainerRef.current?.offsetLeft || 0));
+    setScrollLeft(scrollContainerRef.current?.scrollLeft || 0);
+  };
+
+  const stopDraggingScroll = () => setIsDragging(false);
+
+  const onMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    const x = e.pageX - (scrollContainerRef.current?.offsetLeft || 0);
+    const walk = (x - startX) * 2;
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollLeft = scrollLeft - walk;
+    }
+  };
+
+  // DnD
   const onDragEnd = async (result: DropResult) => {
     const { destination, source, draggableId } = result;
     if (!destination) return;
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
 
     const newStage = destination.droppableId;
-    const leadIndex = leads.findIndex(l => l.id === draggableId);
+    const leadIndex = leads.findIndex((l) => l.id === draggableId);
     if (leadIndex === -1) return;
     const lead = leads[leadIndex];
 
-    // A. OPTIMISTIC UPDATE
+    // Optimistic
     const updatedLeads = [...leads];
     updatedLeads[leadIndex] = { ...lead, displayStatus: newStage };
     setLeads(updatedLeads);
 
-    // B. DATABASE UPDATE (fire and forget, revert on error)
     try {
-      await supabase.from('leads').update({
-        pipeline_stage: newStage,
-        last_activity_at: new Date().toISOString(),
-      }).eq('id', lead.id);
+      if (lead.isVirtual) {
+        const { data: newDbLead, error } = await supabase.from('leads').insert({
+          client_name: lead.client_name,
+          client_phone: lead.client_phone,
+          client_email: lead.client_email,
+          pipeline_stage: newStage,
+          source: 'finance_app',
+          status: 'new',
+        }).select().single();
+
+        if (!error && newDbLead) {
+          updatedLeads[leadIndex] = { ...updatedLeads[leadIndex], id: newDbLead.id, isVirtual: false };
+          setLeads(updatedLeads);
+        }
+      } else {
+        await supabase.from('leads').update({
+          pipeline_stage: newStage,
+          status_updated_at: new Date().toISOString(),
+        }).eq('id', lead.id);
+      }
 
       const appStatus = mapColumnToAppStatus(newStage);
       if (lead.appDetails && appStatus) {
         await supabase.from('finance_applications').update({ status: appStatus }).eq('id', lead.appDetails.id);
-        toast.success(`Lead & App moved to ${newStage.replace(/_/g, ' ')}`);
+        toast.success(`Moved to ${newStage.replace(/_/g, ' ')}`);
       } else {
-        toast.success(`Lead moved to ${newStage.replace(/_/g, ' ')}`);
+        toast.success(`Lead moved`);
       }
     } catch {
       toast.error('Move failed — reverting');
@@ -188,10 +232,9 @@ const AdminLeads = () => {
     }
   };
 
-  // MANUAL ADD
   const handleAddLead = async () => {
     if (!newLead.name || !newLead.phone) {
-      toast.error('Name and Phone are required.');
+      toast.error('Name and Phone required');
       return;
     }
     setAdding(true);
@@ -199,16 +242,15 @@ const AdminLeads = () => {
       const { error } = await supabase.from('leads').insert({
         client_name: newLead.name,
         client_phone: newLead.phone,
-        client_email: newLead.email || null,
         notes: newLead.notes || 'Manual Entry',
         pipeline_stage: 'new',
         source: 'manual',
         status: 'new',
       });
       if (error) throw error;
-      toast.success('Lead added to Inbox.');
+      toast.success('Lead added');
       setIsAddOpen(false);
-      setNewLead({ name: "", phone: "", email: "", notes: "" });
+      setNewLead({ name: "", phone: "", notes: "" });
       fetchLeads();
     } catch (err: any) {
       toast.error(err.message);
@@ -217,99 +259,48 @@ const AdminLeads = () => {
     }
   };
 
-  // ACTIONS
-  const markAsViewed = async (leadId: string) => {
-    await supabase.from('leads').update({ admin_last_viewed_at: new Date().toISOString() }).eq('id', leadId);
-  };
-
-  const archiveLead = async (leadId: string) => {
-    // Optimistic remove
-    setLeads(prev => prev.filter(l => l.id !== leadId));
-    await supabase.from('leads').update({ is_archived: true }).eq('id', leadId);
-    toast.success('Lead archived');
-  };
-
-  const handleEdit = (lead: MergedLead) => {
-    markAsViewed(lead.id);
-    setSelectedLeadId(lead.id);
-  };
-
-  // SEARCH FILTER
-  const filteredLeads = leads.filter(l => {
+  const filteredLeads = leads.filter((l) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
       l.client_name?.toLowerCase().includes(q) ||
       l.client_phone?.includes(q) ||
-      l.client_email?.toLowerCase().includes(q) ||
-      l.source?.toLowerCase().includes(q)
+      l.client_email?.toLowerCase().includes(q)
     );
   });
 
   return (
     <AdminLayout>
-      <Helmet>
-        <title>Pipeline Command | Lumina Auto</title>
-        <meta name="robots" content="noindex, nofollow" />
-      </Helmet>
-
       <div className="flex flex-col h-[calc(100vh-64px)]">
         {/* HEADER */}
         <div className="flex items-center justify-between px-6 py-3 border-b border-border shrink-0 flex-wrap gap-2">
           <div>
             <h1 className="text-xl font-bold">Pipeline Command</h1>
-            <p className="text-xs text-muted-foreground">Drag cards to move • Auto-syncs with Finance Apps • Click Refresh to update</p>
+            <p className="text-xs text-muted-foreground">Drag cards to move • Click to open cockpit • Scroll to navigate</p>
           </div>
-
-          <div className="flex items-center gap-3 flex-wrap">
-            {/* SEARCH */}
+          <div className="flex items-center gap-2 flex-wrap">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <Input
-                placeholder="Search leads..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="pl-8 h-8 w-48 text-sm"
-              />
+              <Input placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-8 h-8 w-40 text-sm" />
             </div>
-
-            {/* ADD LEAD DIALOG */}
             <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
               <DialogTrigger asChild>
-                <Button variant="default" size="sm">
-                  <UserPlus className="w-4 h-4 mr-1" /> Add Lead
-                </Button>
+                <Button variant="default" size="sm"><UserPlus className="w-4 h-4 mr-1" /> Add</Button>
               </DialogTrigger>
               <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add Manual Lead</DialogTitle>
-                </DialogHeader>
+                <DialogHeader><DialogTitle>Add Manual Lead</DialogTitle></DialogHeader>
                 <div className="space-y-3 pt-2">
-                  <div>
-                    <Label>Name *</Label>
-                    <Input value={newLead.name} onChange={e => setNewLead({ ...newLead, name: e.target.value })} placeholder="John Doe" />
-                  </div>
-                  <div>
-                    <Label>Cell Number *</Label>
-                    <Input value={newLead.phone} onChange={e => setNewLead({ ...newLead, phone: e.target.value })} placeholder="082..." />
-                  </div>
-                  <div>
-                    <Label>Email</Label>
-                    <Input value={newLead.email} onChange={e => setNewLead({ ...newLead, email: e.target.value })} placeholder="john@example.com" />
-                  </div>
-                  <div>
-                    <Label>Initial Notes</Label>
-                    <Input value={newLead.notes} onChange={e => setNewLead({ ...newLead, notes: e.target.value })} placeholder="Looking for..." />
-                  </div>
+                  <div><Label>Name *</Label><Input value={newLead.name} onChange={(e) => setNewLead({ ...newLead, name: e.target.value })} /></div>
+                  <div><Label>Phone *</Label><Input value={newLead.phone} onChange={(e) => setNewLead({ ...newLead, phone: e.target.value })} /></div>
+                  <div><Label>Notes</Label><Input value={newLead.notes} onChange={(e) => setNewLead({ ...newLead, notes: e.target.value })} /></div>
                   <Button className="w-full" onClick={handleAddLead} disabled={adding}>
                     {adding ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null} Save Lead
                   </Button>
                 </div>
               </DialogContent>
             </Dialog>
-
             <Button variant="outline" size="sm" onClick={() => setShowArchived(!showArchived)}>
-              <Archive className="w-4 h-4 mr-1" /> {showArchived ? 'Show Active' : 'Show Archived'}
+              <Archive className="w-4 h-4 mr-1" /> {showArchived ? 'Active' : 'Archived'}
             </Button>
             <Button variant="outline" size="sm" onClick={() => { setLoading(true); fetchLeads(); }}>
               <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} /> Refresh
@@ -317,19 +308,25 @@ const AdminLeads = () => {
           </div>
         </div>
 
-        {/* KANBAN BOARD WITH DND */}
+        {/* KANBAN BOARD */}
         <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex-1 overflow-x-auto overflow-y-hidden p-4">
+          <div
+            ref={scrollContainerRef}
+            className="flex-1 overflow-x-auto overflow-y-hidden p-4"
+            onWheel={handleWheel}
+            onMouseDown={startDraggingScroll}
+            onMouseUp={stopDraggingScroll}
+            onMouseLeave={stopDraggingScroll}
+            onMouseMove={onMouseMove}
+          >
             <div className="flex gap-4 h-full min-w-max">
-              {COLUMNS.map(col => {
-                const columnLeads = filteredLeads.filter(l => l.displayStatus === col.id);
+              {COLUMNS.map((col) => {
+                const columnLeads = filteredLeads.filter((l) => l.displayStatus === col.id);
                 return (
-                  <div key={col.id} className={`w-[280px] flex flex-col rounded-xl bg-muted/30 border border-border border-t-4 ${col.color}`}>
-                    <div className={`flex items-center justify-between px-3 py-2 ${col.headerBg} rounded-t-lg`}>
+                  <div key={col.id} className={`w-[260px] flex flex-col rounded-xl bg-muted/30 border border-border border-t-4 ${col.color}`} onMouseDown={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-between px-3 py-2">
                       <span className="text-sm font-bold">{col.label}</span>
-                      <span className="text-xs font-medium bg-background/50 rounded-full px-2 py-0.5">
-                        {columnLeads.length}
-                      </span>
+                      <span className="text-xs font-medium bg-background/50 rounded-full px-2 py-0.5">{columnLeads.length}</span>
                     </div>
 
                     <Droppable droppableId={col.id}>
@@ -340,17 +337,10 @@ const AdminLeads = () => {
                           className={`flex-1 overflow-y-auto p-2 space-y-2 min-h-[100px] transition-colors ${snapshot.isDraggingOver ? 'bg-primary/5' : ''}`}
                         >
                           {columnLeads.map((lead, index) => {
-                            const lastUpdate = new Date(lead.status_updated_at || lead.created_at).getTime();
-                            const lastView = new Date(lead.admin_last_viewed_at || 0).getTime();
-                            const needsAttention = lastUpdate > lastView;
-                            const isFresh = isToday(new Date(lead.created_at));
-                            const isStagnant = (Date.now() - new Date(lead.status_updated_at || lead.created_at).getTime()) > (3 * 24 * 60 * 60 * 1000);
-
+                            const needsAttention = !lead.isVirtual && (new Date(lead.status_updated_at || lead.created_at).getTime() > new Date(lead.admin_last_viewed_at || 0).getTime());
                             const vehicleLabel = lead.appDetails?.vehicles
                               ? `${lead.appDetails.vehicles.year} ${lead.appDetails.vehicles.make} ${lead.appDetails.vehicles.model}`
-                              : lead.vehicle
-                                ? `${lead.vehicle.year} ${lead.vehicle.make} ${lead.vehicle.model}`
-                                : null;
+                              : null;
 
                             return (
                               <Draggable key={lead.id} draggableId={lead.id} index={index}>
@@ -358,74 +348,37 @@ const AdminLeads = () => {
                                   <Card
                                     ref={provided.innerRef}
                                     {...provided.draggableProps}
-                                    onClick={() => handleEdit(lead)}
-                                    className={`p-3 relative group transition-all cursor-pointer border-l-4 ${needsAttention ? 'border-l-red-500 bg-red-500/5 hover:bg-red-500/10' : 'border-l-blue-500 bg-card hover:bg-accent/50'} ${snapshot.isDragging ? 'shadow-lg ring-2 ring-primary/30' : ''}`}
+                                    onClick={() => setSelectedLeadId(lead.id)}
+                                    className={`p-3 relative group transition-all cursor-pointer border-l-4 ${col.color.replace('border-', 'border-l-')} bg-card hover:bg-accent/50 ${snapshot.isDragging ? 'shadow-lg ring-2 ring-primary/30' : ''}`}
                                   >
-                                    {/* Drag Handle */}
                                     <div {...provided.dragHandleProps} className="absolute top-2 left-1 opacity-0 group-hover:opacity-50 transition-opacity">
                                       <GripVertical className="w-3.5 h-3.5 text-muted-foreground" />
                                     </div>
 
-                                    {/* Badges */}
-                                    <div className="absolute top-2 right-2 flex items-center gap-1">
-                                      {isFresh && (
-                                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400">NEW</span>
-                                      )}
-                                      {isStagnant && !isFresh && (
-                                        <span title="Stagnant > 3 days"><Clock className="w-3 h-3 text-orange-400" /></span>
-                                      )}
-                                      {needsAttention && (
-                                        <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-                                      )}
-                                    </div>
+                                    {needsAttention && <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />}
 
-                                    <div className="mb-1.5 ml-3 mr-12">
-                                      <p className="font-semibold text-sm truncate">{lead.client_name || 'Unknown Lead'}</p>
-                                      {vehicleLabel && (
-                                        <p className="text-xs text-muted-foreground mt-0.5">{vehicleLabel}</p>
-                                      )}
-                                    </div>
-
-                                    <div className="flex flex-wrap gap-1 mb-2 ml-3">
-                                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">{lead.source}</Badge>
+                                    <div className="ml-3 mr-6">
+                                      <p className="font-semibold text-sm truncate">{lead.client_name || 'Unknown'}</p>
+                                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                                        {vehicleLabel || lead.notes || 'New Inquiry'}
+                                      </p>
                                       {lead.appDetails && (
-                                        <Badge className="text-[10px] px-1.5 py-0 bg-purple-500/20 text-purple-400 border-purple-500/30">
-                                          App: {lead.appDetails.status}
-                                        </Badge>
-                                      )}
-                                      {(lead.lead_score ?? 0) > 0 && (
-                                        <Badge className="text-[10px] px-1.5 py-0 bg-primary/20 text-primary border-primary/30">
-                                          Score: {lead.lead_score}
+                                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 mt-1 bg-purple-500/10 text-purple-400 border-purple-500/30">
+                                          {lead.appDetails.status.replace(/_/g, ' ')}
                                         </Badge>
                                       )}
                                     </div>
 
-                                    {lead.notes && (
-                                      <p className="text-xs text-muted-foreground line-clamp-1 mb-2 ml-3">{lead.notes}</p>
-                                    )}
-
-                                    <div className="flex items-center justify-between border-t border-border pt-2 ml-3">
+                                    <div className="flex items-center justify-between mt-2 ml-3">
                                       <span className="text-[10px] text-muted-foreground">
                                         {formatDistanceToNow(new Date(lead.status_updated_at || lead.created_at), { addSuffix: true })}
                                       </span>
-                                      <div className="flex gap-0.5">
-                                        {lead.client_phone && (
-                                          <>
-                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-emerald-400 hover:text-emerald-300"
-                                              onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${lead.client_phone?.replace(/\D/g, '')}`, '_blank'); }}>
-                                              <MessageCircle className="w-3 h-3" />
-                                            </Button>
-                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-blue-400 hover:text-blue-300"
-                                              onClick={(e) => { e.stopPropagation(); window.open(`tel:${lead.client_phone}`); }}>
-                                              <Phone className="w-3 h-3" />
-                                            </Button>
-                                          </>
-                                        )}
-                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                                          onClick={(e) => { e.stopPropagation(); archiveLead(lead.id); }} title="Archive">
-                                          <Archive className="w-3 h-3" />
+                                      {lead.client_phone && (
+                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-emerald-400"
+                                          onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${lead.client_phone?.replace(/\D/g, '')}`, '_blank'); }}>
+                                          <MessageCircle className="w-3 h-3" />
                                         </Button>
-                                      </div>
+                                      )}
                                     </div>
                                   </Card>
                                 )}
