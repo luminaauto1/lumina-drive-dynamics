@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  MessageCircle, Phone, Clock, CarFront,
+  MessageCircle, Phone, Clock, CarFront, FileText,
   StickyNote, Bell, CheckCircle2,
   ArrowRight, Trash2, Edit3, ChevronDown
 } from "lucide-react";
@@ -265,6 +265,15 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
               <div className="flex items-center gap-2 shrink-0">
                 <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-red-400 text-xs h-7" onClick={archiveLead}>
                   <Trash2 className="w-3 h-3 mr-1" /> Archive
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-7 border-zinc-700 hover:bg-zinc-800"
+                  onClick={() => window.open(`/admin/clients/${lead.linkedApp?.user_id || leadId}`, '_blank')}
+                  disabled={!lead.linkedApp}
+                >
+                  <FileText className="w-3 h-3 mr-1" /> Open File
                 </Button>
                 <Button size="sm" className="bg-blue-600 hover:bg-blue-500 text-xs h-7 whitespace-nowrap">
                   Convert <ArrowRight className="w-3 h-3 ml-1" />
