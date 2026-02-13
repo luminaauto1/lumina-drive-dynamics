@@ -4,7 +4,8 @@ import { Helmet } from 'react-helmet-async';
 import { 
   Package, Calendar, AlertCircle, Loader2, MessageCircle, Edit2, Save, X, 
   Eye, Undo2, TrendingUp, DollarSign, Users, Plus, Receipt, Wrench, 
-  FileText, ChevronDown, ChevronUp, FolderOpen, Settings, Calculator, UserPlus
+  FileText, ChevronDown, ChevronUp, FolderOpen, Settings, Calculator, UserPlus,
+  Lock, Unlock
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { differenceInDays, differenceInYears, format, addYears, startOfMonth, endOfMonth, subMonths, isWithinInterval, parseISO } from 'date-fns';
@@ -70,6 +71,9 @@ interface DealRecord {
   referral_person_name?: string | null;
   // Referral Income
   referral_income_amount?: number | null;
+  // Locking
+  is_closed?: boolean | null;
+  post_deal_notes?: string | null;
   vehicle?: {
     id: string;
     make: string;
@@ -896,6 +900,49 @@ const AdminAftersales = () => {
   const [editDeal, setEditDeal] = useState<DealRecord | null>(null);
   const [expandedDeals, setExpandedDeals] = useState<Set<string>>(new Set());
 
+  // Lock/Unlock state
+  const [unlockingDealId, setUnlockingDealId] = useState<string | null>(null);
+  const [adminPinInput, setAdminPinInput] = useState('');
+
+  // Lock/Unlock handlers
+  const handleToggleLock = async (deal: DealRecord) => {
+    if (deal.is_closed) {
+      // Need PIN to unlock
+      setUnlockingDealId(deal.id);
+    } else {
+      // Lock it
+      if (confirm('Finalize this deal? This will lock the financial data.')) {
+        await supabase.from('deal_records').update({ is_closed: true } as any).eq('id', deal.id);
+        toast.success('Deal finalized and locked.');
+        queryClient.invalidateQueries({ queryKey: ['deal-records'] });
+      }
+    }
+  };
+
+  const handleUnlockWithPin = async () => {
+    if (adminPinInput === 'Lumina2026') {
+      await supabase.from('deal_records').update({ is_closed: false } as any).eq('id', unlockingDealId);
+      toast.success('Deal unlocked for editing.');
+      setUnlockingDealId(null);
+      setAdminPinInput('');
+      queryClient.invalidateQueries({ queryKey: ['deal-records'] });
+    } else {
+      toast.error('Incorrect Admin PIN.');
+    }
+  };
+
+  // === GROUP DEALS BY MONTH ===
+  const groupedDealRecords = useMemo(() => {
+    const groups: Record<string, DealRecord[]> = {};
+    dealRecords.forEach(deal => {
+      const date = deal.sale_date ? parseISO(deal.sale_date) : new Date(deal.created_at);
+      const key = format(date, 'MMMM yyyy');
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(deal);
+    });
+    return groups;
+  }, [dealRecords]);
+
   const isLoading = aftersalesLoading || dealsLoading;
 
   // === CURRENT MONTH FILTER ===
@@ -1160,203 +1207,248 @@ const AdminAftersales = () => {
         )}
 
         {/* Deal Records Table */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="glass-card rounded-xl overflow-hidden mb-8"
-        >
-          <div className="p-4 border-b border-white/10">
-            <h2 className="text-lg font-semibold">Deal Records</h2>
-            <p className="text-sm text-muted-foreground">Click any row to edit deal structure</p>
+        {/* Deal Records - Grouped by Month */}
+        {isLoading ? (
+          <div className="p-8 text-center">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
           </div>
-          {isLoading ? (
-            <div className="p-8 text-center">
-              <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
-            </div>
-          ) : dealRecords.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">
-              <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No finalized deals yet</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-white/10 hover:bg-white/5">
-                  <TableHead className="text-muted-foreground w-8"></TableHead>
-                  <TableHead className="text-muted-foreground">Client & Vehicle</TableHead>
-                  <TableHead className="text-muted-foreground">Sold Price</TableHead>
-                  <TableHead className="text-muted-foreground">Net Profit</TableHead>
-                  <TableHead className="text-muted-foreground">Health</TableHead>
-                  <TableHead className="text-muted-foreground">Status / Date</TableHead>
-                  <TableHead className="text-muted-foreground text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {dealRecords.map((deal) => {
-                  const serviceDue = getServiceDueStatus(deal);
-                  const netProfit = deal.gross_profit || 0;
-                  const hasZeroCost = !deal.cost_price || deal.cost_price === 0;
-                  
-                  return (
-                    <TableRow 
-                      key={deal.id} 
-                      className={`border-white/10 hover:bg-white/5 cursor-pointer ${serviceDue.isDue ? 'bg-red-500/5' : ''}`}
-                      onClick={() => setEditDeal(deal)}
-                    >
-                      <TableCell className="w-8">
-                        {serviceDue.isDue && (
-                          <AlertCircle className="w-4 h-4 text-red-500" />
-                        )}
-                        {!serviceDue.isDue && hasZeroCost && (
-                          <span title="Zero cost price">
-                            <AlertCircle className="w-4 h-4 text-yellow-500" />
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">
-                            {deal.application?.first_name} {deal.application?.last_name}
-                          </p>
-                          {deal.vehicle ? (
-                            <p className="text-xs text-muted-foreground">
-                              {deal.vehicle.year} {deal.vehicle.make} {deal.vehicle.model}
-                            </p>
-                          ) : (
-                            <p className="text-xs text-muted-foreground italic">Vehicle removed</p>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-semibold">{deal.sold_price ? formatPrice(deal.sold_price) : 'N/A'}</p>
-                          {(deal.aftersales_expenses || []).length > 0 && (
-                            <p className="text-xs text-red-400">
-                              -{formatPrice((deal.aftersales_expenses || []).reduce((s, e) => s + (e.amount || 0), 0))} post-sale
-                            </p>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className={`text-lg font-bold ${netProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatPrice(netProfit)}
-                          </p>
-                          {hasZeroCost && (
-                            <p className="text-xs text-yellow-500">⚠ No cost recorded</p>
-                          )}
-                          {deal.sales_rep_commission && deal.sales_rep_commission > 0 && (
-                            <p className="text-xs text-muted-foreground">
-                              -{formatPrice(deal.sales_rep_commission)} comm.
-                            </p>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {(() => {
-                          const healthStatus = getVehicleHealthStatus(deal.sale_date);
-                          return (
-                            <div className="group relative flex items-center">
-                              <span className={`px-2 py-1 rounded text-xs font-bold border border-transparent cursor-help ${healthStatus.bg} ${healthStatus.color}`}>
-                                {healthStatus.label}
+        ) : dealRecords.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="glass-card rounded-xl p-8 text-center text-muted-foreground mb-8"
+          >
+            <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
+            <p>No finalized deals yet</p>
+          </motion.div>
+        ) : (
+          Object.entries(groupedDealRecords).map(([month, monthDeals]) => (
+            <motion.div
+              key={month}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+              className="glass-card rounded-xl overflow-hidden mb-6"
+            >
+              <div className="p-4 border-b border-white/10 flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold">{month}</h2>
+                  <p className="text-sm text-muted-foreground">{monthDeals.length} deal{monthDeals.length !== 1 ? 's' : ''}</p>
+                </div>
+                <Badge variant="outline">
+                  {formatPrice(monthDeals.reduce((sum, d) => sum + (d.gross_profit || 0), 0))} profit
+                </Badge>
+              </div>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-white/10 hover:bg-white/5">
+                      <TableHead className="text-muted-foreground w-8"></TableHead>
+                      <TableHead className="text-muted-foreground">Client & Vehicle</TableHead>
+                      <TableHead className="text-muted-foreground">Sold Price</TableHead>
+                      <TableHead className="text-muted-foreground">Net Profit</TableHead>
+                      <TableHead className="text-muted-foreground">Health</TableHead>
+                      <TableHead className="text-muted-foreground">Status / Date</TableHead>
+                      <TableHead className="text-muted-foreground text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {monthDeals.map((deal) => {
+                      const serviceDue = getServiceDueStatus(deal);
+                      const netProfit = deal.gross_profit || 0;
+                      const hasZeroCost = !deal.cost_price || deal.cost_price === 0;
+                      const isLocked = !!deal.is_closed;
+                      
+                      return (
+                        <TableRow 
+                          key={deal.id} 
+                          className={`border-white/10 hover:bg-white/5 cursor-pointer ${serviceDue.isDue ? 'bg-red-500/5' : ''} ${isLocked ? 'opacity-80' : ''}`}
+                          onClick={() => {
+                            if (isLocked) {
+                              toast.info('This deal is locked. Unlock it first to edit.');
+                            } else {
+                              setEditDeal(deal);
+                            }
+                          }}
+                        >
+                          <TableCell className="w-8">
+                            {isLocked && (
+                              <Lock className="w-4 h-4 text-muted-foreground" />
+                            )}
+                            {!isLocked && serviceDue.isDue && (
+                              <AlertCircle className="w-4 h-4 text-red-500" />
+                            )}
+                            {!isLocked && !serviceDue.isDue && hasZeroCost && (
+                              <span title="Zero cost price">
+                                <AlertCircle className="w-4 h-4 text-yellow-500" />
                               </span>
-                              <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-max bg-black text-white text-[10px] px-2 py-1 rounded border border-zinc-700 z-50 shadow-xl">
-                                Owned: {healthStatus.days} days
-                                <br/>
-                                Date: {deal.sale_date}
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="text-sm">{format(new Date(deal.created_at), 'dd MMM yyyy')}</p>
-                          {deal.next_service_date && (
-                            <div className="mt-1">
-                              {serviceDue.isDue ? (
-                                <Badge variant="destructive" className="text-xs">Service Overdue</Badge>
-                              ) : (
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">
+                                {deal.application?.first_name} {deal.application?.last_name}
+                              </p>
+                              {deal.vehicle ? (
                                 <p className="text-xs text-muted-foreground">
-                                  Service: {format(new Date(deal.next_service_date), 'dd MMM')}
+                                  {deal.vehicle.year} {deal.vehicle.make} {deal.vehicle.model}
+                                </p>
+                              ) : (
+                                <p className="text-xs text-muted-foreground italic">Vehicle removed</p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-semibold">{deal.sold_price ? formatPrice(deal.sold_price) : 'N/A'}</p>
+                              {(deal.aftersales_expenses || []).length > 0 && (
+                                <p className="text-xs text-red-400">
+                                  -{formatPrice((deal.aftersales_expenses || []).reduce((s, e) => s + (e.amount || 0), 0))} post-sale
                                 </p>
                               )}
                             </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-purple-500 hover:text-purple-400 hover:bg-purple-500/10"
-                            onClick={() => setEditDeal(deal)}
-                            title="Edit Deal Structure"
-                          >
-                            <Settings className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-blue-500 hover:text-blue-400 hover:bg-blue-500/10"
-                            onClick={() => setManageDeal(deal)}
-                            title="Manage Deal Lifecycle"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <HandoverSetupModal dealId={deal.id} currentPhotos={(deal as any).delivery_photos || []} />
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className={`text-lg font-bold ${netProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {formatPrice(netProfit)}
+                              </p>
+                              {hasZeroCost && (
+                                <p className="text-xs text-yellow-500">⚠ No cost recorded</p>
+                              )}
+                              {deal.sales_rep_commission && deal.sales_rep_commission > 0 && (
+                                <p className="text-xs text-muted-foreground">
+                                  -{formatPrice(deal.sales_rep_commission)} comm.
+                                </p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {(() => {
+                              const healthStatus = getVehicleHealthStatus(deal.sale_date);
+                              return (
+                                <div className="group relative flex items-center">
+                                  <span className={`px-2 py-1 rounded text-xs font-bold border border-transparent cursor-help ${healthStatus.bg} ${healthStatus.color}`}>
+                                    {healthStatus.label}
+                                  </span>
+                                  <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-max bg-black text-white text-[10px] px-2 py-1 rounded border border-zinc-700 z-50 shadow-xl">
+                                    Owned: {healthStatus.days} days
+                                    <br/>
+                                    Date: {deal.sale_date}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="text-sm">{format(new Date(deal.created_at), 'dd MMM yyyy')}</p>
+                              {isLocked && (
+                                <Badge variant="outline" className="text-xs mt-1 border-muted-foreground/30">
+                                  <Lock className="w-3 h-3 mr-1" /> Finalized
+                                </Badge>
+                              )}
+                              {!isLocked && deal.next_service_date && (
+                                <div className="mt-1">
+                                  {serviceDue.isDue ? (
+                                    <Badge variant="destructive" className="text-xs">Service Overdue</Badge>
+                                  ) : (
+                                    <p className="text-xs text-muted-foreground">
+                                      Service: {format(new Date(deal.next_service_date), 'dd MMM')}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-end gap-1">
+                              {/* Lock/Unlock Toggle */}
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                className="text-amber-500 hover:text-amber-400 hover:bg-amber-500/10"
-                                title="Undo Deal / Return to Finance"
+                                className={isLocked ? 'text-muted-foreground hover:text-foreground' : 'text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10'}
+                                onClick={() => handleToggleLock(deal)}
+                                title={isLocked ? 'Unlock Deal (Requires PIN)' : 'Finalize & Lock Deal'}
                               >
-                                <Undo2 className="w-4 h-4" />
+                                {isLocked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
                               </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Undo This Deal?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This will:
-                                  <ul className="list-disc list-inside mt-2 space-y-1">
-                                    <li>Return the finance application status to "Approved"</li>
-                                    <li>Set the vehicle status back to "Available"</li>
-                                    <li>Delete this deal record permanently</li>
-                                  </ul>
-                                  <p className="mt-3 font-medium">This action cannot be undone.</p>
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => rollbackDeal.mutate({
-                                    dealId: deal.id,
-                                    applicationId: deal.application_id,
-                                    vehicleId: deal.vehicle_id,
-                                  })}
-                                  className="bg-amber-600 hover:bg-amber-700"
-                                >
-                                  Undo Deal
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-            </div>
-          )}
-        </motion.div>
+                              {!isLocked && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-purple-500 hover:text-purple-400 hover:bg-purple-500/10"
+                                    onClick={() => setEditDeal(deal)}
+                                    title="Edit Deal Structure"
+                                  >
+                                    <Settings className="w-4 h-4" />
+                                  </Button>
+                                </>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-blue-500 hover:text-blue-400 hover:bg-blue-500/10"
+                                onClick={() => setManageDeal(deal)}
+                                title="Manage Deal Lifecycle"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <HandoverSetupModal dealId={deal.id} currentPhotos={(deal as any).delivery_photos || []} />
+                              {!isLocked && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="text-amber-500 hover:text-amber-400 hover:bg-amber-500/10"
+                                      title="Undo Deal / Return to Finance"
+                                    >
+                                      <Undo2 className="w-4 h-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Undo This Deal?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        This will:
+                                        <ul className="list-disc list-inside mt-2 space-y-1">
+                                          <li>Return the finance application status to "Approved"</li>
+                                          <li>Set the vehicle status back to "Available"</li>
+                                          <li>Delete this deal record permanently</li>
+                                        </ul>
+                                        <p className="mt-3 font-medium">This action cannot be undone.</p>
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => rollbackDeal.mutate({
+                                          dealId: deal.id,
+                                          applicationId: deal.application_id,
+                                          vehicleId: deal.vehicle_id,
+                                        })}
+                                        className="bg-amber-600 hover:bg-amber-700"
+                                      >
+                                        Undo Deal
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </motion.div>
+          ))
+        )}
 
         {/* Aftersales Follow-up Table */}
         <motion.div
@@ -1546,6 +1638,32 @@ const AdminAftersales = () => {
             existingDeal={editDeal as ExistingDealData}
           />
         )}
+
+        {/* Unlock PIN Dialog */}
+        <Dialog open={!!unlockingDealId} onOpenChange={(open) => { if (!open) { setUnlockingDealId(null); setAdminPinInput(''); } }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Unlock className="w-5 h-5" />
+                Admin Unlock
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">Enter Admin PIN to unlock this finalized deal for editing.</p>
+              <Input
+                type="password"
+                placeholder="Enter PIN..."
+                value={adminPinInput}
+                onChange={(e) => setAdminPinInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleUnlockWithPin()}
+              />
+              <Button onClick={handleUnlockWithPin} className="w-full">
+                <Unlock className="w-4 h-4 mr-2" />
+                Unlock Deal
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );
