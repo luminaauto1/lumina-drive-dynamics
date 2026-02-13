@@ -700,9 +700,24 @@ const AdminInventoryPage = () => {
                       )}
                       <TableCell className="text-right">
                         {isSoldLocked ? (
-                          <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
-                            <Lock className="w-3.5 h-3.5" />
-                            <span>Deal Locked</span>
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEditSheet(vehicle)}
+                              title="View Car Details"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => window.open(`/admin/clients/${dealInfo.appId}`, '_blank')}
+                              className="text-blue-400 hover:text-blue-300 gap-1"
+                            >
+                              <User className="w-3.5 h-3.5" />
+                              Client File
+                            </Button>
                           </div>
                         ) : (
                         <div className="flex items-center justify-end gap-2">
