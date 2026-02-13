@@ -6,54 +6,33 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { MessageCircle, Clock, UserPlus, Loader2, GripVertical, Search, AlertTriangle, RefreshCw, Archive } from "lucide-react";
+import { MessageCircle, UserPlus, Loader2, GripVertical, Search, RefreshCw, Archive } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { LeadCockpit } from "@/components/admin/leads/LeadCockpit";
 
+// --- THE SOURCE OF TRUTH (Strict DB Statuses) ---
 const COLUMNS = [
-  { id: 'new', label: 'Inbox', color: 'border-zinc-700' },
-  { id: 'actioned', label: 'Actioned', color: 'border-blue-500' },
-  { id: 'docs_processing', label: 'Docs / Processing', color: 'border-purple-500' },
-  { id: 'submitted', label: 'Submitted to Banks', color: 'border-indigo-500' },
-  { id: 'approved', label: 'Finance Approved', color: 'border-yellow-500' },
-  { id: 'validations', label: 'Validations', color: 'border-orange-500' },
+  { id: 'new', label: 'Inbox / Leads', color: 'border-zinc-700' },
+  { id: 'docs_collected', label: 'Docs Collected', color: 'border-blue-500' },
+  { id: 'submitted_to_banks', label: 'Submitted to Banks', color: 'border-indigo-500' },
+  { id: 'finance_approved', label: 'Finance Approved', color: 'border-yellow-500' },
+  { id: 'validation_pending', label: 'Validation Pending', color: 'border-orange-500' },
   { id: 'validated', label: 'Validated', color: 'border-emerald-500' },
-  { id: 'contract', label: 'Contract / Closing', color: 'border-cyan-500' },
-  { id: 'delivery', label: 'Delivery / Handover', color: 'border-green-600' },
+  { id: 'contract_signed', label: 'Contract Signed', color: 'border-cyan-500' },
+  { id: 'delivered', label: 'Delivered / Handover', color: 'border-green-600' },
 ];
 
-const mapAppStatusToColumn = (status: string) => {
-  switch (status) {
-    case 'new': return 'docs_processing';
-    case 'docs_collected': return 'docs_processing';
-    case 'submitted_to_banks': return 'submitted';
-    case 'pre_approved': return 'approved';
-    case 'finance_approved': return 'approved';
-    case 'validation_pending': return 'validations';
-    case 'validated': return 'validated';
-    case 'contract_generated': return 'contract';
-    case 'contract_sent': return 'contract';
-    case 'contract_signed': return 'contract';
-    case 'prepping_delivery': return 'delivery';
-    case 'delivered': return 'delivery';
-    default: return 'docs_processing';
-  }
-};
-
-const mapColumnToAppStatus = (colId: string): string | null => {
-  switch (colId) {
-    case 'docs_processing': return 'docs_collected';
-    case 'submitted': return 'submitted_to_banks';
-    case 'approved': return 'finance_approved';
-    case 'validations': return 'validation_pending';
-    case 'validated': return 'validated';
-    case 'contract': return 'contract_generated';
-    case 'delivery': return 'prepping_delivery';
-    default: return null;
-  }
+// Helper to catch "variant" statuses and merge into main buckets
+const normalizeStatus = (status: string) => {
+  if (!status) return 'new';
+  if (status === 'pre_approved') return 'finance_approved';
+  if (status === 'contract_generated' || status === 'contract_sent') return 'contract_signed';
+  if (status === 'prepping_delivery') return 'delivered';
+  if (status === 'actioned') return 'docs_collected';
+  return status;
 };
 
 interface MergedLead {
@@ -93,6 +72,7 @@ const AdminLeads = () => {
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
+
     const { data: leadData } = await supabase
       .from('leads')
       .select('*')
@@ -105,7 +85,7 @@ const AdminLeads = () => {
 
     let combined: MergedLead[] = (leadData || []).map((l: any) => ({
       ...l,
-      displayStatus: l.pipeline_stage || 'new',
+      displayStatus: normalizeStatus(l.pipeline_stage || 'new'),
     }));
 
     // Find orphan apps (no matching lead)
@@ -123,11 +103,11 @@ const AdminLeads = () => {
           client_email: app.email,
           notes: null,
           source: 'finance_app',
-          pipeline_stage: mapAppStatusToColumn(app.status),
+          pipeline_stage: normalizeStatus(app.status),
           created_at: app.created_at,
           status_updated_at: app.created_at,
           admin_last_viewed_at: null,
-          displayStatus: mapAppStatusToColumn(app.status),
+          displayStatus: normalizeStatus(app.status),
           appDetails: app,
         });
       }
@@ -142,7 +122,8 @@ const AdminLeads = () => {
         );
         if (app) {
           lead.appDetails = app;
-          lead.displayStatus = mapAppStatusToColumn(app.status);
+          // APP STATUS WINS. Always.
+          lead.displayStatus = normalizeStatus(app.status);
         }
       }
       return lead;
@@ -187,7 +168,7 @@ const AdminLeads = () => {
     if (!destination) return;
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
 
-    const newStage = destination.droppableId;
+    const newStage = destination.droppableId; // This IS a real DB status now
     const leadIndex = leads.findIndex((l) => l.id === draggableId);
     if (leadIndex === -1) return;
     const lead = leads[leadIndex];
@@ -219,12 +200,12 @@ const AdminLeads = () => {
         }).eq('id', lead.id);
       }
 
-      const appStatus = mapColumnToAppStatus(newStage);
-      if (lead.appDetails && appStatus) {
-        await supabase.from('finance_applications').update({ status: appStatus }).eq('id', lead.appDetails.id);
+      // DIRECT SYNC: Update finance app with same status
+      if (lead.appDetails) {
+        await supabase.from('finance_applications').update({ status: newStage }).eq('id', lead.appDetails.id);
         toast.success(`Moved to ${newStage.replace(/_/g, ' ')}`);
       } else {
-        toast.success(`Lead moved`);
+        toast.success('Lead moved');
       }
     } catch {
       toast.error('Move failed — reverting');
@@ -362,11 +343,6 @@ const AdminLeads = () => {
                                       <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
                                         {vehicleLabel || lead.notes || 'New Inquiry'}
                                       </p>
-                                      {lead.appDetails && (
-                                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 mt-1 bg-purple-500/10 text-purple-400 border-purple-500/30">
-                                          {lead.appDetails.status.replace(/_/g, ' ')}
-                                        </Badge>
-                                      )}
                                     </div>
 
                                     <div className="flex items-center justify-between mt-2 ml-3">
