@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, Plus, Search, MessageCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 
 interface Contact {
@@ -25,6 +26,7 @@ const AdminContacts = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [savingId, setSavingId] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const fetchContacts = useCallback(async () => {
     const { data, error } = await supabase
@@ -143,7 +145,7 @@ const AdminContacts = () => {
                     const waPhone = phone.startsWith('0') ? `27${phone.slice(1)}` : phone;
 
                     return (
-                      <TableRow key={c.id} className={savingId === c.id ? 'bg-primary/5' : ''}>
+                      <TableRow key={c.id} className={`${savingId === c.id ? 'bg-primary/5' : ''} cursor-pointer`}>
                         <TableCell className="p-1">
                           <Input
                             defaultValue={c.client_name || ''}
