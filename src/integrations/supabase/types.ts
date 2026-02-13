@@ -206,6 +206,7 @@ export type Database = {
           external_admin_fee: number | null
           gross_profit: number | null
           id: string
+          is_closed: boolean | null
           is_shared_capital: boolean | null
           next_service_date: string | null
           next_service_km: number | null
@@ -214,6 +215,7 @@ export type Database = {
           partner_split_percent: number | null
           partner_split_type: string | null
           partner_split_value: number | null
+          post_deal_notes: string | null
           recon_cost: number | null
           referral_commission_amount: number | null
           referral_income_amount: number | null
@@ -243,6 +245,7 @@ export type Database = {
           external_admin_fee?: number | null
           gross_profit?: number | null
           id?: string
+          is_closed?: boolean | null
           is_shared_capital?: boolean | null
           next_service_date?: string | null
           next_service_km?: number | null
@@ -251,6 +254,7 @@ export type Database = {
           partner_split_percent?: number | null
           partner_split_type?: string | null
           partner_split_value?: number | null
+          post_deal_notes?: string | null
           recon_cost?: number | null
           referral_commission_amount?: number | null
           referral_income_amount?: number | null
@@ -280,6 +284,7 @@ export type Database = {
           external_admin_fee?: number | null
           gross_profit?: number | null
           id?: string
+          is_closed?: boolean | null
           is_shared_capital?: boolean | null
           next_service_date?: string | null
           next_service_km?: number | null
@@ -288,6 +293,7 @@ export type Database = {
           partner_split_percent?: number | null
           partner_split_type?: string | null
           partner_split_value?: number | null
+          post_deal_notes?: string | null
           recon_cost?: number | null
           referral_commission_amount?: number | null
           referral_income_amount?: number | null
