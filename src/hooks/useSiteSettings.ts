@@ -22,6 +22,8 @@ export interface SiteSettings {
   facebook_url: string;
   instagram_url: string;
   tiktok_url: string | null;
+  google_review_url: string | null;
+  hellopeter_url: string | null;
   show_physical_location: boolean;
   physical_address: string | null;
   min_interest: number | null;

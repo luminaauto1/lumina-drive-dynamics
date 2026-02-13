@@ -3,25 +3,55 @@ import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Loader2, Star, Download } from "lucide-react";
+import { Loader2, Star, Download, Facebook, Instagram } from "lucide-react";
+import { toast } from "sonner";
 
 const ClientHandover = () => {
   const { dealId } = useParams();
   const [deal, setDeal] = useState<any>(null);
+  const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchDeal = async () => {
-      const { data } = await (supabase as any)
-        .from('deal_records')
-        .select('*, application:finance_applications(first_name, last_name, vehicles:vehicles(make, model, year))')
-        .eq('id', dealId)
-        .maybeSingle();
-      if (data) setDeal(data);
+    const fetchData = async () => {
+      // Fetch deal and settings in parallel
+      const [dealRes, settingsRes] = await Promise.all([
+        (supabase as any)
+          .from('deal_records')
+          .select('*, application:finance_applications(first_name, last_name, vehicles:vehicles(make, model, year))')
+          .eq('id', dealId)
+          .maybeSingle(),
+        supabase
+          .from('site_settings')
+          .select('*')
+          .limit(1)
+          .single(),
+      ]);
+      if (dealRes.data) setDeal(dealRes.data);
+      if (settingsRes.data) setSettings(settingsRes.data);
       setLoading(false);
     };
-    fetchDeal();
+    fetchData();
   }, [dealId]);
+
+  // Force download logic
+  const downloadPhoto = async (url: string, index: number) => {
+    try {
+      toast.info("Downloading...");
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const link = document.createElement('a');
+      link.href = window.URL.createObjectURL(blob);
+      link.download = `Lumina_Delivery_${index + 1}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(link.href);
+    } catch (err) {
+      console.error(err);
+      window.open(url, '_blank');
+    }
+  };
 
   if (loading) return (
     <div className="min-h-screen bg-black flex items-center justify-center">
@@ -67,44 +97,67 @@ const ClientHandover = () => {
             {photos.map((url: string, idx: number) => (
               <Card key={idx} className="overflow-hidden group relative bg-zinc-900 border-zinc-800">
                 <img src={url} alt={`Delivery ${idx + 1}`} className="w-full h-64 object-cover" />
-                <a
-                  href={url}
-                  download
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 rounded-full p-2"
+                <button
+                  onClick={() => downloadPhoto(url, idx)}
+                  className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 rounded-full p-2 text-white hover:bg-black/80"
                 >
                   <Download className="w-4 h-4" />
-                </a>
+                </button>
               </Card>
             ))}
           </div>
         )}
 
-        {/* REVIEW LINKS */}
+        {/* REVIEW LINKS (DYNAMIC) */}
         <div className="text-center mt-16 space-y-4">
-          <h2 className="text-2xl font-bold">Love the service?</h2>
+          <h2 className="text-2xl font-bold">Share your experience</h2>
           <p className="text-muted-foreground max-w-md mx-auto">
             Your review helps us grow and helps others find their dream cars. We would appreciate a moment of your time.
           </p>
           <div className="flex flex-wrap justify-center gap-4 mt-6">
-            <Button
-              size="lg"
-              className="bg-yellow-500 hover:bg-yellow-600 text-black font-semibold"
-              onClick={() => window.open('https://g.page/r/YOUR_GOOGLE_LINK', '_blank')}
-            >
-              <Star className="w-4 h-4 mr-2" />
-              Review on Google
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="border-emerald-500 text-emerald-500 hover:bg-emerald-500/10"
-              onClick={() => window.open('https://www.trustpilot.com/review/luminaauto.co.za', '_blank')}
-            >
-              <Star className="w-4 h-4 mr-2" />
-              Review on Trustpilot
-            </Button>
+            {settings?.google_review_url && (
+              <Button
+                size="lg"
+                className="bg-yellow-500 hover:bg-yellow-600 text-black font-semibold"
+                onClick={() => window.open(settings.google_review_url, '_blank')}
+              >
+                <Star className="w-4 h-4 mr-2" />
+                Google Review
+              </Button>
+            )}
+            {settings?.hellopeter_url && (
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-emerald-500 text-emerald-500 hover:bg-emerald-500/10"
+                onClick={() => window.open(settings.hellopeter_url, '_blank')}
+              >
+                <Star className="w-4 h-4 mr-2" />
+                HelloPeter
+              </Button>
+            )}
+            {settings?.facebook_url && (
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-blue-500 text-blue-500 hover:bg-blue-500/10"
+                onClick={() => window.open(settings.facebook_url, '_blank')}
+              >
+                <Facebook className="w-4 h-4 mr-2" />
+                Facebook
+              </Button>
+            )}
+            {settings?.instagram_url && (
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-pink-500 text-pink-500 hover:bg-pink-500/10"
+                onClick={() => window.open(settings.instagram_url, '_blank')}
+              >
+                <Instagram className="w-4 h-4 mr-2" />
+                Instagram
+              </Button>
+            )}
           </div>
         </div>
 
