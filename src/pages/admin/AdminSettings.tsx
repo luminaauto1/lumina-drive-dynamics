@@ -577,8 +577,27 @@ const AdminSettings = () => {
                   </div>
 
                   <div className="border-t border-border pt-6">
-                    <h3 className="font-medium mb-4">Social Media</h3>
+                    <h3 className="font-medium mb-4">Review & Social Links</h3>
+                    <p className="text-sm text-muted-foreground mb-4">These links appear on the Client Handover page and across the site.</p>
                     <div className="grid gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="google_review_url">Google Review URL</Label>
+                          <Input
+                            id="google_review_url"
+                            placeholder="https://g.page/r/..."
+                            {...register('google_review_url' as any)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="hellopeter_url">HelloPeter URL</Label>
+                          <Input
+                            id="hellopeter_url"
+                            placeholder="https://www.hellopeter.com/..."
+                            {...register('hellopeter_url' as any)}
+                          />
+                        </div>
+                      </div>
                       <div className="space-y-2">
                         <Label htmlFor="facebook_url">Facebook URL</Label>
                         <Input

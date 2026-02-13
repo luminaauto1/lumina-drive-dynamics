@@ -1034,6 +1034,8 @@ export type Database = {
           default_interest_rate: number
           facebook_url: string
           finance_email: string
+          google_review_url: string | null
+          hellopeter_url: string | null
           hero_headline: string
           hero_subheadline: string
           id: string
@@ -1062,6 +1064,8 @@ export type Database = {
           default_interest_rate?: number
           facebook_url?: string
           finance_email?: string
+          google_review_url?: string | null
+          hellopeter_url?: string | null
           hero_headline?: string
           hero_subheadline?: string
           id?: string
@@ -1090,6 +1094,8 @@ export type Database = {
           default_interest_rate?: number
           facebook_url?: string
           finance_email?: string
+          google_review_url?: string | null
+          hellopeter_url?: string | null
           hero_headline?: string
           hero_subheadline?: string
           id?: string
