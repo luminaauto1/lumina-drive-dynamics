@@ -1,7 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Plus, Search, Trash2, Edit2, Upload, X, GripVertical, Star, Clock, Truck, Ghost, ArrowRightCircle, Eye, EyeOff, PackageCheck } from 'lucide-react';
+import { Plus, Search, Trash2, Edit2, Upload, X, GripVertical, Star, Clock, Truck, Ghost, ArrowRightCircle, Eye, EyeOff, PackageCheck, Lock, User } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -92,12 +92,35 @@ const AdminInventoryPage = () => {
   const [sheetTab, setSheetTab] = useState<'details' | 'recon'>('details');
   const [isConverting, setIsConverting] = useState(false);
   const [stockInVehicle, setStockInVehicle] = useState<Vehicle | null>(null);
+  const [dealMap, setDealMap] = useState<Record<string, { buyerName: string; appId: string }>>({});
 
   const queryClient = useQueryClient();
   const { data: vehicles = [], isLoading } = useVehicles();
   const createVehicle = useCreateVehicle();
   const updateVehicle = useUpdateVehicle();
   const deleteVehicleMutation = useDeleteVehicle();
+
+  // Fetch deal records to link sold vehicles to owners
+  useEffect(() => {
+    const fetchDeals = async () => {
+      const { data } = await supabase
+        .from('deal_records')
+        .select('vehicle_id, application_id, finance_applications(id, first_name, last_name)');
+      if (data) {
+        const map: Record<string, { buyerName: string; appId: string }> = {};
+        data.forEach((d: any) => {
+          if (d.vehicle_id && d.finance_applications) {
+            map[d.vehicle_id] = {
+              buyerName: `${d.finance_applications.first_name || ''} ${d.finance_applications.last_name || ''}`.trim() || 'Unknown',
+              appId: d.finance_applications.id,
+            };
+          }
+        });
+        setDealMap(map);
+      }
+    };
+    fetchDeals();
+  }, [vehicles]);
 
   // Convert sourcing vehicle to real stock
   const handleConvertToRealStock = async (vehicle: Vehicle) => {
@@ -555,6 +578,9 @@ const AdminInventoryPage = () => {
                   )}
                   <TableHead className="text-muted-foreground text-center">Featured</TableHead>
                   <TableHead className="text-muted-foreground text-center">Finance</TableHead>
+                  {activeTab === 'sold' && (
+                    <TableHead className="text-muted-foreground">Owner</TableHead>
+                  )}
                   <TableHead className="text-muted-foreground text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -562,6 +588,8 @@ const AdminInventoryPage = () => {
                 {filteredVehicles.map((vehicle) => {
                   const sourcedCount = (vehicle as any).sourced_count || 0;
                   const isHidden = vehicle.status === 'hidden';
+                  const dealInfo = dealMap[vehicle.id];
+                  const isSoldLocked = vehicle.status === 'sold' && !!dealInfo;
                   return (
                     <TableRow key={vehicle.id} className={`border-white/10 hover:bg-white/5 ${isHidden ? 'opacity-50' : ''}`}>
                       <TableCell>
@@ -655,7 +683,28 @@ const AdminInventoryPage = () => {
                           }}
                         />
                       </TableCell>
+                      {activeTab === 'sold' && (
+                        <TableCell>
+                          {dealInfo ? (
+                            <button 
+                              onClick={() => window.open(`/admin/clients/${dealInfo.appId}`, '_blank')}
+                              className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                            >
+                              <User className="w-3 h-3" />
+                              {dealInfo.buyerName}
+                            </button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                      )}
                       <TableCell className="text-right">
+                        {isSoldLocked ? (
+                          <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
+                            <Lock className="w-3.5 h-3.5" />
+                            <span>Deal Locked</span>
+                          </div>
+                        ) : (
                         <div className="flex items-center justify-end gap-2">
                           {/* Hide/Unhide button for non-sourcing vehicles */}
                           {!(vehicle.status === 'sourcing' || (vehicle as any).is_generic_listing) && (
@@ -710,6 +759,7 @@ const AdminInventoryPage = () => {
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
+                        )}
                       </TableCell>
                     </TableRow>
                   );
