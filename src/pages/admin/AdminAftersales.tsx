@@ -935,29 +935,43 @@ const AdminAftersales = () => {
     }
     try {
       toast.info('Generating PDF...');
-      const canvas = await html2canvas(reportRef.current, {
+      
+      // Clone the report element to render it outside the scroll container
+      // This prevents ScrollArea from clipping the captured content
+      const clone = reportRef.current.cloneNode(true) as HTMLElement;
+      clone.style.position = 'absolute';
+      clone.style.left = '-9999px';
+      clone.style.top = '0';
+      clone.style.width = '794px';
+      clone.style.overflow = 'visible';
+      document.body.appendChild(clone);
+
+      const canvas = await html2canvas(clone, {
         scale: 2,
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff',
       });
 
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      document.body.removeChild(clone);
 
-      let heightLeft = pdfHeight;
-      let position = 0;
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgWidth = 190;
+      const pageHeight = 277;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
       const imgData = canvas.toDataURL('image/png');
 
-      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-      heightLeft -= pdf.internal.pageSize.getHeight();
+      let heightLeft = imgHeight;
+      let position = 10;
+
+      pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
 
       while (heightLeft > 0) {
-        position = heightLeft - pdfHeight;
+        position = -(imgHeight - heightLeft) + 10;
         pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-        heightLeft -= pdf.internal.pageSize.getHeight();
+        pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
       }
 
       const regNum = pdfDeal?.vehicle?.model || pdfDeal?.id.slice(0, 8) || 'Report';
@@ -1787,6 +1801,12 @@ const AdminAftersales = () => {
 
                 const fmtPrice = (n: number) => `R ${n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+                // Combine vehicle_expenses (pre-sale) and aftersales_expenses (post-sale) for full line items
+                const allLineItems = [
+                  ...pdfExpenses.map(e => ({ description: e.description, amount: e.amount, category: e.category })),
+                  ...(pdfDeal.aftersales_expenses || []).map(e => ({ description: e.type, amount: e.amount, category: 'Post-Sale' })),
+                ];
+
                 return (
                   <div ref={reportRef} style={{ width: '100%', maxWidth: '794px', margin: '0 auto', padding: '40px', background: '#ffffff', color: '#111', fontFamily: 'Arial, sans-serif' }}>
                     {/* HEADER */}
@@ -1828,9 +1848,9 @@ const AdminAftersales = () => {
                     </div>
 
                     {/* EXPENSE LEDGER */}
-                    {pdfExpenses.length > 0 && (
+                    {allLineItems.length > 0 && (
                       <div style={{ marginBottom: '24px' }}>
-                        <h2 style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: '#999', marginBottom: '12px' }}>Expense Breakdown (Vehicle Ledger)</h2>
+                        <h2 style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: '#999', marginBottom: '12px' }}>Expense Breakdown (Full Ledger)</h2>
                         <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
                           <thead>
                             <tr style={{ borderBottom: '1px solid #ccc' }}>
@@ -1840,7 +1860,7 @@ const AdminAftersales = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {pdfExpenses.map((exp, idx) => (
+                            {allLineItems.map((exp, idx) => (
                               <tr key={idx} style={{ borderBottom: '1px solid #f0f0f0' }}>
                                 <td style={{ padding: '4px 0' }}>{exp.description}</td>
                                 <td style={{ padding: '4px 0', color: '#666', textTransform: 'capitalize' }}>{exp.category}</td>
@@ -1849,7 +1869,7 @@ const AdminAftersales = () => {
                             ))}
                             <tr style={{ fontWeight: 600 }}>
                               <td style={{ padding: '6px 0' }} colSpan={2}>Total</td>
-                              <td style={{ padding: '6px 0', textAlign: 'right' }}>{fmtPrice(pdfExpenses.reduce((s, e) => s + e.amount, 0))}</td>
+                              <td style={{ padding: '6px 0', textAlign: 'right' }}>{fmtPrice(allLineItems.reduce((s, e) => s + e.amount, 0))}</td>
                             </tr>
                           </tbody>
                         </table>
