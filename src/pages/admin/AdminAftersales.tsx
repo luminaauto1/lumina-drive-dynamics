@@ -909,6 +909,7 @@ const AdminAftersales = () => {
   // PDF generation state
   const [pdfDeal, setPdfDeal] = useState<DealRecord | null>(null);
   const [pdfExpenses, setPdfExpenses] = useState<{ description: string; amount: number; category: string }[]>([]);
+  const [isReportPreviewOpen, setIsReportPreviewOpen] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
 
   // --- PDF GENERATION ENGINE ---
@@ -924,50 +925,48 @@ const AdminAftersales = () => {
     }
     setPdfExpenses(expenses);
     setPdfDeal(deal);
+    setIsReportPreviewOpen(true);
+  };
 
-    // Wait for render then capture
-    setTimeout(async () => {
-      if (!reportRef.current) {
-        toast.error('Report element not found.');
-        setPdfDeal(null);
-        return;
-      }
-      try {
-        toast.info('Generating PDF...');
-        const canvas = await html2canvas(reportRef.current, {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#ffffff',
-        });
+  const downloadPDF = async () => {
+    if (!reportRef.current) {
+      toast.error('Report element not found.');
+      return;
+    }
+    try {
+      toast.info('Generating PDF...');
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+      });
 
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
-        let heightLeft = pdfHeight;
-        let position = 0;
-        const imgData = canvas.toDataURL('image/png');
+      let heightLeft = pdfHeight;
+      let position = 0;
+      const imgData = canvas.toDataURL('image/png');
 
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+      heightLeft -= pdf.internal.pageSize.getHeight();
+
+      while (heightLeft > 0) {
+        position = heightLeft - pdfHeight;
+        pdf.addPage();
         pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
         heightLeft -= pdf.internal.pageSize.getHeight();
-
-        while (heightLeft > 0) {
-          position = heightLeft - pdfHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-          heightLeft -= pdf.internal.pageSize.getHeight();
-        }
-
-        const regNum = deal.vehicle?.model || deal.id.slice(0, 8);
-        pdf.save(`Partner_Report_${regNum}.pdf`);
-        toast.success('Report downloaded.');
-      } catch (err) {
-        console.error('PDF generation error:', err);
-        toast.error('Could not generate PDF report.');
       }
-      setPdfDeal(null);
-    }, 600);
+
+      const regNum = pdfDeal?.vehicle?.model || pdfDeal?.id.slice(0, 8) || 'Report';
+      pdf.save(`Partner_Report_${regNum}.pdf`);
+      toast.success('Report downloaded.');
+    } catch (err) {
+      console.error('PDF generation error:', err);
+      toast.error('Could not generate PDF report.');
+    }
   };
 
   // Lock/Unlock handlers
@@ -1742,142 +1741,163 @@ const AdminAftersales = () => {
           </DialogContent>
         </Dialog>
 
-        {/* --- HIDDEN PDF TEMPLATE (off-screen for html2canvas) --- */}
-        {pdfDeal && (() => {
-          const vehicle = pdfDeal.vehicle;
-          const sellingPrice = Number(pdfDeal.sold_price || 0);
-          const discount = Number(pdfDeal.discount_amount || 0);
-          const soldPriceNet = sellingPrice - discount;
-          const vehicleCost = Number(pdfDeal.cost_price || 0);
-          const partnerCapital = Number((pdfDeal as any).partner_capital_contribution || 0) || vehicleCost;
-          const grossProfit = soldPriceNet - vehicleCost;
-          const reconCosts = Number(pdfDeal.recon_cost || 0);
-          const otherExpenses = Number(pdfDeal.dealer_deposit_contribution || 0);
-          const totalDeductions = reconCosts + otherExpenses;
-          const netSharedProfit = grossProfit - totalDeductions;
-          const partnerPercent = pdfDeal.partner_split_type === 'percentage'
-            ? (Number(pdfDeal.partner_split_value || 0) / 100)
-            : 0;
-          const partnerShareAmount = pdfDeal.partner_split_type === 'percentage'
-            ? netSharedProfit * partnerPercent
-            : Number(pdfDeal.partner_profit_amount || 0);
-          const luminaShareAmount = netSharedProfit - partnerShareAmount;
-          const partnerPayoutTotal = partnerCapital + partnerShareAmount;
-
-          const fmtPrice = (n: number) => `R ${n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-          return (
-            <div style={{ position: 'fixed', left: '-9999px', top: 0, zIndex: -1 }}>
-              <div ref={reportRef} style={{ width: '794px', padding: '40px', background: '#ffffff', color: '#111', fontFamily: 'Arial, sans-serif' }}>
-                {/* HEADER */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '3px solid #111', paddingBottom: '16px', marginBottom: '24px' }}>
-                  <div>
-                    <h1 style={{ fontSize: '24px', fontWeight: 'bold', margin: 0 }}>PARTNER PAYOUT REPORT</h1>
-                    <p style={{ fontSize: '12px', color: '#666', margin: '4px 0 0' }}>Confidential — Internal Use Only</p>
-                  </div>
-                  <div style={{ textAlign: 'right', fontSize: '12px', color: '#666' }}>
-                    <p style={{ margin: 0 }}>Date: {format(new Date(), 'dd MMMM yyyy')}</p>
-                    <p style={{ margin: '2px 0 0' }}>Ref: {pdfDeal.id.slice(0, 8).toUpperCase()}</p>
-                  </div>
-                </div>
-
-                {/* VEHICLE */}
-                <div style={{ marginBottom: '24px' }}>
-                  <h2 style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: '#999', marginBottom: '8px' }}>Vehicle</h2>
-                  {vehicle ? (
-                    <>
-                      <p style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>{vehicle.year} {vehicle.make} {vehicle.model}</p>
-                    </>
-                  ) : (
-                    <p style={{ color: '#999' }}>Vehicle data not available</p>
-                  )}
-                </div>
-
-                {/* FINANCIAL SUMMARY */}
-                <div style={{ marginBottom: '24px' }}>
-                  <h2 style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: '#999', marginBottom: '12px' }}>Financial Summary (Metal Logic)</h2>
-                  <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
-                    <tbody>
-                      <tr><td style={{ padding: '6px 0' }}>Sold Price (Net of Discount)</td><td style={{ padding: '6px 0', textAlign: 'right', fontWeight: 500 }}>{fmtPrice(soldPriceNet)}</td></tr>
-                      <tr style={{ color: '#c00' }}><td style={{ padding: '6px 0' }}>(Less) Vehicle Cost / Capital</td><td style={{ padding: '6px 0', textAlign: 'right' }}>-{fmtPrice(vehicleCost)}</td></tr>
-                      <tr style={{ borderTop: '1px solid #ddd' }}><td style={{ padding: '8px 0', fontWeight: 'bold' }}>GROSS PROFIT</td><td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold' }}>{fmtPrice(grossProfit)}</td></tr>
-                      <tr><td colSpan={2} style={{ padding: '4px 0' }}><hr style={{ border: 'none', borderTop: '1px solid #eee' }} /></td></tr>
-                      <tr style={{ color: '#c00' }}><td style={{ padding: '6px 0' }}>(Less) Recon & Prep</td><td style={{ padding: '6px 0', textAlign: 'right' }}>-{fmtPrice(reconCosts)}</td></tr>
-                      {otherExpenses > 0 && <tr style={{ color: '#c00' }}><td style={{ padding: '6px 0' }}>(Less) Deposits / Other</td><td style={{ padding: '6px 0', textAlign: 'right' }}>-{fmtPrice(otherExpenses)}</td></tr>}
-                      <tr style={{ borderTop: '2px solid #111' }}><td style={{ padding: '8px 0', fontWeight: 'bold', fontSize: '14px' }}>NET SHARED PROFIT</td><td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold', fontSize: '14px' }}>{fmtPrice(netSharedProfit)}</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* EXPENSE LEDGER */}
-                {pdfExpenses.length > 0 && (
-                  <div style={{ marginBottom: '24px' }}>
-                    <h2 style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: '#999', marginBottom: '12px' }}>Expense Breakdown (Vehicle Ledger)</h2>
-                    <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid #ccc' }}>
-                          <th style={{ textAlign: 'left', padding: '4px 0', color: '#666', fontWeight: 500 }}>Description</th>
-                          <th style={{ textAlign: 'left', padding: '4px 0', color: '#666', fontWeight: 500 }}>Category</th>
-                          <th style={{ textAlign: 'right', padding: '4px 0', color: '#666', fontWeight: 500 }}>Amount</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {pdfExpenses.map((exp, idx) => (
-                          <tr key={idx} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                            <td style={{ padding: '4px 0' }}>{exp.description}</td>
-                            <td style={{ padding: '4px 0', color: '#666', textTransform: 'capitalize' }}>{exp.category}</td>
-                            <td style={{ padding: '4px 0', textAlign: 'right' }}>{fmtPrice(exp.amount)}</td>
-                          </tr>
-                        ))}
-                        <tr style={{ fontWeight: 600 }}>
-                          <td style={{ padding: '6px 0' }} colSpan={2}>Total</td>
-                          <td style={{ padding: '6px 0', textAlign: 'right' }}>{fmtPrice(pdfExpenses.reduce((s, e) => s + e.amount, 0))}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {/* PARTNER DISTRIBUTION */}
-                <div style={{ marginBottom: '24px', padding: '20px', background: '#f5f5f5', border: '2px solid #111', borderRadius: '8px' }}>
-                  <h2 style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: '#999', marginBottom: '12px' }}>Partner Distribution</h2>
-                  <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
-                    <tbody>
-                      <tr>
-                        <td style={{ padding: '6px 0' }}>Partner Share ({pdfDeal.partner_split_type === 'percentage' ? `${Number(pdfDeal.partner_split_value || 0)}%` : 'Fixed'})</td>
-                        <td style={{ padding: '6px 0', textAlign: 'right' }}>{fmtPrice(partnerShareAmount)}</td>
-                      </tr>
-                      <tr>
-                        <td style={{ padding: '6px 0' }}>(+) Capital Refund</td>
-                        <td style={{ padding: '6px 0', textAlign: 'right' }}>{fmtPrice(partnerCapital)}</td>
-                      </tr>
-                      <tr style={{ borderTop: '2px solid #111' }}>
-                        <td style={{ padding: '8px 0', fontWeight: 'bold', fontSize: '15px' }}>FINAL PAYOUT TO PARTNER</td>
-                        <td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold', fontSize: '15px', color: '#0a6b3d' }}>{fmtPrice(partnerPayoutTotal)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* LUMINA KEEPS */}
-                <div style={{ marginBottom: '24px', padding: '16px', background: '#eef4ff', border: '1px solid #b3d0ff', borderRadius: '8px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
-                    <span style={{ fontWeight: 600 }}>Lumina Retains</span>
-                    <span style={{ fontWeight: 'bold', fontSize: '16px' }}>{fmtPrice(totalDeductions + luminaShareAmount)}</span>
-                  </div>
-                  <p style={{ fontSize: '11px', color: '#4477bb', margin: '4px 0 0' }}>Reimbursement ({fmtPrice(totalDeductions)}) + Profit Share ({fmtPrice(luminaShareAmount)})</p>
-                </div>
-
-                {/* FOOTER */}
-                <div style={{ borderTop: '1px solid #ccc', paddingTop: '12px', textAlign: 'center', fontSize: '10px', color: '#999' }}>
-                  <p style={{ margin: 0 }}>This document is auto-generated by Lumina Auto DMS. All figures subject to final reconciliation.</p>
-                  <p style={{ margin: '4px 0 0' }}>© {new Date().getFullYear()} Lumina Auto. Confidential.</p>
-                  <p style={{ margin: '4px 0 0', fontSize: '9px', color: '#bbb' }}>* Excludes external Banking Fees, Admin Fees, and DIC rewards.</p>
-                </div>
-              </div>
+        {/* --- REPORT PREVIEW MODAL --- */}
+        <Dialog open={isReportPreviewOpen} onOpenChange={(open) => { if (!open) { setIsReportPreviewOpen(false); setPdfDeal(null); } }}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Partner Report Preview
+              </DialogTitle>
+              <DialogDescription>
+                Review the report below, then download as PDF.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end gap-2 mb-2">
+              <Button variant="outline" onClick={() => { setIsReportPreviewOpen(false); setPdfDeal(null); }}>
+                <X className="w-4 h-4 mr-2" />
+                Close
+              </Button>
+              <Button onClick={downloadPDF} className="bg-emerald-600 hover:bg-emerald-700">
+                <Download className="w-4 h-4 mr-2" />
+                Download PDF
+              </Button>
             </div>
-          );
-        })()}
+            <ScrollArea className="flex-1 overflow-auto">
+              {pdfDeal && (() => {
+                const vehicle = pdfDeal.vehicle;
+                const sellingPrice = Number(pdfDeal.sold_price || 0);
+                const discount = Number(pdfDeal.discount_amount || 0);
+                const soldPriceNet = sellingPrice - discount;
+                const vehicleCost = Number(pdfDeal.cost_price || 0);
+                const partnerCapital = Number((pdfDeal as any).partner_capital_contribution || 0) || vehicleCost;
+                const grossProfit = soldPriceNet - vehicleCost;
+                const reconCosts = Number(pdfDeal.recon_cost || 0);
+                const otherExpenses = Number(pdfDeal.dealer_deposit_contribution || 0);
+                const totalDeductions = reconCosts + otherExpenses;
+                const netSharedProfit = grossProfit - totalDeductions;
+                const partnerPercent = pdfDeal.partner_split_type === 'percentage'
+                  ? (Number(pdfDeal.partner_split_value || 0) / 100)
+                  : 0;
+                const partnerShareAmount = pdfDeal.partner_split_type === 'percentage'
+                  ? netSharedProfit * partnerPercent
+                  : Number(pdfDeal.partner_profit_amount || 0);
+                const luminaShareAmount = netSharedProfit - partnerShareAmount;
+                const partnerPayoutTotal = partnerCapital + partnerShareAmount;
+
+                const fmtPrice = (n: number) => `R ${n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+                return (
+                  <div ref={reportRef} style={{ width: '100%', maxWidth: '794px', margin: '0 auto', padding: '40px', background: '#ffffff', color: '#111', fontFamily: 'Arial, sans-serif' }}>
+                    {/* HEADER */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '3px solid #111', paddingBottom: '16px', marginBottom: '24px' }}>
+                      <div>
+                        <h1 style={{ fontSize: '24px', fontWeight: 'bold', margin: 0 }}>PARTNER PAYOUT REPORT</h1>
+                        <p style={{ fontSize: '12px', color: '#666', margin: '4px 0 0' }}>Confidential — Internal Use Only</p>
+                      </div>
+                      <div style={{ textAlign: 'right', fontSize: '12px', color: '#666' }}>
+                        <p style={{ margin: 0 }}>Date: {format(new Date(), 'dd MMMM yyyy')}</p>
+                        <p style={{ margin: '2px 0 0' }}>Ref: {pdfDeal.id.slice(0, 8).toUpperCase()}</p>
+                      </div>
+                    </div>
+
+                    {/* VEHICLE */}
+                    <div style={{ marginBottom: '24px' }}>
+                      <h2 style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: '#999', marginBottom: '8px' }}>Vehicle</h2>
+                      {vehicle ? (
+                        <p style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>{vehicle.year} {vehicle.make} {vehicle.model}</p>
+                      ) : (
+                        <p style={{ color: '#999' }}>Vehicle data not available</p>
+                      )}
+                    </div>
+
+                    {/* FINANCIAL SUMMARY */}
+                    <div style={{ marginBottom: '24px' }}>
+                      <h2 style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: '#999', marginBottom: '12px' }}>Financial Summary (Metal Logic)</h2>
+                      <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
+                        <tbody>
+                          <tr><td style={{ padding: '6px 0' }}>Sold Price (Net of Discount)</td><td style={{ padding: '6px 0', textAlign: 'right', fontWeight: 500 }}>{fmtPrice(soldPriceNet)}</td></tr>
+                          <tr style={{ color: '#c00' }}><td style={{ padding: '6px 0' }}>(Less) Vehicle Cost / Capital</td><td style={{ padding: '6px 0', textAlign: 'right' }}>-{fmtPrice(vehicleCost)}</td></tr>
+                          <tr style={{ borderTop: '1px solid #ddd' }}><td style={{ padding: '8px 0', fontWeight: 'bold' }}>GROSS PROFIT</td><td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold' }}>{fmtPrice(grossProfit)}</td></tr>
+                          <tr><td colSpan={2} style={{ padding: '4px 0' }}><hr style={{ border: 'none', borderTop: '1px solid #eee' }} /></td></tr>
+                          <tr style={{ color: '#c00' }}><td style={{ padding: '6px 0' }}>(Less) Recon & Prep</td><td style={{ padding: '6px 0', textAlign: 'right' }}>-{fmtPrice(reconCosts)}</td></tr>
+                          {otherExpenses > 0 && <tr style={{ color: '#c00' }}><td style={{ padding: '6px 0' }}>(Less) Deposits / Other</td><td style={{ padding: '6px 0', textAlign: 'right' }}>-{fmtPrice(otherExpenses)}</td></tr>}
+                          <tr style={{ borderTop: '2px solid #111' }}><td style={{ padding: '8px 0', fontWeight: 'bold', fontSize: '14px' }}>NET SHARED PROFIT</td><td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold', fontSize: '14px' }}>{fmtPrice(netSharedProfit)}</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* EXPENSE LEDGER */}
+                    {pdfExpenses.length > 0 && (
+                      <div style={{ marginBottom: '24px' }}>
+                        <h2 style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: '#999', marginBottom: '12px' }}>Expense Breakdown (Vehicle Ledger)</h2>
+                        <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid #ccc' }}>
+                              <th style={{ textAlign: 'left', padding: '4px 0', color: '#666', fontWeight: 500 }}>Description</th>
+                              <th style={{ textAlign: 'left', padding: '4px 0', color: '#666', fontWeight: 500 }}>Category</th>
+                              <th style={{ textAlign: 'right', padding: '4px 0', color: '#666', fontWeight: 500 }}>Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {pdfExpenses.map((exp, idx) => (
+                              <tr key={idx} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                                <td style={{ padding: '4px 0' }}>{exp.description}</td>
+                                <td style={{ padding: '4px 0', color: '#666', textTransform: 'capitalize' }}>{exp.category}</td>
+                                <td style={{ padding: '4px 0', textAlign: 'right' }}>{fmtPrice(exp.amount)}</td>
+                              </tr>
+                            ))}
+                            <tr style={{ fontWeight: 600 }}>
+                              <td style={{ padding: '6px 0' }} colSpan={2}>Total</td>
+                              <td style={{ padding: '6px 0', textAlign: 'right' }}>{fmtPrice(pdfExpenses.reduce((s, e) => s + e.amount, 0))}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* PARTNER DISTRIBUTION */}
+                    <div style={{ marginBottom: '24px', padding: '20px', background: '#f5f5f5', border: '2px solid #111', borderRadius: '8px' }}>
+                      <h2 style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: '#999', marginBottom: '12px' }}>Partner Distribution</h2>
+                      <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
+                        <tbody>
+                          <tr>
+                            <td style={{ padding: '6px 0' }}>Partner Share ({pdfDeal.partner_split_type === 'percentage' ? `${Number(pdfDeal.partner_split_value || 0)}%` : 'Fixed'})</td>
+                            <td style={{ padding: '6px 0', textAlign: 'right' }}>{fmtPrice(partnerShareAmount)}</td>
+                          </tr>
+                          <tr>
+                            <td style={{ padding: '6px 0' }}>(+) Capital Refund</td>
+                            <td style={{ padding: '6px 0', textAlign: 'right' }}>{fmtPrice(partnerCapital)}</td>
+                          </tr>
+                          <tr style={{ borderTop: '2px solid #111' }}>
+                            <td style={{ padding: '8px 0', fontWeight: 'bold', fontSize: '15px' }}>FINAL PAYOUT TO PARTNER</td>
+                            <td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold', fontSize: '15px', color: '#0a6b3d' }}>{fmtPrice(partnerPayoutTotal)}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* LUMINA KEEPS */}
+                    <div style={{ marginBottom: '24px', padding: '16px', background: '#eef4ff', border: '1px solid #b3d0ff', borderRadius: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
+                        <span style={{ fontWeight: 600 }}>Lumina Retains</span>
+                        <span style={{ fontWeight: 'bold', fontSize: '16px' }}>{fmtPrice(totalDeductions + luminaShareAmount)}</span>
+                      </div>
+                      <p style={{ fontSize: '11px', color: '#4477bb', margin: '4px 0 0' }}>Reimbursement ({fmtPrice(totalDeductions)}) + Profit Share ({fmtPrice(luminaShareAmount)})</p>
+                    </div>
+
+                    {/* FOOTER */}
+                    <div style={{ borderTop: '1px solid #ccc', paddingTop: '12px', textAlign: 'center', fontSize: '10px', color: '#999' }}>
+                      <p style={{ margin: 0 }}>This document is auto-generated by Lumina Auto DMS. All figures subject to final reconciliation.</p>
+                      <p style={{ margin: '4px 0 0' }}>© {new Date().getFullYear()} Lumina Auto. Confidential.</p>
+                      <p style={{ margin: '4px 0 0', fontSize: '9px', color: '#bbb' }}>* Excludes external Banking Fees, Admin Fees, and DIC rewards.</p>
+                    </div>
+                  </div>
+                );
+              })()}
+            </ScrollArea>
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );
