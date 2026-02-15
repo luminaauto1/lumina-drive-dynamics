@@ -929,20 +929,24 @@ const AdminAftersales = () => {
   };
 
   const downloadPDF = async () => {
-    if (!reportRef.current) {
+    const input = document.getElementById('report-preview-container');
+    if (!input) {
       toast.error('Report element not found.');
       return;
     }
     try {
       toast.info('Generating PDF...');
       
-      // Clone the report element to render it outside the scroll container
-      // This prevents ScrollArea from clipping the captured content
-      const clone = reportRef.current.cloneNode(true) as HTMLElement;
-      clone.style.position = 'absolute';
-      clone.style.left = '-9999px';
-      clone.style.top = '0';
-      clone.style.width = '794px';
+      // Clone the element to document body to bypass modal scroll/clipping
+      const clone = input.cloneNode(true) as HTMLElement;
+      clone.style.position = 'fixed';
+      clone.style.top = '-10000px';
+      clone.style.left = '0';
+      clone.style.zIndex = '9999';
+      clone.style.width = '210mm';
+      clone.style.height = 'auto';
+      clone.style.background = '#ffffff';
+      clone.style.color = '#000000';
       clone.style.overflow = 'visible';
       document.body.appendChild(clone);
 
@@ -955,22 +959,22 @@ const AdminAftersales = () => {
 
       document.body.removeChild(clone);
 
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgWidth = 190;
-      const pageHeight = 277;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
       const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
 
       let heightLeft = imgHeight;
-      let position = 10;
+      let position = 0;
 
-      pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
       heightLeft -= pageHeight;
 
       while (heightLeft > 0) {
-        position = -(imgHeight - heightLeft) + 10;
+        position = -(imgHeight - heightLeft);
         pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
         heightLeft -= pageHeight;
       }
 
@@ -1808,7 +1812,7 @@ const AdminAftersales = () => {
                 ];
 
                 return (
-                  <div ref={reportRef} style={{ width: '100%', maxWidth: '794px', margin: '0 auto', padding: '40px', background: '#ffffff', color: '#111', fontFamily: 'Arial, sans-serif' }}>
+                  <div id="report-preview-container" ref={reportRef} style={{ width: '100%', maxWidth: '794px', margin: '0 auto', padding: '40px', background: '#ffffff', color: '#111', fontFamily: 'Arial, sans-serif' }}>
                     {/* HEADER */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '3px solid #111', paddingBottom: '16px', marginBottom: '24px' }}>
                       <div>
