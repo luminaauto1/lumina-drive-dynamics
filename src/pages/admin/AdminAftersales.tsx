@@ -929,7 +929,7 @@ const AdminAftersales = () => {
   };
 
   const downloadPDF = async () => {
-    const input = document.getElementById('partner-report-content');
+    const input = document.getElementById('report-preview-container');
     if (!input) {
       toast.error('Report element not found.');
       return;
@@ -1790,10 +1790,14 @@ const AdminAftersales = () => {
                 const vehicleCost = Number(pdfDeal.cost_price || 0);
                 const partnerCapital = Number((pdfDeal as any).partner_capital_contribution || 0) || vehicleCost;
                 const grossProfit = soldPriceNet - vehicleCost;
-                const reconCosts = Number(pdfDeal.recon_cost || 0);
-                const otherExpenses = Number(pdfDeal.dealer_deposit_contribution || 0);
-                const totalDeductions = reconCosts + otherExpenses;
+                // Combine vehicle_expenses (pre-sale) and aftersales_expenses (post-sale) for full line items
+                const allLineItems = [
+                  ...pdfExpenses.map(e => ({ description: e.description, amount: e.amount, category: e.category })),
+                  ...(pdfDeal.aftersales_expenses || []).map(e => ({ description: e.type, amount: e.amount, category: 'Post-Sale' })),
+                ];
+                const totalDeductions = allLineItems.reduce((s, e) => s + Number(e.amount || 0), 0);
                 const netSharedProfit = grossProfit - totalDeductions;
+
                 const partnerPercent = pdfDeal.partner_split_type === 'percentage'
                   ? (Number(pdfDeal.partner_split_value || 0) / 100)
                   : 0;
@@ -1805,14 +1809,8 @@ const AdminAftersales = () => {
 
                 const fmtPrice = (n: number) => `R ${n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-                // Combine vehicle_expenses (pre-sale) and aftersales_expenses (post-sale) for full line items
-                const allLineItems = [
-                  ...pdfExpenses.map(e => ({ description: e.description, amount: e.amount, category: e.category })),
-                  ...(pdfDeal.aftersales_expenses || []).map(e => ({ description: e.type, amount: e.amount, category: 'Post-Sale' })),
-                ];
-
                 return (
-                  <div id="partner-report-content" ref={reportRef} style={{ width: '100%', maxWidth: '794px', margin: '0 auto', padding: '40px', background: '#ffffff', color: '#111', fontFamily: 'Arial, sans-serif' }}>
+                  <div id="report-preview-container" ref={reportRef} style={{ width: '100%', maxWidth: '794px', margin: '0 auto', padding: '40px', background: '#ffffff', color: '#111', fontFamily: 'Arial, sans-serif' }}>
                     {/* HEADER */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '3px solid #111', paddingBottom: '16px', marginBottom: '24px' }}>
                       <div>
@@ -1844,8 +1842,7 @@ const AdminAftersales = () => {
                           <tr style={{ color: '#c00' }}><td style={{ padding: '6px 0' }}>(Less) Vehicle Cost / Capital</td><td style={{ padding: '6px 0', textAlign: 'right' }}>-{fmtPrice(vehicleCost)}</td></tr>
                           <tr style={{ borderTop: '1px solid #ddd' }}><td style={{ padding: '8px 0', fontWeight: 'bold' }}>GROSS PROFIT</td><td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold' }}>{fmtPrice(grossProfit)}</td></tr>
                           <tr><td colSpan={2} style={{ padding: '4px 0' }}><hr style={{ border: 'none', borderTop: '1px solid #eee' }} /></td></tr>
-                          <tr style={{ color: '#c00' }}><td style={{ padding: '6px 0' }}>(Less) Recon & Prep</td><td style={{ padding: '6px 0', textAlign: 'right' }}>-{fmtPrice(reconCosts)}</td></tr>
-                          {otherExpenses > 0 && <tr style={{ color: '#c00' }}><td style={{ padding: '6px 0' }}>(Less) Deposits / Other</td><td style={{ padding: '6px 0', textAlign: 'right' }}>-{fmtPrice(otherExpenses)}</td></tr>}
+                          <tr style={{ color: '#c00' }}><td style={{ padding: '6px 0' }}>(Less) Total Expenses</td><td style={{ padding: '6px 0', textAlign: 'right' }}>-{fmtPrice(totalDeductions)}</td></tr>
                           <tr style={{ borderTop: '2px solid #111' }}><td style={{ padding: '8px 0', fontWeight: 'bold', fontSize: '14px' }}>NET SHARED PROFIT</td><td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold', fontSize: '14px' }}>{fmtPrice(netSharedProfit)}</td></tr>
                         </tbody>
                       </table>
