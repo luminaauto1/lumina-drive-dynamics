@@ -929,7 +929,7 @@ const AdminAftersales = () => {
   };
 
   const downloadPDF = async () => {
-    const input = document.getElementById('report-preview-container');
+    const input = document.getElementById('partner-report-content');
     if (!input) {
       toast.error('Report element not found.');
       return;
@@ -1812,7 +1812,7 @@ const AdminAftersales = () => {
                 ];
 
                 return (
-                  <div id="report-preview-container" ref={reportRef} style={{ width: '100%', maxWidth: '794px', margin: '0 auto', padding: '40px', background: '#ffffff', color: '#111', fontFamily: 'Arial, sans-serif' }}>
+                  <div id="partner-report-content" ref={reportRef} style={{ width: '100%', maxWidth: '794px', margin: '0 auto', padding: '40px', background: '#ffffff', color: '#111', fontFamily: 'Arial, sans-serif' }}>
                     {/* HEADER */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '3px solid #111', paddingBottom: '16px', marginBottom: '24px' }}>
                       <div>
