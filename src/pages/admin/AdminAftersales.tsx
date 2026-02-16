@@ -495,7 +495,8 @@ const DealManagementModal = ({ deal, open, onOpenChange }: { deal: DealRecord; o
   const vapRevenue = addonsArr.reduce((s, a: any) => s + Number(a.price || 0), 0);
   const vapCost = addonsArr.reduce((s, a: any) => s + Number(a.cost || 0), 0);
   const vapProfit = Math.max(0, vapRevenue - vapCost);
-  const totalRetainedIncome = currentDIC + vapProfit; // Lumina's "Pure Money"
+  const referralIncome = Number(deal.referral_income_amount || 0);
+  const totalRetainedIncome = currentDIC + vapProfit + referralIncome; // Lumina's "Pure Money"
   
   // Metal Profit = Sold Price (metal only) - Cost - Recon
   const metalPrice = deal.sold_price || 0;
@@ -1817,7 +1818,8 @@ const AdminAftersales = () => {
                 const vapRevenue = pdfAddons.reduce((s, a) => s + Number(a.price || 0), 0);
                 const vapCost = pdfAddons.reduce((s, a) => s + Number(a.cost || 0), 0);
                 const vapProfit = Math.max(0, vapRevenue - vapCost);
-                const totalRetainedIncome = dicAmount + vapProfit;
+                const referralIncome = Number(pdfDeal.referral_income_amount || 0);
+                const totalRetainedIncome = dicAmount + vapProfit + referralIncome;
                 
                 // Partner split on METAL PROFIT only
                 const partnerPercent = pdfDeal.partner_split_type === 'percentage'
@@ -1934,6 +1936,7 @@ const AdminAftersales = () => {
                         <tbody>
                           {dicAmount > 0 && <tr><td style={{ padding: '6px 0' }}>DIC (Bank Reward)</td><td style={{ padding: '6px 0', textAlign: 'right' }}>{fmtPrice(dicAmount)}</td></tr>}
                           {vapProfit > 0 && <tr><td style={{ padding: '6px 0' }}>VAP Profit (Revenue - Cost)</td><td style={{ padding: '6px 0', textAlign: 'right' }}>{fmtPrice(vapProfit)}</td></tr>}
+                          {referralIncome > 0 && <tr><td style={{ padding: '6px 0' }}>Referral Income</td><td style={{ padding: '6px 0', textAlign: 'right' }}>{fmtPrice(referralIncome)}</td></tr>}
                           {totalRetainedIncome > 0 && (
                             <tr style={{ borderTop: '1px solid #d97706' }}>
                               <td style={{ padding: '6px 0', fontWeight: 600 }}>Total Retained Income</td>
