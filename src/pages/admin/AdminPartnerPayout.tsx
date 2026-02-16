@@ -213,21 +213,22 @@ const AdminPartnerPayout = () => {
           </table>
         </div>
 
-        {/* Section 3: Retained Income */}
-        {totalRetainedIncome > 0 && (
-          <div className="mb-8 p-4 bg-amber-50 border border-amber-300 rounded-lg">
-            <h2 className="text-sm font-bold uppercase text-amber-700 mb-4">Additional Income (Lumina Retained — Not Shared)</h2>
-            <table className="w-full text-sm">
-              <tbody>
-                {dicAmount > 0 && <Row label="DIC (Bank Reward)" value={fmtPrice(dicAmount)} />}
-                {vapProfit > 0 && <Row label="VAP Profit (Revenue - Cost)" value={fmtPrice(vapProfit)} />}
-                {referralIncome > 0 && <Row label="Referral Income" value={fmtPrice(referralIncome)} />}
-                <tr><td colSpan={2} className="py-2"><hr className="border-amber-400" /></td></tr>
-                <Row label="Total Retained (Lumina Only)" value={fmtPrice(totalRetainedIncome)} bold />
-              </tbody>
-            </table>
-          </div>
-        )}
+        {/* Lumina Recovery Summary — excludes DIC, VAPs, Referral (not shown to partner) */}
+        <div className="mb-8 p-6 bg-gray-50 rounded-lg border border-gray-300">
+          <h2 className="text-sm font-bold uppercase text-gray-400 mb-4">Lumina Auto Recovery</h2>
+          <table className="w-full text-sm">
+            <tbody>
+              <Row
+                label={`Lumina Share (${deal.partner_split_type === 'percentage' ? `${100 - (deal.partner_split_value || 0)}% of Metal Profit` : 'Remainder'})`}
+                value={fmtPrice(metalProfit - partnerPayout)}
+              />
+              {reconCost > 0 && <Row label="Expenses Recovered (Recon)" value={fmtPrice(reconCost)} />}
+              {dealerDeposit > 0 && <Row label="Dealer Deposit Recovered" value={fmtPrice(dealerDeposit)} />}
+              <tr><td colSpan={2} className="py-2"><hr className="border-gray-400" /></td></tr>
+              <Row label="TOTAL LUMINA RECOVERY" value={fmtPrice((metalProfit - partnerPayout) + reconCost + dealerDeposit)} bold highlight />
+            </tbody>
+          </table>
+        </div>
 
         {/* Expense Breakdown */}
         {ledgerExpenses.length > 0 && (
