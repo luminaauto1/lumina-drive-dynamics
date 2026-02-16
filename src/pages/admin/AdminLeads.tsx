@@ -13,7 +13,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { LeadCockpit } from "@/components/admin/leads/LeadCockpit";
 
-// --- THE SOURCE OF TRUTH (Strict DB Statuses) ---
+// --- FULL STATUS COLUMNS ---
 const COLUMNS = [
   { id: 'new', label: 'Inbox (New)', color: 'border-zinc-700' },
   { id: 'actioned', label: 'Actioned', color: 'border-zinc-600' },
@@ -31,16 +31,11 @@ const COLUMNS = [
   { id: 'declined', label: 'Declined', color: 'border-red-600' },
 ];
 
-// No merging — each status has its own column. Only catch truly unknown ones.
 const normalizeStatus = (status: string | null) => {
   if (!status) return 'new';
   const s = status.toLowerCase();
-  // Map legacy/intermediate statuses
   if (s === 'otp_verified' || s === 'application_started' || s === 'pending') return 'new';
-  // Check if it's a valid column ID
-  const isValidColumn = COLUMNS.some(col => col.id === s);
-  if (isValidColumn) return s;
-  // CATCH-ALL
+  if (COLUMNS.some(col => col.id === s)) return s;
   console.warn(`Unknown lead status '${s}' mapped to 'new'`);
   return 'new';
 };
@@ -76,17 +71,18 @@ const AdminLeads = () => {
   const [adding, setAdding] = useState(false);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
+  const [isDraggingScroll, setIsDraggingScroll] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
 
+  // FETCH ALL then filter in memory (fixes ghost leads from archived records)
   const fetchLeads = useCallback(async () => {
     setLoading(true);
 
+    // Get ALL leads (active + archived) to prevent ghost virtual leads
     const { data: leadData } = await supabase
       .from('leads')
       .select('*')
-      .eq('is_archived', showArchived)
       .order('created_at', { ascending: false });
 
     const { data: apps } = await supabase
@@ -98,7 +94,7 @@ const AdminLeads = () => {
       displayStatus: normalizeStatus(l.pipeline_stage || 'new'),
     }));
 
-    // Find orphan apps (no matching lead)
+    // Find orphan apps — check against ALL leads (including archived)
     apps?.forEach((app) => {
       const exists = combined.find((l) =>
         (l.client_email && app.email && l.client_email.toLowerCase() === app.email.toLowerCase()) ||
@@ -117,6 +113,7 @@ const AdminLeads = () => {
           created_at: app.created_at,
           status_updated_at: app.created_at,
           admin_last_viewed_at: null,
+          is_archived: false,
           displayStatus: normalizeStatus(app.status),
           appDetails: app,
         });
@@ -132,7 +129,6 @@ const AdminLeads = () => {
         );
         if (app) {
           lead.appDetails = app;
-          // APP STATUS WINS. Always.
           lead.displayStatus = normalizeStatus(app.status);
         }
       }
@@ -141,7 +137,7 @@ const AdminLeads = () => {
 
     setLeads(mapped);
     setLoading(false);
-  }, [showArchived]);
+  }, []);
 
   useEffect(() => {
     fetchLeads();
@@ -155,15 +151,16 @@ const AdminLeads = () => {
   };
 
   const startDraggingScroll = (e: React.MouseEvent) => {
-    setIsDragging(true);
+    if ((e.target as HTMLElement).closest('.lead-card')) return;
+    setIsDraggingScroll(true);
     setStartX(e.pageX - (scrollContainerRef.current?.offsetLeft || 0));
     setScrollLeft(scrollContainerRef.current?.scrollLeft || 0);
   };
 
-  const stopDraggingScroll = () => setIsDragging(false);
+  const stopDraggingScroll = () => setIsDraggingScroll(false);
 
   const onMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging) return;
+    if (!isDraggingScroll) return;
     e.preventDefault();
     const x = e.pageX - (scrollContainerRef.current?.offsetLeft || 0);
     const walk = (x - startX) * 2;
@@ -172,20 +169,26 @@ const AdminLeads = () => {
     }
   };
 
-  // DnD
+  // DRAG DROP — Stable: no refetch on success, only on error
   const onDragEnd = async (result: DropResult) => {
     const { destination, source, draggableId } = result;
     if (!destination) return;
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
 
-    const newStage = destination.droppableId; // This IS a real DB status now
+    const newStage = destination.droppableId;
     const leadIndex = leads.findIndex((l) => l.id === draggableId);
     if (leadIndex === -1) return;
     const lead = leads[leadIndex];
 
-    // Optimistic
+    // Optimistic update
     const updatedLeads = [...leads];
-    updatedLeads[leadIndex] = { ...lead, displayStatus: newStage };
+    updatedLeads[leadIndex] = { ...lead, displayStatus: newStage, pipeline_stage: newStage };
+    if (updatedLeads[leadIndex].appDetails) {
+      updatedLeads[leadIndex] = {
+        ...updatedLeads[leadIndex],
+        appDetails: { ...updatedLeads[leadIndex].appDetails, status: newStage },
+      };
+    }
     setLeads(updatedLeads);
 
     try {
@@ -210,16 +213,16 @@ const AdminLeads = () => {
         }).eq('id', lead.id);
       }
 
-      // DIRECT SYNC: Update finance app with same status
+      // Sync finance app status
       if (lead.appDetails) {
         await supabase.from('finance_applications').update({ status: newStage }).eq('id', lead.appDetails.id);
-        toast.success(`Moved to ${newStage.replace(/_/g, ' ')}`);
-      } else {
-        toast.success('Lead moved');
       }
+
+      // NO fetchLeads() here — trust the optimistic update
+      toast.success(`Moved to ${newStage.replace(/_/g, ' ')}`);
     } catch {
       toast.error('Move failed — reverting');
-      fetchLeads();
+      fetchLeads(); // Only revert on error
     }
   };
 
@@ -250,7 +253,10 @@ const AdminLeads = () => {
     }
   };
 
+  // Filter in memory: archive toggle + search
   const filteredLeads = leads.filter((l) => {
+    const matchesArchive = showArchived ? l.is_archived : !l.is_archived;
+    if (!matchesArchive) return false;
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -340,7 +346,7 @@ const AdminLeads = () => {
                                     ref={provided.innerRef}
                                     {...provided.draggableProps}
                                     onClick={() => setSelectedLeadId(lead.id)}
-                                    className={`p-3 relative group transition-all cursor-pointer border-l-4 ${col.color.replace('border-', 'border-l-')} bg-card hover:bg-accent/50 ${snapshot.isDragging ? 'shadow-lg ring-2 ring-primary/30' : ''}`}
+                                    className={`lead-card p-3 relative group transition-all cursor-pointer border-l-4 ${col.color.replace('border-', 'border-l-')} bg-card hover:bg-accent/50 ${snapshot.isDragging ? 'shadow-lg ring-2 ring-primary/30' : ''}`}
                                   >
                                     <div {...provided.dragHandleProps} className="absolute top-2 left-1 opacity-0 group-hover:opacity-50 transition-opacity">
                                       <GripVertical className="w-3.5 h-3.5 text-muted-foreground" />
