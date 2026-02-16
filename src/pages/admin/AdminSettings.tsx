@@ -624,6 +624,14 @@ const AdminSettings = () => {
                           {...register('tiktok_url')}
                         />
                       </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="trustpilot_url">Trustpilot URL</Label>
+                        <Input
+                          id="trustpilot_url"
+                          placeholder="https://www.trustpilot.com/review/..."
+                          {...register('trustpilot_url' as any)}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

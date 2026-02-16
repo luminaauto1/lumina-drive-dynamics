@@ -11,30 +11,33 @@ const ClientHandover = () => {
   const [deal, setDeal] = useState<any>(null);
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
-      // Fetch deal and settings in parallel
-      const [dealRes, settingsRes] = await Promise.all([
+      if (!dealId) return;
+
+      const [settingsRes, dealRes] = await Promise.all([
+        supabase.from('site_settings').select('*').limit(1).single(),
         (supabase as any)
           .from('deal_records')
           .select('*, application:finance_applications(first_name, last_name, vehicles:vehicles(make, model, year))')
           .eq('id', dealId)
           .maybeSingle(),
-        supabase
-          .from('site_settings')
-          .select('*')
-          .limit(1)
-          .single(),
       ]);
-      if (dealRes.data) setDeal(dealRes.data);
+
       if (settingsRes.data) setSettings(settingsRes.data);
+      if (dealRes.error) {
+        console.error("Deal Fetch Error:", dealRes.error);
+        setErrorMsg(dealRes.error.message);
+      } else if (dealRes.data) {
+        setDeal(dealRes.data);
+      }
       setLoading(false);
     };
     fetchData();
   }, [dealId]);
 
-  // Force download logic
   const downloadPhoto = async (url: string, index: number) => {
     try {
       toast.info("Downloading...");
@@ -60,8 +63,12 @@ const ClientHandover = () => {
   );
 
   if (!deal) return (
-    <div className="min-h-screen bg-black flex items-center justify-center">
-      <p className="text-muted-foreground text-lg">Link expired or invalid.</p>
+    <div className="min-h-screen bg-black flex items-center justify-center text-center px-6">
+      <div>
+        <p className="text-muted-foreground text-lg mb-2">Link expired or invalid.</p>
+        {errorMsg && <p className="text-xs text-red-400">{errorMsg}</p>}
+        <p className="text-xs text-zinc-600 mt-2">ID: {dealId}</p>
+      </div>
     </div>
   );
 
@@ -108,13 +115,23 @@ const ClientHandover = () => {
           </div>
         )}
 
-        {/* REVIEW LINKS (DYNAMIC) */}
+        {/* REVIEW LINKS */}
         <div className="text-center mt-16 space-y-4">
           <h2 className="text-2xl font-bold">Share your experience</h2>
           <p className="text-muted-foreground max-w-md mx-auto">
-            Your review helps us grow and helps others find their dream cars. We would appreciate a moment of your time.
+            Your review helps us grow and helps others find their dream cars.
           </p>
           <div className="flex flex-wrap justify-center gap-4 mt-6">
+            {(settings as any)?.trustpilot_url && (
+              <Button
+                size="lg"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                onClick={() => window.open((settings as any).trustpilot_url, '_blank')}
+              >
+                <Star className="w-4 h-4 mr-2" />
+                Trustpilot
+              </Button>
+            )}
             {settings?.google_review_url && (
               <Button
                 size="lg"

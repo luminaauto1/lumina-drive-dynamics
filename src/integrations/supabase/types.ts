@@ -1054,6 +1054,7 @@ export type Database = {
           show_finance_tab: boolean
           show_physical_location: boolean
           tiktok_url: string
+          trustpilot_url: string | null
           updated_at: string
           whatsapp_number: string
         }
@@ -1084,6 +1085,7 @@ export type Database = {
           show_finance_tab?: boolean
           show_physical_location?: boolean
           tiktok_url?: string
+          trustpilot_url?: string | null
           updated_at?: string
           whatsapp_number?: string
         }
@@ -1114,6 +1116,7 @@ export type Database = {
           show_finance_tab?: boolean
           show_physical_location?: boolean
           tiktok_url?: string
+          trustpilot_url?: string | null
           updated_at?: string
           whatsapp_number?: string
         }
