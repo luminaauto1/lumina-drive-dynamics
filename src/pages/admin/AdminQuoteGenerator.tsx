@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { Plus, X, Copy, Calculator, MessageSquare, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -84,6 +85,7 @@ const AdminQuoteGenerator = () => {
   const [extrasOpen, setExtrasOpen] = useState(false);
   const [quoteOptions, setQuoteOptions] = useState<QuoteOption[]>([]);
   const [copied, setCopied] = useState(false);
+  const [showBreakdown, setShowBreakdown] = useState(false);
   // Bank Fees
   const [initiationFee, setInitiationFee] = useState(1207.50);
   const [monthlyFee, setMonthlyFee] = useState(69);
@@ -264,11 +266,18 @@ const AdminQuoteGenerator = () => {
             {/* Summary Table */}
             <Card className="glass-card">
               <CardContent className="pt-6">
-                {/* Client-Facing Summary (No background fees shown) */}
+                {/* Toggle for itemized breakdown */}
+                <div className="flex items-center justify-between mb-4 p-3 rounded-lg bg-muted/30">
+                  <Label className="text-sm">Show Itemized Breakdown</Label>
+                  <Switch checked={showBreakdown} onCheckedChange={setShowBreakdown} />
+                </div>
                 <Table>
                   <TableBody>
                     <TableRow><TableCell className="text-muted-foreground">Vehicle Price</TableCell><TableCell className="text-right font-mono">{formatPrice(vehiclePrice)}</TableCell></TableRow>
+                    {showBreakdown && extrasTotal > 0 && <TableRow><TableCell className="text-muted-foreground">+ Add-Ons & Fees</TableCell><TableCell className="text-right font-mono">{formatPrice(extrasTotal)}</TableCell></TableRow>}
+                    {showBreakdown && initiationFee > 0 && <TableRow><TableCell className="text-muted-foreground">+ Bank Initiation</TableCell><TableCell className="text-right font-mono">{formatPrice(initiationFee)}</TableCell></TableRow>}
                     {depositAmount > 0 && <TableRow><TableCell className="text-muted-foreground">Less: Deposit</TableCell><TableCell className="text-right font-mono">-{formatPrice(depositAmount)}</TableCell></TableRow>}
+                    {showBreakdown && <TableRow><TableCell className="text-muted-foreground font-semibold">Total Financed</TableCell><TableCell className="text-right font-mono font-semibold">{formatPrice(totalFinanced)}</TableCell></TableRow>}
                     <TableRow><TableCell className="text-muted-foreground">Term / Rate</TableCell><TableCell className="text-right font-mono">{term} Months @ {interestRate}%</TableCell></TableRow>
                     {balloonPercent > 0 && <TableRow><TableCell className="text-muted-foreground">Balloon</TableCell><TableCell className="text-right font-mono">{balloonPercent}%</TableCell></TableRow>}
                   </TableBody>
@@ -276,20 +285,8 @@ const AdminQuoteGenerator = () => {
                 <div className="mt-4 p-4 rounded-lg bg-primary/10 border border-primary/20">
                   <p className="text-sm text-muted-foreground mb-1">Monthly Installment</p>
                   <p className="text-3xl font-bold text-primary">{formatPrice(installment)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">*Includes standard bank fees. T&Cs apply.</p>
+                  <p className="text-xs text-muted-foreground mt-1">*Includes R{monthlyFee} service fee. T&Cs apply.</p>
                 </div>
-                {/* Admin-only internal breakdown */}
-                {(extrasTotal > 0 || initiationFee > 0) && (
-                  <div className="mt-3 p-3 rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20">
-                    <p className="text-[10px] uppercase font-bold text-muted-foreground mb-2">Internal Breakdown (Not shown to client)</p>
-                    <div className="grid grid-cols-2 gap-1 text-xs text-muted-foreground">
-                      {extrasTotal > 0 && <><span>Extras/VAPS:</span><span className="text-right font-mono">{formatPrice(extrasTotal)}</span></>}
-                      {initiationFee > 0 && <><span>Bank Initiation:</span><span className="text-right font-mono">{formatPrice(initiationFee)}</span></>}
-                      <span>Monthly Fee:</span><span className="text-right font-mono">{formatPrice(monthlyFee)}</span>
-                      <span className="font-semibold">Total Financed:</span><span className="text-right font-mono font-semibold">{formatPrice(totalFinanced)}</span>
-                    </div>
-                  </div>
-                )}
                 <Button onClick={handleAddOption} className="w-full mt-4" size="lg"><Plus className="h-4 w-4 mr-2" />Add This Option</Button>
               </CardContent>
             </Card>

@@ -277,8 +277,19 @@ const AdminSettings = () => {
   }, [settings, reset]);
 
   const onSubmit = (data: SettingsFormData) => {
-    // CLEAN DATA: Remove ID/Dates to prevent conflicts, preserve sales_reps
-    const { id, created_at, updated_at, sales_reps, ...cleanData } = data as any;
+    // STRICT TYPE CONVERSION to prevent "Failed to save" errors
+    const { id, created_at, updated_at, sales_reps, ...rest } = data as any;
+    const cleanData = {
+      ...rest,
+      default_interest_rate: Number(rest.default_interest_rate),
+      min_interest: Number(rest.min_interest),
+      max_interest: Number(rest.max_interest),
+      min_deposit_percent: Number(rest.min_deposit_percent),
+      min_balloon_percent: Number(rest.min_balloon_percent),
+      max_balloon_percent: Number(rest.max_balloon_percent),
+      default_balloon_percent: Number(rest.default_balloon_percent),
+      monthly_sales_target: Number(rest.monthly_sales_target),
+    };
     updateSettings.mutate(cleanData);
   };
 
