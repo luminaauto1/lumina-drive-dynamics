@@ -490,14 +490,22 @@ const DealManagementModal = ({ deal, open, onOpenChange }: { deal: DealRecord; o
   const reconCost = deal.recon_cost || deal.vehicle?.reconditioning_cost || 0;
   const currentDIC = deal.dic_amount || 0;
   
-  // Calculate profit (including DIC)
+  // Calculate profit (DIC & VAP profit excluded from partner split)
+  const addonsArr = Array.isArray(deal.addons_data) ? deal.addons_data : [];
+  const vapRevenue = addonsArr.reduce((s, a: any) => s + Number(a.price || 0), 0);
+  const vapCost = addonsArr.reduce((s, a: any) => s + Number(a.cost || 0), 0);
+  const vapProfit = Math.max(0, vapRevenue - vapCost);
+  const totalRetainedIncome = currentDIC + vapProfit; // Lumina's "Pure Money"
+  
   let originalProfit: number;
   let currentProfit: number;
   
   if (deal.is_shared_capital && deal.partner_split_percent) {
-    const baseProfit = (deal.sold_price || 0) - costPrice - reconCost + currentDIC;
-    const partnerPayout = baseProfit * (deal.partner_split_percent / 100);
-    const luminaRetained = baseProfit - partnerPayout;
+    const baseProfit = (deal.sold_price || 0) - costPrice - reconCost + currentDIC + vapRevenue - vapCost;
+    // Distributable = baseProfit minus retained (DIC + VAP profit)
+    const distributable = baseProfit - totalRetainedIncome;
+    const partnerPayout = distributable * (deal.partner_split_percent / 100);
+    const luminaRetained = baseProfit - partnerPayout; // Lumina keeps retained + its share
     originalProfit = luminaRetained - (deal.sales_rep_commission || 0);
     currentProfit = originalProfit - currentExpensesTotal;
   } else {
