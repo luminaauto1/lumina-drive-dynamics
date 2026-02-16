@@ -277,7 +277,9 @@ const AdminSettings = () => {
   }, [settings, reset]);
 
   const onSubmit = (data: SettingsFormData) => {
-    updateSettings.mutate(data);
+    // CLEAN DATA: Remove ID/Dates to prevent conflicts, preserve sales_reps
+    const { id, created_at, updated_at, sales_reps, ...cleanData } = data as any;
+    updateSettings.mutate(cleanData);
   };
 
   const isMaintenanceMode = watch('is_maintenance_mode');
