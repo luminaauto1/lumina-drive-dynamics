@@ -559,7 +559,7 @@ const FinalizeDealModal = ({
       vehicleId: activeVehicleId,
       salesRepName: selectedRepName,
       salesRepCommission: commissionAmount,
-      soldPrice: adjustedSellingPrice + totalAddonPrice,
+      soldPrice: adjustedSellingPrice,
       soldMileage,
       nextServiceDate: nextServiceDate || undefined,
       nextServiceKm: nextServiceKm || undefined,

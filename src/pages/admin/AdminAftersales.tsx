@@ -497,19 +497,23 @@ const DealManagementModal = ({ deal, open, onOpenChange }: { deal: DealRecord; o
   const vapProfit = Math.max(0, vapRevenue - vapCost);
   const totalRetainedIncome = currentDIC + vapProfit; // Lumina's "Pure Money"
   
+  // Metal Profit = Sold Price (metal only) - Cost - Recon
+  const metalPrice = deal.sold_price || 0;
+  const metalProfit = metalPrice - costPrice - reconCost;
+  
   let originalProfit: number;
   let currentProfit: number;
   
   if (deal.is_shared_capital && deal.partner_split_percent) {
-    const baseProfit = (deal.sold_price || 0) - costPrice - reconCost + currentDIC + vapRevenue - vapCost;
-    // Distributable = baseProfit minus retained (DIC + VAP profit)
-    const distributable = baseProfit - totalRetainedIncome;
-    const partnerPayout = distributable * (deal.partner_split_percent / 100);
-    const luminaRetained = baseProfit - partnerPayout; // Lumina keeps retained + its share
-    originalProfit = luminaRetained - (deal.sales_rep_commission || 0);
+    // Shared profit is METAL ONLY — DIC & VAPs are excluded
+    const partnerPayout = metalProfit * (deal.partner_split_percent / 100);
+    const luminaMetalShare = metalProfit - partnerPayout;
+    // Lumina total = metal share + retained income (DIC + VAP profit)
+    originalProfit = luminaMetalShare + totalRetainedIncome - (deal.sales_rep_commission || 0);
     currentProfit = originalProfit - currentExpensesTotal;
   } else {
-    originalProfit = (deal.sold_price || 0) - costPrice - reconCost + currentDIC - (deal.sales_rep_commission || 0);
+    // Non-shared: full metal profit + retained income
+    originalProfit = metalProfit + totalRetainedIncome - (deal.sales_rep_commission || 0);
     currentProfit = originalProfit - currentExpensesTotal;
   }
 
@@ -1792,27 +1796,38 @@ const AdminAftersales = () => {
             <ScrollArea className="flex-1 overflow-auto">
               {pdfDeal && (() => {
                 const vehicle = pdfDeal.vehicle;
-                const sellingPrice = Number(pdfDeal.sold_price || 0);
-                const discount = Number(pdfDeal.discount_amount || 0);
-                const soldPriceNet = sellingPrice - discount;
+                // Metal Price (sold_price no longer includes VAPs)
+                const metalPrice = Number(pdfDeal.sold_price || 0);
                 const vehicleCost = Number(pdfDeal.cost_price || 0);
                 const partnerCapital = Number((pdfDeal as any).partner_capital_contribution || 0) || vehicleCost;
-                const grossProfit = soldPriceNet - vehicleCost;
-                // Combine vehicle_expenses (pre-sale) and aftersales_expenses (post-sale) for full line items
+                
+                // Combine vehicle_expenses (pre-sale) and aftersales_expenses (post-sale)
                 const allLineItems = [
                   ...pdfExpenses.map(e => ({ description: e.description, amount: e.amount, category: e.category })),
                   ...(pdfDeal.aftersales_expenses || []).map(e => ({ description: e.type, amount: e.amount, category: 'Post-Sale' })),
                 ];
                 const totalDeductions = allLineItems.reduce((s, e) => s + Number(e.amount || 0), 0);
-                const netSharedProfit = grossProfit - totalDeductions;
-
+                
+                // Metal Profit = Metal Price - Vehicle Cost - Expenses
+                const metalProfit = metalPrice - vehicleCost - totalDeductions;
+                
+                // Retained Income (Lumina's "Pure Money" - excluded from split)
+                const dicAmount = Number(pdfDeal.dic_amount || 0);
+                const pdfAddons = Array.isArray(pdfDeal.addons_data) ? pdfDeal.addons_data as DealAddOnItem[] : [];
+                const vapRevenue = pdfAddons.reduce((s, a) => s + Number(a.price || 0), 0);
+                const vapCost = pdfAddons.reduce((s, a) => s + Number(a.cost || 0), 0);
+                const vapProfit = Math.max(0, vapRevenue - vapCost);
+                const totalRetainedIncome = dicAmount + vapProfit;
+                
+                // Partner split on METAL PROFIT only
                 const partnerPercent = pdfDeal.partner_split_type === 'percentage'
                   ? (Number(pdfDeal.partner_split_value || 0) / 100)
                   : 0;
                 const partnerShareAmount = pdfDeal.partner_split_type === 'percentage'
-                  ? netSharedProfit * partnerPercent
+                  ? metalProfit * partnerPercent
                   : Number(pdfDeal.partner_profit_amount || 0);
-                const luminaShareAmount = netSharedProfit - partnerShareAmount;
+                const luminaMetalShare = metalProfit - partnerShareAmount;
+                const luminaTotalPayout = luminaMetalShare + totalRetainedIncome;
                 const partnerPayoutTotal = partnerCapital + partnerShareAmount;
 
                 const fmtPrice = (n: number) => `R ${n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -1841,17 +1856,18 @@ const AdminAftersales = () => {
                       )}
                     </div>
 
-                    {/* FINANCIAL SUMMARY */}
+                    {/* SECTION 1: SHARED VEHICLE FINANCIALS */}
                     <div style={{ marginBottom: '24px' }}>
-                      <h2 style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: '#999', marginBottom: '12px' }}>Financial Summary (Metal Logic)</h2>
+                      <h2 style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: '#999', marginBottom: '12px' }}>Section 1: Shared Vehicle Financials (Metal Only)</h2>
                       <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
                         <tbody>
-                          <tr><td style={{ padding: '6px 0' }}>Sold Price (Net of Discount)</td><td style={{ padding: '6px 0', textAlign: 'right', fontWeight: 500 }}>{fmtPrice(soldPriceNet)}</td></tr>
-                          <tr style={{ color: '#c00' }}><td style={{ padding: '6px 0' }}>(Less) Vehicle Cost / Capital</td><td style={{ padding: '6px 0', textAlign: 'right' }}>-{fmtPrice(vehicleCost)}</td></tr>
-                          <tr style={{ borderTop: '1px solid #ddd' }}><td style={{ padding: '8px 0', fontWeight: 'bold' }}>GROSS PROFIT</td><td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold' }}>{fmtPrice(grossProfit)}</td></tr>
-                          <tr><td colSpan={2} style={{ padding: '4px 0' }}><hr style={{ border: 'none', borderTop: '1px solid #eee' }} /></td></tr>
-                          <tr style={{ color: '#c00' }}><td style={{ padding: '6px 0' }}>(Less) Total Expenses</td><td style={{ padding: '6px 0', textAlign: 'right' }}>-{fmtPrice(totalDeductions)}</td></tr>
-                          <tr style={{ borderTop: '2px solid #111' }}><td style={{ padding: '8px 0', fontWeight: 'bold', fontSize: '14px' }}>NET SHARED PROFIT</td><td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold', fontSize: '14px' }}>{fmtPrice(netSharedProfit)}</td></tr>
+                          <tr><td style={{ padding: '6px 0' }}>Selling Price (Metal)</td><td style={{ padding: '6px 0', textAlign: 'right', fontWeight: 500 }}>{fmtPrice(metalPrice)}</td></tr>
+                          <tr style={{ color: '#c00' }}><td style={{ padding: '6px 0' }}>(Less) Stock Cost / Capital</td><td style={{ padding: '6px 0', textAlign: 'right' }}>-{fmtPrice(vehicleCost)}</td></tr>
+                          {totalDeductions > 0 && <tr style={{ color: '#c00' }}><td style={{ padding: '6px 0' }}>(Less) Shared Expenses</td><td style={{ padding: '6px 0', textAlign: 'right' }}>-{fmtPrice(totalDeductions)}</td></tr>}
+                          <tr style={{ borderTop: '2px solid #111' }}>
+                            <td style={{ padding: '8px 0', fontWeight: 'bold', fontSize: '14px' }}>NET SHARED PROFIT (Metal)</td>
+                            <td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold', fontSize: '14px' }}>{fmtPrice(metalProfit)}</td>
+                          </tr>
                         </tbody>
                       </table>
                     </div>
@@ -1885,15 +1901,20 @@ const AdminAftersales = () => {
                       </div>
                     )}
 
-                    {/* PARTNER DISTRIBUTION */}
+                    {/* SECTION 2: PROFIT DISTRIBUTION */}
                     <div style={{ marginBottom: '24px', padding: '20px', background: '#f5f5f5', border: '2px solid #111', borderRadius: '8px' }}>
-                      <h2 style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: '#999', marginBottom: '12px' }}>Partner Distribution</h2>
+                      <h2 style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: '#999', marginBottom: '12px' }}>Section 2: Profit Distribution (Metal Only)</h2>
                       <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
                         <tbody>
                           <tr>
-                            <td style={{ padding: '6px 0' }}>Partner Share ({pdfDeal.partner_split_type === 'percentage' ? `${Number(pdfDeal.partner_split_value || 0)}%` : 'Fixed'})</td>
+                            <td style={{ padding: '6px 0' }}>Partner Share ({pdfDeal.partner_split_type === 'percentage' ? `${Number(pdfDeal.partner_split_value || 0)}% of Metal Profit` : 'Fixed'})</td>
                             <td style={{ padding: '6px 0', textAlign: 'right' }}>{fmtPrice(partnerShareAmount)}</td>
                           </tr>
+                          <tr>
+                            <td style={{ padding: '6px 0' }}>Lumina Share ({pdfDeal.partner_split_type === 'percentage' ? `${100 - Number(pdfDeal.partner_split_value || 0)}%` : 'Remainder'})</td>
+                            <td style={{ padding: '6px 0', textAlign: 'right' }}>{fmtPrice(luminaMetalShare)}</td>
+                          </tr>
+                          <tr><td colSpan={2} style={{ padding: '4px 0' }}><hr style={{ border: 'none', borderTop: '1px solid #ccc' }} /></td></tr>
                           <tr>
                             <td style={{ padding: '6px 0' }}>(+) Capital Refund</td>
                             <td style={{ padding: '6px 0', textAlign: 'right' }}>{fmtPrice(partnerCapital)}</td>
@@ -1906,13 +1927,30 @@ const AdminAftersales = () => {
                       </table>
                     </div>
 
-                    {/* LUMINA KEEPS */}
+                    {/* SECTION 3: RETAINED INCOME (Lumina Only) */}
+                    <div style={{ marginBottom: '24px', padding: '16px', background: '#fffbeb', border: '1px solid #f59e0b', borderRadius: '8px' }}>
+                      <h2 style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: '#92400e', marginBottom: '12px' }}>Section 3: Additional Income (Lumina Retained — Not Shared)</h2>
+                      <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
+                        <tbody>
+                          {dicAmount > 0 && <tr><td style={{ padding: '6px 0' }}>DIC (Bank Reward)</td><td style={{ padding: '6px 0', textAlign: 'right' }}>{fmtPrice(dicAmount)}</td></tr>}
+                          {vapProfit > 0 && <tr><td style={{ padding: '6px 0' }}>VAP Profit (Revenue - Cost)</td><td style={{ padding: '6px 0', textAlign: 'right' }}>{fmtPrice(vapProfit)}</td></tr>}
+                          {totalRetainedIncome > 0 && (
+                            <tr style={{ borderTop: '1px solid #d97706' }}>
+                              <td style={{ padding: '6px 0', fontWeight: 600 }}>Total Retained Income</td>
+                              <td style={{ padding: '6px 0', textAlign: 'right', fontWeight: 600 }}>{fmtPrice(totalRetainedIncome)}</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* LUMINA TOTAL */}
                     <div style={{ marginBottom: '24px', padding: '16px', background: '#eef4ff', border: '1px solid #b3d0ff', borderRadius: '8px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
-                        <span style={{ fontWeight: 600 }}>Lumina Retains</span>
-                        <span style={{ fontWeight: 'bold', fontSize: '16px' }}>{fmtPrice(totalDeductions + luminaShareAmount)}</span>
+                        <span style={{ fontWeight: 600 }}>Total Lumina Payout</span>
+                        <span style={{ fontWeight: 'bold', fontSize: '16px' }}>{fmtPrice(luminaTotalPayout)}</span>
                       </div>
-                      <p style={{ fontSize: '11px', color: '#4477bb', margin: '4px 0 0' }}>Reimbursement ({fmtPrice(totalDeductions)}) + Profit Share ({fmtPrice(luminaShareAmount)})</p>
+                      <p style={{ fontSize: '11px', color: '#4477bb', margin: '4px 0 0' }}>Metal Share ({fmtPrice(luminaMetalShare)}) + Retained Income ({fmtPrice(totalRetainedIncome)})</p>
                     </div>
 
                     {/* FOOTER */}
