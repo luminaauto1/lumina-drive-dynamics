@@ -5,7 +5,7 @@ import { Helmet } from 'react-helmet-async';
 import { 
   ArrowLeft, User, MapPin, Building, Wallet, Users, Phone, Mail, 
   MessageCircle, Car, Plus, X, Search, FileText, CheckCircle, AlertTriangle, Copy, Check,
-  Download, PartyPopper, Edit2, Save, Building2, FileSignature
+  Download, PartyPopper, Edit2, Save, Building2, FileSignature, Share2
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import AdminLayout from '@/components/admin/AdminLayout';
@@ -648,6 +648,29 @@ const AdminDealRoom = () => {
                   >
                     <Download className="w-4 h-4 mr-1 md:mr-2" />
                     <span className="hidden sm:inline">Download</span> PDF
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs md:text-sm"
+                    onClick={async () => {
+                      if (!application) return;
+                      const { data: dealRec } = await supabase
+                        .from('deal_records')
+                        .select('id')
+                        .eq('application_id', application.id)
+                        .maybeSingle();
+                      if (dealRec) {
+                        const url = `${window.location.origin}/handover/${dealRec.id}`;
+                        await navigator.clipboard.writeText(url);
+                        toast.success('Handover link copied!');
+                      } else {
+                        toast.error('No finalized deal found for this application.');
+                      }
+                    }}
+                  >
+                    <Share2 className="w-4 h-4 mr-1 md:mr-2" />
+                    <span className="hidden sm:inline">Copy</span> Handover Link
                   </Button>
                   {activeVehicle && (
                     <Button
