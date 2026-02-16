@@ -497,7 +497,7 @@ const FinalizeDealModal = ({
   // === DISTRIBUTABLE PROFIT (Excludes DIC & VAP Profit - Lumina's "Pure Money") ===
   // DIC and VAP profit are retained by Lumina and NOT shared with partners
   const vapsRetainedProfit = addonProfit; // VAP Revenue - VAP Cost = Lumina's pure margin
-  const totalRetainedIncome = dicAmount + Math.max(0, vapsRetainedProfit);
+  const totalRetainedIncome = dicAmount + Math.max(0, vapsRetainedProfit) + referralIncome;
   const distributableProfit = grossProfit - totalRetainedIncome;
   
   // Shared Capital Logic - splits only the distributable profit
