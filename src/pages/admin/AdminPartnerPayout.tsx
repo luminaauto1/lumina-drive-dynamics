@@ -136,7 +136,7 @@ const AdminPartnerPayout = () => {
   const totalAddonCost = addons.reduce((s, a) => s + (a.cost || 0), 0);
   const totalAddonPrice = addons.reduce((s, a) => s + (a.price || 0), 0);
   const vapProfit = Math.max(0, totalAddonPrice - totalAddonCost);
-  const totalRetainedIncome = dicAmount + vapProfit;
+  const totalRetainedIncome = dicAmount + vapProfit + referralIncome;
 
   // Metal Profit (shared pot)
   const metalProfit = metalPrice - costPrice - reconCost - dealerDeposit - referralExpense;
@@ -221,6 +221,7 @@ const AdminPartnerPayout = () => {
               <tbody>
                 {dicAmount > 0 && <Row label="DIC (Bank Reward)" value={fmtPrice(dicAmount)} />}
                 {vapProfit > 0 && <Row label="VAP Profit (Revenue - Cost)" value={fmtPrice(vapProfit)} />}
+                {referralIncome > 0 && <Row label="Referral Income" value={fmtPrice(referralIncome)} />}
                 <tr><td colSpan={2} className="py-2"><hr className="border-amber-400" /></td></tr>
                 <Row label="Total Retained (Lumina Only)" value={fmtPrice(totalRetainedIncome)} bold />
               </tbody>
