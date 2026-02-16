@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,6 +70,7 @@ const mapStatusToPipeline = (status: string) => {
 export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitProps) => {
   const [lead, setLead] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const [noteText, setNoteText] = useState("");
   const [inputType, setInputType] = useState<'note' | 'call' | 'reminder'>('note');
@@ -270,7 +272,7 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
                   variant="outline"
                   size="sm"
                   className="text-xs h-7 border-zinc-700 hover:bg-zinc-800"
-                  onClick={() => window.open(`/admin/clients/${lead.linkedApp?.user_id || leadId}`, '_blank')}
+                  onClick={() => navigate(`/admin/clients/${lead.linkedApp?.user_id || leadId}`)}
                   disabled={!lead.linkedApp}
                 >
                   <FileText className="w-3 h-3 mr-1" /> Open File

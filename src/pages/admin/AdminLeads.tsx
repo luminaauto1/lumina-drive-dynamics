@@ -15,31 +15,32 @@ import { LeadCockpit } from "@/components/admin/leads/LeadCockpit";
 
 // --- THE SOURCE OF TRUTH (Strict DB Statuses) ---
 const COLUMNS = [
-  { id: 'new', label: 'Inbox / Leads', color: 'border-zinc-700' },
-  { id: 'docs_collected', label: 'Docs Collected', color: 'border-blue-500' },
-  { id: 'submitted_to_banks', label: 'Submitted to Banks', color: 'border-indigo-500' },
-  { id: 'finance_approved', label: 'Finance Approved', color: 'border-yellow-500' },
-  { id: 'validation_pending', label: 'Validation Pending', color: 'border-orange-500' },
-  { id: 'validated', label: 'Validated', color: 'border-emerald-500' },
-  { id: 'contract_signed', label: 'Contract Signed', color: 'border-cyan-500' },
-  { id: 'delivered', label: 'Delivered / Handover', color: 'border-green-600' },
-  { id: 'declined', label: 'Declined / Lost', color: 'border-red-800' },
+  { id: 'new', label: 'Inbox (New)', color: 'border-zinc-700' },
+  { id: 'actioned', label: 'Actioned', color: 'border-zinc-600' },
+  { id: 'docs_collected', label: 'Docs Collected', color: 'border-blue-900' },
+  { id: 'submitted_to_banks', label: 'Submitted to Banks', color: 'border-blue-600' },
+  { id: 'pre_approved', label: 'Pre-Approved', color: 'border-yellow-600' },
+  { id: 'finance_approved', label: 'Finance Approved', color: 'border-yellow-400' },
+  { id: 'validation_pending', label: 'Validation Pending', color: 'border-orange-600' },
+  { id: 'validated', label: 'Validated', color: 'border-emerald-600' },
+  { id: 'contract_generated', label: 'Contract Generated', color: 'border-cyan-700' },
+  { id: 'contract_sent', label: 'Contract Sent', color: 'border-cyan-500' },
+  { id: 'contract_signed', label: 'Contract Signed', color: 'border-cyan-300' },
+  { id: 'prepping_delivery', label: 'Prepping Delivery', color: 'border-green-400' },
+  { id: 'delivered', label: 'Delivered', color: 'border-green-600' },
+  { id: 'declined', label: 'Declined', color: 'border-red-600' },
 ];
 
-// Helper to catch "variant" statuses and merge into main buckets
+// No merging — each status has its own column. Only catch truly unknown ones.
 const normalizeStatus = (status: string | null) => {
   if (!status) return 'new';
   const s = status.toLowerCase();
-  // Direct maps
-  if (s === 'pre_approved') return 'finance_approved';
-  if (s === 'contract_generated' || s === 'contract_sent') return 'contract_signed';
-  if (s === 'prepping_delivery') return 'delivered';
-  if (s === 'actioned') return 'docs_collected';
+  // Map legacy/intermediate statuses
   if (s === 'otp_verified' || s === 'application_started' || s === 'pending') return 'new';
   // Check if it's a valid column ID
   const isValidColumn = COLUMNS.some(col => col.id === s);
   if (isValidColumn) return s;
-  // CATCH-ALL: Unknown statuses go to 'new' so they're always visible
+  // CATCH-ALL
   console.warn(`Unknown lead status '${s}' mapped to 'new'`);
   return 'new';
 };
