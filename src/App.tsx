@@ -96,7 +96,7 @@ const AppLayout = () => {
           <Route path="/admin/analytics" element={<ProtectedRoute requireAdmin><AdminAnalytics /></ProtectedRoute>} />
           <Route path="/admin/settings" element={<ProtectedRoute requireAdmin><AdminSettings /></ProtectedRoute>} />
           <Route path="/admin/reports/partner-payout/:dealId" element={<ProtectedRoute requireAdmin><AdminPartnerPayout /></ProtectedRoute>} />
-          <Route path="/admin/client/:id" element={<ProtectedRoute requireAdmin><ClientProfile /></ProtectedRoute>} />
+          <Route path="/admin/clients/:id" element={<ProtectedRoute requireAdmin><ClientProfile /></ProtectedRoute>} />
           <Route path="/update-password" element={<UpdatePassword />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
