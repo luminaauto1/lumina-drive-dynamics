@@ -23,16 +23,25 @@ const COLUMNS = [
   { id: 'validated', label: 'Validated', color: 'border-emerald-500' },
   { id: 'contract_signed', label: 'Contract Signed', color: 'border-cyan-500' },
   { id: 'delivered', label: 'Delivered / Handover', color: 'border-green-600' },
+  { id: 'declined', label: 'Declined / Lost', color: 'border-red-800' },
 ];
 
 // Helper to catch "variant" statuses and merge into main buckets
-const normalizeStatus = (status: string) => {
+const normalizeStatus = (status: string | null) => {
   if (!status) return 'new';
-  if (status === 'pre_approved') return 'finance_approved';
-  if (status === 'contract_generated' || status === 'contract_sent') return 'contract_signed';
-  if (status === 'prepping_delivery') return 'delivered';
-  if (status === 'actioned') return 'docs_collected';
-  return status;
+  const s = status.toLowerCase();
+  // Direct maps
+  if (s === 'pre_approved') return 'finance_approved';
+  if (s === 'contract_generated' || s === 'contract_sent') return 'contract_signed';
+  if (s === 'prepping_delivery') return 'delivered';
+  if (s === 'actioned') return 'docs_collected';
+  if (s === 'otp_verified' || s === 'application_started' || s === 'pending') return 'new';
+  // Check if it's a valid column ID
+  const isValidColumn = COLUMNS.some(col => col.id === s);
+  if (isValidColumn) return s;
+  // CATCH-ALL: Unknown statuses go to 'new' so they're always visible
+  console.warn(`Unknown lead status '${s}' mapped to 'new'`);
+  return 'new';
 };
 
 interface MergedLead {
