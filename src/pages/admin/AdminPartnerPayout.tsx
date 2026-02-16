@@ -123,35 +123,28 @@ const AdminPartnerPayout = () => {
     );
   }
 
-  // Calculations
-  const soldPrice = deal.sold_price || 0;
+  // Calculations — Metal Logic (VAPs & DIC excluded from split)
+  const metalPrice = deal.sold_price || 0; // Metal only, no VAPs
   const costPrice = deal.cost_price || 0;
   const reconCost = deal.recon_cost || 0;
   const dicAmount = deal.dic_amount || 0;
   const referralIncome = deal.referral_income_amount || 0;
   const referralExpense = deal.referral_commission_amount || 0;
   const dealerDeposit = deal.dealer_deposit_contribution || 0;
-  const discountAmount = deal.discount_amount || 0;
 
   const addons = (deal.addons_data || []) as DealAddOnItem[];
   const totalAddonCost = addons.reduce((s, a) => s + (a.cost || 0), 0);
   const totalAddonPrice = addons.reduce((s, a) => s + (a.price || 0), 0);
-
-  const adjustedSellPrice = soldPrice - discountAmount;
-  const grossIncome = adjustedSellPrice + totalAddonPrice + dicAmount + referralIncome;
-  const totalCosts = costPrice + reconCost + dealerDeposit + totalAddonCost + referralExpense;
-  const grossProfit = grossIncome - totalCosts;
-
-  // Retained Income (Lumina's "Pure Money" — excluded from partner split)
   const vapProfit = Math.max(0, totalAddonPrice - totalAddonCost);
   const totalRetainedIncome = dicAmount + vapProfit;
-  const distributableProfit = grossProfit - totalRetainedIncome;
+
+  // Metal Profit (shared pot)
+  const metalProfit = metalPrice - costPrice - reconCost - dealerDeposit - referralExpense;
 
   const partnerCapital = deal.partner_capital_contribution || 0;
-  // Recalculate partner share on distributable profit
   const partnerSplitPct = deal.partner_split_type === 'percentage' ? (deal.partner_split_value || 0) / 100 : 0;
   const partnerPayout = deal.partner_split_type === 'percentage'
-    ? distributableProfit * partnerSplitPct
+    ? metalProfit * partnerSplitPct
     : (deal.partner_profit_amount || 0);
   const finalPayout = partnerCapital + partnerPayout;
 
@@ -199,41 +192,41 @@ const AdminPartnerPayout = () => {
           </div>
         </div>
 
-        {/* Financial Summary */}
+        {/* Section 1: Shared Vehicle Financials */}
         <div className="mb-8">
-          <h2 className="text-sm font-bold uppercase text-gray-400 mb-4">Financial Summary</h2>
+          <h2 className="text-sm font-bold uppercase text-gray-400 mb-4">Section 1: Shared Vehicle Financials (Metal Only)</h2>
           <table className="w-full text-sm">
             <tbody>
-              <Row label="Sale Price" value={fmtPrice(adjustedSellPrice)} />
-              {totalAddonPrice > 0 && <Row label="+ VAP Revenue" value={fmtPrice(totalAddonPrice)} />}
-              {dicAmount > 0 && <Row label="+ DIC (Bank Reward)" value={fmtPrice(dicAmount)} />}
-              {referralIncome > 0 && <Row label="+ Referral Income" value={fmtPrice(referralIncome)} />}
-              <Row label="Gross Income" value={fmtPrice(grossIncome)} bold />
+              <Row label="Selling Price (Metal)" value={fmtPrice(metalPrice)} />
               
               <tr><td colSpan={2} className="py-2"><hr className="border-gray-200" /></td></tr>
               
               <Row label="(Less) Purchase Price" value={`-${fmtPrice(costPrice)}`} negative />
               <Row label="(Less) Recon / Expenses" value={`-${fmtPrice(reconCost)}`} negative />
               {dealerDeposit > 0 && <Row label="(Less) Dealer Deposit Contribution" value={`-${fmtPrice(dealerDeposit)}`} negative />}
-              {totalAddonCost > 0 && <Row label="(Less) VAP Costs" value={`-${fmtPrice(totalAddonCost)}`} negative />}
               {referralExpense > 0 && <Row label="(Less) Referral Expense" value={`-${fmtPrice(referralExpense)}`} negative />}
               
               <tr><td colSpan={2} className="py-2"><hr className="border-gray-800" /></td></tr>
               
-              <Row label="NET PROFIT" value={fmtPrice(grossProfit)} bold highlight />
-              
-              <tr><td colSpan={2} className="py-2"><hr className="border-amber-400" /></td></tr>
-              
-              {dicAmount > 0 && <Row label="(Less) Retained: DIC (Bank Reward)" value={`-${fmtPrice(dicAmount)}`} negative />}
-              {vapProfit > 0 && <Row label="(Less) Retained: VAP Profit" value={`-${fmtPrice(vapProfit)}`} negative />}
-              {totalRetainedIncome > 0 && <Row label="Total Retained (Lumina Only)" value={fmtPrice(totalRetainedIncome)} bold />}
-              
-              <tr><td colSpan={2} className="py-2"><hr className="border-gray-800" /></td></tr>
-              
-              <Row label="DISTRIBUTABLE PROFIT" value={fmtPrice(distributableProfit)} bold highlight />
+              <Row label="NET SHARED PROFIT (Metal)" value={fmtPrice(metalProfit)} bold highlight />
             </tbody>
           </table>
         </div>
+
+        {/* Section 3: Retained Income */}
+        {totalRetainedIncome > 0 && (
+          <div className="mb-8 p-4 bg-amber-50 border border-amber-300 rounded-lg">
+            <h2 className="text-sm font-bold uppercase text-amber-700 mb-4">Additional Income (Lumina Retained — Not Shared)</h2>
+            <table className="w-full text-sm">
+              <tbody>
+                {dicAmount > 0 && <Row label="DIC (Bank Reward)" value={fmtPrice(dicAmount)} />}
+                {vapProfit > 0 && <Row label="VAP Profit (Revenue - Cost)" value={fmtPrice(vapProfit)} />}
+                <tr><td colSpan={2} className="py-2"><hr className="border-amber-400" /></td></tr>
+                <Row label="Total Retained (Lumina Only)" value={fmtPrice(totalRetainedIncome)} bold />
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Expense Breakdown */}
         {ledgerExpenses.length > 0 && (
@@ -270,7 +263,7 @@ const AdminPartnerPayout = () => {
           <table className="w-full text-sm">
             <tbody>
               <Row
-                label={`Partner Share (${deal.partner_split_type === 'percentage' ? `${deal.partner_split_value}%` : 'Fixed'} of Distributable)`}
+                label={`Partner Share (${deal.partner_split_type === 'percentage' ? `${deal.partner_split_value}% of Metal Profit` : 'Fixed'})`}
                 value={fmtPrice(partnerPayout)}
               />
               <Row label="(+) Capital Refund" value={fmtPrice(partnerCapital)} />
