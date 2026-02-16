@@ -10,13 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Card } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import {
   MessageCircle, Phone, Clock, CarFront, FileText,
   StickyNote, Bell, CheckCircle2, Calculator, ExternalLink,
-  ArrowRight, Trash2, Edit3, ChevronDown, ChevronUp
+  ArrowRight, Trash2, Edit3, ChevronDown, User, Search
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/formatters";
@@ -86,36 +86,51 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // Activity state
   const [noteText, setNoteText] = useState("");
   const [inputType, setInputType] = useState<'note' | 'call' | 'reminder'>('note');
   const [reminderPreset, setReminderPreset] = useState("tomorrow_9");
   const [headline, setHeadline] = useState("");
 
-  // Deal Calculator State
+  // Calculator state
   const [calcPrice, setCalcPrice] = useState(0);
   const [calcDeposit, setCalcDeposit] = useState(0);
   const [calcDepositPct, setCalcDepositPct] = useState(0);
   const [calcRate, setCalcRate] = useState(13.25);
   const [calcTerm, setCalcTerm] = useState(72);
   const [calcBalloonPct, setCalcBalloonPct] = useState(0);
-  // Bank Fees
   const [calcInitiationFee, setCalcInitiationFee] = useState(1207.50);
   const [calcMonthlyFee, setCalcMonthlyFee] = useState(69);
-  // Background Extras (hidden from client)
-  const [calcExtras, setCalcExtras] = useState({ licenseReg: 0, adminFee: 0, warranty: 0, dentRepair: 0 });
-  const [calcExtrasOpen, setCalcExtrasOpen] = useState(false);
+
+  // Background extras toggles
+  const [extras, setExtras] = useState({
+    adminFee: { enabled: false, value: 4500 },
+    license: { enabled: false, value: 2500 },
+    warranty: { enabled: false, value: 8000 },
+    bankFees: { enabled: true, value: 0 }, // "Std" means use initiation+monthly
+  });
+
+  // Derived calculation (instant)
+  const bgExtrasTotal =
+    (extras.adminFee.enabled ? extras.adminFee.value : 0) +
+    (extras.license.enabled ? extras.license.value : 0) +
+    (extras.warranty.enabled ? extras.warranty.value : 0);
+  const effectiveInitiation = extras.bankFees.enabled ? calcInitiationFee : 0;
+  const effectiveMonthly = extras.bankFees.enabled ? calcMonthlyFee : 0;
+  const principal = Math.max(0, calcPrice + bgExtrasTotal + effectiveInitiation - calcDeposit);
+  const balloonValue = Math.round(calcPrice * (calcBalloonPct / 100));
+  const basePmt = calculatePMT(principal, calcRate, calcTerm, balloonValue);
+  const finalInstallment = basePmt + effectiveMonthly;
 
   useEffect(() => {
     if (leadId && isOpen) {
       const fetchLead = async () => {
         setLoading(true);
         const { data: leadData } = await supabase.from('leads').select('*').eq('id', leadId).single();
-
         if (leadData) {
           const orFilters: string[] = [];
           if (leadData.client_email) orFilters.push(`email.eq.${leadData.client_email}`);
           if (leadData.client_phone) orFilters.push(`phone.eq.${leadData.client_phone}`);
-
           let appData = null;
           if (orFilters.length > 0) {
             const { data } = await supabase
@@ -125,18 +140,10 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
               .maybeSingle();
             appData = data;
           }
-
-          const fullLead = {
-            ...leadData,
-            id_number: leadData.id_number || appData?.id_number,
-            linkedApp: appData,
-          };
+          const fullLead = { ...leadData, id_number: leadData.id_number || appData?.id_number, linkedApp: appData };
           setLead(fullLead);
           setHeadline((fullLead as any).deal_headline || "");
-          // Pre-fill calculator with vehicle price
-          if (appData?.vehicles?.price) {
-            setCalcPrice(Number(appData.vehicles.price));
-          }
+          if (appData?.vehicles?.price) setCalcPrice(Number(appData.vehicles.price));
         }
         setLoading(false);
       };
@@ -153,16 +160,8 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
 
   const updateStatus = async (newStatus: string) => {
     const pipelineStage = mapStatusToPipeline(newStatus);
-    await supabase.from('leads').update({
-      pipeline_stage: pipelineStage,
-      status: newStatus,
-      status_updated_at: new Date().toISOString(),
-    }).eq('id', leadId!);
-
-    if (lead.linkedApp) {
-      await supabase.from('finance_applications').update({ status: newStatus }).eq('id', lead.linkedApp.id);
-    }
-
+    await supabase.from('leads').update({ pipeline_stage: pipelineStage, status: newStatus, status_updated_at: new Date().toISOString() }).eq('id', leadId!);
+    if (lead.linkedApp) await supabase.from('finance_applications').update({ status: newStatus }).eq('id', lead.linkedApp.id);
     setLead((prev: any) => ({ ...prev, status: newStatus, pipeline_stage: pipelineStage }));
     toast.success(`Status → ${newStatus.replace(/_/g, ' ').toUpperCase()}`);
     onUpdate();
@@ -189,32 +188,14 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
   const addActivity = async () => {
     if (!noteText.trim()) return;
     const finalDate = inputType === 'reminder' ? calculateReminderDate(reminderPreset) : null;
-    const newLog = {
-      id: Date.now().toString(),
-      type: inputType,
-      text: noteText,
-      date: new Date().toISOString(),
-      user: 'Admin',
-      reminderDue: finalDate,
-      isCompleted: false,
-    };
+    const newLog = { id: Date.now().toString(), type: inputType, text: noteText, date: new Date().toISOString(), user: 'Admin', reminderDue: finalDate, isCompleted: false };
     const updatedLogs = [newLog, ...(lead.activity_log || [])];
-    const { error } = await supabase.from('leads').update({
-      activity_log: updatedLogs,
-      status_updated_at: new Date().toISOString(),
-    }).eq('id', leadId!);
-
-    if (!error) {
-      setLead((prev: any) => ({ ...prev, activity_log: updatedLogs }));
-      setNoteText("");
-      toast.success("Activity logged");
-    }
+    const { error } = await supabase.from('leads').update({ activity_log: updatedLogs, status_updated_at: new Date().toISOString() }).eq('id', leadId!);
+    if (!error) { setLead((prev: any) => ({ ...prev, activity_log: updatedLogs })); setNoteText(""); toast.success("Activity logged"); }
   };
 
   const completeReminder = async (logId: string) => {
-    const updatedLogs = (lead.activity_log || []).map((log: any) =>
-      log.id === logId ? { ...log, isCompleted: true } : log
-    );
+    const updatedLogs = (lead.activity_log || []).map((log: any) => log.id === logId ? { ...log, isCompleted: true } : log);
     await updateField('activity_log', updatedLogs);
     toast.success("Reminder cleared");
   };
@@ -237,17 +218,22 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
   if (!lead) return null;
 
   const currentStatus = lead.linkedApp?.status || lead.status || 'new';
+  const vehicle = lead.linkedApp?.vehicles;
+
+  const getAutoTraderLink = () => {
+    if (!vehicle) return "#";
+    return `https://www.autotrader.co.za/cars-for-sale?year_min=2024&make=${encodeURIComponent(vehicle.make)}&model=${encodeURIComponent(vehicle.model)}`;
+  };
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <SheetContent side="right" className="w-full sm:max-w-[95vw] lg:max-w-[85vw] p-0 bg-zinc-950 text-white border-zinc-800 overflow-hidden">
+      <SheetContent side="right" className="w-[95vw] md:max-w-[1400px] p-0 bg-zinc-950 text-white border-zinc-800 overflow-hidden">
         <div className="flex flex-col h-full">
 
-          {/* --- HEADER --- */}
-          <div className="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur px-6 py-4">
-            <div className="flex items-start gap-4">
-
-              {/* LEFT: IDENTITY */}
+          {/* === HEADER BAR === */}
+          <div className="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur px-5 py-3 shrink-0">
+            <div className="flex items-center gap-4 flex-wrap">
+              {/* Identity */}
               <div className="flex items-center gap-3 shrink-0">
                 <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-lg shrink-0">
                   {lead.client_name?.charAt(0)}
@@ -255,7 +241,6 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
                 <div>
                   <div className="flex items-center gap-2">
                     <h2 className="text-base font-bold text-white">{lead.client_name}</h2>
-                    {/* STATUS DROPDOWN */}
                     <Select value={currentStatus} onValueChange={updateStatus}>
                       <SelectTrigger className={`h-6 text-[10px] font-bold uppercase border rounded-full px-2.5 py-0.5 w-auto gap-1 inline-flex items-center justify-center ${getStatusStyle(currentStatus)}`}>
                         <span className="leading-none">{currentStatus.replace(/_/g, ' ')}</span>
@@ -278,11 +263,10 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
                 </div>
               </div>
 
-              {/* DIVIDER */}
-              <div className="w-px self-stretch bg-zinc-800 mx-2 shrink-0" />
+              <div className="w-px self-stretch bg-zinc-800 mx-1 shrink-0 hidden md:block" />
 
-              {/* CENTER: WRAPPABLE TEXTAREA */}
-              <div className="relative flex-1 min-w-0">
+              {/* Headline */}
+              <div className="relative flex-1 min-w-[200px]">
                 <Edit3 className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-zinc-600 pointer-events-none" />
                 <textarea
                   value={headline}
@@ -290,381 +274,260 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
                   onBlur={saveHeadline}
                   rows={1}
                   className="pl-8 pr-3 py-2 min-h-[2.5rem] w-full text-xs font-medium bg-zinc-950/50 border border-zinc-800 rounded-md text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-900 focus:border-blue-800 resize-none leading-snug break-words"
-                  placeholder="Add Context (e.g. Urgent - BMW M4 - Needs delivery by Friday)"
+                  placeholder="Deal context (e.g. Pre-approved R450k, wants M4 by Friday)"
                   style={{ fieldSizing: 'content' } as React.CSSProperties}
                 />
               </div>
 
-              {/* RIGHT: ACTIONS */}
+              {/* Quick Actions */}
               <div className="flex items-center gap-2 shrink-0">
-                <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-red-400 text-xs h-7" onClick={archiveLead}>
-                  <Trash2 className="w-3 h-3 mr-1" /> Archive
+                <Button size="sm" className="bg-emerald-700 hover:bg-emerald-600 text-white h-9 px-4 text-xs font-bold gap-1.5" onClick={() => openWhatsApp('intro')}>
+                  <MessageCircle className="w-4 h-4" /> WhatsApp
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-xs h-7 border-zinc-700 hover:bg-zinc-800"
-                  onClick={() => navigate(`/admin/clients/${lead.linkedApp?.user_id || leadId}`)}
-                  disabled={!lead.linkedApp}
-                >
-                  <FileText className="w-3 h-3 mr-1" /> Open File
+                <Button variant="outline" size="sm" className="border-zinc-700 text-blue-400 hover:bg-blue-950/30 h-9 px-4 text-xs font-bold gap-1.5" onClick={() => window.open(`tel:${lead.client_phone}`)}>
+                  <Phone className="w-4 h-4" /> Call
                 </Button>
-                <Button size="sm" className="bg-blue-600 hover:bg-blue-500 text-xs h-7 whitespace-nowrap">
-                  Convert <ArrowRight className="w-3 h-3 ml-1" />
+                <Button variant="outline" size="sm" className="border-zinc-700 h-9 text-xs gap-1.5" onClick={() => navigate(`/admin/clients/${lead.linkedApp?.user_id || leadId}`)} disabled={!lead.linkedApp}>
+                  <User className="w-3.5 h-3.5" /> File
+                </Button>
+                <Button variant="ghost" size="sm" className="text-zinc-500 hover:text-red-400 text-xs h-9" onClick={archiveLead}>
+                  <Trash2 className="w-3.5 h-3.5" />
                 </Button>
               </div>
             </div>
           </div>
 
-          {/* --- MAIN GRID --- */}
+          {/* === SPLIT SCREEN BODY === */}
           <div className="flex-1 grid grid-cols-1 md:grid-cols-12 overflow-hidden">
 
-            {/* COL 1: DATA (40%) */}
-            <div className="md:col-span-5 border-r border-zinc-800 bg-zinc-900/10 overflow-y-auto">
-              <div className="p-5 space-y-5">
-
-                {/* Contact Actions */}
-                <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" size="sm" className="justify-start border-zinc-800 text-emerald-400 hover:bg-emerald-950/30 text-xs h-8" onClick={() => openWhatsApp('intro')}>
-                    <MessageCircle className="w-3.5 h-3.5 mr-2" /> WhatsApp
+            {/* ─── LEFT COLUMN: CLERK SIDE (35%) ─── */}
+            <div className="md:col-span-5 lg:col-span-4 border-r border-zinc-800 flex flex-col overflow-hidden">
+              {/* Live Notepad */}
+              <div className="p-4 border-b border-zinc-800 bg-zinc-900/50 shrink-0">
+                <div className="flex gap-1 mb-2">
+                  <Button variant={inputType === 'note' ? 'default' : 'ghost'} size="sm" onClick={() => setInputType('note')} className="h-7 text-xs font-bold px-3">
+                    <StickyNote className="w-3 h-3 mr-1" /> Note
                   </Button>
-                  <Button variant="outline" size="sm" className="justify-start border-zinc-800 text-blue-400 hover:bg-blue-950/30 text-xs h-8" onClick={() => window.open(`tel:${lead.client_phone}`)}>
-                    <Phone className="w-3.5 h-3.5 mr-2" /> Call
+                  <Button variant={inputType === 'call' ? 'default' : 'ghost'} size="sm" onClick={() => setInputType('call')} className="h-7 text-xs font-bold px-3">
+                    <Phone className="w-3 h-3 mr-1" /> Call
+                  </Button>
+                  <Button variant={inputType === 'reminder' ? 'default' : 'ghost'} size="sm" onClick={() => setInputType('reminder')} className="h-7 text-xs font-bold px-3">
+                    <Bell className="w-3 h-3 mr-1" /> Remind
                   </Button>
                 </div>
-
-                <Separator className="bg-zinc-800" />
-
-                {/* Vehicle Interest */}
-                <div className="space-y-3">
-                  <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest border-b border-zinc-800 pb-2 flex items-center gap-1.5">
-                    <CarFront className="w-3.5 h-3.5" /> Vehicle Interest
-                  </h3>
-                  <div className="bg-black/40 p-3 rounded border border-zinc-800">
-                    {lead.linkedApp?.vehicles ? (
-                      <div>
-                        <p className="text-sm font-bold text-white">{lead.linkedApp.vehicles.year} {lead.linkedApp.vehicles.make} {lead.linkedApp.vehicles.model}</p>
-                        <p className="text-[10px] text-zinc-500 font-mono mt-1">{lead.linkedApp.vehicles.registration_number || 'No reg #'}</p>
-                      </div>
-                    ) : (
-                      <div className="text-xs text-zinc-600 italic">No vehicle linked</div>
+                <div className="relative">
+                  <Textarea
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                    placeholder={inputType === 'call' ? "Log call outcome..." : inputType === 'reminder' ? "What should I remind you about?" : "Add internal note..."}
+                    className="min-h-[120px] bg-zinc-950 border-zinc-800 text-sm resize-none focus-visible:ring-blue-600 p-4 pb-12"
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addActivity(); } }}
+                  />
+                  <div className="absolute bottom-3 right-3 flex items-center gap-2">
+                    {inputType === 'reminder' && (
+                      <Select value={reminderPreset} onValueChange={setReminderPreset}>
+                        <SelectTrigger className="h-6 w-[120px] bg-zinc-900 border-zinc-700 text-[10px]"><SelectValue /></SelectTrigger>
+                        <SelectContent className="bg-zinc-900 border-zinc-800 text-white z-[9999]">
+                          <SelectItem value="1hr">In 1 Hour</SelectItem>
+                          <SelectItem value="3hr">In 3 Hours</SelectItem>
+                          <SelectItem value="tomorrow_9">Tomorrow 09:00</SelectItem>
+                          <SelectItem value="tomorrow_14">Tomorrow 14:00</SelectItem>
+                          <SelectItem value="2days">In 2 Days</SelectItem>
+                          <SelectItem value="next_week">Next Week</SelectItem>
+                        </SelectContent>
+                      </Select>
                     )}
-                  </div>
-                </div>
-
-                <Separator className="bg-zinc-800" />
-
-                {/* Trade-In */}
-                <div className="space-y-3">
-                  <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest border-b border-zinc-800 pb-2">Trade-In</h3>
-                  <div className="space-y-2">
-                    <div>
-                      <label className="text-[10px] text-zinc-500 uppercase">Vehicle</label>
-                      <Input value={lead.trade_in_make_model || ''} onBlur={(e) => updateField('trade_in_make_model', e.target.value)} onChange={(e) => setLead((p: any) => ({ ...p, trade_in_make_model: e.target.value }))} className="bg-zinc-950 border-zinc-800 h-8 text-xs" placeholder="e.g. 2015 VW Polo" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-[10px] text-zinc-500 uppercase">Est. Value (R)</label>
-                        <Input value={lead.trade_in_estimated_value || ''} onBlur={(e) => updateField('trade_in_estimated_value', e.target.value)} onChange={(e) => setLead((p: any) => ({ ...p, trade_in_estimated_value: e.target.value }))} className="bg-zinc-950 border-zinc-800 h-8 text-xs" />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-zinc-500 uppercase">Mileage</label>
-                        <Input value={lead.trade_in_mileage || ''} onBlur={(e) => updateField('trade_in_mileage', e.target.value)} onChange={(e) => setLead((p: any) => ({ ...p, trade_in_mileage: e.target.value }))} className="bg-zinc-950 border-zinc-800 h-8 text-xs" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <Separator className="bg-zinc-800" />
-
-                {/* Client Details */}
-                <div className="space-y-2">
-                  <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest border-b border-zinc-800 pb-2">Client Details</h3>
-                  <Input value={lead.client_email || ''} onBlur={(e) => updateField('client_email', e.target.value)} onChange={(e) => setLead((p: any) => ({ ...p, client_email: e.target.value }))} placeholder="Email" className="bg-zinc-950 border-zinc-800 h-8 text-xs" />
-                  <Input value={lead.id_number || ''} onBlur={(e) => updateField('id_number', e.target.value)} onChange={(e) => setLead((p: any) => ({ ...p, id_number: e.target.value }))} placeholder="ID Number" className="bg-zinc-950 border-zinc-800 h-8 text-xs" />
-                  <div>
-                    <label className="text-[10px] text-zinc-500 uppercase">Heat Level</label>
-                    <Select value={lead.lead_temperature || 'warm'} onValueChange={(v) => updateField('lead_temperature', v)}>
-                      <SelectTrigger className="bg-zinc-950 border-zinc-800 h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent className="bg-zinc-900 border-zinc-800 text-white z-[9999]">
-                        <SelectItem value="cold">❄️ Cold</SelectItem>
-                        <SelectItem value="warm">🟠 Warm</SelectItem>
-                        <SelectItem value="hot">🔥 Hot</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Button size="sm" className="bg-blue-600 hover:bg-blue-500 h-7 text-xs font-bold" onClick={addActivity}>Save</Button>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* COL 2: THE BRAIN (60%) */}
-            <div className="md:col-span-7 flex flex-col bg-zinc-950 overflow-hidden">
-              <Tabs defaultValue="activity" className="flex flex-col flex-1 overflow-hidden">
-                <div className="px-4 pt-3 pb-0 border-b border-zinc-800 bg-zinc-900/50">
-                  <TabsList className="bg-zinc-800/50 h-8">
-                    <TabsTrigger value="activity" className="text-xs data-[state=active]:bg-zinc-700 h-7 gap-1"><StickyNote className="w-3 h-3" /> Activity</TabsTrigger>
-                    <TabsTrigger value="calculator" className="text-xs data-[state=active]:bg-zinc-700 h-7 gap-1"><Calculator className="w-3 h-3" /> Deal Calc</TabsTrigger>
-                    <TabsTrigger value="market" className="text-xs data-[state=active]:bg-zinc-700 h-7 gap-1"><CarFront className="w-3 h-3" /> Vehicle & Market</TabsTrigger>
-                  </TabsList>
-                </div>
-
-                {/* TAB 1: ACTIVITY & NOTES */}
-                <TabsContent value="activity" className="flex-1 flex flex-col overflow-hidden mt-0">
-                  <div className="p-4 border-b border-zinc-800 bg-zinc-900/50">
-                    <div className="flex gap-1 mb-3">
-                      <Button variant={inputType === 'note' ? 'default' : 'ghost'} size="sm" onClick={() => setInputType('note')} className="h-7 text-xs font-bold px-3">
-                        <StickyNote className="w-3 h-3 mr-1" /> Note
-                      </Button>
-                      <Button variant={inputType === 'call' ? 'default' : 'ghost'} size="sm" onClick={() => setInputType('call')} className="h-7 text-xs font-bold px-3">
-                        <Phone className="w-3 h-3 mr-1" /> Log Call
-                      </Button>
-                      <Button variant={inputType === 'reminder' ? 'default' : 'ghost'} size="sm" onClick={() => setInputType('reminder')} className="h-7 text-xs font-bold px-3">
-                        <Bell className="w-3 h-3 mr-1" /> Remind
-                      </Button>
-                    </div>
-                    <div className="relative">
-                      <Textarea
-                        value={noteText}
-                        onChange={(e) => setNoteText(e.target.value)}
-                        placeholder={inputType === 'call' ? "Log call outcome..." : inputType === 'reminder' ? "What should I remind you about?" : "Add internal note..."}
-                        className="min-h-[100px] bg-zinc-950 border-zinc-800 text-sm resize-none focus-visible:ring-blue-600 p-4 pb-12"
-                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addActivity(); } }}
-                      />
-                      <div className="absolute bottom-3 right-3 flex items-center gap-2">
-                        {inputType === 'reminder' && (
-                          <Select value={reminderPreset} onValueChange={setReminderPreset}>
-                            <SelectTrigger className="h-6 w-[120px] bg-zinc-900 border-zinc-700 text-[10px]"><SelectValue /></SelectTrigger>
-                            <SelectContent className="bg-zinc-900 border-zinc-800 text-white z-[9999]">
-                              <SelectItem value="1hr">In 1 Hour</SelectItem>
-                              <SelectItem value="3hr">In 3 Hours</SelectItem>
-                              <SelectItem value="tomorrow_9">Tomorrow 09:00</SelectItem>
-                              <SelectItem value="tomorrow_14">Tomorrow 14:00</SelectItem>
-                              <SelectItem value="2days">In 2 Days</SelectItem>
-                              <SelectItem value="next_week">Next Week</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        )}
-                        <Button size="sm" className="bg-blue-600 hover:bg-blue-500 h-7 text-xs font-bold" onClick={addActivity}>
-                          Save
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                  <ScrollArea className="flex-1 p-6">
-                    <div className="space-y-6 max-w-3xl mx-auto">
-                      {(lead.activity_log || []).map((log: any, idx: number) => {
-                        const isCall = log.type === 'call';
-                        const isReminder = log.type === 'reminder';
-                        return (
-                          <div key={log.id || idx} className="flex gap-4 group">
-                            <div className={`mt-1.5 w-2.5 h-2.5 rounded-full shrink-0 ${isCall ? 'bg-green-500' : isReminder ? 'bg-yellow-500' : 'bg-blue-500'}`} />
-                            <div className="flex-1 pb-4 border-b border-zinc-900 last:border-0">
-                              <div className="flex justify-between mb-1">
-                                <div className="flex items-center gap-2">
-                                  <span className={`text-xs font-bold uppercase ${isCall ? 'text-green-400' : isReminder ? 'text-yellow-400' : 'text-blue-400'}`}>
-                                    {log.type}
-                                  </span>
-                                  <span className="text-[10px] text-zinc-500">• {log.user || 'Admin'}</span>
-                                </div>
-                                <span className="text-[10px] text-zinc-600 font-mono">
-                                  {formatDistanceToNow(new Date(log.date), { addSuffix: true })}
-                                </span>
-                              </div>
-                              <p className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">{log.text}</p>
-                              {isReminder && log.reminderDue && (
-                                <div className="mt-2 flex items-center gap-3">
-                                  <Badge variant="outline" className={`border-zinc-700 ${log.isCompleted ? 'text-green-500 bg-green-950/20' : 'text-yellow-500 bg-yellow-950/20'}`}>
-                                    <Clock className="w-3 h-3 mr-1" />
-                                    {log.isCompleted ? "Done" : `Due: ${format(new Date(log.reminderDue), "EEE, d MMM @ HH:mm")}`}
-                                  </Badge>
-                                  {!log.isCompleted && (
-                                    <Button variant="ghost" size="sm" className="h-6 text-[10px] text-green-400 hover:text-green-300" onClick={() => completeReminder(log.id)}>
-                                      <CheckCircle2 className="w-3 h-3 mr-1" /> Done
-                                    </Button>
-                                  )}
-                                </div>
+              {/* Activity History */}
+              <ScrollArea className="flex-1">
+                <div className="p-4 space-y-4">
+                  <h3 className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">Activity Stream</h3>
+                  {(lead.activity_log || []).map((log: any, idx: number) => {
+                    const isCall = log.type === 'call';
+                    const isReminder = log.type === 'reminder';
+                    return (
+                      <div key={log.id || idx} className="flex gap-3 group">
+                        <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${isCall ? 'bg-green-500' : isReminder ? 'bg-yellow-500' : 'bg-blue-500'}`} />
+                        <div className="flex-1 pb-3 border-b border-zinc-900/50 last:border-0">
+                          <div className="flex justify-between mb-0.5">
+                            <span className={`text-[10px] font-bold uppercase ${isCall ? 'text-green-400' : isReminder ? 'text-yellow-400' : 'text-blue-400'}`}>{log.type}</span>
+                            <span className="text-[10px] text-zinc-600 font-mono">{formatDistanceToNow(new Date(log.date), { addSuffix: true })}</span>
+                          </div>
+                          <p className="text-xs text-zinc-300 whitespace-pre-wrap leading-relaxed">{log.text}</p>
+                          {isReminder && log.reminderDue && (
+                            <div className="mt-1.5 flex items-center gap-2">
+                              <Badge variant="outline" className={`border-zinc-700 text-[10px] ${log.isCompleted ? 'text-green-500 bg-green-950/20' : 'text-yellow-500 bg-yellow-950/20'}`}>
+                                <Clock className="w-3 h-3 mr-1" />
+                                {log.isCompleted ? "Done" : `Due: ${format(new Date(log.reminderDue), "EEE, d MMM @ HH:mm")}`}
+                              </Badge>
+                              {!log.isCompleted && (
+                                <Button variant="ghost" size="sm" className="h-5 text-[10px] text-green-400 hover:text-green-300 px-1" onClick={() => completeReminder(log.id)}>
+                                  <CheckCircle2 className="w-3 h-3 mr-0.5" /> Done
+                                </Button>
                               )}
                             </div>
-                          </div>
-                        );
-                      })}
-                      <div className="text-center text-xs text-zinc-700 pt-8">
-                        {lead.created_at ? `Lead created ${format(new Date(lead.created_at), "MMM d, yyyy")}` : 'Start of history'}
+                          )}
+                        </div>
                       </div>
+                    );
+                  })}
+                  <div className="text-center text-[10px] text-zinc-700 pt-4">
+                    {lead.created_at ? `Lead created ${format(new Date(lead.created_at), "MMM d, yyyy")}` : 'Start of history'}
+                  </div>
+                </div>
+              </ScrollArea>
+            </div>
+
+            {/* ─── RIGHT COLUMN: DEAL SIDE (65%) ─── */}
+            <div className="md:col-span-7 lg:col-span-8 overflow-y-auto bg-zinc-950">
+              <div className="p-6 space-y-6 max-w-3xl mx-auto">
+
+                {/* === THE BIG BOARD: INSTALLMENT === */}
+                <Card className="bg-gradient-to-br from-zinc-900 via-zinc-900 to-black border-zinc-800 p-8 text-center relative overflow-hidden shadow-2xl">
+                  <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-600 to-cyan-500" />
+                  <p className="text-zinc-500 text-xs uppercase tracking-[0.2em] font-bold mb-2">Estimated Monthly Installment</p>
+                  <div className="text-5xl md:text-6xl font-black text-white tracking-tighter font-mono">
+                    R {Math.round(finalInstallment).toLocaleString()}
+                    <span className="text-xl text-zinc-600 font-normal ml-1">/pm</span>
+                  </div>
+                  <div className="mt-3 flex items-center justify-center gap-4 text-[11px] text-zinc-500">
+                    <span>Principal: {formatPrice(principal)}</span>
+                    <span className="text-zinc-700">•</span>
+                    <span>Balloon: {formatPrice(balloonValue)}</span>
+                    {effectiveMonthly > 0 && (
+                      <>
+                        <span className="text-zinc-700">•</span>
+                        <span>Incl. R{effectiveMonthly} service fee</span>
+                      </>
+                    )}
+                  </div>
+                </Card>
+
+                {/* === MAIN INPUTS === */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Vehicle Price */}
+                  <Card className="bg-zinc-900/50 border-zinc-800 p-4 space-y-2">
+                    <Label className="text-xs text-zinc-400 font-semibold">Vehicle Price</Label>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm text-zinc-500 font-bold">R</span>
+                      <Input type="number" value={calcPrice || ''} onChange={e => setCalcPrice(Number(e.target.value) || 0)} className="bg-zinc-950 border-zinc-800 h-11 text-lg font-mono font-bold" placeholder="0" />
                     </div>
-                  </ScrollArea>
-                </TabsContent>
+                  </Card>
 
-                <TabsContent value="calculator" className="flex-1 overflow-hidden mt-0">
-                  <ScrollArea className="h-full">
-                    <div className="p-5 space-y-4 max-w-lg">
-
-                      {/* RESULT BOX - TOP */}
-                      {(() => {
-                        const bgExtrasTotal = calcExtras.licenseReg + calcExtras.adminFee + calcExtras.warranty + calcExtras.dentRepair;
-                        const principal = Math.max(0, calcPrice + bgExtrasTotal + calcInitiationFee - calcDeposit);
-                        const balloonValue = Math.round(calcPrice * (calcBalloonPct / 100));
-                        const basePmt = calculatePMT(principal, calcRate, calcTerm, balloonValue);
-                        const finalInstallment = basePmt + calcMonthlyFee;
-                        return (
-                          <div className="bg-gradient-to-br from-zinc-900 to-black border border-zinc-800 rounded-lg p-5 text-center relative overflow-hidden">
-                            <div className="absolute top-0 left-0 w-full h-1 bg-blue-600" />
-                            <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-bold mb-1">Estimated Installment</p>
-                            <div className="text-4xl font-black text-white tracking-tighter font-mono">
-                              R {Math.round(finalInstallment).toLocaleString()}
-                              <span className="text-lg text-zinc-600 font-normal">/pm</span>
-                            </div>
-                            <p className="text-[10px] text-zinc-600 mt-1">
-                              Incl. R{calcMonthlyFee} service fee • Principal: {formatPrice(principal)}
-                            </p>
-                          </div>
-                        );
-                      })()}
-
-                      {/* Selling Price */}
-                      <div className="space-y-1">
-                        <Label className="text-xs text-zinc-400">Selling Price</Label>
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-zinc-500">R</span>
-                          <Input type="number" value={calcPrice || ''} onChange={e => setCalcPrice(Number(e.target.value) || 0)} className="bg-zinc-950 border-zinc-800 h-9 text-sm font-mono" placeholder="0" />
-                        </div>
-                      </div>
-
-                      {/* Deposit */}
-                      <div className="space-y-2 p-3 rounded-lg border border-zinc-800 bg-zinc-900/30">
-                        <Label className="text-xs text-zinc-400 font-semibold">Deposit</Label>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-zinc-500">R</span>
-                          <Input type="number" value={calcDeposit || ''} onChange={e => { const v = Number(e.target.value) || 0; setCalcDeposit(v); if (calcPrice > 0) setCalcDepositPct(Math.round((v / calcPrice) * 100)); }} className="bg-zinc-950 border-zinc-800 h-8 text-xs font-mono flex-1" placeholder="0" />
-                          <span className="text-xs text-zinc-500 w-10 text-right">{calcDepositPct}%</span>
-                        </div>
-                        <Slider value={[calcDepositPct]} onValueChange={v => { setCalcDepositPct(v[0]); setCalcDeposit(Math.round(calcPrice * (v[0] / 100))); }} min={0} max={50} step={5} />
-                      </div>
-
-                      {/* Rate & Term */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1 p-3 rounded-lg border border-zinc-800 bg-zinc-900/30">
-                          <Label className="text-xs text-zinc-400">Rate (%)</Label>
-                          <Input type="number" value={calcRate} onChange={e => setCalcRate(Number(e.target.value) || 0)} className="bg-zinc-950 border-zinc-800 h-8 text-xs font-mono" step={0.25} min={7} max={25} />
-                          <Slider value={[calcRate]} onValueChange={v => setCalcRate(v[0])} min={7} max={25} step={0.25} />
-                        </div>
-                        <div className="space-y-1 p-3 rounded-lg border border-zinc-800 bg-zinc-900/30">
-                          <Label className="text-xs text-zinc-400">Term (Months)</Label>
-                          <Input type="number" value={calcTerm} onChange={e => setCalcTerm(Number(e.target.value) || 72)} className="bg-zinc-950 border-zinc-800 h-8 text-xs font-mono" step={12} min={12} max={96} />
-                          <Slider value={[calcTerm]} onValueChange={v => setCalcTerm(v[0])} min={12} max={96} step={12} />
-                        </div>
-                      </div>
-
-                      {/* Balloon */}
-                      <div className="space-y-2 p-3 rounded-lg border border-zinc-800 bg-zinc-900/30">
-                        <Label className="text-xs text-zinc-400 font-semibold">Balloon ({calcBalloonPct}%)</Label>
-                        <Slider value={[calcBalloonPct]} onValueChange={v => setCalcBalloonPct(v[0])} min={0} max={50} step={5} />
-                        <p className="text-[10px] text-zinc-600">Balloon: {formatPrice(Math.round(calcPrice * (calcBalloonPct / 100)))} (on base price)</p>
-                      </div>
-
-                      {/* BANK FEES */}
-                      <div className="p-3 rounded-lg border border-zinc-800 bg-zinc-900/30 space-y-3">
-                        <p className="text-xs font-bold text-zinc-500 uppercase flex items-center gap-1.5"><Calculator className="w-3 h-3" /> Bank Fees</p>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <Label className="text-[10px] text-zinc-500">Initiation Fee (to principal)</Label>
-                            <Input type="number" value={calcInitiationFee} onChange={e => setCalcInitiationFee(Number(e.target.value) || 0)} className="bg-zinc-950 border-zinc-800 h-7 text-xs font-mono" />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-[10px] text-zinc-500">Monthly Service Fee</Label>
-                            <Input type="number" value={calcMonthlyFee} onChange={e => setCalcMonthlyFee(Number(e.target.value) || 0)} className="bg-zinc-950 border-zinc-800 h-7 text-xs font-mono" />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* BACKGROUND EXTRAS (Hidden from client) */}
-                      <Collapsible open={calcExtrasOpen} onOpenChange={setCalcExtrasOpen}>
-                        <CollapsibleTrigger className="flex items-center justify-between w-full p-3 rounded-lg border border-zinc-800 bg-zinc-900/30 hover:bg-zinc-800/50 transition-colors cursor-pointer">
-                          <span className="text-xs font-semibold text-zinc-400">
-                            Background Extras (Hidden)
-                            {(() => {
-                              const t = calcExtras.licenseReg + calcExtras.adminFee + calcExtras.warranty + calcExtras.dentRepair;
-                              return t > 0 ? <span className="text-zinc-500 font-normal ml-2">({formatPrice(t)})</span> : null;
-                            })()}
-                          </span>
-                          {calcExtrasOpen ? <ChevronUp className="w-3.5 h-3.5 text-zinc-500" /> : <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />}
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="pt-3 space-y-2">
-                          <p className="text-[10px] text-zinc-600 italic mb-2">These are added to the principal but not shown in quotes</p>
-                          {([
-                            { key: 'licenseReg', label: 'License & Registration', ph: '2500' },
-                            { key: 'adminFee', label: 'Dealer Admin Fee', ph: '4500' },
-                            { key: 'warranty', label: 'Warranty / VAPS', ph: '0' },
-                            { key: 'dentRepair', label: 'Scratch & Dent Repair', ph: '0' },
-                          ] as const).map(item => (
-                            <div key={item.key} className="flex items-center gap-2">
-                              <Label className="text-[10px] text-zinc-500 w-40 shrink-0">{item.label}</Label>
-                              <span className="text-[10px] text-zinc-600">R</span>
-                              <Input type="number" value={calcExtras[item.key] || ''} onChange={e => setCalcExtras(prev => ({ ...prev, [item.key]: Number(e.target.value) || 0 }))} className="bg-zinc-950 border-zinc-800 h-7 text-xs font-mono" placeholder={item.ph} />
-                            </div>
-                          ))}
-                        </CollapsibleContent>
-                      </Collapsible>
+                  {/* Deposit */}
+                  <Card className="bg-zinc-900/50 border-zinc-800 p-4 space-y-2">
+                    <Label className="text-xs text-zinc-400 font-semibold">Deposit ({calcDepositPct}%)</Label>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm text-zinc-500 font-bold">R</span>
+                      <Input type="number" value={calcDeposit || ''} onChange={e => { const v = Number(e.target.value) || 0; setCalcDeposit(v); if (calcPrice > 0) setCalcDepositPct(Math.round((v / calcPrice) * 100)); }} className="bg-zinc-950 border-zinc-800 h-11 text-lg font-mono font-bold" placeholder="0" />
                     </div>
-                  </ScrollArea>
-                </TabsContent>
+                    <Slider value={[calcDepositPct]} onValueChange={v => { setCalcDepositPct(v[0]); setCalcDeposit(Math.round(calcPrice * (v[0] / 100))); }} min={0} max={50} step={5} />
+                  </Card>
+                </div>
 
-                {/* TAB 3: VEHICLE & MARKET */}
-                <TabsContent value="market" className="flex-1 overflow-hidden mt-0">
-                  <ScrollArea className="h-full">
-                    <div className="p-5 space-y-5">
-                      {/* Vehicle Details */}
-                      <div className="space-y-3">
-                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest border-b border-zinc-800 pb-2 flex items-center gap-1.5">
-                          <CarFront className="w-3.5 h-3.5" /> Linked Vehicle
-                        </h3>
-                        {lead.linkedApp?.vehicles ? (
-                          <div className="bg-black/40 p-4 rounded border border-zinc-800 space-y-2">
-                            <p className="text-sm font-bold text-white">{lead.linkedApp.vehicles.year} {lead.linkedApp.vehicles.make} {lead.linkedApp.vehicles.model}</p>
-                            {lead.linkedApp.vehicles.variant && <p className="text-xs text-zinc-400">{lead.linkedApp.vehicles.variant}</p>}
-                            <div className="grid grid-cols-2 gap-2 text-xs text-zinc-500">
-                              <span>Price: {formatPrice(lead.linkedApp.vehicles.price)}</span>
-                              <span>Mileage: {lead.linkedApp.vehicles.mileage?.toLocaleString()} km</span>
-                              <span>Fuel: {lead.linkedApp.vehicles.fuel_type}</span>
-                              <span>Trans: {lead.linkedApp.vehicles.transmission}</span>
-                            </div>
-                            {lead.linkedApp.vehicles.registration_number && (
-                              <p className="text-[10px] text-zinc-600 font-mono">Reg: {lead.linkedApp.vehicles.registration_number}</p>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="text-xs text-zinc-600 italic p-3 border border-zinc-800 rounded bg-black/20">No vehicle linked to this lead</div>
-                        )}
+                {/* Rate / Term / Balloon */}
+                <div className="grid grid-cols-3 gap-4">
+                  <Card className="bg-zinc-900/50 border-zinc-800 p-4 space-y-2">
+                    <Label className="text-xs text-zinc-400 font-semibold">Interest Rate (%)</Label>
+                    <Input type="number" value={calcRate} onChange={e => setCalcRate(Number(e.target.value) || 0)} className="bg-zinc-950 border-zinc-800 h-11 text-lg font-mono font-bold" step={0.25} min={7} max={25} />
+                    <Slider value={[calcRate]} onValueChange={v => setCalcRate(v[0])} min={7} max={25} step={0.25} />
+                  </Card>
+                  <Card className="bg-zinc-900/50 border-zinc-800 p-4 space-y-2">
+                    <Label className="text-xs text-zinc-400 font-semibold">Term (Months)</Label>
+                    <Input type="number" value={calcTerm} onChange={e => setCalcTerm(Number(e.target.value) || 72)} className="bg-zinc-950 border-zinc-800 h-11 text-lg font-mono font-bold" step={12} min={12} max={96} />
+                    <Slider value={[calcTerm]} onValueChange={v => setCalcTerm(v[0])} min={12} max={96} step={12} />
+                  </Card>
+                  <Card className="bg-zinc-900/50 border-zinc-800 p-4 space-y-2">
+                    <Label className="text-xs text-zinc-400 font-semibold">Balloon ({calcBalloonPct}%)</Label>
+                    <Input type="number" value={calcBalloonPct} onChange={e => setCalcBalloonPct(Number(e.target.value) || 0)} className="bg-zinc-950 border-zinc-800 h-11 text-lg font-mono font-bold" min={0} max={50} />
+                    <Slider value={[calcBalloonPct]} onValueChange={v => setCalcBalloonPct(v[0])} min={0} max={50} step={5} />
+                    <p className="text-[10px] text-zinc-600">{formatPrice(balloonValue)} (on base price)</p>
+                  </Card>
+                </div>
+
+                {/* === BACKGROUND FEE TOGGLES === */}
+                <Card className="bg-zinc-900/30 border-zinc-800 p-5 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Calculator className="w-4 h-4 text-zinc-500" />
+                    <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Background Fees (Hidden from Client)</h3>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {/* Admin Fee */}
+                    <div className={`rounded-lg border p-3 transition-colors ${extras.adminFee.enabled ? 'border-blue-700 bg-blue-950/20' : 'border-zinc-800 bg-zinc-950/50'}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <Label className="text-[11px] text-zinc-400 font-semibold">Admin Fee</Label>
+                        <Switch checked={extras.adminFee.enabled} onCheckedChange={v => setExtras(p => ({ ...p, adminFee: { ...p.adminFee, enabled: v } }))} />
                       </div>
-
-                      <Separator className="bg-zinc-800" />
-
-                      {/* AutoTrader Quick Link */}
-                      <div className="space-y-3">
-                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest border-b border-zinc-800 pb-2">Market Check</h3>
-                        <p className="text-xs text-zinc-500">Compare pricing on AutoTrader to validate your quote.</p>
-                        <Button
-                          variant="outline"
-                          className="w-full border-zinc-700 hover:bg-zinc-800 text-sm h-10 gap-2"
-                          disabled={!lead.linkedApp?.vehicles?.make}
-                          onClick={() => {
-                            const v = lead.linkedApp?.vehicles;
-                            if (!v) return;
-                            const url = `https://www.autotrader.co.za/cars-for-sale?year_min=${v.year || 2020}&make=${encodeURIComponent(v.make)}&model=${encodeURIComponent(v.model)}`;
-                            window.open(url, '_blank');
-                          }}
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                          Check Market Prices (AutoTrader)
-                        </Button>
-                        {!lead.linkedApp?.vehicles?.make && (
-                          <p className="text-[10px] text-zinc-600 italic">Link a vehicle to enable market search</p>
-                        )}
-                      </div>
+                      <Input type="number" value={extras.adminFee.value} onChange={e => setExtras(p => ({ ...p, adminFee: { ...p.adminFee, value: Number(e.target.value) || 0 } }))} className="bg-zinc-950 border-zinc-800 h-8 text-xs font-mono" disabled={!extras.adminFee.enabled} />
                     </div>
-                  </ScrollArea>
-                </TabsContent>
-              </Tabs>
+
+                    {/* License */}
+                    <div className={`rounded-lg border p-3 transition-colors ${extras.license.enabled ? 'border-blue-700 bg-blue-950/20' : 'border-zinc-800 bg-zinc-950/50'}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <Label className="text-[11px] text-zinc-400 font-semibold">License</Label>
+                        <Switch checked={extras.license.enabled} onCheckedChange={v => setExtras(p => ({ ...p, license: { ...p.license, enabled: v } }))} />
+                      </div>
+                      <Input type="number" value={extras.license.value} onChange={e => setExtras(p => ({ ...p, license: { ...p.license, value: Number(e.target.value) || 0 } }))} className="bg-zinc-950 border-zinc-800 h-8 text-xs font-mono" disabled={!extras.license.enabled} />
+                    </div>
+
+                    {/* Warranty */}
+                    <div className={`rounded-lg border p-3 transition-colors ${extras.warranty.enabled ? 'border-blue-700 bg-blue-950/20' : 'border-zinc-800 bg-zinc-950/50'}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <Label className="text-[11px] text-zinc-400 font-semibold">Warranty</Label>
+                        <Switch checked={extras.warranty.enabled} onCheckedChange={v => setExtras(p => ({ ...p, warranty: { ...p.warranty, enabled: v } }))} />
+                      </div>
+                      <Input type="number" value={extras.warranty.value} onChange={e => setExtras(p => ({ ...p, warranty: { ...p.warranty, value: Number(e.target.value) || 0 } }))} className="bg-zinc-950 border-zinc-800 h-8 text-xs font-mono" disabled={!extras.warranty.enabled} />
+                    </div>
+
+                    {/* Bank Fees (Std) */}
+                    <div className={`rounded-lg border p-3 transition-colors ${extras.bankFees.enabled ? 'border-blue-700 bg-blue-950/20' : 'border-zinc-800 bg-zinc-950/50'}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <Label className="text-[11px] text-zinc-400 font-semibold">Bank Fees</Label>
+                        <Switch checked={extras.bankFees.enabled} onCheckedChange={v => setExtras(p => ({ ...p, bankFees: { ...p.bankFees, enabled: v } }))} />
+                      </div>
+                      <p className="text-[10px] text-zinc-600">
+                        Init: R{calcInitiationFee.toLocaleString()} + R{calcMonthlyFee}/pm
+                      </p>
+                    </div>
+                  </div>
+
+                  {bgExtrasTotal + effectiveInitiation > 0 && (
+                    <p className="text-[10px] text-zinc-500 text-right">
+                      Total added to principal: <span className="text-zinc-300 font-mono font-bold">{formatPrice(bgExtrasTotal + effectiveInitiation)}</span>
+                    </p>
+                  )}
+                </Card>
+
+                {/* === VEHICLE & MARKET CHECK === */}
+                {vehicle && (
+                  <Card className="bg-zinc-900/30 border-zinc-800 p-5 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <CarFront className="w-4 h-4 text-zinc-500" />
+                      <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Vehicle & Market</h3>
+                    </div>
+                    <div className="flex items-center gap-4 bg-black/40 rounded-lg p-3 border border-zinc-800">
+                      <div className="flex-1">
+                        <p className="text-sm font-bold text-white">{vehicle.year} {vehicle.make} {vehicle.model}</p>
+                        {vehicle.variant && <p className="text-[10px] text-zinc-500">{vehicle.variant}</p>}
+                        <div className="flex gap-4 mt-1 text-[10px] text-zinc-500">
+                          <span>Price: {formatPrice(vehicle.price)}</span>
+                          <span>{vehicle.mileage?.toLocaleString()} km</span>
+                          <span>{vehicle.fuel_type}</span>
+                        </div>
+                      </div>
+                      <Button className="bg-red-600 hover:bg-red-700 text-white font-bold h-10 px-5 text-xs gap-1.5 shrink-0" onClick={() => window.open(getAutoTraderLink(), '_blank')}>
+                        <Search className="w-4 h-4" /> AutoTrader
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-zinc-600 text-center">Opens AutoTrader filtered for 2024+ models</p>
+                  </Card>
+                )}
+              </div>
             </div>
           </div>
         </div>
