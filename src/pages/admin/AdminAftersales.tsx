@@ -1929,31 +1929,27 @@ const AdminAftersales = () => {
                       </table>
                     </div>
 
-                    {/* SECTION 3: RETAINED INCOME (Lumina Only) */}
-                    <div style={{ marginBottom: '24px', padding: '16px', background: '#fffbeb', border: '1px solid #f59e0b', borderRadius: '8px' }}>
-                      <h2 style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: '#92400e', marginBottom: '12px' }}>Section 3: Additional Income (Lumina Retained — Not Shared)</h2>
+                    {/* LUMINA RECOVERY (No DIC/VAPs/Referral shown — partner must not see these) */}
+                    <div style={{ marginBottom: '24px', padding: '16px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '8px' }}>
+                      <h2 style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: '#6b7280', marginBottom: '12px' }}>Lumina Auto Recovery</h2>
                       <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
                         <tbody>
-                          {dicAmount > 0 && <tr><td style={{ padding: '6px 0' }}>DIC (Bank Reward)</td><td style={{ padding: '6px 0', textAlign: 'right' }}>{fmtPrice(dicAmount)}</td></tr>}
-                          {vapProfit > 0 && <tr><td style={{ padding: '6px 0' }}>VAP Profit (Revenue - Cost)</td><td style={{ padding: '6px 0', textAlign: 'right' }}>{fmtPrice(vapProfit)}</td></tr>}
-                          {referralIncome > 0 && <tr><td style={{ padding: '6px 0' }}>Referral Income</td><td style={{ padding: '6px 0', textAlign: 'right' }}>{fmtPrice(referralIncome)}</td></tr>}
-                          {totalRetainedIncome > 0 && (
-                            <tr style={{ borderTop: '1px solid #d97706' }}>
-                              <td style={{ padding: '6px 0', fontWeight: 600 }}>Total Retained Income</td>
-                              <td style={{ padding: '6px 0', textAlign: 'right', fontWeight: 600 }}>{fmtPrice(totalRetainedIncome)}</td>
+                          <tr>
+                            <td style={{ padding: '6px 0' }}>Lumina Share ({pdfDeal.partner_split_type === 'percentage' ? `${100 - Number(pdfDeal.partner_split_value || 0)}%` : 'Remainder'} of Metal Profit)</td>
+                            <td style={{ padding: '6px 0', textAlign: 'right' }}>{fmtPrice(luminaMetalShare)}</td>
+                          </tr>
+                          {totalDeductions > 0 && (
+                            <tr>
+                              <td style={{ padding: '6px 0' }}>Expenses Recovered</td>
+                              <td style={{ padding: '6px 0', textAlign: 'right' }}>{fmtPrice(totalDeductions)}</td>
                             </tr>
                           )}
+                          <tr style={{ borderTop: '2px solid #374151' }}>
+                            <td style={{ padding: '8px 0', fontWeight: 'bold', fontSize: '15px' }}>TOTAL LUMINA RECOVERY</td>
+                            <td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 'bold', fontSize: '15px', color: '#0a6b3d' }}>{fmtPrice(luminaMetalShare + totalDeductions)}</td>
+                          </tr>
                         </tbody>
                       </table>
-                    </div>
-
-                    {/* LUMINA TOTAL */}
-                    <div style={{ marginBottom: '24px', padding: '16px', background: '#eef4ff', border: '1px solid #b3d0ff', borderRadius: '8px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
-                        <span style={{ fontWeight: 600 }}>Total Lumina Payout</span>
-                        <span style={{ fontWeight: 'bold', fontSize: '16px' }}>{fmtPrice(luminaTotalPayout)}</span>
-                      </div>
-                      <p style={{ fontSize: '11px', color: '#4477bb', margin: '4px 0 0' }}>Metal Share ({fmtPrice(luminaMetalShare)}) + Retained Income ({fmtPrice(totalRetainedIncome)})</p>
                     </div>
 
                     {/* FOOTER */}
