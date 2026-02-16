@@ -98,7 +98,11 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
   const [calcRate, setCalcRate] = useState(13.25);
   const [calcTerm, setCalcTerm] = useState(72);
   const [calcBalloonPct, setCalcBalloonPct] = useState(0);
-  const [calcExtras, setCalcExtras] = useState({ licenseReg: 2500, adminFee: 4500, warranty: 0, smashGrab: 0 });
+  // Bank Fees
+  const [calcInitiationFee, setCalcInitiationFee] = useState(1207.50);
+  const [calcMonthlyFee, setCalcMonthlyFee] = useState(69);
+  // Background Extras (hidden from client)
+  const [calcExtras, setCalcExtras] = useState({ licenseReg: 0, adminFee: 0, warranty: 0, dentRepair: 0 });
   const [calcExtrasOpen, setCalcExtrasOpen] = useState(false);
 
   useEffect(() => {
@@ -129,6 +133,10 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
           };
           setLead(fullLead);
           setHeadline((fullLead as any).deal_headline || "");
+          // Pre-fill calculator with vehicle price
+          if (appData?.vehicles?.price) {
+            setCalcPrice(Number(appData.vehicles.price));
+          }
         }
         setLoading(false);
       };
@@ -487,10 +495,32 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
                   </ScrollArea>
                 </TabsContent>
 
-                {/* TAB 2: DEAL CALCULATOR */}
                 <TabsContent value="calculator" className="flex-1 overflow-hidden mt-0">
                   <ScrollArea className="h-full">
                     <div className="p-5 space-y-4 max-w-lg">
+
+                      {/* RESULT BOX - TOP */}
+                      {(() => {
+                        const bgExtrasTotal = calcExtras.licenseReg + calcExtras.adminFee + calcExtras.warranty + calcExtras.dentRepair;
+                        const principal = Math.max(0, calcPrice + bgExtrasTotal + calcInitiationFee - calcDeposit);
+                        const balloonValue = Math.round(calcPrice * (calcBalloonPct / 100));
+                        const basePmt = calculatePMT(principal, calcRate, calcTerm, balloonValue);
+                        const finalInstallment = basePmt + calcMonthlyFee;
+                        return (
+                          <div className="bg-gradient-to-br from-zinc-900 to-black border border-zinc-800 rounded-lg p-5 text-center relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-blue-600" />
+                            <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-bold mb-1">Estimated Installment</p>
+                            <div className="text-4xl font-black text-white tracking-tighter font-mono">
+                              R {Math.round(finalInstallment).toLocaleString()}
+                              <span className="text-lg text-zinc-600 font-normal">/pm</span>
+                            </div>
+                            <p className="text-[10px] text-zinc-600 mt-1">
+                              Incl. R{calcMonthlyFee} service fee • Principal: {formatPrice(principal)}
+                            </p>
+                          </div>
+                        );
+                      })()}
+
                       {/* Selling Price */}
                       <div className="space-y-1">
                         <Label className="text-xs text-zinc-400">Selling Price</Label>
@@ -514,7 +544,7 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
                       {/* Rate & Term */}
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1 p-3 rounded-lg border border-zinc-800 bg-zinc-900/30">
-                          <Label className="text-xs text-zinc-400">Interest Rate (%)</Label>
+                          <Label className="text-xs text-zinc-400">Rate (%)</Label>
                           <Input type="number" value={calcRate} onChange={e => setCalcRate(Number(e.target.value) || 0)} className="bg-zinc-950 border-zinc-800 h-8 text-xs font-mono" step={0.25} min={7} max={25} />
                           <Slider value={[calcRate]} onValueChange={v => setCalcRate(v[0])} min={7} max={25} step={0.25} />
                         </div>
@@ -529,60 +559,52 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
                       <div className="space-y-2 p-3 rounded-lg border border-zinc-800 bg-zinc-900/30">
                         <Label className="text-xs text-zinc-400 font-semibold">Balloon ({calcBalloonPct}%)</Label>
                         <Slider value={[calcBalloonPct]} onValueChange={v => setCalcBalloonPct(v[0])} min={0} max={50} step={5} />
-                        <p className="text-[10px] text-zinc-600">Balloon: {formatPrice(Math.round(calcPrice * (calcBalloonPct / 100)))} (based on base price)</p>
+                        <p className="text-[10px] text-zinc-600">Balloon: {formatPrice(Math.round(calcPrice * (calcBalloonPct / 100)))} (on base price)</p>
                       </div>
 
-                      {/* Add-Ons */}
+                      {/* BANK FEES */}
+                      <div className="p-3 rounded-lg border border-zinc-800 bg-zinc-900/30 space-y-3">
+                        <p className="text-xs font-bold text-zinc-500 uppercase flex items-center gap-1.5"><Calculator className="w-3 h-3" /> Bank Fees</p>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-zinc-500">Initiation Fee (to principal)</Label>
+                            <Input type="number" value={calcInitiationFee} onChange={e => setCalcInitiationFee(Number(e.target.value) || 0)} className="bg-zinc-950 border-zinc-800 h-7 text-xs font-mono" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-zinc-500">Monthly Service Fee</Label>
+                            <Input type="number" value={calcMonthlyFee} onChange={e => setCalcMonthlyFee(Number(e.target.value) || 0)} className="bg-zinc-950 border-zinc-800 h-7 text-xs font-mono" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* BACKGROUND EXTRAS (Hidden from client) */}
                       <Collapsible open={calcExtrasOpen} onOpenChange={setCalcExtrasOpen}>
                         <CollapsibleTrigger className="flex items-center justify-between w-full p-3 rounded-lg border border-zinc-800 bg-zinc-900/30 hover:bg-zinc-800/50 transition-colors cursor-pointer">
                           <span className="text-xs font-semibold text-zinc-400">
-                            Add-Ons & Fees
-                            {(calcExtras.licenseReg + calcExtras.adminFee + calcExtras.warranty + calcExtras.smashGrab) > 0 && (
-                              <span className="text-zinc-500 font-normal ml-2">({formatPrice(calcExtras.licenseReg + calcExtras.adminFee + calcExtras.warranty + calcExtras.smashGrab)})</span>
-                            )}
+                            Background Extras (Hidden)
+                            {(() => {
+                              const t = calcExtras.licenseReg + calcExtras.adminFee + calcExtras.warranty + calcExtras.dentRepair;
+                              return t > 0 ? <span className="text-zinc-500 font-normal ml-2">({formatPrice(t)})</span> : null;
+                            })()}
                           </span>
                           {calcExtrasOpen ? <ChevronUp className="w-3.5 h-3.5 text-zinc-500" /> : <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />}
                         </CollapsibleTrigger>
                         <CollapsibleContent className="pt-3 space-y-2">
+                          <p className="text-[10px] text-zinc-600 italic mb-2">These are added to the principal but not shown in quotes</p>
                           {([
-                            { key: 'licenseReg', label: 'License & Registration' },
-                            { key: 'adminFee', label: 'Dealer Admin Fee' },
-                            { key: 'warranty', label: 'Warranty / Mech. Breakdown' },
-                            { key: 'smashGrab', label: 'Smash & Grab' },
+                            { key: 'licenseReg', label: 'License & Registration', ph: '2500' },
+                            { key: 'adminFee', label: 'Dealer Admin Fee', ph: '4500' },
+                            { key: 'warranty', label: 'Warranty / VAPS', ph: '0' },
+                            { key: 'dentRepair', label: 'Scratch & Dent Repair', ph: '0' },
                           ] as const).map(item => (
                             <div key={item.key} className="flex items-center gap-2">
                               <Label className="text-[10px] text-zinc-500 w-40 shrink-0">{item.label}</Label>
                               <span className="text-[10px] text-zinc-600">R</span>
-                              <Input type="number" value={calcExtras[item.key] || ''} onChange={e => setCalcExtras(prev => ({ ...prev, [item.key]: Number(e.target.value) || 0 }))} className="bg-zinc-950 border-zinc-800 h-7 text-xs font-mono" placeholder="0" />
+                              <Input type="number" value={calcExtras[item.key] || ''} onChange={e => setCalcExtras(prev => ({ ...prev, [item.key]: Number(e.target.value) || 0 }))} className="bg-zinc-950 border-zinc-800 h-7 text-xs font-mono" placeholder={item.ph} />
                             </div>
                           ))}
                         </CollapsibleContent>
                       </Collapsible>
-
-                      {/* Summary & Result */}
-                      {(() => {
-                        const extrasTotal = calcExtras.licenseReg + calcExtras.adminFee + calcExtras.warranty + calcExtras.smashGrab;
-                        const totalFinanced = Math.max(0, calcPrice + extrasTotal - calcDeposit);
-                        const balloonValue = Math.round(calcPrice * (calcBalloonPct / 100));
-                        const installment = calculatePMT(totalFinanced, calcRate, calcTerm, balloonValue);
-                        return (
-                          <div className="space-y-3">
-                            <div className="space-y-1 text-xs">
-                              <div className="flex justify-between text-zinc-500"><span>Base Price</span><span className="font-mono">{formatPrice(calcPrice)}</span></div>
-                              {extrasTotal > 0 && <div className="flex justify-between text-zinc-500"><span>(+) Fees & Add-Ons</span><span className="font-mono">{formatPrice(extrasTotal)}</span></div>}
-                              {calcDeposit > 0 && <div className="flex justify-between text-zinc-500"><span>(-) Deposit</span><span className="font-mono">-{formatPrice(calcDeposit)}</span></div>}
-                              <Separator className="bg-zinc-800" />
-                              <div className="flex justify-between font-semibold text-zinc-300"><span>= Total Financed</span><span className="font-mono">{formatPrice(totalFinanced)}</span></div>
-                              {calcBalloonPct > 0 && <div className="flex justify-between text-zinc-600 text-[10px]"><span>Balloon ({calcBalloonPct}%)</span><span className="font-mono">{formatPrice(balloonValue)}</span></div>}
-                            </div>
-                            <div className="p-4 rounded-lg bg-blue-950/30 border border-blue-900/50 text-center">
-                              <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Monthly Installment</p>
-                              <p className="text-3xl font-bold text-blue-400 font-mono">{formatPrice(installment)}</p>
-                              <p className="text-[10px] text-zinc-600 mt-1">{calcTerm} months @ {calcRate}%</p>
-                            </div>
-                          </div>
-                        );
-                      })()}
                     </div>
                   </ScrollArea>
                 </TabsContent>

@@ -36,6 +36,8 @@ interface QuoteOption {
   balloon: number;
   totalFinanced: number;
   installment: number;
+  initiationFee: number;
+  monthlyFee: number;
 }
 
 const DEFAULT_EXTRAS: QuoteExtra = {
@@ -82,11 +84,15 @@ const AdminQuoteGenerator = () => {
   const [extrasOpen, setExtrasOpen] = useState(false);
   const [quoteOptions, setQuoteOptions] = useState<QuoteOption[]>([]);
   const [copied, setCopied] = useState(false);
+  // Bank Fees
+  const [initiationFee, setInitiationFee] = useState(1207.50);
+  const [monthlyFee, setMonthlyFee] = useState(69);
 
   const extrasTotal = Object.values(extras).reduce((s, v) => s + v, 0);
-  const totalFinanced = Math.max(0, vehiclePrice + extrasTotal - depositAmount);
-  const balloonValue = Math.round(vehiclePrice * (balloonPercent / 100)); // Based on vehicle price
-  const installment = calculatePMT(totalFinanced, interestRate, term, balloonValue);
+  const totalFinanced = Math.max(0, vehiclePrice + extrasTotal + initiationFee - depositAmount);
+  const balloonValue = Math.round(vehiclePrice * (balloonPercent / 100));
+  const baseInstallment = calculatePMT(totalFinanced, interestRate, term, balloonValue);
+  const installment = baseInstallment + monthlyFee;
 
   const handleDepositPercentChange = (p: number) => { setDepositPercent(p); setDepositAmount(Math.round(vehiclePrice * (p / 100))); };
   const handleDepositAmountChange = (a: number) => { setDepositAmount(a); if (vehiclePrice > 0) setDepositPercent(Math.min(50, Math.max(0, Math.round((a / vehiclePrice) * 100)))); };
@@ -105,7 +111,7 @@ const AdminQuoteGenerator = () => {
     const opt: QuoteOption = {
       id: crypto.randomUUID(), title: scenarioTitle, price: vehiclePrice,
       extras: { ...extras }, extrasTotal, rate: interestRate, term, deposit: depositAmount,
-      balloon: balloonPercent, totalFinanced, installment,
+      balloon: balloonPercent, totalFinanced, installment, initiationFee, monthlyFee,
     };
     setQuoteOptions([...quoteOptions, opt]);
     const match = scenarioTitle.match(/Option (\d+)/);
@@ -208,6 +214,27 @@ const AdminQuoteGenerator = () => {
               </CardContent>
             </Card>
 
+            {/* Bank Fees */}
+            <Card className="glass-card">
+              <CardHeader><CardTitle className="text-base flex items-center gap-2"><Calculator className="h-4 w-4" /> Bank Fees</CardTitle></CardHeader>
+              <CardContent className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs">Initiation Fee (added to principal)</Label>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-muted-foreground">R</span>
+                    <Input type="number" value={initiationFee} onChange={e => setInitiationFee(Number(e.target.value) || 0)} className="font-mono h-9 text-sm" />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Monthly Service Fee (added to PMT)</Label>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-muted-foreground">R</span>
+                    <Input type="number" value={monthlyFee} onChange={e => setMonthlyFee(Number(e.target.value) || 0)} className="font-mono h-9 text-sm" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Add-Ons & Fees (Collapsible) */}
             <Card className="glass-card">
               <Collapsible open={extrasOpen} onOpenChange={setExtrasOpen}>
@@ -242,6 +269,7 @@ const AdminQuoteGenerator = () => {
                   <TableBody>
                     <TableRow><TableCell className="text-muted-foreground">Base Price</TableCell><TableCell className="text-right font-mono">{formatPrice(vehiclePrice)}</TableCell></TableRow>
                     {extrasTotal > 0 && <TableRow><TableCell className="text-muted-foreground">(+) Extras & Fees</TableCell><TableCell className="text-right font-mono">{formatPrice(extrasTotal)}</TableCell></TableRow>}
+                    {initiationFee > 0 && <TableRow><TableCell className="text-muted-foreground">(+) Bank Initiation</TableCell><TableCell className="text-right font-mono">{formatPrice(initiationFee)}</TableCell></TableRow>}
                     {depositAmount > 0 && <TableRow><TableCell className="text-muted-foreground">(-) Deposit</TableCell><TableCell className="text-right font-mono">-{formatPrice(depositAmount)}</TableCell></TableRow>}
                     <TableRow className="border-t-2 border-primary/20">
                       <TableCell className="font-semibold">= Total Financed</TableCell>
@@ -253,7 +281,7 @@ const AdminQuoteGenerator = () => {
                 <div className="mt-4 p-4 rounded-lg bg-primary/10 border border-primary/20">
                   <p className="text-sm text-muted-foreground mb-1">Estimated Monthly Payment</p>
                   <p className="text-3xl font-bold text-primary">{formatPrice(installment)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">per month</p>
+                  <p className="text-xs text-muted-foreground mt-1">per month (incl. R{monthlyFee} service fee)</p>
                 </div>
                 <Button onClick={handleAddOption} className="w-full mt-4" size="lg"><Plus className="h-4 w-4 mr-2" />Add This Option</Button>
               </CardContent>
