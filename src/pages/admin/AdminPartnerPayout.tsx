@@ -142,8 +142,17 @@ const AdminPartnerPayout = () => {
   const totalCosts = costPrice + reconCost + dealerDeposit + totalAddonCost + referralExpense;
   const grossProfit = grossIncome - totalCosts;
 
+  // Retained Income (Lumina's "Pure Money" — excluded from partner split)
+  const vapProfit = Math.max(0, totalAddonPrice - totalAddonCost);
+  const totalRetainedIncome = dicAmount + vapProfit;
+  const distributableProfit = grossProfit - totalRetainedIncome;
+
   const partnerCapital = deal.partner_capital_contribution || 0;
-  const partnerPayout = deal.partner_profit_amount || 0;
+  // Recalculate partner share on distributable profit
+  const partnerSplitPct = deal.partner_split_type === 'percentage' ? (deal.partner_split_value || 0) / 100 : 0;
+  const partnerPayout = deal.partner_split_type === 'percentage'
+    ? distributableProfit * partnerSplitPct
+    : (deal.partner_profit_amount || 0);
   const finalPayout = partnerCapital + partnerPayout;
 
   const fmtPrice = (n: number) => `R ${n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -212,6 +221,16 @@ const AdminPartnerPayout = () => {
               <tr><td colSpan={2} className="py-2"><hr className="border-gray-800" /></td></tr>
               
               <Row label="NET PROFIT" value={fmtPrice(grossProfit)} bold highlight />
+              
+              <tr><td colSpan={2} className="py-2"><hr className="border-amber-400" /></td></tr>
+              
+              {dicAmount > 0 && <Row label="(Less) Retained: DIC (Bank Reward)" value={`-${fmtPrice(dicAmount)}`} negative />}
+              {vapProfit > 0 && <Row label="(Less) Retained: VAP Profit" value={`-${fmtPrice(vapProfit)}`} negative />}
+              {totalRetainedIncome > 0 && <Row label="Total Retained (Lumina Only)" value={fmtPrice(totalRetainedIncome)} bold />}
+              
+              <tr><td colSpan={2} className="py-2"><hr className="border-gray-800" /></td></tr>
+              
+              <Row label="DISTRIBUTABLE PROFIT" value={fmtPrice(distributableProfit)} bold highlight />
             </tbody>
           </table>
         </div>
@@ -251,7 +270,7 @@ const AdminPartnerPayout = () => {
           <table className="w-full text-sm">
             <tbody>
               <Row
-                label={`Partner Share (${deal.partner_split_type === 'percentage' ? `${deal.partner_split_value}%` : 'Fixed'})`}
+                label={`Partner Share (${deal.partner_split_type === 'percentage' ? `${deal.partner_split_value}%` : 'Fixed'} of Distributable)`}
                 value={fmtPrice(partnerPayout)}
               />
               <Row label="(+) Capital Refund" value={fmtPrice(partnerCapital)} />

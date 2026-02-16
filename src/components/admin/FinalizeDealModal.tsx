@@ -494,15 +494,21 @@ const FinalizeDealModal = ({
   // Gross Profit = Gross Income - Total Costs
   const grossProfit = grossIncome - totalCosts;
   
-  // Shared Capital Logic - supports both percentage and fixed
+  // === DISTRIBUTABLE PROFIT (Excludes DIC & VAP Profit - Lumina's "Pure Money") ===
+  // DIC and VAP profit are retained by Lumina and NOT shared with partners
+  const vapsRetainedProfit = addonProfit; // VAP Revenue - VAP Cost = Lumina's pure margin
+  const totalRetainedIncome = dicAmount + Math.max(0, vapsRetainedProfit);
+  const distributableProfit = grossProfit - totalRetainedIncome;
+  
+  // Shared Capital Logic - splits only the distributable profit
   const partnerPayout = useMemo(() => {
     if (!isSharedCapital) return 0;
     if (partnerSplitType === 'percentage') {
-      return grossProfit * (partnerSplitValue / 100);
+      return distributableProfit * (partnerSplitValue / 100);
     }
     // Fixed amount
     return partnerSplitValue;
-  }, [isSharedCapital, partnerSplitType, partnerSplitValue, grossProfit]);
+  }, [isSharedCapital, partnerSplitType, partnerSplitValue, distributableProfit]);
   
   // Lumina Net Profit = Gross Profit - Partner Share (THIS is what gets saved to DB)
   const luminaNetProfit = grossProfit - partnerPayout;

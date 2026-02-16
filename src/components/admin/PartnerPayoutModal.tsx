@@ -60,22 +60,33 @@ export const PartnerPayoutModal = ({ isOpen, onClose, dealId }: PartnerPayoutMod
   const otherLuminaExpenses = Number(deal?.dealer_deposit_contribution || 0);
   const totalDeductions = reconCosts + otherLuminaExpenses;
 
-  // 5. NET PROFIT (The Shared Pot)
-  const netSharedProfit = grossProfit - totalDeductions;
+  // 5. NET PROFIT (Before Retained Income)
+  const netProfit = grossProfit - totalDeductions;
 
-  // 6. THE SPLIT
+  // 6. RETAINED INCOME (Lumina's "Pure Money" — NOT shared with partner)
+  const dicRetained = Number(deal?.dic_amount || 0);
+  const addonsData = Array.isArray(deal?.addons_data) ? deal.addons_data : [];
+  const vapRevenue = addonsData.reduce((s: number, a: any) => s + Number(a.price || 0), 0);
+  const vapCost = addonsData.reduce((s: number, a: any) => s + Number(a.cost || 0), 0);
+  const vapProfit = Math.max(0, vapRevenue - vapCost);
+  const totalRetained = dicRetained + vapProfit;
+
+  // 7. DISTRIBUTABLE PROFIT (The Shared Pot)
+  const distributableProfit = netProfit - totalRetained;
+
+  // 8. THE SPLIT
   const partnerPercent = deal?.partner_split_type === 'percentage'
     ? (Number(deal?.partner_split_value) / 100)
     : 0;
 
   const partnerShareAmount = deal?.partner_split_type === 'percentage'
-    ? netSharedProfit * partnerPercent
+    ? distributableProfit * partnerPercent
     : Number(deal?.partner_profit_amount || 0);
-  const luminaShareAmount = netSharedProfit - partnerShareAmount;
+  const luminaShareAmount = distributableProfit - partnerShareAmount;
 
-  // 7. PAYOUTS
+  // 9. PAYOUTS
   const partnerPayoutTotal = partnerCapital + partnerShareAmount;
-  const luminaKeepsTotal = totalDeductions + luminaShareAmount;
+  const luminaKeepsTotal = totalDeductions + totalRetained + luminaShareAmount;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -158,21 +169,53 @@ export const PartnerPayoutModal = ({ isOpen, onClose, dealId }: PartnerPayoutMod
                       </div>
                     </div>
 
-                    {/* 3. NET POT */}
-                    <div className="border border-gray-300 rounded-lg p-4 text-center">
+                    {/* 3. NET PROFIT */}
+                    <div className="border border-gray-300 rounded-lg p-4">
                       <div className="flex justify-between items-center">
-                        <span className="font-bold text-lg text-gray-900">3. NET SHARED PROFIT</span>
-                        <span className="font-bold text-2xl text-gray-900">R {netSharedProfit.toLocaleString()}</span>
+                        <span className="font-bold text-lg text-gray-900">3. NET PROFIT</span>
+                        <span className="font-bold text-2xl text-gray-900">R {netProfit.toLocaleString()}</span>
                       </div>
                       <p className="text-xs text-gray-500 mt-1">(Gross Profit - Deductions)</p>
+                    </div>
+
+                    {/* 4. RETAINED INCOME */}
+                    <div className="border border-amber-300 rounded-lg p-4 bg-amber-50">
+                      <h2 className="font-bold text-lg mb-3 text-amber-900 border-b border-amber-200 pb-2">4. Retained Income (Lumina Only)</h2>
+                      <div className="space-y-2 text-sm">
+                        {dicRetained > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-amber-800">DIC (Bank Reward)</span>
+                            <span className="text-amber-900">R {dicRetained.toLocaleString()}</span>
+                          </div>
+                        )}
+                        {vapProfit > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-amber-800">VAP Profit</span>
+                            <span className="text-amber-900">R {vapProfit.toLocaleString()}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between font-bold border-t border-amber-300 pt-2 mt-2 text-amber-900">
+                          <span>TOTAL RETAINED</span>
+                          <span>- R {totalRetained.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 5. DISTRIBUTABLE PROFIT */}
+                    <div className="border border-gray-300 rounded-lg p-4 text-center">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-lg text-gray-900">5. DISTRIBUTABLE PROFIT</span>
+                        <span className="font-bold text-2xl text-gray-900">R {distributableProfit.toLocaleString()}</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">(Net Profit - Retained Income)</p>
                     </div>
                   </div>
 
                   {/* RIGHT: THE DISTRIBUTION */}
                   <div className="space-y-4">
-                    {/* 4. THE SPLIT */}
+                    {/* 6. THE SPLIT */}
                     <div className="border border-gray-300 rounded-lg p-4">
-                      <h2 className="font-bold text-lg mb-3 text-gray-900 border-b pb-2">4. The Split</h2>
+                      <h2 className="font-bold text-lg mb-3 text-gray-900 border-b pb-2">6. The Split (on Distributable)</h2>
                       <div className="space-y-3 text-sm">
                         <div className="flex justify-between items-center p-2 bg-gray-100 rounded">
                           <span className="text-gray-700">
@@ -218,7 +261,7 @@ export const PartnerPayoutModal = ({ isOpen, onClose, dealId }: PartnerPayoutMod
                           <span className="font-bold text-xl text-blue-900">R {luminaKeepsTotal.toLocaleString()}</span>
                         </div>
                         <p className="text-xs text-blue-700 mt-1">
-                          Reimbursement (R {totalDeductions.toLocaleString()}) + Share
+                          Expenses (R {totalDeductions.toLocaleString()}) + Retained (R {totalRetained.toLocaleString()}) + Share
                         </p>
                       </div>
                     </div>
