@@ -245,7 +245,7 @@ const FinanceCalculator = ({ vehiclePrice, vehicleYear, vehicleBodyType }: Finan
               onValueChange={(value) => setInterest(value[0])}
               min={0}
               max={30}
-              step={0.25}
+              step={0.1}
               className="w-full"
             />
             <div className="flex justify-between text-xs text-muted-foreground">
