@@ -190,6 +190,12 @@ const QuoteCard = ({ inputs: inp, show: vis, result: res }: QuoteCardProps) => (
           <span className="font-mono text-muted-foreground">+ R {inp.initiationFee.toLocaleString()}</span>
         </div>
       )}
+      {vis.monthlyFee && inp.monthlyFee > 0 && (
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">Monthly Service Fee</span>
+          <span className="font-mono text-muted-foreground">+ R {inp.monthlyFee.toLocaleString()} pm</span>
+        </div>
+      )}
       {vis.deposit && inp.deposit > 0 && (
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Less: Deposit</span>
@@ -267,10 +273,18 @@ const AdminQuoteGenerator = () => {
     let msg = `🚗 *Lumina Auto | Finance Options*\n\nHere are the payment plans we calculated for you:\n\n`;
     quoteOptions.forEach((opt, i) => {
       msg += `*${emojis[i] || `${i + 1}.`} ${opt.title}*\n`;
-      if (opt.show.term) msg += `📅 Term: ${opt.inputs.term} Months\n`;
+      if (opt.show.price) msg += `🚘 Vehicle Price: R ${opt.inputs.price.toLocaleString()}\n`;
+      if (opt.show.adminFee && opt.inputs.adminFee > 0) msg += `📋 Admin Fee: R ${opt.inputs.adminFee.toLocaleString()}\n`;
+      if (opt.show.licenseFee && opt.inputs.licenseFee > 0) msg += `📝 License/Reg: R ${opt.inputs.licenseFee.toLocaleString()}\n`;
+      if (opt.show.warranty && opt.inputs.warranty > 0) msg += `🛡️ Warranty/VAPs: R ${opt.inputs.warranty.toLocaleString()}\n`;
+      if (opt.show.initiationFee && opt.inputs.initiationFee > 0) msg += `🏦 Bank Initiation: R ${opt.inputs.initiationFee.toLocaleString()}\n`;
+      if (opt.show.monthlyFee && opt.inputs.monthlyFee > 0) msg += `🔧 Service Fee: R ${opt.inputs.monthlyFee.toLocaleString()} pm\n`;
       if (opt.show.deposit && opt.inputs.deposit > 0) msg += `📉 Deposit: R ${opt.inputs.deposit.toLocaleString()}\n`;
+      if (opt.show.totalFinanced) msg += `💰 Total Financed: R ${opt.result.totalFinanced.toLocaleString()}\n`;
+      if (opt.show.term) msg += `📅 Term: ${opt.inputs.term} Months\n`;
+      if (opt.show.rate) msg += `📊 Rate: ${opt.inputs.rate}%\n`;
       if (opt.show.balloon && opt.inputs.balloon > 0) msg += `🎈 Balloon: ${opt.inputs.balloon}%\n`;
-      msg += `⚡ *Installment: R ${opt.result.installment.toLocaleString()} p/m*\n\n`;
+      msg += `⚡ *Installment: R ${opt.result.installment.toLocaleString(undefined, { maximumFractionDigits: 0 })} p/m*\n\n`;
     });
     msg += `Let me know which option works best for your budget! 🤝`;
     try {
@@ -308,7 +322,7 @@ const AdminQuoteGenerator = () => {
               <CardContent className="space-y-4">
                 <ControlRow label="Vehicle Price" field="price" value={inputs.price} isVisible={show.price} onValueChange={v => updateInput('price', v)} onVisibilityChange={c => updateShow('price', c)} prefix="R" />
                 <ControlRow label="Deposit" field="deposit" value={inputs.deposit} isVisible={show.deposit} onValueChange={v => updateInput('deposit', v)} onVisibilityChange={c => updateShow('deposit', c)} prefix="R" min={0} max={inputs.price * 0.5} step={5000} slider />
-                <ControlRow label="Interest Rate" field="rate" value={inputs.rate} isVisible={show.rate} onValueChange={v => updateInput('rate', v)} onVisibilityChange={c => updateShow('rate', c)} suffix="%" min={7} max={25} step={0.25} slider />
+                <ControlRow label="Interest Rate" field="rate" value={inputs.rate} isVisible={show.rate} onValueChange={v => updateInput('rate', v)} onVisibilityChange={c => updateShow('rate', c)} suffix="%" min={7} max={25} step={0.1} slider />
                 <ControlRow label="Term (Months)" field="term" value={inputs.term} isVisible={show.term} onValueChange={v => updateInput('term', v)} onVisibilityChange={c => updateShow('term', c)} suffix="mo" min={12} max={96} step={12} slider />
                 <ControlRow label="Balloon %" field="balloon" value={inputs.balloon} isVisible={show.balloon} onValueChange={v => updateInput('balloon', v)} onVisibilityChange={c => updateShow('balloon', c)} suffix="%" min={0} max={75} step={5} slider />
               </CardContent>
