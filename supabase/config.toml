@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.send-status-notification]
 verify_jwt = false
+
+[functions.verify-admin-pin]
+verify_jwt = false
