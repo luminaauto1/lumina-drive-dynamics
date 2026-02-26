@@ -19,6 +19,15 @@ interface StatusNotificationRequest {
   vehicleName?: string;
 }
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 interface EmailTemplate {
   status_key: string;
   subject: string;
@@ -230,11 +239,11 @@ const handler = async (req: Request): Promise<Response> => {
           { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
         );
       } else {
-        emailContent = generateEmailHtml(template as EmailTemplate, clientName, accessToken, vehicleName);
+        emailContent = generateEmailHtml(template as EmailTemplate, escapeHtml(clientName), accessToken, vehicleName ? escapeHtml(vehicleName) : undefined);
       }
     } else {
       console.log('Supabase credentials not available, using fallback template');
-      emailContent = getFallbackEmailContent(newStatus, clientName, accessToken, vehicleName);
+      emailContent = getFallbackEmailContent(newStatus, escapeHtml(clientName), accessToken, vehicleName ? escapeHtml(vehicleName) : undefined);
     }
 
     const response = await fetch("https://api.resend.com/emails", {

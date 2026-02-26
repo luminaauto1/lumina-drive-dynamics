@@ -93,12 +93,21 @@ const EmailTemplateEditor = () => {
     }
   };
 
+  const escapeHtml = (text: string): string => {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  };
+
   // Generate preview HTML
   const generatePreview = () => {
-    const clientName = 'John Doe';
+    const clientName = escapeHtml('John Doe');
     const dashboardUrl = 'https://lumina-auto.lovable.app/dashboard';
     const uploadUrl = 'https://lumina-auto.lovable.app/upload-documents/xxx';
-    const vehicleName = '2024 BMW 320i M Sport';
+    const vehicleName = escapeHtml('2024 BMW 320i M Sport');
 
     let heading = editedTemplate.heading || '';
     let body = editedTemplate.body_content || '';

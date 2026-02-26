@@ -58,6 +58,14 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Validate photo URLs - only allow Supabase storage URLs
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const validatedPhotoUrls = Array.isArray(photos_urls)
+      ? photos_urls
+          .slice(0, 20)
+          .filter((url: string) => typeof url === "string" && url.startsWith(supabaseUrl + "/storage/"))
+      : [];
+
     const sanitizedData = {
       client_name: sanitizeString(client_name, 100),
       client_contact: sanitizeString(client_contact, 20),
@@ -68,7 +76,7 @@ const handler = async (req: Request): Promise<Response> => {
       vehicle_mileage: vehicle_mileage ? Number(vehicle_mileage) : null,
       desired_price: desired_price ? Number(desired_price) : null,
       condition: condition ? sanitizeString(condition, 50) : null,
-      photos_urls: Array.isArray(photos_urls) ? photos_urls.slice(0, 20) : [],
+      photos_urls: validatedPhotoUrls,
       status: "new",
     };
 
