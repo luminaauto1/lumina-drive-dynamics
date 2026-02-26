@@ -1016,14 +1016,20 @@ const AdminAftersales = () => {
   };
 
   const handleUnlockWithPin = async () => {
-    if (adminPinInput === 'Lumina2026') {
-      await supabase.from('deal_records').update({ is_closed: false } as any).eq('id', unlockingDealId);
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-admin-pin', {
+        body: { pin: adminPinInput, dealId: unlockingDealId, action: 'unlock' },
+      });
+      if (error || data?.error) {
+        toast.error(data?.error || 'Incorrect Admin PIN.');
+        return;
+      }
       toast.success('Deal unlocked for editing.');
       setUnlockingDealId(null);
       setAdminPinInput('');
       queryClient.invalidateQueries({ queryKey: ['deal-records'] });
-    } else {
-      toast.error('Incorrect Admin PIN.');
+    } catch {
+      toast.error('Failed to verify PIN.');
     }
   };
 

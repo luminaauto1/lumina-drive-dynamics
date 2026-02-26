@@ -8,6 +8,37 @@ const corsHeaders = {
 
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_UPLOADS_PER_WINDOW = 20; // max uploads per IP per window
+const WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+
+// In-memory rate limit store (resets on cold start, but sufficient for basic protection)
+const rateLimitMap = new Map<string, { count: number; windowStart: number }>();
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+
+  if (!entry || now - entry.windowStart > WINDOW_MS) {
+    rateLimitMap.set(ip, { count: 1, windowStart: now });
+    return false;
+  }
+
+  entry.count++;
+  if (entry.count > MAX_UPLOADS_PER_WINDOW) {
+    return true;
+  }
+  return false;
+}
+
+// Periodic cleanup of stale entries
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of rateLimitMap.entries()) {
+    if (now - entry.windowStart > WINDOW_MS) {
+      rateLimitMap.delete(ip);
+    }
+  }
+}, 60_000);
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -15,6 +46,18 @@ serve(async (req: Request) => {
   }
 
   try {
+    // Rate limiting by IP
+    const clientIP = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      || req.headers.get("cf-connecting-ip")
+      || "unknown";
+
+    if (isRateLimited(clientIP)) {
+      return new Response(
+        JSON.stringify({ error: "Too many uploads. Please try again later." }),
+        { status: 429, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
 
