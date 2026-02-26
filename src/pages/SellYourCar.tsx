@@ -72,28 +72,41 @@ const SellYourCar = () => {
     const newUrls = [...formData.photoUrls];
 
     try {
-      for (const file of Array.from(files)) {
-        // Upload to Supabase Storage
-        const timestamp = Date.now();
-        const fileName = `sell-requests/${timestamp}_${file.name.replace(/\s/g, '_')}`;
-        
-        const { data, error } = await supabase.storage
-          .from('client-docs')
-          .upload(fileName, file);
+      const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+      const MAX_SIZE = 10 * 1024 * 1024; // 10MB
 
-        if (error) {
-          console.error('Upload error:', error);
-          toast.error(`Failed to upload ${file.name}`);
+      for (const file of Array.from(files)) {
+        if (!ALLOWED_TYPES.includes(file.type)) {
+          toast.error(`${file.name}: Only JPG, PNG, WebP allowed`);
+          continue;
+        }
+        if (file.size > MAX_SIZE) {
+          toast.error(`${file.name}: Max 10MB`);
           continue;
         }
 
-        // Get public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from('client-docs')
-          .getPublicUrl(data.path);
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('purpose', 'sell-request');
 
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+        const res = await fetch(`${supabaseUrl}/functions/v1/upload-sell-photos`, {
+          method: 'POST',
+          headers: { 'apikey': anonKey },
+          body: formData,
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: 'Upload failed' }));
+          toast.error(err.error || `Failed to upload ${file.name}`);
+          continue;
+        }
+
+        const result = await res.json();
         newPhotos.push(file);
-        newUrls.push(publicUrl);
+        newUrls.push(result.publicUrl);
       }
 
       updateForm('photos', newPhotos);
