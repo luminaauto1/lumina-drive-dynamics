@@ -17,22 +17,27 @@ const ClientHandover = () => {
     const fetchData = async () => {
       if (!dealId) return;
 
-      const [settingsRes, dealRes] = await Promise.all([
-        supabase.from('site_settings').select('*').limit(1).single(),
-        (supabase as any)
-          .from('deal_records')
-          .select('*, application:finance_applications(first_name, last_name, vehicles:vehicles(make, model, year))')
-          .eq('id', dealId)
-          .maybeSingle(),
-      ]);
-
+      // Fetch settings publicly (allowed by RLS)
+      const settingsRes = await supabase.from('site_settings').select('*').limit(1).single();
       if (settingsRes.data) setSettings(settingsRes.data);
-      if (dealRes.error) {
-        console.error("Deal Fetch Error:", dealRes.error);
-        setErrorMsg(dealRes.error.message);
-      } else if (dealRes.data) {
-        setDeal(dealRes.data);
+
+      // Use edge function for deal data (avoids needing anon access to finance_applications)
+      try {
+        const { data, error } = await supabase.functions.invoke('get-handover-data', {
+          body: { dealId },
+        });
+
+        if (error || !data) {
+          console.error("Handover fetch error:", error?.message);
+          setErrorMsg(error?.message || "Failed to load handover data");
+        } else {
+          setDeal(data);
+        }
+      } catch (err: any) {
+        console.error("Handover fetch error:", err);
+        setErrorMsg(err.message || "Failed to load");
       }
+
       setLoading(false);
     };
     fetchData();
@@ -72,8 +77,8 @@ const ClientHandover = () => {
     </div>
   );
 
-  const clientName = deal.application?.first_name || "Valued Client";
-  const vehicle = deal.application?.vehicles;
+  const clientName = deal.client_first_name || "Valued Client";
+  const vehicle = deal.vehicle;
   const carName = vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : "New Ride";
   const photos: string[] = deal.delivery_photos || [];
 
