@@ -50,13 +50,12 @@ export const useSellCarRequests = () => {
 
   const createRequest = useMutation({
     mutationFn: async (request: CreateSellCarRequestData) => {
-      const { data, error } = await supabase
-        .from('sell_car_requests')
-        .insert(request)
-        .select()
-        .single();
+      const { data, error } = await supabase.functions.invoke('create-sell-request', {
+        body: request,
+      });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       return data;
     },
     onSuccess: () => {

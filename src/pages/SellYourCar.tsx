@@ -131,20 +131,23 @@ const SellYourCar = () => {
     setIsSubmitting(true);
 
     try {
-      const { error } = await supabase.from('sell_car_requests').insert({
-        client_name: formData.name,
-        client_contact: formData.phone,
-        client_email: formData.email || null,
-        vehicle_make: formData.make,
-        vehicle_model: formData.model,
-        vehicle_year: formData.year ? Number(formData.year) : null,
-        vehicle_mileage: formData.mileage ? Number(formData.mileage) : null,
-        desired_price: formData.desiredPrice ? Number(formData.desiredPrice) : null,
-        condition: formData.condition || null,
-        photos_urls: formData.photoUrls,
+      const { data, error } = await supabase.functions.invoke('create-sell-request', {
+        body: {
+          client_name: formData.name,
+          client_contact: formData.phone,
+          client_email: formData.email || null,
+          vehicle_make: formData.make,
+          vehicle_model: formData.model,
+          vehicle_year: formData.year ? Number(formData.year) : null,
+          vehicle_mileage: formData.mileage ? Number(formData.mileage) : null,
+          desired_price: formData.desiredPrice ? Number(formData.desiredPrice) : null,
+          condition: formData.condition || null,
+          photos_urls: formData.photoUrls,
+        },
       });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       toast.success('Your vehicle has been submitted! We will contact you shortly.');
       
