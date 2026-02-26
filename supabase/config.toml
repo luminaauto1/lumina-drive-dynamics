@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.create-sell-request]
 verify_jwt = false
+
+[functions.get-handover-data]
+verify_jwt = false
+
+[functions.upload-client-doc]
+verify_jwt = false

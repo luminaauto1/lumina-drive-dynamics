@@ -54,7 +54,6 @@ const SecureDocumentUpload = () => {
     }
 
     try {
-      // Use secure edge function to verify token instead of direct DB query
       const { data, error: fetchError } = await supabase.functions.invoke('verify-upload-token', {
         body: { token },
       });
@@ -72,7 +71,6 @@ const SecureDocumentUpload = () => {
         access_token: data.access_token,
       });
 
-      // Check if already submitted documents
       if (data.status === 'documents_received' || ['validations_pending', 'validations_complete', 'contract_sent', 'contract_signed', 'vehicle_delivered'].includes(data.status)) {
         setIsSubmitted(true);
       }
@@ -96,22 +94,47 @@ const SecureDocumentUpload = () => {
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const fileName = `${application.application_id}/${docType}/${Date.now()}-${file.name}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from('client-docs')
-          .upload(fileName, file, { upsert: true });
+        // Client-side validation (server also validates)
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
+        if (!allowedTypes.includes(file.type)) {
+          toast.error(`${file.name}: Invalid file type. Use JPG, PNG, or PDF.`);
+          continue;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+          toast.error(`${file.name}: File too large. Maximum 10MB.`);
+          continue;
+        }
 
-        if (uploadError) {
-          console.error('Upload error:', uploadError);
-          toast.error(`Failed to upload ${file.name}`);
+        // Upload via secure edge function
+        const formData = new FormData();
+        formData.append('token', application.access_token);
+        formData.append('docType', docType);
+        formData.append('file', file);
+
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/upload-client-doc`,
+          {
+            method: 'POST',
+            body: formData,
+            headers: {
+              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            },
+          }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          console.error('Upload error:', result.error);
+          toast.error(`Failed to upload ${file.name}: ${result.error || 'Unknown error'}`);
           continue;
         }
 
         newFiles.push({
           name: file.name,
           type: docType,
-          path: fileName,
+          path: result.path,
           uploadedAt: new Date(),
         });
 
@@ -138,16 +161,12 @@ const SecureDocumentUpload = () => {
     const file = uploadedFiles[docType]?.[index];
     if (!file) return;
 
-    try {
-      await supabase.storage.from('client-docs').remove([file.path]);
-      setUploadedFiles(prev => ({
-        ...prev,
-        [docType]: prev[docType].filter((_, i) => i !== index),
-      }));
-      toast.success('File removed');
-    } catch (err) {
-      toast.error('Failed to remove file');
-    }
+    // Note: removal requires auth or service role; just remove from UI
+    setUploadedFiles(prev => ({
+      ...prev,
+      [docType]: prev[docType].filter((_, i) => i !== index),
+    }));
+    toast.success('File removed from list');
   };
 
   const handleSubmitDocuments = async () => {
@@ -160,7 +179,6 @@ const SecureDocumentUpload = () => {
     }
 
     try {
-      // Use secure edge function to update status
       const { data, error: updateError } = await supabase.functions.invoke('verify-upload-token?action=update-status', {
         body: { 
           token,
@@ -250,7 +268,6 @@ const SecureDocumentUpload = () => {
 
       <div className="min-h-screen bg-background py-8 px-4">
         <div className="max-w-2xl mx-auto">
-          {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -269,7 +286,6 @@ const SecureDocumentUpload = () => {
             </p>
           </motion.div>
 
-          {/* Document Submission Info */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -285,7 +301,6 @@ const SecureDocumentUpload = () => {
             </Alert>
           </motion.div>
 
-          {/* Document Upload Cards */}
           <div className="space-y-4">
             {DOCUMENT_TYPES.map((docType, index) => (
               <motion.div
@@ -309,14 +324,10 @@ const SecureDocumentUpload = () => {
                   </div>
                 </div>
 
-                {/* Uploaded Files List */}
                 {uploadedFiles[docType.id]?.length > 0 && (
                   <div className="mb-4 space-y-2">
                     {uploadedFiles[docType.id].map((file, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center justify-between p-2 rounded bg-muted/50"
-                      >
+                      <div key={i} className="flex items-center justify-between p-2 rounded bg-muted/50">
                         <div className="flex items-center gap-2">
                           {file.name.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
                             <ImageIcon className="w-4 h-4 text-blue-400" />
@@ -338,7 +349,6 @@ const SecureDocumentUpload = () => {
                   </div>
                 )}
 
-                {/* Upload Button / Drop Zone */}
                 <label className="block">
                   <input
                     type="file"
@@ -368,7 +378,7 @@ const SecureDocumentUpload = () => {
                           Click or drag files to upload
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Accepts images and PDFs
+                          Accepts images and PDFs (max 10MB)
                         </p>
                       </>
                     )}
@@ -378,7 +388,6 @@ const SecureDocumentUpload = () => {
             ))}
           </div>
 
-          {/* Submit Button */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
