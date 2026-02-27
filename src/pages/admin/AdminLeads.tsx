@@ -31,12 +31,20 @@ const COLUMNS = [
   { id: 'declined', label: 'Declined', color: 'border-red-600' },
 ];
 
-const normalizeStatus = (status: string | null) => {
-  if (!status) return 'new';
-  const s = status.toLowerCase();
-  if (s === 'otp_verified' || s === 'application_started' || s === 'pending') return 'new';
-  if (COLUMNS.some(col => col.id === s)) return s;
-  console.warn(`Unknown lead status '${s}' mapped to 'new'`);
+const normalizeStatus = (rawStatus: string | null | undefined) => {
+  if (!rawStatus) return 'new';
+  // Convert to lowercase, replace spaces and hyphens with underscores, remove special chars
+  let clean = rawStatus.toLowerCase().replace(/[\s-]/g, '_').replace(/[^a-z0-9_]/g, '');
+
+  // Catch edge cases for older DB entries or different wording
+  if (clean === 'otp_verified' || clean === 'application_started' || clean === 'pending') return 'new';
+  if (clean === 'approved') return 'finance_approved';
+  if (clean === 'sold') return 'delivered';
+
+  // If it matches a known column, use it
+  if (COLUMNS.some(col => col.id === clean)) return clean;
+
+  console.warn(`Unknown lead status '${rawStatus}' (cleaned: '${clean}') mapped to 'new'`);
   return 'new';
 };
 
@@ -120,8 +128,10 @@ const AdminLeads = () => {
       }
     });
 
-    // Link apps to existing leads
+    // Link apps to existing leads & fix status mapping
     const mapped = combined.map((lead) => {
+      let rawStatus = lead.pipeline_stage;
+
       if (!lead.isVirtual && !lead.appDetails) {
         const app = apps?.find((a) =>
           (lead.client_email && a.email && lead.client_email.toLowerCase() === a.email.toLowerCase()) ||
@@ -129,9 +139,15 @@ const AdminLeads = () => {
         );
         if (app) {
           lead.appDetails = app;
-          lead.displayStatus = normalizeStatus(app.status);
+          // Prefer the app status if it has progressed past 'new'
+          if (app.status && normalizeStatus(app.status) !== 'new') {
+            rawStatus = app.status;
+          }
         }
       }
+
+      // Normalize the string (e.g. "Finance Approved" -> "finance_approved")
+      lead.displayStatus = normalizeStatus(rawStatus);
       return lead;
     });
 
