@@ -32,21 +32,36 @@ const COLUMNS = [
   { id: 'lost', label: 'Lost / Dead', color: 'border-zinc-800' },
 ];
 
-const normalizeStatus = (rawStatus: string | null | undefined) => {
-  if (!rawStatus) return 'new';
-  // Convert to lowercase, replace spaces and hyphens with underscores, remove special chars
-  let clean = rawStatus.toLowerCase().replace(/[\s-]/g, '_').replace(/[^a-z0-9_]/g, '');
+// --- BRUTE-FORCE NORMALIZER ---
+const normalizeStatus = (status: string | null | undefined): string => {
+  if (!status) return 'new';
+  const s = String(status).toLowerCase().trim();
 
-  // Catch edge cases for older DB entries or different wording
+  // Special flags
+  if (s.includes('archive')) return 'archived';
+  if (s.includes('lost') || s.includes('dead')) return 'lost';
+
+  // Keyword-based matching (order matters: most specific first)
+  if (s.includes('decline') || s.includes('reject')) return 'declined';
+  if (s.includes('deliver') || s.includes('sold') || s.includes('won')) return 'delivered';
+  if (s.includes('prep')) return 'prepping_delivery';
+  if (s.includes('signed')) return 'contract_signed';
+  if (s.includes('sent')) return 'contract_sent';
+  if (s.includes('generat')) return 'contract_generated';
+  if (s.includes('validat') && !s.includes('pending')) return 'validated';
+  if (s.includes('validation') || (s.includes('valid') && s.includes('pending'))) return 'validation_pending';
+  if (s.includes('pre') && s.includes('approv')) return 'pre_approved';
+  if (s.includes('approv')) return 'finance_approved';
+  if (s.includes('submit')) return 'submitted_to_banks';
+  if (s.includes('doc')) return 'docs_collected';
+  if (s.includes('action')) return 'actioned';
+
+  // Exact match after underscore normalization
+  const clean = s.replace(/[\s-]/g, '_').replace(/[^a-z0-9_]/g, '');
   if (clean === 'otp_verified' || clean === 'application_started' || clean === 'pending') return 'new';
-  if (clean === 'approved') return 'finance_approved';
-  if (clean === 'sold') return 'delivered';
-  if (clean === 'dead') return 'lost';
-
-  // If it matches a known column, use it
   if (COLUMNS.some(col => col.id === clean)) return clean;
 
-  console.warn(`Unknown lead status '${rawStatus}' (cleaned: '${clean}') mapped to 'new'`);
+  console.warn(`Unknown lead status '${status}' mapped to 'new'`);
   return 'new';
 };
 
@@ -104,8 +119,9 @@ const AdminLeads = () => {
       displayStatus: normalizeStatus(l.pipeline_stage || 'new'),
     }));
 
-    // Find orphan apps — check against ALL leads (including archived)
+    // Find orphan apps — STRICT: prevent null === null matching
     apps?.forEach((app) => {
+      if (!app.email && !app.phone) return; // Skip apps with no contact info
       const exists = combined.find((l) =>
         (l.client_email && app.email && l.client_email.toLowerCase() === app.email.toLowerCase()) ||
         (l.client_phone && app.phone && l.client_phone.replace(/\D/g, '') === app.phone.replace(/\D/g, ''))
@@ -148,8 +164,26 @@ const AdminLeads = () => {
         }
       }
 
-      // Normalize the string (e.g. "Finance Approved" -> "finance_approved")
-      lead.displayStatus = normalizeStatus(rawStatus);
+      // Normalize the string
+      let cleanStatus = normalizeStatus(rawStatus);
+
+      // Force archive flag if DB status says archived
+      if (cleanStatus === 'archived') {
+        lead.is_archived = true;
+        cleanStatus = 'lost';
+      }
+
+      // Auto-flag lost leads as archived too
+      if (cleanStatus === 'lost') {
+        lead.is_archived = true;
+      }
+
+      // Final column verification
+      if (!COLUMNS.find(c => c.id === cleanStatus)) {
+        cleanStatus = 'new';
+      }
+
+      lead.displayStatus = cleanStatus;
       return lead;
     });
 
@@ -200,7 +234,8 @@ const AdminLeads = () => {
 
     // Optimistic update
     const updatedLeads = [...leads];
-    updatedLeads[leadIndex] = { ...lead, displayStatus: newStage, pipeline_stage: newStage };
+    const isLost = newStage === 'lost';
+    updatedLeads[leadIndex] = { ...lead, displayStatus: newStage, pipeline_stage: newStage, is_archived: isLost };
     if (updatedLeads[leadIndex].appDetails) {
       updatedLeads[leadIndex] = {
         ...updatedLeads[leadIndex],
@@ -228,6 +263,7 @@ const AdminLeads = () => {
         await supabase.from('leads').update({
           pipeline_stage: newStage,
           status_updated_at: new Date().toISOString(),
+          is_archived: isLost,
         }).eq('id', lead.id);
       }
 
@@ -271,9 +307,11 @@ const AdminLeads = () => {
     }
   };
 
-  // Filter in memory: archive toggle + search
+  // Filter: Strict separation of Active vs Archived/Lost
   const filteredLeads = leads.filter((l) => {
-    const matchesArchive = showArchived ? l.is_archived : !l.is_archived;
+    // Consider it "dead" if the boolean is true OR status is lost/archived
+    const isDeadFile = l.is_archived || l.displayStatus === 'lost' || l.displayStatus === 'archived';
+    const matchesArchive = showArchived ? isDeadFile : !isDeadFile;
     if (!matchesArchive) return false;
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
