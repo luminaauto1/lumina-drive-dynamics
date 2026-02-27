@@ -60,6 +60,7 @@ const ClientProfile = () => {
     contract_signed: 'bg-emerald-500/20 text-emerald-400',
     vehicle_delivered: 'bg-amber-500/20 text-amber-400',
     declined: 'bg-destructive/20 text-destructive',
+    lost: 'bg-zinc-800/50 text-zinc-500',
   };
 
   return (

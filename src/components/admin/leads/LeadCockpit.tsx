@@ -51,6 +51,7 @@ const STATUS_OPTIONS = [
   { value: 'prepping_delivery', label: 'Prepping Delivery' },
   { value: 'delivered', label: 'Delivered' },
   { value: 'declined', label: 'Declined' },
+  { value: 'lost', label: 'Lost / Dead' },
 ] as const;
 
 const getStatusStyle = (status: string) => {
@@ -65,6 +66,7 @@ const getStatusStyle = (status: string) => {
   if (s.includes('doc')) return 'bg-purple-900/30 text-purple-400 border-purple-800';
   if (s.includes('actioned')) return 'bg-blue-900/30 text-blue-400 border-blue-800';
   if (s.includes('decline')) return 'bg-red-900/30 text-red-400 border-red-800';
+  if (s.includes('lost') || s.includes('dead')) return 'bg-zinc-900/50 text-zinc-500 border-zinc-700';
   return 'bg-zinc-800 text-zinc-400 border-zinc-700';
 };
 
@@ -78,6 +80,7 @@ const mapStatusToPipeline = (status: string) => {
   if (['docs_collected'].includes(status)) return 'finance';
   if (['actioned'].includes(status)) return 'contacted';
   if (['declined'].includes(status)) return 'cold';
+  if (['lost'].includes(status)) return 'lost';
   return 'new';
 };
 

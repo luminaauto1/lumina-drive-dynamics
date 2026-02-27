@@ -29,6 +29,7 @@ const COLUMNS = [
   { id: 'prepping_delivery', label: 'Prepping Delivery', color: 'border-green-400' },
   { id: 'delivered', label: 'Delivered', color: 'border-green-600' },
   { id: 'declined', label: 'Declined', color: 'border-red-600' },
+  { id: 'lost', label: 'Lost / Dead', color: 'border-zinc-800' },
 ];
 
 const normalizeStatus = (rawStatus: string | null | undefined) => {
@@ -40,6 +41,7 @@ const normalizeStatus = (rawStatus: string | null | undefined) => {
   if (clean === 'otp_verified' || clean === 'application_started' || clean === 'pending') return 'new';
   if (clean === 'approved') return 'finance_approved';
   if (clean === 'sold') return 'delivered';
+  if (clean === 'dead') return 'lost';
 
   // If it matches a known column, use it
   if (COLUMNS.some(col => col.id === clean)) return clean;
