@@ -142,7 +142,7 @@ const AdminDashboard = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => navigate("/admin/quote")}>
+            <Button size="sm" variant="outline" onClick={() => navigate("/admin/quotes")}>
               <Calculator className="w-4 h-4 mr-2" />
               Quick Quote
             </Button>

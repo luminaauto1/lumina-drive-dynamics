@@ -3,6 +3,7 @@
 
 export const INTERNAL_STATUS_OPTIONS = [
   { value: 'new', label: 'New Application' },
+  { value: 'sourcing_vehicle', label: 'Sourcing Vehicle' },
   { value: 'awaiting_docs', label: 'Awaiting Client Docs' },
   { value: 'submitted_to_banks', label: 'Submitted to Banks' },
   { value: 'bank_query', label: 'Bank Query / Action Needed' },
@@ -11,6 +12,7 @@ export const INTERNAL_STATUS_OPTIONS = [
   { value: 'finance_approved', label: 'Final Finance Approved' },
   { value: 'contract_generated', label: 'Contract Generated' },
   { value: 'contract_signed', label: 'Contract Signed' },
+  { value: 'prepping_vehicle', label: 'Prepping Vehicle (Recon/Valet)' },
   { value: 'awaiting_payout', label: 'Awaiting Bank Payout' },
   { value: 'paid_out', label: 'Paid Out / Finalized' },
   { value: 'declined', label: 'Declined by Banks' },
@@ -22,12 +24,14 @@ export const INTERNAL_STATUS_URGENCY: Record<string, number> = {
   finance_approved: 1,
   contract_signed: 1,
   awaiting_payout: 1,
+  prepping_vehicle: 1,
   contract_generated: 2,
   validation_pending: 2,
   pre_approved: 3,
   bank_query: 3,
   submitted_to_banks: 4,
   awaiting_docs: 4,
+  sourcing_vehicle: 4,
   new: 5,
   paid_out: 6,
   declined: 7,
@@ -37,6 +41,7 @@ export const INTERNAL_STATUS_URGENCY: Record<string, number> = {
 // Badge styling with distinct colors
 export const INTERNAL_STATUS_STYLES: Record<string, string> = {
   new: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
+  sourcing_vehicle: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
   awaiting_docs: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
   submitted_to_banks: 'bg-blue-600/20 text-blue-500 border-blue-600/30',
   bank_query: 'bg-orange-500/20 text-orange-500 border-orange-500/30 animate-pulse',
@@ -45,6 +50,7 @@ export const INTERNAL_STATUS_STYLES: Record<string, string> = {
   finance_approved: 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30 animate-pulse',
   contract_generated: 'bg-cyan-600/20 text-cyan-500 border-cyan-600/30',
   contract_signed: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+  prepping_vehicle: 'bg-teal-500/20 text-teal-400 border-teal-500/30 animate-pulse',
   awaiting_payout: 'bg-green-500/20 text-green-400 border-green-500/30 animate-pulse',
   paid_out: 'bg-green-700/20 text-green-600 border-green-700/30',
   declined: 'bg-red-500/20 text-red-500 border-red-500/30',
