@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useFinanceApplications, useUpdateFinanceApplication, useDeleteFinanceApplication, FinanceApplication } from '@/hooks/useFinanceApplications';
 import { formatPrice } from '@/hooks/useVehicles';
 import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, getWhatsAppMessage, canShowDealActions } from '@/lib/statusConfig';
-import { INTERNAL_STATUS_OPTIONS, INTERNAL_STATUS_STYLES, sortByUrgency, canShowDeliveryPrep } from '@/lib/internalStatusConfig';
+import { INTERNAL_STATUS_OPTIONS, INTERNAL_STATUS_STYLES, sortByUrgency, canShowDeliveryPrep, normalizeInternalStatus } from '@/lib/internalStatusConfig';
 import { useToast } from '@/hooks/use-toast';
 import { getUploadLink } from '@/lib/appConfig';
 import DeliveryChecklistModal from '@/components/admin/DeliveryChecklistModal';
@@ -368,10 +368,10 @@ const AdminFinance = () => {
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Select 
-                        value={(app as any).internal_status || 'new_lead'} 
+                        value={normalizeInternalStatus((app as any).internal_status)} 
                         onValueChange={(value) => handleInternalStatusChange(app.id, value)}
                       >
-                        <SelectTrigger className={`w-[140px] h-7 text-xs border ${INTERNAL_STATUS_STYLES[(app as any).internal_status || 'new_lead'] || ''}`}>
+                        <SelectTrigger className={`w-[200px] h-7 text-xs border ${INTERNAL_STATUS_STYLES[normalizeInternalStatus((app as any).internal_status)] || ''}`}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
