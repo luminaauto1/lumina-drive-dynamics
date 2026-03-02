@@ -1122,6 +1122,42 @@ export type Database = {
         }
         Relationships: []
       }
+      trade_network: {
+        Row: {
+          company_name: string
+          contact_persons: Json | null
+          created_at: string | null
+          id: string
+          location: string | null
+          negotiability: string | null
+          notes: string | null
+          type: string
+          typical_admin_fee: number | null
+        }
+        Insert: {
+          company_name: string
+          contact_persons?: Json | null
+          created_at?: string | null
+          id?: string
+          location?: string | null
+          negotiability?: string | null
+          notes?: string | null
+          type: string
+          typical_admin_fee?: number | null
+        }
+        Update: {
+          company_name?: string
+          contact_persons?: Json | null
+          created_at?: string | null
+          id?: string
+          location?: string | null
+          negotiability?: string | null
+          notes?: string | null
+          type?: string
+          typical_admin_fee?: number | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
