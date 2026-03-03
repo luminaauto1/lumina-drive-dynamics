@@ -418,9 +418,16 @@ const AdminLeads = () => {
                                     </div>
 
                                     <div className="flex items-center justify-between mt-2 ml-3">
-                                      <span className="text-[10px] text-muted-foreground">
-                                        {formatDistanceToNow(new Date(lead.status_updated_at || lead.created_at), { addSuffix: true })}
-                                      </span>
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-[10px] text-muted-foreground">
+                                          {formatDistanceToNow(new Date(lead.status_updated_at || lead.created_at), { addSuffix: true })}
+                                        </span>
+                                        {lead.appDetails?.user_id && (
+                                          <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-primary/40 text-primary bg-primary/10">
+                                            ACCOUNT
+                                          </Badge>
+                                        )}
+                                      </div>
                                       {lead.client_phone && (
                                         <Button variant="ghost" size="icon" className="h-6 w-6 text-emerald-400"
                                           onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${lead.client_phone?.replace(/\D/g, '')}`, '_blank'); }}>
