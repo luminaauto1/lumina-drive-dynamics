@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageCircle, UserPlus, Loader2, GripVertical, Search, RefreshCw, Archive } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -90,6 +91,7 @@ const AdminLeads = () => {
   const [showArchived, setShowArchived] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const [newAccounts, setNewAccounts] = useState<any[]>([]);
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newLead, setNewLead] = useState({ name: "", phone: "", notes: "" });
@@ -113,6 +115,11 @@ const AdminLeads = () => {
     const { data: apps } = await supabase
       .from('finance_applications')
       .select('id, user_id, status, created_at, full_name, email, phone, selected_vehicle_id, vehicles:vehicles!finance_applications_selected_vehicle_id_fkey(make, model, year)');
+
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
 
     let combined: MergedLead[] = (leadData || []).map((l: any) => ({
       ...l,
@@ -188,6 +195,15 @@ const AdminLeads = () => {
     });
 
     setLeads(mapped);
+
+    // Filter New Accounts: profiles with NO apps and NO leads
+    const accountsWithoutApps = (profiles || []).filter(profile => {
+      const hasApp = apps?.some(a => a.user_id === profile.user_id || (a.email && profile.email && a.email.toLowerCase() === profile.email.toLowerCase()));
+      const hasLead = (leadData || []).some(l => (l.client_email && profile.email && l.client_email.toLowerCase() === profile.email.toLowerCase()));
+      return !hasApp && !hasLead;
+    });
+    setNewAccounts(accountsWithoutApps);
+
     setLoading(false);
   }, []);
 
@@ -361,98 +377,132 @@ const AdminLeads = () => {
           </div>
         </div>
 
-        {/* KANBAN BOARD */}
-        <DragDropContext onDragEnd={onDragEnd}>
-          <div
-            ref={scrollContainerRef}
-            className="flex-1 overflow-x-auto overflow-y-hidden p-4"
-            onWheel={handleWheel}
-            onMouseDown={startDraggingScroll}
-            onMouseUp={stopDraggingScroll}
-            onMouseLeave={stopDraggingScroll}
-            onMouseMove={onMouseMove}
-          >
-            <div className="flex gap-4 h-full min-w-max">
-              {COLUMNS.map((col) => {
-                const columnLeads = filteredLeads.filter((l) => l.displayStatus === col.id);
-                return (
-                  <div key={col.id} className={`w-[260px] flex flex-col rounded-xl bg-muted/30 border border-border border-t-4 ${col.color}`} onMouseDown={(e) => e.stopPropagation()}>
-                    <div className="flex items-center justify-between px-3 py-2">
-                      <span className="text-sm font-bold">{col.label}</span>
-                      <span className="text-xs font-medium bg-background/50 rounded-full px-2 py-0.5">{columnLeads.length}</span>
-                    </div>
+        {/* KANBAN BOARD WITH ACCOUNTS SIDEBAR */}
+        <div className="flex-1 flex gap-4 overflow-hidden p-4">
+          {/* NEW ACCOUNTS TABLE (Fixed Left Column) */}
+          <div className="w-72 flex flex-col bg-muted/30 border border-border rounded-xl shrink-0 overflow-hidden border-t-4 border-t-blue-600">
+            <div className="flex items-center justify-between px-3 py-2">
+              <span className="text-sm font-bold text-blue-400">Registered Accounts</span>
+              <Badge variant="outline" className="text-xs border-blue-600/40 text-blue-400 bg-blue-950/20">{newAccounts.length}</Badge>
+            </div>
+            <ScrollArea className="flex-1 p-2">
+              <div className="space-y-2">
+                {newAccounts.length === 0 ? (
+                  <div className="text-xs text-muted-foreground text-center py-8 opacity-50">No new accounts</div>
+                ) : (
+                  newAccounts.map(acc => (
+                    <Card key={acc.id} className="p-3 border-l-4 border-l-blue-600 bg-card hover:bg-accent/50 transition-all">
+                      <p className="font-semibold text-sm truncate">{acc.full_name || 'Unknown'}</p>
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">{acc.email}</p>
+                      {acc.phone && <p className="text-xs text-muted-foreground font-mono mt-0.5">{acc.phone}</p>}
+                      <div className="flex justify-between items-center mt-2">
+                        <span className="text-[10px] text-muted-foreground">
+                          {formatDistanceToNow(new Date(acc.created_at), { addSuffix: true })}
+                        </span>
+                        <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-blue-600/40 text-blue-400 bg-blue-950/20">
+                          ACCOUNT
+                        </Badge>
+                      </div>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+          </div>
 
-                    <Droppable droppableId={col.id}>
-                      {(provided, snapshot) => (
-                        <div
-                          ref={provided.innerRef}
-                          {...provided.droppableProps}
-                          className={`flex-1 overflow-y-auto p-2 space-y-2 min-h-[100px] transition-colors ${snapshot.isDraggingOver ? 'bg-primary/5' : ''}`}
-                        >
-                          {columnLeads.map((lead, index) => {
-                            const needsAttention = !lead.isVirtual && (new Date(lead.status_updated_at || lead.created_at).getTime() > new Date(lead.admin_last_viewed_at || 0).getTime());
-                            const vehicleLabel = lead.appDetails?.vehicles
-                              ? `${lead.appDetails.vehicles.year} ${lead.appDetails.vehicles.make} ${lead.appDetails.vehicles.model}`
-                              : null;
+          {/* PIPELINE (Scrollable Right Area) */}
+          <DragDropContext onDragEnd={onDragEnd}>
+            <div
+              ref={scrollContainerRef}
+              className="flex-1 overflow-x-auto overflow-y-hidden"
+              onWheel={handleWheel}
+              onMouseDown={startDraggingScroll}
+              onMouseUp={stopDraggingScroll}
+              onMouseLeave={stopDraggingScroll}
+              onMouseMove={onMouseMove}
+            >
+              <div className="flex gap-4 h-full min-w-max">
+                {COLUMNS.map((col) => {
+                  const columnLeads = filteredLeads.filter((l) => l.displayStatus === col.id);
+                  return (
+                    <div key={col.id} className={`w-[260px] flex flex-col rounded-xl bg-muted/30 border border-border border-t-4 ${col.color}`} onMouseDown={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <span className="text-sm font-bold">{col.label}</span>
+                        <span className="text-xs font-medium bg-background/50 rounded-full px-2 py-0.5">{columnLeads.length}</span>
+                      </div>
 
-                            return (
-                              <Draggable key={lead.id} draggableId={lead.id} index={index}>
-                                {(provided, snapshot) => (
-                                  <Card
-                                    ref={provided.innerRef}
-                                    {...provided.draggableProps}
-                                    onClick={() => setSelectedLeadId(lead.id)}
-                                    className={`lead-card p-3 relative group transition-all cursor-pointer border-l-4 ${col.color.replace('border-', 'border-l-')} bg-card hover:bg-accent/50 ${snapshot.isDragging ? 'shadow-lg ring-2 ring-primary/30' : ''}`}
-                                  >
-                                    <div {...provided.dragHandleProps} className="absolute top-2 left-1 opacity-0 group-hover:opacity-50 transition-opacity">
-                                      <GripVertical className="w-3.5 h-3.5 text-muted-foreground" />
-                                    </div>
+                      <Droppable droppableId={col.id}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.droppableProps}
+                            className={`flex-1 overflow-y-auto p-2 space-y-2 min-h-[100px] transition-colors ${snapshot.isDraggingOver ? 'bg-primary/5' : ''}`}
+                          >
+                            {columnLeads.map((lead, index) => {
+                              const needsAttention = !lead.isVirtual && (new Date(lead.status_updated_at || lead.created_at).getTime() > new Date(lead.admin_last_viewed_at || 0).getTime());
+                              const vehicleLabel = lead.appDetails?.vehicles
+                                ? `${lead.appDetails.vehicles.year} ${lead.appDetails.vehicles.make} ${lead.appDetails.vehicles.model}`
+                                : null;
 
-                                    {needsAttention && <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />}
+                              return (
+                                <Draggable key={lead.id} draggableId={lead.id} index={index}>
+                                  {(provided, snapshot) => (
+                                    <Card
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
+                                      onClick={() => setSelectedLeadId(lead.id)}
+                                      className={`lead-card p-3 relative group transition-all cursor-pointer border-l-4 ${col.color.replace('border-', 'border-l-')} bg-card hover:bg-accent/50 ${snapshot.isDragging ? 'shadow-lg ring-2 ring-primary/30' : ''}`}
+                                    >
+                                      <div {...provided.dragHandleProps} className="absolute top-2 left-1 opacity-0 group-hover:opacity-50 transition-opacity">
+                                        <GripVertical className="w-3.5 h-3.5 text-muted-foreground" />
+                                      </div>
 
-                                    <div className="ml-3 mr-6">
-                                      <p className="font-semibold text-sm truncate">{lead.client_name || 'Unknown'}</p>
-                                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                                        {vehicleLabel || lead.notes || 'New Inquiry'}
-                                      </p>
-                                    </div>
+                                      {needsAttention && <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />}
 
-                                    <div className="flex items-center justify-between mt-2 ml-3">
-                                      <div className="flex items-center gap-1">
-                                        <span className="text-[10px] text-muted-foreground">
-                                          {formatDistanceToNow(new Date(lead.status_updated_at || lead.created_at), { addSuffix: true })}
-                                        </span>
-                                        {lead.appDetails?.user_id && (
-                                          <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-primary/40 text-primary bg-primary/10">
-                                            ACCOUNT
-                                          </Badge>
+                                      <div className="ml-3 mr-6">
+                                        <p className="font-semibold text-sm truncate">{lead.client_name || 'Unknown'}</p>
+                                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                                          {vehicleLabel || lead.notes || 'New Inquiry'}
+                                        </p>
+                                      </div>
+
+                                      <div className="flex items-center justify-between mt-2 ml-3">
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-[10px] text-muted-foreground">
+                                            {formatDistanceToNow(new Date(lead.status_updated_at || lead.created_at), { addSuffix: true })}
+                                          </span>
+                                          {lead.appDetails?.user_id && (
+                                            <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-primary/40 text-primary bg-primary/10">
+                                              ACCOUNT
+                                            </Badge>
+                                          )}
+                                        </div>
+                                        {lead.client_phone && (
+                                          <Button variant="ghost" size="icon" className="h-6 w-6 text-emerald-400"
+                                            onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${lead.client_phone?.replace(/\D/g, '')}`, '_blank'); }}>
+                                            <MessageCircle className="w-3 h-3" />
+                                          </Button>
                                         )}
                                       </div>
-                                      {lead.client_phone && (
-                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-emerald-400"
-                                          onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${lead.client_phone?.replace(/\D/g, '')}`, '_blank'); }}>
-                                          <MessageCircle className="w-3 h-3" />
-                                        </Button>
-                                      )}
-                                    </div>
-                                  </Card>
-                                )}
-                              </Draggable>
-                            );
-                          })}
-                          {provided.placeholder}
-                          {columnLeads.length === 0 && (
-                            <div className="text-center text-xs text-muted-foreground py-8 opacity-50">No leads</div>
-                          )}
-                        </div>
-                      )}
-                    </Droppable>
-                  </div>
-                );
-              })}
+                                    </Card>
+                                  )}
+                                </Draggable>
+                              );
+                            })}
+                            {provided.placeholder}
+                            {columnLeads.length === 0 && (
+                              <div className="text-center text-xs text-muted-foreground py-8 opacity-50">No leads</div>
+                            )}
+                          </div>
+                        )}
+                      </Droppable>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        </DragDropContext>
+          </DragDropContext>
+        </div>
       </div>
 
       <LeadCockpit
