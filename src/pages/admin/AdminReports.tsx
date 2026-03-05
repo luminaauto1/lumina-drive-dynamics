@@ -588,8 +588,8 @@ const AdminReports = () => {
   );
 };
 
-/* ─── INVESTOR REPORT COMPONENT ─── */
-const InvestorReport = ({ deals, dateRange }: { deals: DealRecord[]; dateRange: { from: Date; to: Date } }) => {
+/* ─── INVESTOR REPORT: CAPITAL BACKING PROPOSAL ─── */
+const InvestorReport = ({ deals }: { deals: DealRecord[]; dateRange: { from: Date; to: Date } }) => {
   const ytdStart = new Date(new Date().getFullYear(), 0, 1);
 
   const ytdDeals = useMemo(() => {
@@ -600,43 +600,42 @@ const InvestorReport = ({ deals, dateRange }: { deals: DealRecord[]; dateRange: 
   }, [deals]);
 
   const metrics = useMemo(() => {
-    let totalRevenue = 0;
-    let totalGrossProfit = 0;
-    let totalInvestorShare = 0;
-    let totalCapitalDeployed = 0;
+    let turnover = 0;
+    let totalVehicleMargin = 0;
 
     ytdDeals.forEach(deal => {
       const soldPrice = Number(deal.sold_price || 0);
       const costPrice = Number(deal.cost_price || 0);
       const reconCost = Number(deal.recon_cost || 0);
-      const dicAmount = Number(deal.dic_amount || 0);
+      const margin = soldPrice - costPrice - reconCost;
 
-      const metalProfit = soldPrice - costPrice - reconCost;
-      const extrasProfit = dicAmount;
-
-      totalRevenue += soldPrice;
-      totalGrossProfit += (metalProfit + extrasProfit);
-      totalInvestorShare += (metalProfit * 0.40);
-      totalCapitalDeployed += costPrice;
+      turnover += soldPrice;
+      totalVehicleMargin += margin;
     });
 
-    const avgROI = totalCapitalDeployed > 0 ? (totalInvestorShare / totalCapitalDeployed) * 100 : 0;
-
     return {
-      ytdRevenue: totalRevenue,
-      ytdProfit: totalGrossProfit,
+      ytdTurnover: turnover,
+      ytdVehicleMargin: totalVehicleMargin,
       ytdUnits: ytdDeals.length,
-      investorReturns: totalInvestorShare,
-      avgROI,
+      avgMarginPerUnit: ytdDeals.length > 0 ? totalVehicleMargin / ytdDeals.length : 0,
     };
   }, [ytdDeals]);
 
   const fmt = (val: number) => `R ${val.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
+  const tiers = [
+    { range: 'Less than R 10,000', payout: 'R 2,000' },
+    { range: 'R 10,000 – R 19,999', payout: 'R 3,000' },
+    { range: 'R 20,000 – R 29,999', payout: 'R 4,000' },
+    { range: 'R 30,000 – R 39,999', payout: 'R 5,000' },
+    { range: 'R 40,000 – R 49,999', payout: 'R 7,000' },
+    { range: 'R 50,000 and above', payout: 'R 8,000' },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Print Button */}
-      <div className="flex justify-end">
+      <div className="flex justify-end print:hidden">
         <Button variant="outline" onClick={() => window.print()} className="gap-2">
           <Printer className="w-4 h-4" />
           Print / Save PDF
@@ -644,12 +643,12 @@ const InvestorReport = ({ deals, dateRange }: { deals: DealRecord[]; dateRange: 
       </div>
 
       {/* Report Container */}
-      <div className="bg-card border border-border rounded-xl p-8 print:p-0 print:border-0 space-y-8">
+      <div className="bg-card border border-border rounded-xl p-8 print:p-0 print:border-0 space-y-10">
         {/* Header */}
         <div className="flex justify-between items-start border-b border-border pb-6">
           <div>
             <h2 className="text-3xl font-bold">Lumina Auto</h2>
-            <p className="text-muted-foreground mt-1">Executive Summary: {new Date().getFullYear()}</p>
+            <p className="text-muted-foreground mt-1">Capital Backing Proposal: {new Date().getFullYear()}</p>
           </div>
           <div className="text-right text-sm text-muted-foreground">
             <p>Pretoria, South Africa</p>
@@ -657,71 +656,98 @@ const InvestorReport = ({ deals, dateRange }: { deals: DealRecord[]; dateRange: 
           </div>
         </div>
 
-        {/* Business Overview */}
+        {/* 1. The Opportunity */}
         <div className="space-y-3">
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <Briefcase className="w-5 h-5 text-primary" />
-            1. Business Model & Operations
+            1. The Opportunity
           </h3>
           <p className="text-muted-foreground leading-relaxed">
-            Lumina Auto specializes in premium pre-owned vehicle sales, strategic sourcing, and backend financing. 
-            Our operational model ensures rapid stock turnover and high yield per unit through a combination of standard margin sales, 
-            Dealer Invoice Commission (DIC), and Value-Added Products (VAPS). We leverage a joint-venture capital structure to fund acquisitions, ensuring high ROI for capital partners.
+            Lumina Auto specializes in the rapid sourcing, reconditioning, and retailing of premium pre-owned vehicles.
+            We are expanding our purchasing capacity and offering a secure, per-vehicle capital backing partnership.
+            Capital is deployed directly into physical, highly liquid automotive assets. Once the specific asset is sold,
+            the initial capital is returned immediately alongside a fixed, performance-based return.
           </p>
         </div>
 
-        {/* Key Financials */}
+        {/* 2. Proof of Performance */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-primary" />
             2. Year-to-Date Performance
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="p-4 text-center space-y-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Trading Revenue</p>
-              <p className="text-xl font-bold text-emerald-400">{fmt(metrics.ytdRevenue)}</p>
-            </Card>
-            <Card className="p-4 text-center space-y-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Gross Profit</p>
-              <p className="text-xl font-bold text-blue-400">{fmt(metrics.ytdProfit)}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Trading Turnover</p>
+              <p className="text-xl font-bold text-emerald-400">{fmt(metrics.ytdTurnover)}</p>
             </Card>
             <Card className="p-4 text-center space-y-1">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Units Delivered</p>
-              <p className="text-xl font-bold text-purple-400">{metrics.ytdUnits} Vehicles</p>
+              <p className="text-xl font-bold text-blue-400">{metrics.ytdUnits} Vehicles</p>
             </Card>
             <Card className="p-4 text-center space-y-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Capital Partner Payouts</p>
-              <p className="text-xl font-bold text-amber-400">{fmt(metrics.investorReturns)}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Avg Vehicle Margin</p>
+              <p className="text-xl font-bold text-purple-400">{fmt(metrics.avgMarginPerUnit)}</p>
             </Card>
+          </div>
+          <p className="text-xs text-muted-foreground italic">
+            * Vehicle Margin represents the gross profit on the physical asset (Sold Price − Cost − Reconditioning) prior to backend F&I revenue.
+          </p>
+        </div>
+
+        {/* 3. Proposed Return Structure */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <DollarSign className="w-5 h-5 text-primary" />
+            3. Proposed Capital Return Structure
+          </h3>
+          <p className="text-muted-foreground leading-relaxed">
+            Returns are calculated per vehicle and paid out immediately upon delivery and final settlement of the asset.
+            The payout is determined by the total gross profit generated by the specific vehicle funded by the capital partner.
+          </p>
+          <div className="overflow-hidden rounded-lg border border-border">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  <TableHead className="font-semibold">Vehicle Gross Profit Tier</TableHead>
+                  <TableHead className="font-semibold text-right">Fixed Partner Payout</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {tiers.map((tier, i) => (
+                  <TableRow key={i}>
+                    <TableCell>{tier.range}</TableCell>
+                    <TableCell className="text-right font-semibold text-emerald-400">{tier.payout}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         </div>
 
-        {/* Strategic Metrics */}
+        {/* 4. Risk Management */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-primary" />
-            3. Strategic Metrics
+            <AlertTriangle className="w-5 h-5 text-primary" />
+            4. Risk Management
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="p-4 flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Average Deal Yield</span>
-              <span className="font-bold">{metrics.ytdUnits > 0 ? fmt(metrics.ytdProfit / metrics.ytdUnits) : 'R 0'}</span>
-            </Card>
-            <Card className="p-4 flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Estimated Capital ROI</span>
-              <span className="font-bold">{metrics.avgROI.toFixed(1)}%</span>
-            </Card>
-            <Card className="p-4 flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Revenue Drivers</span>
-              <span className="font-bold text-xs">Metal Margin, F&I, VAPS</span>
-            </Card>
+          <div className="space-y-3 text-muted-foreground leading-relaxed">
+            <p>
+              <strong className="text-foreground">Asset-Backed:</strong> All capital is directly tied to a specific, identifiable vehicle (VIN registered).
+            </p>
+            <p>
+              <strong className="text-foreground">Vetted Purchasing:</strong> Vehicles are sourced below market retail value to ensure a buffer for profitability.
+            </p>
+            <p>
+              <strong className="text-foreground">Rapid Turnover:</strong> Our marketing strategy is optimized for high-velocity sales to ensure capital is not tied up for extended periods.
+            </p>
           </div>
         </div>
 
         {/* Footer */}
         <div className="border-t border-border pt-4 text-center">
           <p className="text-xs text-muted-foreground">
-            Confidential & Proprietary • Lumina Auto • Do Not Distribute
+            Lumina Auto (Pty) Ltd • Partnership Proposal • Confidential
           </p>
         </div>
       </div>
