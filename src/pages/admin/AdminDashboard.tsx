@@ -13,8 +13,8 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState({
-    retainedIncome: 0,
-    sharedProfit: 0,
+    luminaNetProfit: 0,
+    totalGrossProfit: 0,
     unitsDelivered: 0,
     target: 10,
     avgProfitPerUnit: 0,
@@ -43,38 +43,41 @@ const AdminDashboard = () => {
         .gte("created_at", start)
         .lte("created_at", end);
 
-      let retained = 0;
-      let shared = 0;
+      let totalMetalProfit = 0;
+      let totalExtrasProfit = 0;
 
       (deals || []).forEach((deal: any) => {
-        // Retained (Pure Money): DIC + Admin Fee + Referral Income + Addons profit
-        retained +=
+        // Metal Profit: Selling Price - Cost - Expenses (recon)
+        const metalProfit =
+          Number(deal.sold_price || 0) -
+          Number(deal.cost_price || 0) -
+          Number(deal.recon_cost || 0);
+        totalMetalProfit += metalProfit;
+
+        // Extras Profit: DIC + Admin Fee + Referral Income + Addons profit
+        let extras =
           Number(deal.dic_amount || 0) +
           Number(deal.external_admin_fee || 0) +
           Number(deal.referral_income_amount || 0);
 
-        // Add addons profit (VAPS)
         const addons = deal.addons_data || [];
         addons.forEach((a: any) => {
-          retained += Number(a.selling_price || 0) - Number(a.cost_price || 0);
+          extras += Number(a.selling_price || 0) - Number(a.cost_price || 0);
         });
-
-        // Shared Metal Profit: Sold - Cost - Recon
-        shared +=
-          Number(deal.sold_price || 0) -
-          Number(deal.cost_price || 0) -
-          Number(deal.recon_cost || 0);
+        totalExtrasProfit += extras;
       });
 
       const units = deals?.length || 0;
       const target = monthlyTarget;
+      const totalGross = totalMetalProfit + totalExtrasProfit;
+      const luminaNet = (totalMetalProfit * 0.60) + totalExtrasProfit;
 
       setMetrics({
-        retainedIncome: retained,
-        sharedProfit: shared,
+        luminaNetProfit: luminaNet,
+        totalGrossProfit: totalGross,
         unitsDelivered: units,
         target,
-        avgProfitPerUnit: units > 0 ? (retained + shared) / units : 0,
+        avgProfitPerUnit: units > 0 ? luminaNet / units : 0,
       });
 
       // 3. Pipeline Health
@@ -155,35 +158,35 @@ const AdminDashboard = () => {
 
         {/* FINANCIAL INTELLIGENCE */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Retained */}
+          {/* Your Net Profit */}
           <Card className="p-5 space-y-1">
             <div className="flex items-center gap-2 text-emerald-400">
               <DollarSign className="w-5 h-5" />
               <span className="text-sm font-medium text-muted-foreground">
-                Lumina Retained Income
+                Your Net Profit
               </span>
             </div>
             <p className="text-2xl font-bold text-emerald-400">
-              {fmt(metrics.retainedIncome)}
+              {fmt(metrics.luminaNetProfit)}
             </p>
             <p className="text-xs text-muted-foreground">
-              100% Yours (VAPS, DIC, Referrals)
+              Lumina's Final Cut (After Split)
             </p>
           </Card>
 
-          {/* Shared */}
+          {/* Total Gross */}
           <Card className="p-5 space-y-1">
             <div className="flex items-center gap-2 text-blue-400">
               <TrendingUp className="w-5 h-5" />
               <span className="text-sm font-medium text-muted-foreground">
-                Shared Metal Profit
+                Total Gross Deal Profit
               </span>
             </div>
             <p className="text-2xl font-bold text-blue-400">
-              {fmt(metrics.sharedProfit)}
+              {fmt(metrics.totalGrossProfit)}
             </p>
             <p className="text-xs text-muted-foreground">
-              Distributable Pot (JV Split)
+              Total Generated Before Split
             </p>
           </Card>
 
@@ -218,7 +221,7 @@ const AdminDashboard = () => {
               {fmt(metrics.avgProfitPerUnit)}
             </p>
             <p className="text-xs text-muted-foreground">
-              Total Profit / Units Sold
+              Your Net / Units Sold
             </p>
           </Card>
         </div>

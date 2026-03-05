@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import { 
   TrendingUp, DollarSign, Car, Clock, AlertTriangle, Percent, 
-  PieChart, BarChart3, Calendar, Filter
+  PieChart, BarChart3, Calendar, Filter, Briefcase, Printer
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { format, subDays, differenceInDays, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
@@ -283,7 +283,7 @@ const AdminReports = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="financial" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
             <TabsTrigger value="financial" className="gap-2">
               <DollarSign className="w-4 h-4" />
               Financial Health
@@ -295,6 +295,10 @@ const AdminReports = () => {
             <TabsTrigger value="insights" className="gap-2">
               <PieChart className="w-4 h-4" />
               Deal Insights
+            </TabsTrigger>
+            <TabsTrigger value="investor" className="gap-2">
+              <Briefcase className="w-4 h-4" />
+              Investor Report
             </TabsTrigger>
           </TabsList>
 
@@ -573,9 +577,155 @@ const AdminReports = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Tab 4: Investor Report */}
+          <TabsContent value="investor" className="space-y-6">
+            <InvestorReport deals={dealRecords} dateRange={dateRange} />
+          </TabsContent>
         </Tabs>
       </div>
     </AdminLayout>
+  );
+};
+
+/* ─── INVESTOR REPORT COMPONENT ─── */
+const InvestorReport = ({ deals, dateRange }: { deals: DealRecord[]; dateRange: { from: Date; to: Date } }) => {
+  const ytdStart = new Date(new Date().getFullYear(), 0, 1);
+
+  const ytdDeals = useMemo(() => {
+    return deals.filter(d => {
+      const saleDate = d.sale_date ? new Date(d.sale_date) : new Date(d.created_at);
+      return saleDate >= ytdStart;
+    });
+  }, [deals]);
+
+  const metrics = useMemo(() => {
+    let totalRevenue = 0;
+    let totalGrossProfit = 0;
+    let totalInvestorShare = 0;
+    let totalCapitalDeployed = 0;
+
+    ytdDeals.forEach(deal => {
+      const soldPrice = Number(deal.sold_price || 0);
+      const costPrice = Number(deal.cost_price || 0);
+      const reconCost = Number(deal.recon_cost || 0);
+      const dicAmount = Number(deal.dic_amount || 0);
+
+      const metalProfit = soldPrice - costPrice - reconCost;
+      const extrasProfit = dicAmount;
+
+      totalRevenue += soldPrice;
+      totalGrossProfit += (metalProfit + extrasProfit);
+      totalInvestorShare += (metalProfit * 0.40);
+      totalCapitalDeployed += costPrice;
+    });
+
+    const avgROI = totalCapitalDeployed > 0 ? (totalInvestorShare / totalCapitalDeployed) * 100 : 0;
+
+    return {
+      ytdRevenue: totalRevenue,
+      ytdProfit: totalGrossProfit,
+      ytdUnits: ytdDeals.length,
+      investorReturns: totalInvestorShare,
+      avgROI,
+    };
+  }, [ytdDeals]);
+
+  const fmt = (val: number) => `R ${val.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+
+  return (
+    <div className="space-y-6">
+      {/* Print Button */}
+      <div className="flex justify-end">
+        <Button variant="outline" onClick={() => window.print()} className="gap-2">
+          <Printer className="w-4 h-4" />
+          Print / Save PDF
+        </Button>
+      </div>
+
+      {/* Report Container */}
+      <div className="bg-card border border-border rounded-xl p-8 print:p-0 print:border-0 space-y-8">
+        {/* Header */}
+        <div className="flex justify-between items-start border-b border-border pb-6">
+          <div>
+            <h2 className="text-3xl font-bold">Lumina Auto</h2>
+            <p className="text-muted-foreground mt-1">Executive Summary: {new Date().getFullYear()}</p>
+          </div>
+          <div className="text-right text-sm text-muted-foreground">
+            <p>Pretoria, South Africa</p>
+            <p>Generated: {format(new Date(), 'dd MMM yyyy')}</p>
+          </div>
+        </div>
+
+        {/* Business Overview */}
+        <div className="space-y-3">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <Briefcase className="w-5 h-5 text-primary" />
+            1. Business Model & Operations
+          </h3>
+          <p className="text-muted-foreground leading-relaxed">
+            Lumina Auto specializes in premium pre-owned vehicle sales, strategic sourcing, and backend financing. 
+            Our operational model ensures rapid stock turnover and high yield per unit through a combination of standard margin sales, 
+            Dealer Invoice Commission (DIC), and Value-Added Products (VAPS). We leverage a joint-venture capital structure to fund acquisitions, ensuring high ROI for capital partners.
+          </p>
+        </div>
+
+        {/* Key Financials */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-primary" />
+            2. Year-to-Date Performance
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card className="p-4 text-center space-y-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Trading Revenue</p>
+              <p className="text-xl font-bold text-emerald-400">{fmt(metrics.ytdRevenue)}</p>
+            </Card>
+            <Card className="p-4 text-center space-y-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Gross Profit</p>
+              <p className="text-xl font-bold text-blue-400">{fmt(metrics.ytdProfit)}</p>
+            </Card>
+            <Card className="p-4 text-center space-y-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Units Delivered</p>
+              <p className="text-xl font-bold text-purple-400">{metrics.ytdUnits} Vehicles</p>
+            </Card>
+            <Card className="p-4 text-center space-y-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Capital Partner Payouts</p>
+              <p className="text-xl font-bold text-amber-400">{fmt(metrics.investorReturns)}</p>
+            </Card>
+          </div>
+        </div>
+
+        {/* Strategic Metrics */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-primary" />
+            3. Strategic Metrics
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="p-4 flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Average Deal Yield</span>
+              <span className="font-bold">{metrics.ytdUnits > 0 ? fmt(metrics.ytdProfit / metrics.ytdUnits) : 'R 0'}</span>
+            </Card>
+            <Card className="p-4 flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Estimated Capital ROI</span>
+              <span className="font-bold">{metrics.avgROI.toFixed(1)}%</span>
+            </Card>
+            <Card className="p-4 flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Revenue Drivers</span>
+              <span className="font-bold text-xs">Metal Margin, F&I, VAPS</span>
+            </Card>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-border pt-4 text-center">
+          <p className="text-xs text-muted-foreground">
+            Confidential & Proprietary • Lumina Auto • Do Not Distribute
+          </p>
+        </div>
+      </div>
+    </div>
   );
 };
 
