@@ -707,7 +707,7 @@ const InvestorReport = ({ deals }: { deals: DealRecord[]; dateRange: { from: Dat
             </Card>
           </div>
           <p className="text-xs text-muted-foreground italic">
-            * Vehicle Margin represents the gross profit on the physical asset (Sold Price − Cost − Reconditioning) prior to backend F&I revenue.
+            * Vehicle Margin represents the gross profit on the physical asset (Sold Price − Cost − Reconditioning) prior to external dealer commissions (DIC) and VAP kickbacks.
           </p>
         </div>
 
