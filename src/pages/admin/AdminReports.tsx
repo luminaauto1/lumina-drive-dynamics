@@ -625,12 +625,14 @@ const InvestorReport = ({ deals }: { deals: DealRecord[]; dateRange: { from: Dat
 
   const tiers = [
     { range: 'Less than R 10,000', payout: 'R 2,000' },
-    { range: 'R 10,000 – R 19,999', payout: 'R 3,000' },
-    { range: 'R 20,000 – R 29,999', payout: 'R 4,000' },
-    { range: 'R 30,000 – R 39,999', payout: 'R 5,000' },
-    { range: 'R 40,000 – R 49,999', payout: 'R 7,000' },
-    { range: 'R 50,000 and above', payout: 'R 8,000' },
+    { range: 'R 10,000 – R 20,000', payout: 'R 3,000' },
+    { range: 'R 20,000 – R 30,000', payout: 'R 4,000' },
+    { range: 'R 30,000 – R 40,000', payout: 'R 5,000' },
+    { range: 'R 40,000 – R 50,000', payout: 'R 7,000' },
+    { range: 'Over R 50,000', payout: 'R 8,000' },
   ];
+
+  const dateRangeString = `01 Jan ${new Date().getFullYear()} — ${format(new Date(), 'dd MMM yyyy')}`;
 
   return (
     <div className="space-y-6">
@@ -648,11 +650,11 @@ const InvestorReport = ({ deals }: { deals: DealRecord[]; dateRange: { from: Dat
         <div className="flex justify-between items-start border-b border-border pb-6">
           <div>
             <h2 className="text-3xl font-bold">Lumina Auto</h2>
-            <p className="text-muted-foreground mt-1">Capital Backing Proposal: {new Date().getFullYear()}</p>
+            <p className="text-muted-foreground mt-1">Capital Backing Proposal</p>
           </div>
           <div className="text-right text-sm text-muted-foreground">
             <p>Pretoria, South Africa</p>
-            <p>Generated: {format(new Date(), 'dd MMM yyyy')}</p>
+            <p>Report Period: {dateRangeString}</p>
           </div>
         </div>
 
@@ -722,25 +724,6 @@ const InvestorReport = ({ deals }: { deals: DealRecord[]; dateRange: { from: Dat
                 ))}
               </TableBody>
             </Table>
-          </div>
-        </div>
-
-        {/* 4. Risk Management */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-primary" />
-            4. Risk Management
-          </h3>
-          <div className="space-y-3 text-muted-foreground leading-relaxed">
-            <p>
-              <strong className="text-foreground">Asset-Backed:</strong> All capital is directly tied to a specific, identifiable vehicle (VIN registered).
-            </p>
-            <p>
-              <strong className="text-foreground">Vetted Purchasing:</strong> Vehicles are sourced below market retail value to ensure a buffer for profitability.
-            </p>
-            <p>
-              <strong className="text-foreground">Rapid Turnover:</strong> Our marketing strategy is optimized for high-velocity sales to ensure capital is not tied up for extended periods.
-            </p>
           </div>
         </div>
 
