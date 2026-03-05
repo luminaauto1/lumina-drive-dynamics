@@ -32,6 +32,8 @@ interface DealRecord {
   dic_amount: number | null;
   sales_rep_commission: number | null;
   referral_commission_amount: number | null;
+  referral_income_amount: number | null;
+  addons_data: any[] | null;
   aftersales_expenses: Array<{ type: string; amount: number }> | null;
   vehicle?: {
     id: string;
@@ -602,6 +604,7 @@ const InvestorReport = ({ deals }: { deals: DealRecord[]; dateRange: { from: Dat
   const metrics = useMemo(() => {
     let turnover = 0;
     let totalVehicleMargin = 0;
+    let totalGrossProfit = 0;
 
     ytdDeals.forEach(deal => {
       const soldPrice = Number(deal.sold_price || 0);
@@ -609,12 +612,19 @@ const InvestorReport = ({ deals }: { deals: DealRecord[]; dateRange: { from: Dat
       const reconCost = Number(deal.recon_cost || 0);
       const margin = soldPrice - costPrice - reconCost;
 
+      const dicAmount = Number(deal.dic_amount || 0);
+      const referralIncome = Number(deal.referral_income_amount || 0);
+      const addons = Array.isArray(deal.addons_data) ? (deal.addons_data as any[]) : [];
+      const vapProfit = addons.reduce((s: number, a: any) => s + ((Number(a.price) || 0) - (Number(a.cost) || 0)), 0);
+
       turnover += soldPrice;
       totalVehicleMargin += margin;
+      totalGrossProfit += (margin + dicAmount + referralIncome + vapProfit);
     });
 
     return {
       ytdTurnover: turnover,
+      ytdGrossProfit: totalGrossProfit,
       ytdVehicleMargin: totalVehicleMargin,
       ytdUnits: ytdDeals.length,
       avgMarginPerUnit: ytdDeals.length > 0 ? totalVehicleMargin / ytdDeals.length : 0,
@@ -678,17 +688,21 @@ const InvestorReport = ({ deals }: { deals: DealRecord[]; dateRange: { from: Dat
             <TrendingUp className="w-5 h-5 text-primary" />
             2. Year-to-Date Performance
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card className="p-4 text-center space-y-1">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Trading Turnover</p>
               <p className="text-xl font-bold text-emerald-400">{fmt(metrics.ytdTurnover)}</p>
             </Card>
             <Card className="p-4 text-center space-y-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Units Delivered</p>
-              <p className="text-xl font-bold text-blue-400">{metrics.ytdUnits} Vehicles</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Gross Profit</p>
+              <p className="text-xl font-bold text-amber-400">{fmt(metrics.ytdGrossProfit)}</p>
             </Card>
             <Card className="p-4 text-center space-y-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Avg Vehicle Margin</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Units Delivered</p>
+              <p className="text-xl font-bold text-blue-400">{metrics.ytdUnits}</p>
+            </Card>
+            <Card className="p-4 text-center space-y-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Avg Margin / Unit</p>
               <p className="text-xl font-bold text-purple-400">{fmt(metrics.avgMarginPerUnit)}</p>
             </Card>
           </div>
