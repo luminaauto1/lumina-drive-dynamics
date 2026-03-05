@@ -14,7 +14,7 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState({
     luminaNetProfit: 0,
-    totalGrossProfit: 0,
+    totalTurnover: 0,
     unitsDelivered: 0,
     target: 10,
     avgProfitPerUnit: 0,
@@ -45,16 +45,16 @@ const AdminDashboard = () => {
 
       let totalMetalProfit = 0;
       let totalExtrasProfit = 0;
+      let totalTurnover = 0;
 
       (deals || []).forEach((deal: any) => {
-        // Metal Profit: Selling Price - Cost - Expenses (recon)
+        const sellPrice = Number(deal.sold_price || 0);
         const metalProfit =
-          Number(deal.sold_price || 0) -
+          sellPrice -
           Number(deal.cost_price || 0) -
           Number(deal.recon_cost || 0);
         totalMetalProfit += metalProfit;
 
-        // Extras Profit: DIC + Admin Fee + Referral Income + Addons profit
         let extras =
           Number(deal.dic_amount || 0) +
           Number(deal.external_admin_fee || 0) +
@@ -65,16 +65,16 @@ const AdminDashboard = () => {
           extras += Number(a.selling_price || 0) - Number(a.cost_price || 0);
         });
         totalExtrasProfit += extras;
+        totalTurnover += sellPrice;
       });
 
       const units = deals?.length || 0;
       const target = monthlyTarget;
-      const totalGross = totalMetalProfit + totalExtrasProfit;
       const luminaNet = (totalMetalProfit * 0.60) + totalExtrasProfit;
 
       setMetrics({
         luminaNetProfit: luminaNet,
-        totalGrossProfit: totalGross,
+        totalTurnover,
         unitsDelivered: units,
         target,
         avgProfitPerUnit: units > 0 ? luminaNet / units : 0,
@@ -174,19 +174,19 @@ const AdminDashboard = () => {
             </p>
           </Card>
 
-          {/* Total Gross */}
+          {/* Total Turnover */}
           <Card className="p-5 space-y-1">
             <div className="flex items-center gap-2 text-blue-400">
               <TrendingUp className="w-5 h-5" />
               <span className="text-sm font-medium text-muted-foreground">
-                Total Gross Deal Profit
+                Total Trading Turnover
               </span>
             </div>
             <p className="text-2xl font-bold text-blue-400">
-              {fmt(metrics.totalGrossProfit)}
+              {fmt(metrics.totalTurnover)}
             </p>
             <p className="text-xs text-muted-foreground">
-              Total Generated Before Split
+              Top-Line Revenue (Vehicle Value)
             </p>
           </Card>
 
