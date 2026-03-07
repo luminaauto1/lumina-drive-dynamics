@@ -640,7 +640,7 @@ const InvestorReport = ({ deals, dateRange }: { deals: DealRecord[]; dateRange: 
     { range: 'Over R 50,000', payout: 'R 8,000' },
   ];
 
-  const dateRangeString = `01 Jan ${new Date().getFullYear()} — ${format(new Date(), 'dd MMM yyyy')}`;
+  const dateRangeString = `${format(dateRange.from, 'dd MMM yyyy')} — ${format(dateRange.to, 'dd MMM yyyy')}`;
 
   return (
     <div className="space-y-6">
