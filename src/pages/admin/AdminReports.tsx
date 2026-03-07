@@ -591,22 +591,20 @@ const AdminReports = () => {
 };
 
 /* ─── INVESTOR REPORT: CAPITAL BACKING PROPOSAL ─── */
-const InvestorReport = ({ deals }: { deals: DealRecord[]; dateRange: { from: Date; to: Date } }) => {
-  const ytdStart = new Date(new Date().getFullYear(), 0, 1);
-
-  const ytdDeals = useMemo(() => {
+const InvestorReport = ({ deals, dateRange }: { deals: DealRecord[]; dateRange: { from: Date; to: Date } }) => {
+  const filteredDeals = useMemo(() => {
     return deals.filter(d => {
       const saleDate = d.sale_date ? new Date(d.sale_date) : new Date(d.created_at);
-      return saleDate >= ytdStart;
+      return isWithinInterval(saleDate, { start: dateRange.from, end: dateRange.to });
     });
-  }, [deals]);
+  }, [deals, dateRange]);
 
   const metrics = useMemo(() => {
     let turnover = 0;
     let totalVehicleMargin = 0;
     let totalNetProfit = 0;
 
-    ytdDeals.forEach(deal => {
+    filteredDeals.forEach(deal => {
       const soldPrice = Number(deal.sold_price || 0);
       const costPrice = Number(deal.cost_price || 0);
       const reconCost = Number(deal.recon_cost || 0);
@@ -623,13 +621,13 @@ const InvestorReport = ({ deals }: { deals: DealRecord[]; dateRange: { from: Dat
     });
 
     return {
-      ytdTurnover: turnover,
-      ytdNetProfit: totalNetProfit,
-      ytdVehicleMargin: totalVehicleMargin,
-      ytdUnits: ytdDeals.length,
-      avgMarginPerUnit: ytdDeals.length > 0 ? totalVehicleMargin / ytdDeals.length : 0,
+      turnover,
+      netProfit: totalNetProfit,
+      vehicleMargin: totalVehicleMargin,
+      units: filteredDeals.length,
+      avgMarginPerUnit: filteredDeals.length > 0 ? totalVehicleMargin / filteredDeals.length : 0,
     };
-  }, [ytdDeals]);
+  }, [filteredDeals]);
 
   const fmt = (val: number) => `R ${val.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
@@ -642,7 +640,7 @@ const InvestorReport = ({ deals }: { deals: DealRecord[]; dateRange: { from: Dat
     { range: 'Over R 50,000', payout: 'R 8,000' },
   ];
 
-  const dateRangeString = `01 Jan ${new Date().getFullYear()} — ${format(new Date(), 'dd MMM yyyy')}`;
+  const dateRangeString = `${format(dateRange.from, 'dd MMM yyyy')} — ${format(dateRange.to, 'dd MMM yyyy')}`;
 
   return (
     <div className="space-y-6">
@@ -686,20 +684,20 @@ const InvestorReport = ({ deals }: { deals: DealRecord[]; dateRange: { from: Dat
         <div className="space-y-4">
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-primary" />
-            2. Year-to-Date Performance
+            2. Operating Performance
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card className="p-4 text-center space-y-1">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Trading Turnover</p>
-              <p className="text-xl font-bold text-emerald-400">{fmt(metrics.ytdTurnover)}</p>
+              <p className="text-xl font-bold text-emerald-400">{fmt(metrics.turnover)}</p>
             </Card>
             <Card className="p-4 text-center space-y-1">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Net Profit</p>
-              <p className="text-xl font-bold text-amber-400">{fmt(metrics.ytdNetProfit)}</p>
+              <p className="text-xl font-bold text-amber-400">{fmt(metrics.netProfit)}</p>
             </Card>
             <Card className="p-4 text-center space-y-1">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Units Delivered</p>
-              <p className="text-xl font-bold text-blue-400">{metrics.ytdUnits}</p>
+              <p className="text-xl font-bold text-blue-400">{metrics.units}</p>
             </Card>
             <Card className="p-4 text-center space-y-1">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Avg Margin / Unit</p>
