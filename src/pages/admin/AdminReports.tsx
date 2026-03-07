@@ -725,7 +725,7 @@ const InvestorReport = ({ deals }: { deals: DealRecord[]; dateRange: { from: Dat
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="font-semibold">Vehicle Gross Profit Tier</TableHead>
+                  <TableHead className="font-semibold">Vehicle Net Profit Tier</TableHead>
                   <TableHead className="font-semibold text-right">Fixed Partner Payout</TableHead>
                 </TableRow>
               </TableHeader>
