@@ -604,7 +604,7 @@ const InvestorReport = ({ deals, dateRange }: { deals: DealRecord[]; dateRange: 
     let totalVehicleMargin = 0;
     let totalNetProfit = 0;
 
-    ytdDeals.forEach(deal => {
+    filteredDeals.forEach(deal => {
       const soldPrice = Number(deal.sold_price || 0);
       const costPrice = Number(deal.cost_price || 0);
       const reconCost = Number(deal.recon_cost || 0);
@@ -621,13 +621,13 @@ const InvestorReport = ({ deals, dateRange }: { deals: DealRecord[]; dateRange: 
     });
 
     return {
-      ytdTurnover: turnover,
-      ytdNetProfit: totalNetProfit,
-      ytdVehicleMargin: totalVehicleMargin,
-      ytdUnits: ytdDeals.length,
-      avgMarginPerUnit: ytdDeals.length > 0 ? totalVehicleMargin / ytdDeals.length : 0,
+      turnover,
+      netProfit: totalNetProfit,
+      vehicleMargin: totalVehicleMargin,
+      units: filteredDeals.length,
+      avgMarginPerUnit: filteredDeals.length > 0 ? totalVehicleMargin / filteredDeals.length : 0,
     };
-  }, [ytdDeals]);
+  }, [filteredDeals]);
 
   const fmt = (val: number) => `R ${val.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
