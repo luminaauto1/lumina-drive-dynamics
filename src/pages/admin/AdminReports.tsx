@@ -684,7 +684,7 @@ const InvestorReport = ({ deals, dateRange }: { deals: DealRecord[]; dateRange: 
         <div className="space-y-4">
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-primary" />
-            2. Year-to-Date Performance
+            2. Operating Performance
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card className="p-4 text-center space-y-1">
