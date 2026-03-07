@@ -591,15 +591,13 @@ const AdminReports = () => {
 };
 
 /* ─── INVESTOR REPORT: CAPITAL BACKING PROPOSAL ─── */
-const InvestorReport = ({ deals }: { deals: DealRecord[]; dateRange: { from: Date; to: Date } }) => {
-  const ytdStart = new Date(new Date().getFullYear(), 0, 1);
-
-  const ytdDeals = useMemo(() => {
+const InvestorReport = ({ deals, dateRange }: { deals: DealRecord[]; dateRange: { from: Date; to: Date } }) => {
+  const filteredDeals = useMemo(() => {
     return deals.filter(d => {
       const saleDate = d.sale_date ? new Date(d.sale_date) : new Date(d.created_at);
-      return saleDate >= ytdStart;
+      return isWithinInterval(saleDate, { start: dateRange.from, end: dateRange.to });
     });
-  }, [deals]);
+  }, [deals, dateRange]);
 
   const metrics = useMemo(() => {
     let turnover = 0;
