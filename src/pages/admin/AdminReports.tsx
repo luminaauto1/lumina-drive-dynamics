@@ -624,7 +624,7 @@ const InvestorReport = ({ deals }: { deals: DealRecord[]; dateRange: { from: Dat
 
     return {
       ytdTurnover: turnover,
-      ytdGrossProfit: totalGrossProfit,
+      ytdNetProfit: totalGrossProfit,
       ytdVehicleMargin: totalVehicleMargin,
       ytdUnits: ytdDeals.length,
       avgMarginPerUnit: ytdDeals.length > 0 ? totalVehicleMargin / ytdDeals.length : 0,
