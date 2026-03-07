@@ -604,7 +604,7 @@ const InvestorReport = ({ deals }: { deals: DealRecord[]; dateRange: { from: Dat
   const metrics = useMemo(() => {
     let turnover = 0;
     let totalVehicleMargin = 0;
-    let totalGrossProfit = 0;
+    let totalNetProfit = 0;
 
     ytdDeals.forEach(deal => {
       const soldPrice = Number(deal.sold_price || 0);
