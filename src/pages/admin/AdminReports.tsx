@@ -689,15 +689,15 @@ const InvestorReport = ({ deals, dateRange }: { deals: DealRecord[]; dateRange: 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card className="p-4 text-center space-y-1">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Trading Turnover</p>
-              <p className="text-xl font-bold text-emerald-400">{fmt(metrics.ytdTurnover)}</p>
+              <p className="text-xl font-bold text-emerald-400">{fmt(metrics.turnover)}</p>
             </Card>
             <Card className="p-4 text-center space-y-1">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Net Profit</p>
-              <p className="text-xl font-bold text-amber-400">{fmt(metrics.ytdNetProfit)}</p>
+              <p className="text-xl font-bold text-amber-400">{fmt(metrics.netProfit)}</p>
             </Card>
             <Card className="p-4 text-center space-y-1">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Units Delivered</p>
-              <p className="text-xl font-bold text-blue-400">{metrics.ytdUnits}</p>
+              <p className="text-xl font-bold text-blue-400">{metrics.units}</p>
             </Card>
             <Card className="p-4 text-center space-y-1">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Avg Margin / Unit</p>
