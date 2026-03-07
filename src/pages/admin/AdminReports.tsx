@@ -694,8 +694,8 @@ const InvestorReport = ({ deals }: { deals: DealRecord[]; dateRange: { from: Dat
               <p className="text-xl font-bold text-emerald-400">{fmt(metrics.ytdTurnover)}</p>
             </Card>
             <Card className="p-4 text-center space-y-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Gross Profit</p>
-              <p className="text-xl font-bold text-amber-400">{fmt(metrics.ytdGrossProfit)}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Net Profit</p>
+              <p className="text-xl font-bold text-amber-400">{fmt(metrics.ytdNetProfit)}</p>
             </Card>
             <Card className="p-4 text-center space-y-1">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Units Delivered</p>
