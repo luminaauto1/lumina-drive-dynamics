@@ -619,7 +619,7 @@ const InvestorReport = ({ deals }: { deals: DealRecord[]; dateRange: { from: Dat
 
       turnover += soldPrice;
       totalVehicleMargin += margin;
-      totalGrossProfit += (margin + dicAmount + referralIncome + vapProfit);
+      totalNetProfit += (margin + dicAmount + referralIncome + vapProfit);
     });
 
     return {
