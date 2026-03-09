@@ -689,7 +689,7 @@ const AdminDealRoom = () => {
                       variant="outline"
                       size="sm"
                       onClick={async () => {
-                        const link = `https://lumina-auto.lovable.app/upload-documents/${(application as any).access_token}`;
+                        const link = `https://luminaauto.co.za/upload-documents/${(application as any).access_token}`;
                         await navigator.clipboard.writeText(link);
                         toast.success('Upload link copied to clipboard!');
                       }}

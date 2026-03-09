@@ -181,7 +181,7 @@ const getFallbackEmailContent = (
   accessToken?: string,
   vehicleName?: string
 ): { subject: string; html: string } => {
-  const dashboardUrl = 'https://lumina-auto.lovable.app/dashboard';
+  const dashboardUrl = 'https://luminaauto.co.za/dashboard';
   
   const fallbackTemplate: EmailTemplate = {
     status_key: status,

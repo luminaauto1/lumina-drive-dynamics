@@ -114,7 +114,7 @@ const handler = async (req: Request): Promise<Response> => {
     const safeClientName = escapeHtml(clientName);
     const safeClientEmail = escapeHtml(clientEmail);
 
-    const baseUrl = "https://lumina-auto.lovable.app";
+    const baseUrl = "https://luminaauto.co.za";
     const dealRoomLink = `${baseUrl}/admin/finance/${applicationId}`;
     const dashboardLink = `${baseUrl}/dashboard`;
 
