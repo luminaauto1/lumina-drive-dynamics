@@ -81,34 +81,51 @@ export const useUpdateSiteSettings = () => {
 
   return useMutation({
     mutationFn: async (updates: Partial<SiteSettings>) => {
-      // Get the single settings row
+      // Try to get the existing settings row
       const { data: existingSettings } = await supabase
         .from('site_settings')
         .select('id')
         .limit(1)
         .single();
 
-      if (!existingSettings) {
-        throw new Error('No settings row found');
+      const settingsId = existingSettings?.id;
+
+      if (settingsId) {
+        // Update existing row
+        const { data, error } = await supabase
+          .from('site_settings')
+          .update(updates)
+          .eq('id', settingsId)
+          .select()
+          .single();
+
+        if (error) {
+          console.error('SUPABASE SETTINGS UPDATE ERROR:', error);
+          throw error;
+        }
+        return data as unknown as SiteSettings;
+      } else {
+        // No row exists — insert one via upsert
+        const { data, error } = await supabase
+          .from('site_settings')
+          .upsert(updates as any)
+          .select()
+          .single();
+
+        if (error) {
+          console.error('SUPABASE SETTINGS UPSERT ERROR:', error);
+          throw error;
+        }
+        return data as unknown as SiteSettings;
       }
-
-      const { data, error } = await supabase
-        .from('site_settings')
-        .update(updates)
-        .eq('id', existingSettings.id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data as unknown as SiteSettings;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['site-settings'] });
       toast.success('Settings saved successfully');
     },
-    onError: (error) => {
-      console.error('Error updating settings:', error);
-      toast.error('Failed to save settings');
+    onError: (error: any) => {
+      console.error('SETTINGS SAVE FAILED:', error);
+      toast.error(error?.message || 'Failed to save settings');
     },
   });
 };
