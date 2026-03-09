@@ -93,7 +93,7 @@ export const HandoverSetupModal = ({ dealId, currentPhotos = [] }: { dealId: str
             <div className="min-w-0 mr-3">
               <p className="text-xs font-semibold text-emerald-500">Handover Link Ready</p>
               <p className="text-xs text-muted-foreground truncate">
-                https://luminaauto.co.za/handover/{dealId}
+                {window.location.origin}/handover/{dealId}
               </p>
             </div>
             <Button size="sm" variant="outline" onClick={copyLink}>
