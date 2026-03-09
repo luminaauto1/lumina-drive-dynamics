@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Upload, Copy, Gift } from "lucide-react";
+import { Loader2, Upload, Copy, Gift, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const HandoverSetupModal = ({ dealId, currentPhotos = [] }: { dealId: string; currentPhotos?: string[] }) => {
