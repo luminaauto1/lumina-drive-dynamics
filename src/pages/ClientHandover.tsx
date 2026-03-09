@@ -3,8 +3,9 @@ import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Loader2, Star, Download, Facebook, Instagram } from "lucide-react";
+import { Loader2, Star, Download, Facebook, Instagram, CheckCircle, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
 
 const ClientHandover = () => {
   const { dealId } = useParams();
@@ -12,29 +13,26 @@ const ClientHandover = () => {
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
+  const [downloadingIdx, setDownloadingIdx] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       if (!dealId) return;
 
-      // Fetch settings publicly (allowed by RLS)
       const settingsRes = await supabase.from('site_settings').select('*').limit(1).single();
       if (settingsRes.data) setSettings(settingsRes.data);
 
-      // Use edge function for deal data (avoids needing anon access to finance_applications)
       try {
         const { data, error } = await supabase.functions.invoke('get-handover-data', {
           body: { dealId },
         });
 
         if (error || !data) {
-          console.error("Handover fetch error:", error?.message);
           setErrorMsg(error?.message || "Failed to load handover data");
         } else {
           setDeal(data);
         }
       } catch (err: any) {
-        console.error("Handover fetch error:", err);
         setErrorMsg(err.message || "Failed to load");
       }
 
@@ -44,8 +42,8 @@ const ClientHandover = () => {
   }, [dealId]);
 
   const downloadPhoto = async (url: string, index: number) => {
+    setDownloadingIdx(index);
     try {
-      toast.info("Downloading...");
       const response = await fetch(url);
       const blob = await response.blob();
       const link = document.createElement('a');
@@ -55,9 +53,19 @@ const ClientHandover = () => {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(link.href);
+      toast.success("Photo downloaded! Attach it to your review 📸");
     } catch (err) {
-      console.error(err);
       window.open(url, '_blank');
+    } finally {
+      setDownloadingIdx(null);
+    }
+  };
+
+  const downloadAllPhotos = async (photos: string[]) => {
+    toast.info("Downloading all photos...");
+    for (let i = 0; i < photos.length; i++) {
+      await downloadPhoto(photos[i], i);
+      await new Promise(r => setTimeout(r, 500));
     }
   };
 
@@ -72,7 +80,6 @@ const ClientHandover = () => {
       <div>
         <p className="text-muted-foreground text-lg mb-2">Link expired or invalid.</p>
         {errorMsg && <p className="text-xs text-red-400">{errorMsg}</p>}
-        <p className="text-xs text-zinc-600 mt-2">ID: {dealId}</p>
       </div>
     </div>
   );
@@ -82,111 +89,151 @@ const ClientHandover = () => {
   const carName = vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : "New Ride";
   const photos: string[] = deal.delivery_photos || [];
 
+  const reviewLinks = [
+    { key: 'google_review_url', label: 'Google Review', icon: Star, bg: 'bg-yellow-500 hover:bg-yellow-600', text: 'text-black', priority: true },
+    { key: 'trustpilot_url', label: 'Trustpilot', icon: Star, bg: 'bg-emerald-600 hover:bg-emerald-700', text: 'text-white', priority: true },
+    { key: 'facebook_url', label: 'Facebook', icon: Facebook, bg: 'bg-blue-600 hover:bg-blue-700', text: 'text-white', priority: true },
+    { key: 'hellopeter_url', label: 'HelloPeter', icon: ExternalLink, bg: 'bg-teal-600 hover:bg-teal-700', text: 'text-white', priority: false },
+    { key: 'instagram_url', label: 'Instagram', icon: Instagram, bg: 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600', text: 'text-white', priority: false },
+  ];
+
+  const activeReviews = reviewLinks.filter(r => settings?.[r.key]);
+
   return (
     <div className="min-h-screen bg-black text-foreground">
-      {/* HERO SECTION */}
-      <div className="relative h-[60vh] min-h-[400px] flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/60 to-black z-10" />
+      {/* HERO */}
+      <div className="relative h-[55vh] min-h-[380px] flex items-end overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/50 to-black z-10" />
         {photos[0] && (
           <img src={photos[0]} alt="Delivery" className="absolute inset-0 w-full h-full object-cover" />
         )}
-        <div className="relative z-20 text-center px-6">
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-3">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          className="relative z-20 px-6 pb-10 w-full max-w-4xl mx-auto"
+        >
+          <p className="text-primary text-sm font-semibold tracking-widest uppercase mb-2">Welcome to the family</p>
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-2">
             Congratulations, {clientName}!
           </h1>
-          <p className="text-xl md:text-2xl text-muted-foreground">
+          <p className="text-lg text-zinc-300">
             On your <span className="text-primary font-semibold">{carName}</span>
           </p>
-        </div>
+        </motion.div>
       </div>
 
-      {/* GALLERY */}
-      <div className="max-w-6xl mx-auto px-4 py-12">
-        {photos.length === 0 ? (
-          <p className="text-center text-muted-foreground text-lg">Photos coming soon...</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {photos.map((url: string, idx: number) => (
-              <Card key={idx} className="overflow-hidden group relative bg-zinc-900 border-zinc-800">
-                <img src={url} alt={`Delivery ${idx + 1}`} className="w-full h-64 object-cover" />
-                <button
-                  onClick={() => downloadPhoto(url, idx)}
-                  className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 rounded-full p-2 text-white hover:bg-black/80"
-                >
-                  <Download className="w-4 h-4" />
-                </button>
-              </Card>
-            ))}
-          </div>
-        )}
+      <div className="max-w-4xl mx-auto px-4">
 
-        {/* REVIEW LINKS */}
-        <div className="text-center mt-16 space-y-4">
-          <h2 className="text-2xl font-bold">Share your experience</h2>
-          <p className="text-muted-foreground max-w-md mx-auto">
-            Your review helps us grow and helps others find their dream cars.
+        {/* ★ REVIEW SECTION — TOP PRIORITY */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.6 }}
+          className="py-12 text-center"
+        >
+          <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-1.5 mb-6">
+            <CheckCircle className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium text-primary">Your delivery is complete</span>
+          </div>
+
+          <h2 className="text-3xl md:text-4xl font-bold mb-3">Rate Your Experience</h2>
+          <p className="text-muted-foreground max-w-lg mx-auto mb-8">
+            Your review helps other buyers find their dream cars. Download your photo below and attach it to your review!
           </p>
-          <div className="flex flex-wrap justify-center gap-4 mt-6">
-            {(settings as any)?.trustpilot_url && (
+
+          <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-3 mb-4">
+            {activeReviews.filter(r => r.priority).map((review) => {
+              const Icon = review.icon;
+              return (
+                <Button
+                  key={review.key}
+                  size="lg"
+                  className={`${review.bg} ${review.text} font-bold text-base px-8 py-6 rounded-xl shadow-lg transition-transform hover:scale-105`}
+                  onClick={() => window.open(settings[review.key], '_blank')}
+                >
+                  <Icon className="w-5 h-5 mr-2" />
+                  {review.label}
+                </Button>
+              );
+            })}
+          </div>
+
+          {activeReviews.filter(r => !r.priority).length > 0 && (
+            <div className="flex flex-wrap justify-center gap-3">
+              {activeReviews.filter(r => !r.priority).map((review) => {
+                const Icon = review.icon;
+                return (
+                  <Button
+                    key={review.key}
+                    variant="outline"
+                    size="lg"
+                    className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 rounded-xl"
+                    onClick={() => window.open(settings[review.key], '_blank')}
+                  >
+                    <Icon className="w-4 h-4 mr-2" />
+                    {review.label}
+                  </Button>
+                );
+              })}
+            </div>
+          )}
+        </motion.section>
+
+        {/* PHOTO GALLERY */}
+        <motion.section
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5, duration: 0.6 }}
+          className="pb-12"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-semibold">Your Delivery Photos</h3>
+            {photos.length > 1 && (
               <Button
-                size="lg"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
-                onClick={() => window.open((settings as any).trustpilot_url, '_blank')}
-              >
-                <Star className="w-4 h-4 mr-2" />
-                Trustpilot
-              </Button>
-            )}
-            {settings?.google_review_url && (
-              <Button
-                size="lg"
-                className="bg-yellow-500 hover:bg-yellow-600 text-black font-semibold"
-                onClick={() => window.open(settings.google_review_url, '_blank')}
-              >
-                <Star className="w-4 h-4 mr-2" />
-                Google Review
-              </Button>
-            )}
-            {settings?.hellopeter_url && (
-              <Button
-                size="lg"
                 variant="outline"
-                className="border-emerald-500 text-emerald-500 hover:bg-emerald-500/10"
-                onClick={() => window.open(settings.hellopeter_url, '_blank')}
+                size="sm"
+                className="border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                onClick={() => downloadAllPhotos(photos)}
               >
-                <Star className="w-4 h-4 mr-2" />
-                HelloPeter
-              </Button>
-            )}
-            {settings?.facebook_url && (
-              <Button
-                size="lg"
-                variant="outline"
-                className="border-blue-500 text-blue-500 hover:bg-blue-500/10"
-                onClick={() => window.open(settings.facebook_url, '_blank')}
-              >
-                <Facebook className="w-4 h-4 mr-2" />
-                Facebook
-              </Button>
-            )}
-            {settings?.instagram_url && (
-              <Button
-                size="lg"
-                variant="outline"
-                className="border-pink-500 text-pink-500 hover:bg-pink-500/10"
-                onClick={() => window.open(settings.instagram_url, '_blank')}
-              >
-                <Instagram className="w-4 h-4 mr-2" />
-                Instagram
+                <Download className="w-4 h-4 mr-1" />
+                Download All
               </Button>
             )}
           </div>
-        </div>
+
+          {photos.length === 0 ? (
+            <p className="text-center text-muted-foreground text-lg py-12">Photos coming soon...</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {photos.map((url: string, idx: number) => (
+                <Card key={idx} className="overflow-hidden group relative bg-zinc-900 border-zinc-800 rounded-xl">
+                  <img src={url} alt={`Delivery ${idx + 1}`} className="w-full h-64 object-cover transition-transform group-hover:scale-105 duration-300" />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-300 flex items-center justify-center">
+                    <Button
+                      size="sm"
+                      onClick={() => downloadPhoto(url, idx)}
+                      disabled={downloadingIdx === idx}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity bg-white text-black hover:bg-zinc-200 font-semibold rounded-lg"
+                    >
+                      {downloadingIdx === idx ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                      ) : (
+                        <Download className="w-4 h-4 mr-1" />
+                      )}
+                      Download
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </motion.section>
 
         {/* FOOTER */}
-        <div className="text-center mt-20 pb-8 border-t border-zinc-800 pt-8">
+        <div className="text-center pb-10 pt-6 border-t border-zinc-800">
           <p className="text-muted-foreground font-semibold">Lumina Auto | Premium Pre-Owned</p>
-          <p className="text-sm text-muted-foreground mt-1">Thank you for your business.</p>
+          <p className="text-sm text-muted-foreground mt-1">Thank you for choosing us.</p>
         </div>
       </div>
     </div>
