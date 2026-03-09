@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Upload, Copy, Gift } from "lucide-react";
+import { Loader2, Upload, Copy, Gift, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const HandoverSetupModal = ({ dealId, currentPhotos = [] }: { dealId: string; currentPhotos?: string[] }) => {
@@ -83,7 +83,29 @@ export const HandoverSetupModal = ({ dealId, currentPhotos = [] }: { dealId: str
           {photos.length > 0 && (
             <div className="grid grid-cols-3 gap-2">
               {photos.map((url, i) => (
-                <img key={i} src={url} alt={`Delivery ${i + 1}`} className="w-full h-20 object-cover rounded-md" />
+                <div key={i} className="relative group">
+                  <img src={url} alt={`Delivery ${i + 1}`} className="w-full h-20 object-cover rounded-md" />
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-md">
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="text-xs px-2 py-1 h-auto"
+                      onClick={async () => {
+                        const updatedPhotos = photos.filter((_, idx) => idx !== i);
+                        const { error } = await (supabase as any).from('deal_records').update({ delivery_photos: updatedPhotos }).eq('id', dealId);
+                        if (error) {
+                          console.error("Error removing photo:", error);
+                          toast.error("Failed to remove photo.");
+                          return;
+                        }
+                        setPhotos(updatedPhotos);
+                        toast.success("Photo removed.");
+                      }}
+                    >
+                      <Trash2 className="w-3 h-3 mr-1" /> Remove
+                    </Button>
+                  </div>
+                </div>
               ))}
             </div>
           )}
