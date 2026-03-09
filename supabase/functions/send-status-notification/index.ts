@@ -116,9 +116,9 @@ const generateEmailHtml = (
   accessToken?: string,
   vehicleName?: string
 ): { subject: string; html: string } => {
-  const dashboardUrl = 'https://lumina-auto.lovable.app/dashboard';
+  const dashboardUrl = 'https://luminaauto.co.za/dashboard';
   const uploadUrl = accessToken 
-    ? `https://lumina-auto.lovable.app/upload-documents/${accessToken}`
+    ? `https://luminaauto.co.za/upload-documents/${accessToken}`
     : dashboardUrl;
 
   // Replace placeholders in all fields
@@ -181,7 +181,7 @@ const getFallbackEmailContent = (
   accessToken?: string,
   vehicleName?: string
 ): { subject: string; html: string } => {
-  const dashboardUrl = 'https://lumina-auto.lovable.app/dashboard';
+  const dashboardUrl = 'https://luminaauto.co.za/dashboard';
   
   const fallbackTemplate: EmailTemplate = {
     status_key: status,

@@ -108,7 +108,7 @@ export const getWhatsAppMessage = (
   name: string,
   matchedVehiclesCount?: number
 ): string => {
-  const dashboardUrl = 'https://lumina-auto.lovable.app/dashboard';
+  const dashboardUrl = 'https://luminaauto.co.za/dashboard';
   
   switch (status) {
     case 'pending':

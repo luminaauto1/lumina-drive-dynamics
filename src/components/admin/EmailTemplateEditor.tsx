@@ -105,8 +105,8 @@ const EmailTemplateEditor = () => {
   // Generate preview HTML
   const generatePreview = () => {
     const clientName = escapeHtml('John Doe');
-    const dashboardUrl = 'https://lumina-auto.lovable.app/dashboard';
-    const uploadUrl = 'https://lumina-auto.lovable.app/upload-documents/xxx';
+    const dashboardUrl = 'https://luminaauto.co.za/dashboard';
+    const uploadUrl = 'https://luminaauto.co.za/upload-documents/xxx';
     const vehicleName = escapeHtml('2024 BMW 320i M Sport');
 
     let heading = editedTemplate.heading || '';
