@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { ArrowRight, ChevronDown, Shield, Award, Clock, Car } from 'lucide-react';
-import { Helmet } from 'react-helmet-async';
+import SEO from '@/components/seo/SEO';
 import { Button } from '@/components/ui/button';
 import KineticText from '@/components/KineticText';
 import GolfGTIAnimation from '@/components/GolfGTIAnimation';
@@ -114,11 +114,31 @@ const Index = () => {
       }
     }
   };
+  const autoDealerSchema = {
+    "@context": "https://schema.org",
+    "@type": "AutoDealer",
+    "name": "Lumina Auto",
+    "image": "https://luminaauto.co.za/favicon.png",
+    "telephone": settings?.primary_phone || "+27686017462",
+    "email": settings?.primary_email || "",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Pretoria",
+      "addressRegion": "Gauteng",
+      "addressCountry": "ZA",
+    },
+    "url": "https://luminaauto.co.za",
+    "priceRange": "$$",
+    "openingHours": "Mo-Fr 08:00-18:00, Sa 09:00-15:00",
+  };
+
   return <>
-      <Helmet>
-        <title>Lumina Auto | Premium Pre-Owned Luxury Vehicles</title>
-        <meta name="description" content="Discover South Africa's finest collection of pre-owned luxury vehicles. BMW, Mercedes, Porsche, Lamborghini & more. Premium quality, competitive financing." />
-      </Helmet>
+      <SEO
+        title="Lumina Auto | Premium Pre-Owned Luxury Vehicles"
+        description="Discover South Africa's finest collection of pre-owned luxury vehicles. BMW, Mercedes, Porsche, Lamborghini & more. Premium quality, competitive financing."
+        url="/"
+        jsonLd={autoDealerSchema}
+      />
 
       {/* Fullscreen Hero Video Section - Standalone */}
       <section ref={heroRef} className="relative h-[50vh] sm:h-[60vh] md:h-screen overflow-hidden mt-16 md:mt-0">

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Calendar, Gauge, Fuel, Palette, Settings, Shield, Sparkles } from "lucide-react";
-import { Helmet } from "react-helmet-async";
+import SEO from "@/components/seo/SEO";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useWishlist } from "@/hooks/useWishlist";
@@ -123,10 +123,40 @@ const VehicleDetail = () => {
 
   return (
     <>
-      <Helmet>
-        <title>{displayTitle} | Lumina Auto</title>
-        <meta name="description" content={`${displayTitle}. ${vehicle.description || ""}`} />
-      </Helmet>
+      <SEO
+        title={`${displayTitle} | Lumina Auto`}
+        description={`${displayTitle}. ${vehicle.description || "Premium pre-owned vehicle available at Lumina Auto, Pretoria."}`}
+        url={`/vehicle/${id}`}
+        image={vehicle.images?.[0] || undefined}
+        type="product"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "Vehicle",
+          "name": displayTitle,
+          "vehicleIdentificationNumber": vehicle.vin || undefined,
+          "mileageFromOdometer": {
+            "@type": "QuantitativeValue",
+            "value": vehicle.mileage,
+            "unitCode": "KMT",
+          },
+          "fuelType": vehicle.fuel_type,
+          "vehicleTransmission": vehicle.transmission,
+          "color": vehicle.color || undefined,
+          "offers": {
+            "@type": "Offer",
+            "price": displayPrice,
+            "priceCurrency": "ZAR",
+            "itemCondition": "https://schema.org/UsedCondition",
+            "availability": vehicle.status === "available"
+              ? "https://schema.org/InStock"
+              : "https://schema.org/OutOfStock",
+            "seller": {
+              "@type": "AutoDealer",
+              "name": "Lumina Auto",
+            },
+          },
+        }}
+      />
 
       <div className="min-h-screen pt-20">
         {/* --- IMAGE GALLERY --- */}
