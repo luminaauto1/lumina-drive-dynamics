@@ -33,12 +33,16 @@ export const HandoverSetupModal = ({ dealId, currentPhotos = [] }: { dealId: str
     setUploading(false);
   };
 
-  const copyLink = () => {
-    const url = `https://luminaauto.co.za/handover/${dealId}`;
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    toast.success("Link copied! Send this to the client.");
-    setTimeout(() => setCopied(false), 2000);
+  const copyLink = async () => {
+    const url = `${window.location.origin}/handover/${dealId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      toast.success("Link copied! Send this to the client.");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Could not copy link.");
+    }
   };
 
   return (
@@ -89,7 +93,7 @@ export const HandoverSetupModal = ({ dealId, currentPhotos = [] }: { dealId: str
             <div className="min-w-0 mr-3">
               <p className="text-xs font-semibold text-emerald-500">Handover Link Ready</p>
               <p className="text-xs text-muted-foreground truncate">
-                https://luminaauto.co.za/handover/{dealId}
+                {window.location.origin}/handover/{dealId}
               </p>
             </div>
             <Button size="sm" variant="outline" onClick={copyLink}>
