@@ -33,12 +33,16 @@ export const HandoverSetupModal = ({ dealId, currentPhotos = [] }: { dealId: str
     setUploading(false);
   };
 
-  const copyLink = () => {
-    const url = `https://luminaauto.co.za/handover/${dealId}`;
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    toast.success("Link copied! Send this to the client.");
-    setTimeout(() => setCopied(false), 2000);
+  const copyLink = async () => {
+    const url = `${window.location.origin}/handover/${dealId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      toast.success("Link copied! Send this to the client.");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Could not copy link.");
+    }
   };
 
   return (
