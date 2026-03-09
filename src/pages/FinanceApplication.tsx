@@ -326,10 +326,10 @@ const FinanceApplication = () => {
     const validationData = {
       ...formData,
       gross_salary: totalGrossForValidation, // Pass computed number
-      employer_name: formData.income_sources
+      employer_name: formData.employer_name.trim() || formData.income_sources
         .filter(src => src.source && src.amount)
         .map(src => src.source)
-        .join(" + ") || formData.employer_name || '',
+        .join(" + ") || '',
     };
 
     try {
@@ -371,7 +371,7 @@ const FinanceApplication = () => {
       qualification: formData.qualification || null,
       street_address: formData.street_address.trim(),
       area_code: formData.area_code?.trim() || null,
-      employer_name: incomeSourceNames || formData.employer_name.trim(),
+      employer_name: formData.employer_name.trim() || incomeSourceNames || null,
       job_title: formData.job_title?.trim() || null,
       employment_period: getEmploymentPeriod() || null,
       kin_name: formData.kin_name.trim(),
