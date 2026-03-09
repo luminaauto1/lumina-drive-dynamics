@@ -1031,6 +1031,7 @@ export type Database = {
           contact_email: string
           contact_phone: string
           created_at: string
+          default_balloon_percent: number | null
           default_interest_rate: number
           facebook_url: string
           finance_email: string
@@ -1046,6 +1047,7 @@ export type Database = {
           min_balloon_percent: number
           min_deposit_percent: number | null
           min_interest: number | null
+          monthly_sales_target: number | null
           physical_address: string | null
           primary_email: string
           primary_phone: string
@@ -1062,6 +1064,7 @@ export type Database = {
           contact_email?: string
           contact_phone?: string
           created_at?: string
+          default_balloon_percent?: number | null
           default_interest_rate?: number
           facebook_url?: string
           finance_email?: string
@@ -1077,6 +1080,7 @@ export type Database = {
           min_balloon_percent?: number
           min_deposit_percent?: number | null
           min_interest?: number | null
+          monthly_sales_target?: number | null
           physical_address?: string | null
           primary_email?: string
           primary_phone?: string
@@ -1093,6 +1097,7 @@ export type Database = {
           contact_email?: string
           contact_phone?: string
           created_at?: string
+          default_balloon_percent?: number | null
           default_interest_rate?: number
           facebook_url?: string
           finance_email?: string
@@ -1108,6 +1113,7 @@ export type Database = {
           min_balloon_percent?: number
           min_deposit_percent?: number | null
           min_interest?: number | null
+          monthly_sales_target?: number | null
           physical_address?: string | null
           primary_email?: string
           primary_phone?: string
