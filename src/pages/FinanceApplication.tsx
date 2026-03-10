@@ -223,11 +223,11 @@ const FinanceApplication = () => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Track which fields have errors for visual feedback
-  const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
+  // Track which fields have errors for visual feedback (field -> error message)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const validateStep = (step: number): boolean => {
-    const newFieldErrors: Record<string, boolean> = {};
+    const newFieldErrors: Record<string, string> = {};
     
     try {
       switch (step) {
@@ -259,7 +259,6 @@ const FinanceApplication = () => {
           });
           break;
         case 4:
-          // Calculate total gross from income sources
           const totalGross = formData.income_sources.reduce((sum, src) => 
             sum + (parseFloat(src.amount) || 0), 0);
           financeApplicationStep4Schema.parse({
@@ -281,28 +280,37 @@ const FinanceApplication = () => {
       setFieldErrors({});
       return true;
     } catch (error: any) {
-      // Extract field-specific errors for visual feedback
+      // Extract field-specific errors with messages for visual feedback
       if (error?.errors) {
         for (const err of error.errors) {
           if (err.path && err.path.length > 0) {
-            newFieldErrors[err.path[0]] = true;
+            const fieldName = err.path[0];
+            // Keep first error per field
+            if (!newFieldErrors[fieldName]) {
+              newFieldErrors[fieldName] = err.message;
+            }
           }
         }
       }
       setFieldErrors(newFieldErrors);
       
-      if (error instanceof Error && "errors" in error) {
-        toast.error(getFirstZodError(error as any));
-      } else {
-        toast.error("Please check your input and try again");
-      }
+      const errorCount = Object.keys(newFieldErrors).length;
+      toast.error(
+        `Please complete ${errorCount === 1 ? 'the required field' : `all ${errorCount} required fields`} highlighted in red before proceeding.`
+      );
       return false;
     }
   };
   
   // Helper to get error class for inputs
   const getErrorClass = (fieldName: string) => {
-    return fieldErrors[fieldName] ? 'border-red-500 ring-1 ring-red-500' : '';
+    return fieldErrors[fieldName] ? 'border-destructive ring-1 ring-destructive' : '';
+  };
+
+  // Helper to render inline error message
+  const FieldError = ({ field }: { field: string }) => {
+    if (!fieldErrors[field]) return null;
+    return <p className="text-xs text-destructive mt-1">{fieldErrors[field]}</p>;
   };
 
   const nextStep = () => {
@@ -686,6 +694,7 @@ const FinanceApplication = () => {
                         required
                         className={getErrorClass("first_name")}
                       />
+                      <FieldError field="first_name" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="last_name">Surname *</Label>
@@ -696,6 +705,7 @@ const FinanceApplication = () => {
                         required
                         className={getErrorClass("last_name")}
                       />
+                      <FieldError field="last_name" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="id_number">ID Number</Label>
@@ -812,6 +822,7 @@ const FinanceApplication = () => {
                         required
                         className={getErrorClass("email")}
                       />
+                      <FieldError field="email" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="phone">Phone Number *</Label>
@@ -820,7 +831,6 @@ const FinanceApplication = () => {
                         type="tel"
                         value={formData.phone}
                         onChange={(e) => {
-                          // Only allow digits, strip everything else
                           const cleaned = e.target.value.replace(/\D/g, '').slice(0, 10);
                           handleInputChange("phone", cleaned);
                         }}
@@ -829,6 +839,7 @@ const FinanceApplication = () => {
                         maxLength={10}
                         className={getErrorClass("phone")}
                       />
+                      <FieldError field="phone" />
                     </div>
                   </div>
                 </motion.div>
@@ -854,6 +865,7 @@ const FinanceApplication = () => {
                         placeholder="Start typing your address..."
                         required
                       />
+                      <FieldError field="street_address" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="area_code">Area/Postal Code</Label>
@@ -875,7 +887,9 @@ const FinanceApplication = () => {
                           value={formData.employer_name}
                           onChange={(e) => handleInputChange("employer_name", e.target.value)}
                           required
+                          className={getErrorClass("employer_name")}
                         />
+                        <FieldError field="employer_name" />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="job_title">Job Title</Label>
@@ -935,7 +949,9 @@ const FinanceApplication = () => {
                         value={formData.kin_name}
                         onChange={(e) => handleInputChange("kin_name", e.target.value)}
                         required
+                        className={getErrorClass("kin_name")}
                       />
+                      <FieldError field="kin_name" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="kin_contact">Contact Number *</Label>
@@ -946,7 +962,9 @@ const FinanceApplication = () => {
                         onChange={(e) => handleInputChange("kin_contact", e.target.value)}
                         required
                         placeholder="+27 00 000 0000"
+                        className={getErrorClass("kin_contact")}
                       />
+                      <FieldError field="kin_contact" />
                     </div>
                   </div>
                 </motion.div>
@@ -966,7 +984,7 @@ const FinanceApplication = () => {
                     <div className="space-y-2">
                       <Label htmlFor="bank_name">Bank Name *</Label>
                       <Select value={formData.bank_name} onValueChange={(v) => handleInputChange("bank_name", v)}>
-                        <SelectTrigger>
+                        <SelectTrigger className={getErrorClass("bank_name")}>
                           <SelectValue placeholder="Select bank" />
                         </SelectTrigger>
                         <SelectContent>
@@ -986,6 +1004,7 @@ const FinanceApplication = () => {
                           <SelectItem value="other">Other</SelectItem>
                         </SelectContent>
                       </Select>
+                      <FieldError field="bank_name" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="account_type">Account Type</Label>
@@ -1001,13 +1020,15 @@ const FinanceApplication = () => {
                       </Select>
                     </div>
                     <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="account_number">Account Number</Label>
+                      <Label htmlFor="account_number">Account Number *</Label>
                       <Input
                         id="account_number"
                         value={formData.account_number}
                         onChange={(e) => handleInputChange("account_number", e.target.value.replace(/\D/g, ""))}
                         placeholder="Enter account number"
+                        className={getErrorClass("account_number")}
                       />
+                      <FieldError field="account_number" />
                     </div>
                   </div>
                   <div className="border-t border-border pt-6">
@@ -1094,7 +1115,9 @@ const FinanceApplication = () => {
                           onChange={(e) => handleInputChange("net_salary", e.target.value)}
                           placeholder="e.g., 38000"
                           required
+                          className={getErrorClass("net_salary")}
                         />
+                        <FieldError field="net_salary" />
                       </div>
                       <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="expenses_summary">Monthly Expenses Summary *</Label>
@@ -1105,11 +1128,9 @@ const FinanceApplication = () => {
                           placeholder="e.g., Rent R5000, Phone R500, Insurance R1200"
                           rows={3}
                           required
-                          className={!formData.expenses_summary ? 'border-destructive/50' : ''}
+                          className={getErrorClass("expenses_summary")}
                         />
-                        {!formData.expenses_summary && (
-                          <p className="text-xs text-destructive">Expenses breakdown is required</p>
-                        )}
+                        <FieldError field="expenses_summary" />
                       </div>
                     </div>
                   </div>
