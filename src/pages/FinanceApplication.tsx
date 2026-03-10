@@ -949,7 +949,9 @@ const FinanceApplication = () => {
                         value={formData.kin_name}
                         onChange={(e) => handleInputChange("kin_name", e.target.value)}
                         required
+                        className={getErrorClass("kin_name")}
                       />
+                      <FieldError field="kin_name" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="kin_contact">Contact Number *</Label>
@@ -960,7 +962,9 @@ const FinanceApplication = () => {
                         onChange={(e) => handleInputChange("kin_contact", e.target.value)}
                         required
                         placeholder="+27 00 000 0000"
+                        className={getErrorClass("kin_contact")}
                       />
+                      <FieldError field="kin_contact" />
                     </div>
                   </div>
                 </motion.div>
