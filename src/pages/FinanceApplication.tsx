@@ -822,6 +822,7 @@ const FinanceApplication = () => {
                         required
                         className={getErrorClass("email")}
                       />
+                      <FieldError field="email" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="phone">Phone Number *</Label>
@@ -830,7 +831,6 @@ const FinanceApplication = () => {
                         type="tel"
                         value={formData.phone}
                         onChange={(e) => {
-                          // Only allow digits, strip everything else
                           const cleaned = e.target.value.replace(/\D/g, '').slice(0, 10);
                           handleInputChange("phone", cleaned);
                         }}
@@ -839,6 +839,7 @@ const FinanceApplication = () => {
                         maxLength={10}
                         className={getErrorClass("phone")}
                       />
+                      <FieldError field="phone" />
                     </div>
                   </div>
                 </motion.div>
