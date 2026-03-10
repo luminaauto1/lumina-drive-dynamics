@@ -1128,11 +1128,9 @@ const FinanceApplication = () => {
                           placeholder="e.g., Rent R5000, Phone R500, Insurance R1200"
                           rows={3}
                           required
-                          className={!formData.expenses_summary ? 'border-destructive/50' : ''}
+                          className={getErrorClass("expenses_summary")}
                         />
-                        {!formData.expenses_summary && (
-                          <p className="text-xs text-destructive">Expenses breakdown is required</p>
-                        )}
+                        <FieldError field="expenses_summary" />
                       </div>
                     </div>
                   </div>
