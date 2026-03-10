@@ -865,6 +865,7 @@ const FinanceApplication = () => {
                         placeholder="Start typing your address..."
                         required
                       />
+                      <FieldError field="street_address" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="area_code">Area/Postal Code</Label>
@@ -886,7 +887,9 @@ const FinanceApplication = () => {
                           value={formData.employer_name}
                           onChange={(e) => handleInputChange("employer_name", e.target.value)}
                           required
+                          className={getErrorClass("employer_name")}
                         />
+                        <FieldError field="employer_name" />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="job_title">Job Title</Label>
