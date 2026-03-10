@@ -223,11 +223,11 @@ const FinanceApplication = () => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Track which fields have errors for visual feedback
-  const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
+  // Track which fields have errors for visual feedback (field -> error message)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const validateStep = (step: number): boolean => {
-    const newFieldErrors: Record<string, boolean> = {};
+    const newFieldErrors: Record<string, string> = {};
     
     try {
       switch (step) {
@@ -259,7 +259,6 @@ const FinanceApplication = () => {
           });
           break;
         case 4:
-          // Calculate total gross from income sources
           const totalGross = formData.income_sources.reduce((sum, src) => 
             sum + (parseFloat(src.amount) || 0), 0);
           financeApplicationStep4Schema.parse({
@@ -281,28 +280,37 @@ const FinanceApplication = () => {
       setFieldErrors({});
       return true;
     } catch (error: any) {
-      // Extract field-specific errors for visual feedback
+      // Extract field-specific errors with messages for visual feedback
       if (error?.errors) {
         for (const err of error.errors) {
           if (err.path && err.path.length > 0) {
-            newFieldErrors[err.path[0]] = true;
+            const fieldName = err.path[0];
+            // Keep first error per field
+            if (!newFieldErrors[fieldName]) {
+              newFieldErrors[fieldName] = err.message;
+            }
           }
         }
       }
       setFieldErrors(newFieldErrors);
       
-      if (error instanceof Error && "errors" in error) {
-        toast.error(getFirstZodError(error as any));
-      } else {
-        toast.error("Please check your input and try again");
-      }
+      const errorCount = Object.keys(newFieldErrors).length;
+      toast.error(
+        `Please complete ${errorCount === 1 ? 'the required field' : `all ${errorCount} required fields`} highlighted in red before proceeding.`
+      );
       return false;
     }
   };
   
   // Helper to get error class for inputs
   const getErrorClass = (fieldName: string) => {
-    return fieldErrors[fieldName] ? 'border-red-500 ring-1 ring-red-500' : '';
+    return fieldErrors[fieldName] ? 'border-destructive ring-1 ring-destructive' : '';
+  };
+
+  // Helper to render inline error message
+  const FieldError = ({ field }: { field: string }) => {
+    if (!fieldErrors[field]) return null;
+    return <p className="text-xs text-destructive mt-1">{fieldErrors[field]}</p>;
   };
 
   const nextStep = () => {
