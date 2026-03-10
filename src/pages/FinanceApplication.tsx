@@ -1020,13 +1020,15 @@ const FinanceApplication = () => {
                       </Select>
                     </div>
                     <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="account_number">Account Number</Label>
+                      <Label htmlFor="account_number">Account Number *</Label>
                       <Input
                         id="account_number"
                         value={formData.account_number}
                         onChange={(e) => handleInputChange("account_number", e.target.value.replace(/\D/g, ""))}
                         placeholder="Enter account number"
+                        className={getErrorClass("account_number")}
                       />
+                      <FieldError field="account_number" />
                     </div>
                   </div>
                   <div className="border-t border-border pt-6">
