@@ -1004,6 +1004,7 @@ const FinanceApplication = () => {
                           <SelectItem value="other">Other</SelectItem>
                         </SelectContent>
                       </Select>
+                      <FieldError field="bank_name" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="account_type">Account Type</Label>
