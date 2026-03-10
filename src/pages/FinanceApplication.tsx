@@ -694,6 +694,7 @@ const FinanceApplication = () => {
                         required
                         className={getErrorClass("first_name")}
                       />
+                      <FieldError field="first_name" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="last_name">Surname *</Label>
@@ -704,6 +705,7 @@ const FinanceApplication = () => {
                         required
                         className={getErrorClass("last_name")}
                       />
+                      <FieldError field="last_name" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="id_number">ID Number</Label>
