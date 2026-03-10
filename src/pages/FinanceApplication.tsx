@@ -1115,7 +1115,9 @@ const FinanceApplication = () => {
                           onChange={(e) => handleInputChange("net_salary", e.target.value)}
                           placeholder="e.g., 38000"
                           required
+                          className={getErrorClass("net_salary")}
                         />
+                        <FieldError field="net_salary" />
                       </div>
                       <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="expenses_summary">Monthly Expenses Summary *</Label>
