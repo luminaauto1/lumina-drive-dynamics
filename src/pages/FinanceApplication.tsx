@@ -984,7 +984,7 @@ const FinanceApplication = () => {
                     <div className="space-y-2">
                       <Label htmlFor="bank_name">Bank Name *</Label>
                       <Select value={formData.bank_name} onValueChange={(v) => handleInputChange("bank_name", v)}>
-                        <SelectTrigger>
+                        <SelectTrigger className={getErrorClass("bank_name")}>
                           <SelectValue placeholder="Select bank" />
                         </SelectTrigger>
                         <SelectContent>
