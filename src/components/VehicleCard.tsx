@@ -25,7 +25,7 @@ const VehicleCard = ({ vehicle, onCompare, isComparing, isSourcingCard = false, 
   const { data: bestOffer } = useBestFinanceOffer();
   const { data: siteSettings } = useSiteSettings();
   const cardRef = useRef<HTMLDivElement>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // 3D Tilt Effect
   const x = useMotionValue(0);
