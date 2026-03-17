@@ -1104,6 +1104,7 @@ const FinanceApplication = () => {
                         <p className="text-2xl font-bold text-primary">
                           R{formData.income_sources.reduce((sum, src) => sum + (parseFloat(src.amount) || 0), 0).toLocaleString()}
                         </p>
+                        <FieldError field="gross_salary" />
                       </div>
                     </div>
                     
