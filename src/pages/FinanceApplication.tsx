@@ -527,7 +527,7 @@ const FinanceApplication = () => {
         .from("finance_applications")
         .insert(draftData as any)
         .select("id")
-        .single();
+        .maybeSingle();
       saveError = error;
       
       // Store the new draft ID so subsequent saves update instead of insert
