@@ -93,6 +93,9 @@ const KanbanCard = ({ lead, onEdit }: KanbanCardProps) => {
         <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={(e) => { e.stopPropagation(); onEdit(lead); }} title="Edit">
           <Pencil className="w-3.5 h-3.5" />
         </Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={handleArchive} title="Archive">
+          <Trash2 className="w-3.5 h-3.5" />
+        </Button>
       </div>
     </div>
   );
