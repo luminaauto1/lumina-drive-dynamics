@@ -511,7 +511,10 @@ const FinanceApplication = () => {
 
   // Save Progress handler - bypasses validation, saves as draft
   const handleSaveProgress = async () => {
-    if (!user) return;
+    if (!user) {
+      toast.error("Please create an account first to save your progress.");
+      return;
+    }
     
     setIsSubmitting(true);
     
