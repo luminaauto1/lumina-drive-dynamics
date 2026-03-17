@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.verify-admin-pin]
 verify_jwt = false
+
+[functions.analyze-business-state]
+verify_jwt = false
