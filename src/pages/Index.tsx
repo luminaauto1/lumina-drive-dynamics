@@ -194,17 +194,16 @@ const Index = () => {
       }}>
           <div className="container mx-auto px-6">
             <motion.span variants={itemVariants} className="text-primary text-sm font-semibold uppercase tracking-[0.3em] mb-6 block">
-              {heroSubheadline}
+              Premium vehicles tailored to your budget
             </motion.span>
 
-            <motion.h1 variants={itemVariants} className="font-display text-5xl md:text-7xl lg:text-8xl font-bold mb-6 max-w-5xl mx-auto">
-              <span>{firstWords}</span>
-              <br />
-              <span className="gradient-text">{lastWord}</span>
+            <motion.h1 variants={itemVariants} className="font-display text-4xl md:text-6xl lg:text-7xl font-bold mb-6 max-w-5xl mx-auto leading-tight">
+              Drive the Car You Deserve.<br />
+              <span className="gradient-text">Get Bank-Approved in Minutes.</span>
             </motion.h1>
 
             <motion.p variants={itemVariants} className="text-muted-foreground text-lg md:text-xl max-w-2xl mx-auto mb-10">
-              Know your budget before you shop. Our zero-impact soft check takes 60 seconds and connects you with 6 major banks.
+              Experience Pretoria's most trusted, hassle-free finance process. We specialize in vehicle sourcing, bank-approved financing, and premium quality pre-owned sales.
             </motion.p>
 
             <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-center gap-4">
