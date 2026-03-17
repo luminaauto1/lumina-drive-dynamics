@@ -54,6 +54,8 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
       <main className="flex-1 min-w-0 min-h-screen pt-14 md:pt-0 overflow-x-hidden">
         {children}
       </main>
+
+      <AIAssistantWidget />
     </div>
   );
 };
