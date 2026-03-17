@@ -390,6 +390,9 @@ const Index = () => {
         {/* Facebook Feed Section */}
         <FacebookFeed />
       </motion.div>
+
+      {/* Exit Intent Modal */}
+      <ExitIntentModal />
     </>;
 };
 export default Index;
