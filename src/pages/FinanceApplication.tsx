@@ -90,7 +90,7 @@ const FinanceApplication = () => {
     account_type: "",
     account_number: "",
     // Financials - Multiple Income Sources
-    income_sources: [{ source: "Primary Employment", amount: "" }],
+    income_sources: [{ source: "", amount: "" }],
     net_salary: "",
     expenses_summary: "",
     // Consent
