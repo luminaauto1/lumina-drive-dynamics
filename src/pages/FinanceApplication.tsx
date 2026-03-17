@@ -175,7 +175,7 @@ const FinanceApplication = () => {
       account_type: data.account_type || "",
       account_number: data.account_number || "",
       income_sources: data.gross_salary 
-        ? [{ source: data.employer_name || "", amount: String(data.gross_salary) }] 
+        ? [{ source: "", amount: String(data.gross_salary) }] 
         : [{ source: "", amount: "" }],
       net_salary: data.net_salary ? String(data.net_salary) : "",
       expenses_summary: data.expenses_summary || "",
