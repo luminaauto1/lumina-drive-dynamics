@@ -2,6 +2,7 @@ import { ReactNode, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminSidebar from './AdminSidebar';
+import AIAssistantWidget from './AIAssistantWidget';
 import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -53,6 +54,8 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
       <main className="flex-1 min-w-0 min-h-screen pt-14 md:pt-0 overflow-x-hidden">
         {children}
       </main>
+
+      <AIAssistantWidget />
     </div>
   );
 };
