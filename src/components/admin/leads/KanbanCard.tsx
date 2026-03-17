@@ -1,7 +1,8 @@
 import { formatDistanceToNow, isToday, differenceInHours } from 'date-fns';
-import { Phone, MessageCircle, Pencil, Calendar, Car } from 'lucide-react';
+import { Phone, MessageCircle, Pencil, Calendar, Car, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useUpdateLead } from '@/hooks/useLeads';
 import type { Lead } from './types';
 
 interface KanbanCardProps {
@@ -10,6 +11,7 @@ interface KanbanCardProps {
 }
 
 const KanbanCard = ({ lead, onEdit }: KanbanCardProps) => {
+  const { mutate: updateLead } = useUpdateLead();
   const hoursAgo = differenceInHours(new Date(), new Date(lead.created_at));
   const isUrgent = hoursAgo < 4;
   const nextActionIsToday = lead.next_action_date && isToday(new Date(lead.next_action_date));
@@ -25,6 +27,10 @@ const KanbanCard = ({ lead, onEdit }: KanbanCardProps) => {
     e.stopPropagation();
     if (!lead.client_phone) return;
     window.open(`tel:${lead.client_phone}`);
+  };
+  const handleArchive = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    updateLead({ id: lead.id, updates: { is_archived: true } as any });
   };
 
   return (
@@ -86,6 +92,9 @@ const KanbanCard = ({ lead, onEdit }: KanbanCardProps) => {
         )}
         <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={(e) => { e.stopPropagation(); onEdit(lead); }} title="Edit">
           <Pencil className="w-3.5 h-3.5" />
+        </Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={handleArchive} title="Archive">
+          <Trash2 className="w-3.5 h-3.5" />
         </Button>
       </div>
     </div>
