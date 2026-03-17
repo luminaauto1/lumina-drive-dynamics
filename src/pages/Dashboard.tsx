@@ -18,7 +18,7 @@ import FinanceProgressStepper from '@/components/FinanceProgressStepper';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useVehicles } from '@/hooks/useVehicles';
-import { useUserApplicationMatches } from '@/hooks/useApplicationMatches';
+import { useApplicationMatches } from '@/hooks/useApplicationMatches';
 import { USER_STATUS_LABELS, STATUS_STYLES } from '@/lib/statusConfig';
 import { toast } from 'sonner';
 
