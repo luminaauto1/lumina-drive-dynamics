@@ -90,7 +90,7 @@ const FinanceApplication = () => {
     account_type: "",
     account_number: "",
     // Financials - Multiple Income Sources
-    income_sources: [{ source: "Primary Employment", amount: "" }],
+    income_sources: [{ source: "", amount: "" }],
     net_salary: "",
     expenses_summary: "",
     // Consent
@@ -175,8 +175,8 @@ const FinanceApplication = () => {
       account_type: data.account_type || "",
       account_number: data.account_number || "",
       income_sources: data.gross_salary 
-        ? [{ source: "Primary Employment", amount: String(data.gross_salary) }] 
-        : [{ source: "Primary Employment", amount: "" }],
+        ? [{ source: data.employer_name || "", amount: String(data.gross_salary) }] 
+        : [{ source: "", amount: "" }],
       net_salary: data.net_salary ? String(data.net_salary) : "",
       expenses_summary: data.expenses_summary || "",
       popia_consent: data.popia_consent || false,
@@ -408,7 +408,7 @@ const FinanceApplication = () => {
         .update(sanitizedData as any)
         .eq("id", resumedApplicationId)
         .select("id")
-        .single();
+        .maybeSingle();
       insertedApp = data;
       error = updateError;
     } else {
@@ -417,13 +417,13 @@ const FinanceApplication = () => {
         .from("finance_applications")
         .insert(sanitizedData as any)
         .select("id")
-        .single();
+        .maybeSingle();
       insertedApp = data;
       error = insertError;
     }
 
     if (error) {
-      toast.error("Failed to submit application. Please try again.");
+      toast.error(`Submission failed: ${error.message || 'Unknown error. Please try again.'}`);
       console.error("Submission error:", error);
     } else {
       // 4. Auto-create Lead via secure edge function
@@ -527,7 +527,7 @@ const FinanceApplication = () => {
         .from("finance_applications")
         .insert(draftData as any)
         .select("id")
-        .single();
+        .maybeSingle();
       saveError = error;
       
       // Store the new draft ID so subsequent saves update instead of insert
@@ -538,7 +538,8 @@ const FinanceApplication = () => {
     
     if (saveError) {
       console.error("Save progress error:", saveError);
-      toast.error("Failed to save progress. Please try again.");
+      toast.error(`Failed to save progress: ${saveError.message || 'Unknown error. Please try again.'}`);
+
     } else {
       toast.success("Progress saved! You can return to finish later from your dashboard.");
       navigate("/dashboard");
