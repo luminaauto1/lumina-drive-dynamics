@@ -367,9 +367,45 @@ const FinanceApplication = () => {
       .map(src => src.source)
       .join(" + ");
 
+    // If guest, create ghost account first
+    let effectiveUserId = user?.id;
+    
+    if (!user) {
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: formData.email.trim().toLowerCase(),
+        password: formData.id_number.trim(),
+        options: {
+          data: {
+            full_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
+            phone: formData.phone.trim(),
+          },
+        },
+      });
+      
+      if (signUpError || !signUpData?.user) {
+        // If account already exists, try signing in
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: formData.email.trim().toLowerCase(),
+          password: formData.id_number.trim(),
+        });
+        
+        if (signInError || !signInData?.user) {
+          toast.error("Could not create your tracking account. Please try registering first.");
+          setIsSubmitting(false);
+          return;
+        }
+        effectiveUserId = signInData.user.id;
+      } else {
+        effectiveUserId = signUpData.user.id;
+      }
+      
+      setGhostAccountCreated(true);
+      setGhostEmail(formData.email.trim().toLowerCase());
+    }
+
     // 2. Prepare Data
     const sanitizedData = {
-      user_id: user.id,
+      user_id: effectiveUserId!,
       vehicle_id: vehicleId || null,
       full_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
       first_name: formData.first_name.trim(),
