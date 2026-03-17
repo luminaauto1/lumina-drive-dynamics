@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import KineticText from '@/components/KineticText';
 import GolfGTIAnimation from '@/components/GolfGTIAnimation';
 import FacebookFeed from '@/components/FacebookFeed';
+import AftersalesBanner from '@/components/AftersalesBanner';
+import ExitIntentModal from '@/components/ExitIntentModal';
 import VehicleCard from '@/components/VehicleCard';
 import SkeletonCard from '@/components/SkeletonCard';
 import { useVehicles } from '@/hooks/useVehicles';
@@ -47,12 +49,12 @@ const Index = () => {
     ? featuredVehicles 
     : vehicles.filter(v => v.status === 'available').slice(0, 4);
 
-  // Dynamic headline from settings - updated for sourcing emphasis
-  const heroHeadline = settings?.hero_headline || 'Premium Stock & Bespoke Sourcing';
-  const heroSubheadline = settings?.hero_subheadline || 'The New Era of Vehicle Sourcing';
+  // Finance-first hero copy
+  const heroHeadline = settings?.hero_headline || 'Drive the Car You Deserve. Get Bank-Approved in Minutes.';
+  const heroSubheadline = settings?.hero_subheadline || "Premium vehicles tailored to your budget. Experience Pretoria's most trusted, hassle-free finance process.";
   const whatsappNumber = settings?.whatsapp_number || '27686017462';
 
-  // Split headline for styling (assumes format "Word Word Word")
+  // Split headline for styling
   const headlineParts = heroHeadline.split(' ');
   const lastWord = headlineParts.pop() || '';
   const firstWords = headlineParts.join(' ');
@@ -206,25 +208,26 @@ const Index = () => {
             </motion.h1>
 
             <motion.p variants={itemVariants} className="text-muted-foreground text-lg md:text-xl max-w-2xl mx-auto mb-10">
-              Curated excellence. Every vehicle in our collection has been selected for those who
-              refuse to compromise.
+              Know your budget before you shop. Our zero-impact soft check takes 60 seconds and connects you with 6 major banks.
             </motion.p>
 
             <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link to="/sourcing">
+              <Link to="/finance-application">
                 <Button size="lg" className="bg-foreground text-background hover:bg-foreground/90 group shadow-xl">
-                  Start Sourcing
+                  Check My Approval
                   <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
               <Link to="/inventory">
-                <Button size="lg" variant="outline" className="border-foreground/30 text-foreground hover:bg-foreground/10">
-                  View Stock
+                <Button size="lg" variant="ghost" className="border border-foreground/20 text-foreground hover:bg-foreground/10">
+                  View Premium Inventory
                 </Button>
               </Link>
             </motion.div>
           </div>
         </motion.section>
+        {/* Aftersales Trust Banner */}
+        <AftersalesBanner />
 
         {/* How We Work Section */}
         <motion.section className="py-20 bg-card border-y border-border" variants={containerVariants} initial="hidden" whileInView="visible" viewport={{
@@ -387,6 +390,9 @@ const Index = () => {
         {/* Facebook Feed Section */}
         <FacebookFeed />
       </motion.div>
+
+      {/* Exit Intent Modal */}
+      <ExitIntentModal />
     </>;
 };
 export default Index;
