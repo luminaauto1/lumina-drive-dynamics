@@ -49,12 +49,12 @@ const Index = () => {
     ? featuredVehicles 
     : vehicles.filter(v => v.status === 'available').slice(0, 4);
 
-  // Dynamic headline from settings - updated for sourcing emphasis
-  const heroHeadline = settings?.hero_headline || 'Premium Stock & Bespoke Sourcing';
-  const heroSubheadline = settings?.hero_subheadline || 'The New Era of Vehicle Sourcing';
+  // Finance-first hero copy
+  const heroHeadline = settings?.hero_headline || 'Drive the Car You Deserve. Get Bank-Approved in Minutes.';
+  const heroSubheadline = settings?.hero_subheadline || "Premium vehicles tailored to your budget. Experience Pretoria's most trusted, hassle-free finance process.";
   const whatsappNumber = settings?.whatsapp_number || '27686017462';
 
-  // Split headline for styling (assumes format "Word Word Word")
+  // Split headline for styling
   const headlineParts = heroHeadline.split(' ');
   const lastWord = headlineParts.pop() || '';
   const firstWords = headlineParts.join(' ');
