@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import KineticText from '@/components/KineticText';
 import GolfGTIAnimation from '@/components/GolfGTIAnimation';
 import FacebookFeed from '@/components/FacebookFeed';
+import AftersalesBanner from '@/components/AftersalesBanner';
+import ExitIntentModal from '@/components/ExitIntentModal';
 import VehicleCard from '@/components/VehicleCard';
 import SkeletonCard from '@/components/SkeletonCard';
 import { useVehicles } from '@/hooks/useVehicles';
