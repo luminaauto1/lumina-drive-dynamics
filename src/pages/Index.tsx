@@ -208,20 +208,19 @@ const Index = () => {
             </motion.h1>
 
             <motion.p variants={itemVariants} className="text-muted-foreground text-lg md:text-xl max-w-2xl mx-auto mb-10">
-              Curated excellence. Every vehicle in our collection has been selected for those who
-              refuse to compromise.
+              Know your budget before you shop. Our zero-impact soft check takes 60 seconds and connects you with 6 major banks.
             </motion.p>
 
             <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link to="/sourcing">
+              <Link to="/finance-application">
                 <Button size="lg" className="bg-foreground text-background hover:bg-foreground/90 group shadow-xl">
-                  Start Sourcing
+                  Check My Approval
                   <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
               <Link to="/inventory">
-                <Button size="lg" variant="outline" className="border-foreground/30 text-foreground hover:bg-foreground/10">
-                  View Stock
+                <Button size="lg" variant="ghost" className="border border-foreground/20 text-foreground hover:bg-foreground/10">
+                  View Premium Inventory
                 </Button>
               </Link>
             </motion.div>
