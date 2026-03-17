@@ -56,7 +56,14 @@ serve(async (req: Request) => {
     }
 
     // Server-side PIN check — PIN is never exposed to client
-    const ADMIN_PIN = Deno.env.get("ADMIN_UNLOCK_PIN") ?? "Lumina2026";
+    const ADMIN_PIN = Deno.env.get("ADMIN_UNLOCK_PIN");
+    if (!ADMIN_PIN) {
+      console.error("ADMIN_UNLOCK_PIN secret is not configured");
+      return new Response(
+        JSON.stringify({ error: "PIN not configured on server" }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
 
     if (pin !== ADMIN_PIN) {
       return new Response(
