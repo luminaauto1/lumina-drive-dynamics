@@ -408,7 +408,7 @@ const FinanceApplication = () => {
         .update(sanitizedData as any)
         .eq("id", resumedApplicationId)
         .select("id")
-        .single();
+        .maybeSingle();
       insertedApp = data;
       error = updateError;
     } else {
@@ -417,7 +417,7 @@ const FinanceApplication = () => {
         .from("finance_applications")
         .insert(sanitizedData as any)
         .select("id")
-        .single();
+        .maybeSingle();
       insertedApp = data;
       error = insertError;
     }
