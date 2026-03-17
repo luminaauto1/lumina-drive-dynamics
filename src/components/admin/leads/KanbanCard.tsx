@@ -11,6 +11,7 @@ interface KanbanCardProps {
 }
 
 const KanbanCard = ({ lead, onEdit }: KanbanCardProps) => {
+  const { mutate: updateLead } = useUpdateLead();
   const hoursAgo = differenceInHours(new Date(), new Date(lead.created_at));
   const isUrgent = hoursAgo < 4;
   const nextActionIsToday = lead.next_action_date && isToday(new Date(lead.next_action_date));
