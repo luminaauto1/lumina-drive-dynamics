@@ -28,6 +28,10 @@ const KanbanCard = ({ lead, onEdit }: KanbanCardProps) => {
     if (!lead.client_phone) return;
     window.open(`tel:${lead.client_phone}`);
   };
+  const handleArchive = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    updateLead({ id: lead.id, updates: { is_archived: true } as any });
+  };
 
   return (
     <div className="bg-card border border-border rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing">
