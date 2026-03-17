@@ -592,7 +592,7 @@ const FinanceApplication = () => {
     window.open(`https://wa.me/27686017462?text=${encodeURIComponent(message)}`, "_blank");
   };
 
-  if (loading || !user) return null;
+  if (loading) return null;
 
   if (isSubmitted) {
     return (
