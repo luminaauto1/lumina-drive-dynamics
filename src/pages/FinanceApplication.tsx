@@ -538,7 +538,8 @@ const FinanceApplication = () => {
     
     if (saveError) {
       console.error("Save progress error:", saveError);
-      toast.error("Failed to save progress. Please try again.");
+      toast.error(`Failed to save progress: ${saveError.message || 'Unknown error. Please try again.'}`);
+
     } else {
       toast.success("Progress saved! You can return to finish later from your dashboard.");
       navigate("/dashboard");
