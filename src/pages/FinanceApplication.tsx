@@ -762,15 +762,16 @@ const FinanceApplication = () => {
                           <span>No</span>
                         </label>
                       </div>
+                      <FieldError field="has_drivers_license" />
                     </div>
 
                     <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="credit_score_status">What is your credit status?</Label>
+                      <Label htmlFor="credit_score_status">What is your credit status? *</Label>
                       <Select
                         value={formData.credit_score_status}
                         onValueChange={(v) => handleInputChange("credit_score_status", v)}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className={getErrorClass("credit_score_status")}>
                           <SelectValue placeholder="Select your credit status" />
                         </SelectTrigger>
                         <SelectContent>
@@ -780,6 +781,7 @@ const FinanceApplication = () => {
                           <SelectItem value="blacklisted">Blacklisted</SelectItem>
                         </SelectContent>
                       </Select>
+                      <FieldError field="credit_score_status" />
                     </div>
 
                     <div className="space-y-2">
