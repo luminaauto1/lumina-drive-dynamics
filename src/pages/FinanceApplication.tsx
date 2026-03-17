@@ -241,6 +241,8 @@ const FinanceApplication = () => {
             qualification: formData.qualification,
             email: formData.email,
             phone: formData.phone,
+            has_drivers_license: formData.has_drivers_license,
+            credit_score_status: formData.credit_score_status,
           });
           break;
         case 2:
