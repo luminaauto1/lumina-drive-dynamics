@@ -58,6 +58,8 @@ export const financeApplicationStep1Schema = z.object({
   qualification: shortTextSchema,
   email: emailSchema,
   phone: phoneSchema,
+  has_drivers_license: z.string().min(1, 'Please indicate if you have a license'),
+  credit_score_status: z.string().min(1, 'Please select your credit status'),
 });
 
 export const financeApplicationStep2Schema = z.object({
