@@ -226,6 +226,8 @@ const Index = () => {
             </motion.div>
           </div>
         </motion.section>
+        {/* Aftersales Trust Banner */}
+        <AftersalesBanner />
 
         {/* How We Work Section */}
         <motion.section className="py-20 bg-card border-y border-border" variants={containerVariants} initial="hidden" whileInView="visible" viewport={{
