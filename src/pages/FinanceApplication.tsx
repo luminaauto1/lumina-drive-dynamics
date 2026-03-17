@@ -328,7 +328,6 @@ const FinanceApplication = () => {
   };
 
   const handleSubmit = async () => {
-    if (!user) return;
 
     // Calculate total gross from income sources for validation
     const totalGrossForValidation = formData.income_sources.reduce((sum, src) => 
