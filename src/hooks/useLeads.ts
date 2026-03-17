@@ -30,10 +30,16 @@ export const useLeads = () => {
           *,
           vehicle:vehicles(make, model, year)
         `)
+        .not('is_archived', 'eq', true)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data as Lead[];
+      
+      return (data || []).map(lead => ({
+        ...lead,
+        pipeline_stage: lead.pipeline_stage || 'new',
+        status: lead.status || 'new',
+      })) as Lead[];
     },
   });
 };

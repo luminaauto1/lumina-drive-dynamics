@@ -14,6 +14,7 @@ export interface Lead {
   next_action_date: string | null;
   next_action_note: string | null;
   last_activity_at: string | null;
+  is_archived?: boolean;
   vehicle?: {
     make: string;
     model: string;

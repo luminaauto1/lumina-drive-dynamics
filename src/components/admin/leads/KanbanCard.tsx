@@ -1,7 +1,8 @@
 import { formatDistanceToNow, isToday, differenceInHours } from 'date-fns';
-import { Phone, MessageCircle, Pencil, Calendar, Car } from 'lucide-react';
+import { Phone, MessageCircle, Pencil, Calendar, Car, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useUpdateLead } from '@/hooks/useLeads';
 import type { Lead } from './types';
 
 interface KanbanCardProps {
