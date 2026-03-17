@@ -606,15 +606,29 @@ const FinanceApplication = () => {
             animate={{ opacity: 1, scale: 1 }}
             className="text-center max-w-lg"
           >
-            <div className="w-24 h-24 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-8">
-              <CheckCircle className="w-12 h-12 text-green-400" />
+            <div className="w-24 h-24 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-8">
+              <CheckCircle className="w-12 h-12 text-emerald-400" />
             </div>
             <h1 className="text-4xl font-bold mb-4">Application Received!</h1>
             <p className="text-xl text-muted-foreground mb-8">
-              We are analyzing your profile and will confirm your budget shortly. Check your dashboard for updates.
+              Our F&I team is reviewing your details.
             </p>
+
+            {ghostAccountCreated && (
+              <div className="bg-card border border-border p-6 rounded-lg mb-8 text-left">
+                <h3 className="text-sm font-bold uppercase tracking-wider mb-2">Your Tracking Account Has Been Created</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  You can log in anytime to check your approval status or upload documents.
+                </p>
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground"><strong className="text-foreground">Username:</strong> {ghostEmail}</p>
+                  <p className="text-xs text-muted-foreground"><strong className="text-foreground">Password:</strong> Your ID Number</p>
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button onClick={openWhatsApp} className="bg-green-600 hover:bg-green-700 text-white">
+              <Button onClick={openWhatsApp} className="bg-emerald-600 hover:bg-emerald-700 text-white">
                 <MessageCircle className="mr-2 w-5 h-5" />
                 Finalize on WhatsApp
               </Button>
