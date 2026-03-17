@@ -14,14 +14,34 @@ const ExitIntentModal = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const handleMouseLeave = (e: MouseEvent) => {
-      if (e.clientY <= 0 && !sessionStorage.getItem('exitIntentShown')) {
+    const shown = () => sessionStorage.getItem('exitIntentShown');
+    const trigger = () => {
+      if (!shown()) {
         setIsOpen(true);
         sessionStorage.setItem('exitIntentShown', 'true');
       }
     };
+
+    // Desktop: mouse leaves viewport
+    const handleMouseLeave = (e: MouseEvent) => {
+      if (e.clientY <= 0) trigger();
+    };
     document.addEventListener('mouseleave', handleMouseLeave);
-    return () => document.removeEventListener('mouseleave', handleMouseLeave);
+
+    // Mobile: rapid scroll-up near top of page
+    let lastScrollY = window.scrollY;
+    const handleScroll = () => {
+      const currentY = window.scrollY;
+      const delta = lastScrollY - currentY;
+      if (delta > 50 && currentY < 100) trigger();
+      lastScrollY = currentY;
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      document.removeEventListener('mouseleave', handleMouseLeave);
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
   return (
@@ -32,8 +52,8 @@ const ExitIntentModal = () => {
             Wait! Don't leave without knowing your true budget.
           </DialogTitle>
           <DialogDescription className="text-muted-foreground pt-2">
-            Find out exactly what premium vehicles you qualify for. Our soft
-            check has zero impact on your credit score.
+            Find out exactly what premium vehicles you qualify for with our
+            secure, confidential pre-qualification process.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col sm:flex-row gap-3 pt-4">

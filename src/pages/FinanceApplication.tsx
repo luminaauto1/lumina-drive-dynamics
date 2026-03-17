@@ -109,18 +109,20 @@ const FinanceApplication = () => {
     return `${formData.employment_period_value} ${formData.employment_period_unit}`;
   };
 
+  const [ghostAccountCreated, setGhostAccountCreated] = useState(false);
+  const [ghostEmail, setGhostEmail] = useState("");
+
   useEffect(() => {
     // Don't redirect while loading - wait for auth state to resolve
     if (loading) return;
 
-    if (!user) {
-      navigate("/auth?redirect=/finance-application" + (vehicleId ? `?vehicle=${vehicleId}` : ""));
-      return;
+    // Allow guest access - don't redirect if not logged in
+    if (user) {
+      fetchProfile();
     }
-    fetchProfile();
     
     // If resuming a draft, load the draft data
-    if (resumeId) {
+    if (resumeId && user) {
       loadDraftApplication(resumeId);
     }
   }, [user, navigate, vehicleId, loading, resumeId]);
