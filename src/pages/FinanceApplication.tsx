@@ -1008,9 +1008,9 @@ const FinanceApplication = () => {
                       <FieldError field="bank_name" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="account_type">Account Type</Label>
+                      <Label htmlFor="account_type">Account Type *</Label>
                       <Select value={formData.account_type} onValueChange={(v) => handleInputChange("account_type", v)}>
-                        <SelectTrigger>
+                        <SelectTrigger className={getErrorClass("account_type")}>
                           <SelectValue placeholder="Select type" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1019,6 +1019,7 @@ const FinanceApplication = () => {
                           <SelectItem value="transmission">Transmission</SelectItem>
                         </SelectContent>
                       </Select>
+                      <FieldError field="account_type" />
                     </div>
                     <div className="space-y-2 md:col-span-2">
                       <Label htmlFor="account_number">Account Number *</Label>
