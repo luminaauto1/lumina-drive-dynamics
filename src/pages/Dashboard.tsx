@@ -33,7 +33,10 @@ const Dashboard = () => {
   const [deletingDraftId, setDeletingDraftId] = useState<string | null>(null);
 
   const { data: vehicles = [], isLoading: vehiclesLoading } = useVehicles();
-  const { data: matchedVehicles = [], isLoading: matchesLoading, refetch: refetchMatches } = useUserApplicationMatches(user?.id || '');
+
+  // Get the approved application ID for fetching curated matches
+  const approvedAppId = applications.find(app => app.status === 'approved')?.id || '';
+  const { data: matchedVehicles = [], isLoading: matchesLoading, refetch: refetchMatches } = useApplicationMatches(approvedAppId);
 
   // Check if user needs to upload documents (pre_approved status)
   const preApprovedApplication = applications.find(app => app.status === 'pre_approved');
