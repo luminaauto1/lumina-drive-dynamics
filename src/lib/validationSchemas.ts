@@ -58,6 +58,8 @@ export const financeApplicationStep1Schema = z.object({
   qualification: shortTextSchema,
   email: emailSchema,
   phone: phoneSchema,
+  has_drivers_license: z.string().min(1, 'Please indicate if you have a license'),
+  credit_score_status: z.string().min(1, 'Please select your credit status'),
 });
 
 export const financeApplicationStep2Schema = z.object({
@@ -105,6 +107,8 @@ export const financeApplicationFullSchema = z.object({
   qualification: shortTextSchema,
   email: emailSchema,
   phone: phoneSchema,
+  has_drivers_license: z.string().min(1, 'Please indicate if you have a license'),
+  credit_score_status: z.string().min(1, 'Please select your credit status'),
   street_address: z.string().min(5, 'Please enter a valid address').max(500, 'Address is too long'),
   area_code: z.string().max(10, 'Area code must be less than 10 characters').optional().or(z.literal('')),
   employer_name: shortTextSchema, // Made optional - income source names override this

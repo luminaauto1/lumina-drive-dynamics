@@ -175,7 +175,7 @@ const FinanceApplication = () => {
       account_type: data.account_type || "",
       account_number: data.account_number || "",
       income_sources: data.gross_salary 
-        ? [{ source: data.employer_name || "", amount: String(data.gross_salary) }] 
+        ? [{ source: "", amount: String(data.gross_salary) }] 
         : [{ source: "", amount: "" }],
       net_salary: data.net_salary ? String(data.net_salary) : "",
       expenses_summary: data.expenses_summary || "",
@@ -241,6 +241,8 @@ const FinanceApplication = () => {
             qualification: formData.qualification,
             email: formData.email,
             phone: formData.phone,
+            has_drivers_license: formData.has_drivers_license,
+            credit_score_status: formData.credit_score_status,
           });
           break;
         case 2:
@@ -392,8 +394,8 @@ const FinanceApplication = () => {
       expenses_summary: formData.expenses_summary?.trim() || null,
       popia_consent: formData.popia_consent,
       preferred_vehicle_text: formData.preferred_vehicle_text?.trim() || null,
-      has_drivers_license: formData.has_drivers_license === "yes",
-      credit_score_status: formData.credit_score_status || "unsure",
+      has_drivers_license: formData.has_drivers_license === "yes" ? true : formData.has_drivers_license === "no" ? false : null,
+      credit_score_status: formData.credit_score_status || null,
       status: "pending",
     };
 
@@ -507,8 +509,8 @@ const FinanceApplication = () => {
       expenses_summary: formData.expenses_summary?.trim() || null,
       popia_consent: formData.popia_consent,
       preferred_vehicle_text: formData.preferred_vehicle_text?.trim() || null,
-      has_drivers_license: formData.has_drivers_license === "yes",
-      credit_score_status: formData.credit_score_status || "unsure",
+      has_drivers_license: formData.has_drivers_license === "yes" ? true : formData.has_drivers_license === "no" ? false : null,
+      credit_score_status: formData.credit_score_status || null,
       status: "draft", // Keep as draft
     };
     
@@ -762,15 +764,16 @@ const FinanceApplication = () => {
                           <span>No</span>
                         </label>
                       </div>
+                      <FieldError field="has_drivers_license" />
                     </div>
 
                     <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="credit_score_status">What is your credit status?</Label>
+                      <Label htmlFor="credit_score_status">What is your credit status? *</Label>
                       <Select
                         value={formData.credit_score_status}
                         onValueChange={(v) => handleInputChange("credit_score_status", v)}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className={getErrorClass("credit_score_status")}>
                           <SelectValue placeholder="Select your credit status" />
                         </SelectTrigger>
                         <SelectContent>
@@ -780,6 +783,7 @@ const FinanceApplication = () => {
                           <SelectItem value="blacklisted">Blacklisted</SelectItem>
                         </SelectContent>
                       </Select>
+                      <FieldError field="credit_score_status" />
                     </div>
 
                     <div className="space-y-2">
@@ -1008,9 +1012,9 @@ const FinanceApplication = () => {
                       <FieldError field="bank_name" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="account_type">Account Type</Label>
+                      <Label htmlFor="account_type">Account Type *</Label>
                       <Select value={formData.account_type} onValueChange={(v) => handleInputChange("account_type", v)}>
-                        <SelectTrigger>
+                        <SelectTrigger className={getErrorClass("account_type")}>
                           <SelectValue placeholder="Select type" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1019,6 +1023,7 @@ const FinanceApplication = () => {
                           <SelectItem value="transmission">Transmission</SelectItem>
                         </SelectContent>
                       </Select>
+                      <FieldError field="account_type" />
                     </div>
                     <div className="space-y-2 md:col-span-2">
                       <Label htmlFor="account_number">Account Number *</Label>
@@ -1103,6 +1108,7 @@ const FinanceApplication = () => {
                         <p className="text-2xl font-bold text-primary">
                           R{formData.income_sources.reduce((sum, src) => sum + (parseFloat(src.amount) || 0), 0).toLocaleString()}
                         </p>
+                        <FieldError field="gross_salary" />
                       </div>
                     </div>
                     
