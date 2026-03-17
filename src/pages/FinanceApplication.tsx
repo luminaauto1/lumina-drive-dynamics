@@ -392,8 +392,8 @@ const FinanceApplication = () => {
       expenses_summary: formData.expenses_summary?.trim() || null,
       popia_consent: formData.popia_consent,
       preferred_vehicle_text: formData.preferred_vehicle_text?.trim() || null,
-      has_drivers_license: formData.has_drivers_license === "yes",
-      credit_score_status: formData.credit_score_status || "unsure",
+      has_drivers_license: formData.has_drivers_license === "yes" ? true : formData.has_drivers_license === "no" ? false : null,
+      credit_score_status: formData.credit_score_status || null,
       status: "pending",
     };
 
