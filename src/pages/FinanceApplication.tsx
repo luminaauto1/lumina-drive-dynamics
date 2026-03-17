@@ -423,7 +423,7 @@ const FinanceApplication = () => {
     }
 
     if (error) {
-      toast.error("Failed to submit application. Please try again.");
+      toast.error(`Submission failed: ${error.message || 'Unknown error. Please try again.'}`);
       console.error("Submission error:", error);
     } else {
       // 4. Auto-create Lead via secure edge function
