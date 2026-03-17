@@ -54,10 +54,6 @@ const Index = () => {
   const heroSubheadline = settings?.hero_subheadline || "Premium vehicles tailored to your budget. Experience Pretoria's most trusted, hassle-free finance process.";
   const whatsappNumber = settings?.whatsapp_number || '27686017462';
 
-  // Split headline for styling
-  const headlineParts = heroHeadline.split(' ');
-  const lastWord = headlineParts.pop() || '';
-  const firstWords = headlineParts.join(' ');
   const stats = [{
     value: '120+',
     label: 'Brands Sourced'
