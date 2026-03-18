@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
+import { isToday } from 'date-fns';
 import { Search, MessageCircle, ExternalLink, Trash2, Archive, UserPlus, Copy, Link, ClipboardList, Banknote, Calculator } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useFinanceApplications, useUpdateFinanceApplication, useDeleteFinanceApplication, FinanceApplication } from '@/hooks/useFinanceApplications';
 import { formatPrice } from '@/hooks/useVehicles';
 import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, getWhatsAppMessage, canShowDealActions } from '@/lib/statusConfig';
-import { INTERNAL_STATUS_OPTIONS, INTERNAL_STATUS_STYLES, sortByUrgency, canShowDeliveryPrep, normalizeInternalStatus } from '@/lib/internalStatusConfig';
+import { INTERNAL_STATUSES, type InternalStatus } from '@/lib/internalStatusConfig';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { getUploadLink } from '@/lib/appConfig';
 import DeliveryChecklistModal from '@/components/admin/DeliveryChecklistModal';
