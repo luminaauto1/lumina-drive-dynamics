@@ -395,7 +395,7 @@ const AdminFinance = () => {
                         const statusConfig = INTERNAL_STATUSES[safeStatusKey as keyof typeof INTERNAL_STATUSES] || INTERNAL_STATUSES.give_attention;
                         return (
                           <Select 
-                            value={displayStatus} 
+                            value={safeStatusKey} 
                             onValueChange={(value) => handleInternalStatusChange(app.id, value)}
                           >
                             <SelectTrigger className={`w-[200px] h-7 text-xs border ${statusConfig.color}`}>
