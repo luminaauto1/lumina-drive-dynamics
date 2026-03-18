@@ -127,7 +127,7 @@ const AdminFinance = () => {
     const matchesViewMode = viewMode === 'archived' ? isArchived : !isArchived;
 
     return matchesSearch && matchesStatus && matchesViewMode;
-  }));
+  });
 
   const handleInternalStatusChange = async (appId: string, newStatus: string) => {
     await updateApplication.mutateAsync({ 
