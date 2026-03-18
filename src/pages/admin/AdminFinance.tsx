@@ -130,10 +130,22 @@ const AdminFinance = () => {
   });
 
   const handleInternalStatusChange = async (appId: string, newStatus: string) => {
-    await updateApplication.mutateAsync({ 
-      id: appId, 
-      updates: { internal_status: newStatus } as any 
-    });
+    try {
+      const { error } = await supabase
+        .from('finance_applications')
+        .update({ 
+          internal_status: newStatus,
+          attention_updated_at: new Date().toISOString() 
+        } as any)
+        .eq('id', appId);
+      
+      if (error) throw error;
+      toast({ title: "Status updated" });
+      // Refetch applications
+      window.location.reload();
+    } catch (error: any) {
+      toast({ title: "Failed to update status", variant: "destructive" });
+    }
   };
 
   const openDeliveryModal = (app: FinanceApplication, e: React.MouseEvent) => {
