@@ -416,7 +416,7 @@ const AdminFinance = () => {
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
                         {/* Delivery Prep - Show for approved/signed statuses */}
-                        {canShowDeliveryPrep(app.status) && (
+                        {['pre_approved', 'approved', 'vehicle_selected', 'contract_signed', 'vehicle_delivered'].includes(app.status) && (
                           <Button
                             variant="ghost"
                             size="icon"
