@@ -353,8 +353,8 @@ const FinalizeDealModal = ({
         
         // Reset other fields to defaults
         setDiscountAmount(0);
-        setExternalAdminFee(7000);
-        setBankInitiationFee(1207);
+        setExternalAdminFee(isCashDeal ? 0 : 7000);
+        setBankInitiationFee(isCashDeal ? 0 : 1207);
         setClientDeposit(0);
         setDealerDepositContribution(0);
         setAdditionalDealCosts(0);
