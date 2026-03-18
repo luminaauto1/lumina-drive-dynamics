@@ -889,13 +889,9 @@ const FinanceApplication = () => {
                         id="phone"
                         type="tel"
                         value={formData.phone}
-                        onChange={(e) => {
-                          const cleaned = e.target.value.replace(/\D/g, '').slice(0, 10);
-                          handleInputChange("phone", cleaned);
-                        }}
+                        onChange={(e) => handleInputChange("phone", e.target.value)}
                         required
-                        placeholder="0721234567"
-                        maxLength={10}
+                        placeholder="e.g. 072 123 4567"
                         className={getErrorClass("phone")}
                       />
                       <FieldError field="phone" />
