@@ -98,6 +98,7 @@ interface FinalizeDealModalProps {
   onVehicleChange?: (vehicleId: string) => void;
   // Edit mode prop
   existingDeal?: ExistingDealData | null;
+  isCashDeal?: boolean;
 }
 
 const EXPENSE_TYPES = ['Gift', 'Car Wash', 'Fuel', 'Polish', 'Service', 'Repairs', 'Other'];
@@ -114,6 +115,7 @@ const FinalizeDealModal = ({
   onSuccess,
   onVehicleChange,
   existingDeal,
+  isCashDeal = false,
 }: FinalizeDealModalProps) => {
   const { data: settings } = useSiteSettings();
   const createDealRecord = useCreateDealRecord();
@@ -351,8 +353,8 @@ const FinalizeDealModal = ({
         
         // Reset other fields to defaults
         setDiscountAmount(0);
-        setExternalAdminFee(7000);
-        setBankInitiationFee(1207);
+        setExternalAdminFee(isCashDeal ? 0 : 7000);
+        setBankInitiationFee(isCashDeal ? 0 : 1207);
         setClientDeposit(0);
         setDealerDepositContribution(0);
         setAdditionalDealCosts(0);
