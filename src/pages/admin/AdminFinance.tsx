@@ -107,7 +107,10 @@ const AdminFinance = () => {
     if (!app.attention_updated_at || !isToday(new Date(app.attention_updated_at))) {
       return 'give_attention';
     }
-    return (app.internal_status as InternalStatus) || 'give_attention';
+    if (!INTERNAL_STATUSES[app.internal_status as keyof typeof INTERNAL_STATUSES]) {
+      return 'give_attention';
+    }
+    return app.internal_status as InternalStatus;
   };
 
   const filteredApplications = applications.filter(app => {
@@ -388,11 +391,11 @@ const AdminFinance = () => {
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       {(() => {
-                        const displayStatus = getDisplayStatus(app);
-                        const statusConfig = INTERNAL_STATUSES[displayStatus];
+                        const safeStatusKey = getDisplayStatus(app);
+                        const statusConfig = INTERNAL_STATUSES[safeStatusKey as keyof typeof INTERNAL_STATUSES] || INTERNAL_STATUSES.give_attention;
                         return (
                           <Select 
-                            value={displayStatus} 
+                            value={safeStatusKey} 
                             onValueChange={(value) => handleInternalStatusChange(app.id, value)}
                           >
                             <SelectTrigger className={`w-[200px] h-7 text-xs border ${statusConfig.color}`}>
