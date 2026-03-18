@@ -103,7 +103,14 @@ const AdminFinance = () => {
     }
   };
 
-  const filteredApplications = sortByUrgency(applications.filter(app => {
+  const getDisplayStatus = (app: any): InternalStatus => {
+    if (!app.attention_updated_at || !isToday(new Date(app.attention_updated_at))) {
+      return 'give_attention';
+    }
+    return (app.internal_status as InternalStatus) || 'give_attention';
+  };
+
+  const filteredApplications = applications.filter(app => {
     const searchLower = searchQuery.toLowerCase();
     const matchesSearch = !searchQuery || 
       app.full_name?.toLowerCase().includes(searchLower) ||
