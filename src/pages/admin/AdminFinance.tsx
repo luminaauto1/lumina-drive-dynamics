@@ -388,21 +388,27 @@ const AdminFinance = () => {
                       </span>
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Select 
-                        value={normalizeInternalStatus((app as any).internal_status)} 
-                        onValueChange={(value) => handleInternalStatusChange(app.id, value)}
-                      >
-                        <SelectTrigger className={`w-[200px] h-7 text-xs border ${INTERNAL_STATUS_STYLES[normalizeInternalStatus((app as any).internal_status)] || ''}`}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {INTERNAL_STATUS_OPTIONS.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {(() => {
+                        const displayStatus = getDisplayStatus(app);
+                        const statusConfig = INTERNAL_STATUSES[displayStatus];
+                        return (
+                          <Select 
+                            value={displayStatus} 
+                            onValueChange={(value) => handleInternalStatusChange(app.id, value)}
+                          >
+                            <SelectTrigger className={`w-[200px] h-7 text-xs border ${statusConfig.color}`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(Object.entries(INTERNAL_STATUSES) as [InternalStatus, typeof INTERNAL_STATUSES[InternalStatus]][]).map(([key, val]) => (
+                                <SelectItem key={key} value={key} className="text-xs">
+                                  {val.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {new Date(app.created_at).toLocaleDateString()}
