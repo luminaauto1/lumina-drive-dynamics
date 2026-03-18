@@ -41,10 +41,12 @@ const Index = () => {
     isLoading
   } = useVehicles();
   // Show featured vehicles first, then fall back to available vehicles
+  // Grab vehicles explicitly marked as featured, regardless of their status (Available, Sourcing, etc.)
   const featuredVehicles = vehicles
-    .filter(v => v.status === 'available' && (v as any).is_featured === true)
+    .filter(v => (v as any).is_featured === true)
     .slice(0, 4);
-  // Fallback if no featured vehicles
+    
+  // Fallback: If no vehicles are manually featured, show up to 4 available vehicles
   const displayVehicles = featuredVehicles.length > 0 
     ? featuredVehicles 
     : vehicles.filter(v => v.status === 'available').slice(0, 4);
