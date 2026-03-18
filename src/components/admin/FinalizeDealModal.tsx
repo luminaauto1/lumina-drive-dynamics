@@ -98,6 +98,7 @@ interface FinalizeDealModalProps {
   onVehicleChange?: (vehicleId: string) => void;
   // Edit mode prop
   existingDeal?: ExistingDealData | null;
+  isCashDeal?: boolean;
 }
 
 const EXPENSE_TYPES = ['Gift', 'Car Wash', 'Fuel', 'Polish', 'Service', 'Repairs', 'Other'];
