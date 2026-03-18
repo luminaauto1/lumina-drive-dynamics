@@ -141,8 +141,7 @@ const AdminFinance = () => {
       
       if (error) throw error;
       toast({ title: "Status updated" });
-      // Refetch applications
-      window.location.reload();
+      refetch();
     } catch (error: any) {
       toast({ title: "Failed to update status", variant: "destructive" });
     }
