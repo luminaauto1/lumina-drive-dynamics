@@ -115,6 +115,7 @@ const FinalizeDealModal = ({
   onSuccess,
   onVehicleChange,
   existingDeal,
+  isCashDeal = false,
 }: FinalizeDealModalProps) => {
   const { data: settings } = useSiteSettings();
   const createDealRecord = useCreateDealRecord();
