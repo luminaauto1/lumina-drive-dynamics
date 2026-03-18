@@ -391,8 +391,8 @@ const AdminFinance = () => {
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       {(() => {
-                        const displayStatus = getDisplayStatus(app);
-                        const statusConfig = INTERNAL_STATUSES[displayStatus];
+                        const safeStatusKey = getDisplayStatus(app);
+                        const statusConfig = INTERNAL_STATUSES[safeStatusKey as keyof typeof INTERNAL_STATUSES] || INTERNAL_STATUSES.give_attention;
                         return (
                           <Select 
                             value={displayStatus} 
