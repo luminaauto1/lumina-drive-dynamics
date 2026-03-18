@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
+import { isToday } from 'date-fns';
 import { Search, MessageCircle, ExternalLink, Trash2, Archive, UserPlus, Copy, Link, ClipboardList, Banknote, Calculator } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useFinanceApplications, useUpdateFinanceApplication, useDeleteFinanceApplication, FinanceApplication } from '@/hooks/useFinanceApplications';
 import { formatPrice } from '@/hooks/useVehicles';
 import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, getWhatsAppMessage, canShowDealActions } from '@/lib/statusConfig';
-import { INTERNAL_STATUS_OPTIONS, INTERNAL_STATUS_STYLES, sortByUrgency, canShowDeliveryPrep, normalizeInternalStatus } from '@/lib/internalStatusConfig';
+import { INTERNAL_STATUSES, type InternalStatus } from '@/lib/internalStatusConfig';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { getUploadLink } from '@/lib/appConfig';
 import DeliveryChecklistModal from '@/components/admin/DeliveryChecklistModal';
@@ -64,7 +66,7 @@ const AdminFinance = () => {
   const [selectedAppForDelivery, setSelectedAppForDelivery] = useState<FinanceApplication | null>(null);
   const [cashDealModalOpen, setCashDealModalOpen] = useState(false);
 
-  const { data: applications = [], isLoading } = useFinanceApplications();
+  const { data: applications = [], isLoading, refetch } = useFinanceApplications();
   const updateApplication = useUpdateFinanceApplication();
   const deleteApplication = useDeleteFinanceApplication();
 
@@ -101,7 +103,14 @@ const AdminFinance = () => {
     }
   };
 
-  const filteredApplications = sortByUrgency(applications.filter(app => {
+  const getDisplayStatus = (app: any): InternalStatus => {
+    if (!app.attention_updated_at || !isToday(new Date(app.attention_updated_at))) {
+      return 'give_attention';
+    }
+    return (app.internal_status as InternalStatus) || 'give_attention';
+  };
+
+  const filteredApplications = applications.filter(app => {
     const searchLower = searchQuery.toLowerCase();
     const matchesSearch = !searchQuery || 
       app.full_name?.toLowerCase().includes(searchLower) ||
@@ -118,13 +127,24 @@ const AdminFinance = () => {
     const matchesViewMode = viewMode === 'archived' ? isArchived : !isArchived;
 
     return matchesSearch && matchesStatus && matchesViewMode;
-  }));
+  });
 
   const handleInternalStatusChange = async (appId: string, newStatus: string) => {
-    await updateApplication.mutateAsync({ 
-      id: appId, 
-      updates: { internal_status: newStatus } as any 
-    });
+    try {
+      const { error } = await supabase
+        .from('finance_applications')
+        .update({ 
+          internal_status: newStatus,
+          attention_updated_at: new Date().toISOString() 
+        } as any)
+        .eq('id', appId);
+      
+      if (error) throw error;
+      toast({ title: "Status updated" });
+      refetch();
+    } catch (error: any) {
+      toast({ title: "Failed to update status", variant: "destructive" });
+    }
   };
 
   const openDeliveryModal = (app: FinanceApplication, e: React.MouseEvent) => {
@@ -367,21 +387,27 @@ const AdminFinance = () => {
                       </span>
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Select 
-                        value={normalizeInternalStatus((app as any).internal_status)} 
-                        onValueChange={(value) => handleInternalStatusChange(app.id, value)}
-                      >
-                        <SelectTrigger className={`w-[200px] h-7 text-xs border ${INTERNAL_STATUS_STYLES[normalizeInternalStatus((app as any).internal_status)] || ''}`}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {INTERNAL_STATUS_OPTIONS.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {(() => {
+                        const displayStatus = getDisplayStatus(app);
+                        const statusConfig = INTERNAL_STATUSES[displayStatus];
+                        return (
+                          <Select 
+                            value={displayStatus} 
+                            onValueChange={(value) => handleInternalStatusChange(app.id, value)}
+                          >
+                            <SelectTrigger className={`w-[200px] h-7 text-xs border ${statusConfig.color}`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(Object.entries(INTERNAL_STATUSES) as [InternalStatus, typeof INTERNAL_STATUSES[InternalStatus]][]).map(([key, val]) => (
+                                <SelectItem key={key} value={key} className="text-xs">
+                                  {val.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {new Date(app.created_at).toLocaleDateString()}
@@ -389,7 +415,7 @@ const AdminFinance = () => {
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
                         {/* Delivery Prep - Show for approved/signed statuses */}
-                        {canShowDeliveryPrep(app.status) && (
+                        {['pre_approved', 'approved', 'vehicle_selected', 'contract_signed', 'vehicle_delivered'].includes(app.status) && (
                           <Button
                             variant="ghost"
                             size="icon"

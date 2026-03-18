@@ -441,6 +441,7 @@ export type Database = {
           additional_income: number | null
           approved_budget: number | null
           area_code: string | null
+          attention_updated_at: string | null
           bank_name: string | null
           buyer_type: string | null
           contract_bank_name: string | null
@@ -492,6 +493,7 @@ export type Database = {
           additional_income?: number | null
           approved_budget?: number | null
           area_code?: string | null
+          attention_updated_at?: string | null
           bank_name?: string | null
           buyer_type?: string | null
           contract_bank_name?: string | null
@@ -543,6 +545,7 @@ export type Database = {
           additional_income?: number | null
           approved_budget?: number | null
           area_code?: string | null
+          attention_updated_at?: string | null
           bank_name?: string | null
           buyer_type?: string | null
           contract_bank_name?: string | null

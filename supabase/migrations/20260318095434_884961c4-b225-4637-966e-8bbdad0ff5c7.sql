@@ -1,0 +1,1 @@
+ALTER TABLE finance_applications ADD COLUMN IF NOT EXISTS attention_updated_at TIMESTAMPTZ DEFAULT now();
