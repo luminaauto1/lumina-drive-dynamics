@@ -134,8 +134,8 @@ const Index = () => {
 
   return <>
       <SEO
-        title="Lumina Auto | Premium Pre-Owned Luxury Vehicles"
-        description="Discover South Africa's finest collection of pre-owned luxury vehicles. BMW, Mercedes, Porsche, Lamborghini & more. Premium quality, competitive financing."
+        title="Lumina Auto | Quality Pre-Owned Vehicles & Finance"
+        description="Pretoria's trusted dealership for all makes and models. We specialize in vehicle sourcing, bank-approved financing, and premium pre-owned sales."
         url="/"
         jsonLd={autoDealerSchema}
       />
