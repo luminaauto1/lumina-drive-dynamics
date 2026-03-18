@@ -411,7 +411,7 @@ const FinanceApplication = () => {
       first_name: formData.first_name.trim(),
       last_name: formData.last_name.trim(),
       email: formData.email.trim().toLowerCase(),
-      phone: formData.phone.trim(),
+      phone: formData.phone.trim().replace(/\s+/g, ''),
       id_number: formData.id_number?.trim() || null,
       marital_status: formData.marital_status || null,
       gender: formData.gender || null,
