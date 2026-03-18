@@ -28,13 +28,17 @@ const KanbanCard = ({ lead, onEdit }: KanbanCardProps) => {
     if (!lead.client_phone) return;
     window.open(`tel:${lead.client_phone}`);
   };
+
   const handleArchive = (e: React.MouseEvent) => {
     e.stopPropagation();
     updateLead({ id: lead.id, updates: { is_archived: true } as any });
   };
 
   return (
-    <div className="bg-card border border-border rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing">
+    <div
+      onClick={() => onEdit(lead)}
+      className="bg-card border border-border rounded-lg p-3 shadow-sm hover:shadow-md hover:border-primary/50 transition-all cursor-pointer"
+    >
       {/* Header */}
       <div className="flex items-start justify-between mb-2">
         <div className="min-w-0 flex-1">

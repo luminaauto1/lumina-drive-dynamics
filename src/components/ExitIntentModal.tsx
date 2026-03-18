@@ -66,7 +66,7 @@ const ExitIntentModal = () => {
               navigate('/finance-application');
             }}
           >
-            Get a 60-Second Soft Approval
+            Check My Buying Power
           </Button>
         </div>
       </DialogContent>
