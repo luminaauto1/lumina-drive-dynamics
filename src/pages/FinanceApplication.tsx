@@ -529,7 +529,7 @@ const FinanceApplication = () => {
       first_name: formData.first_name.trim() || null,
       last_name: formData.last_name.trim() || null,
       email: formData.email.trim().toLowerCase() || user.email || '',
-      phone: formData.phone.trim() || '',
+      phone: formData.phone.trim().replace(/\s+/g, '') || '',
       id_number: formData.id_number?.trim() || null,
       marital_status: formData.marital_status || null,
       gender: formData.gender || null,
