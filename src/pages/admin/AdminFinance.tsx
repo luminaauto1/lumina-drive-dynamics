@@ -66,7 +66,7 @@ const AdminFinance = () => {
   const [selectedAppForDelivery, setSelectedAppForDelivery] = useState<FinanceApplication | null>(null);
   const [cashDealModalOpen, setCashDealModalOpen] = useState(false);
 
-  const { data: applications = [], isLoading } = useFinanceApplications();
+  const { data: applications = [], isLoading, refetch } = useFinanceApplications();
   const updateApplication = useUpdateFinanceApplication();
   const deleteApplication = useDeleteFinanceApplication();
 
