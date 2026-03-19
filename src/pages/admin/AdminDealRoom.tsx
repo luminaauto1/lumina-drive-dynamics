@@ -466,7 +466,6 @@ const AdminDealRoom = () => {
     setEditedData({});
   };
 
-  const saveEdits = async () => {
   const saveEdits = async (isForceEdit: boolean = false) => {
     if (!application) return;
     try {
