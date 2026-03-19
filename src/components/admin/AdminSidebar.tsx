@@ -53,7 +53,14 @@ const menuItems: MenuItem[] = [
       { title: 'Analytics', path: '/admin/analytics' },
     ],
   },
-  { title: 'Settings', icon: Settings, path: '/admin/settings' },
+  {
+    title: 'Settings',
+    icon: Settings,
+    children: [
+      { title: 'General', path: '/admin/settings' },
+      { title: 'Email Templates', path: '/admin/settings/email' },
+    ],
+  },
 ];
 
 interface AdminSidebarProps {
