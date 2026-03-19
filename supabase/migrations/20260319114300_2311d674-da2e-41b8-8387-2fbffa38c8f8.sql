@@ -1,0 +1,4 @@
+ALTER TABLE finance_applications DROP CONSTRAINT IF EXISTS finance_applications_status_check;
+ALTER TABLE finance_applications DROP CONSTRAINT IF EXISTS finance_applications_check_constraint;
+ALTER TABLE finance_applications DROP CONSTRAINT IF EXISTS finance_applications_status_check1;
+ALTER TABLE finance_applications DROP CONSTRAINT IF EXISTS finance_applications_status_check2;
