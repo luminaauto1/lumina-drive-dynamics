@@ -678,6 +678,15 @@ const AdminDealRoom = () => {
                   <Button
                     variant="outline"
                     size="sm"
+                    onClick={handleRequestRevision}
+                    className="text-xs md:text-sm border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                  >
+                    <MessageCircle className="w-4 h-4 mr-1 md:mr-2" />
+                    Request Revision
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={startEditing}
                     className="text-xs md:text-sm"
                   >
