@@ -444,10 +444,10 @@ const FinanceApplication = () => {
       .map(src => src.source)
       .join(" + ");
 
-    // If guest, create ghost account first
+    // If guest and NOT in revision mode, create ghost account first
     let effectiveUserId = user?.id;
     
-    if (!user) {
+    if (!user && !isRevisionMode) {
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: formData.email.trim().toLowerCase(),
         password: formData.id_number.trim(),
