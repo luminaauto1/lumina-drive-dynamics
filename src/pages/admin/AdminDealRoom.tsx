@@ -501,12 +501,12 @@ const AdminDealRoom = () => {
       setEditedData({});
 
       if (!isForceEdit) {
-        const revisionLink = `https://luminaauto.co.za/finance?edit=${application.id}`;
+        const revisionLink = `https://luminaauto.co.za/finance-application?edit=${application.id}`;
         const emailHtml = `
-          <h2>Action Required: Finance Application Revision</h2>
+          <h2>Action Required: Application Review & Signature</h2>
           <p>Hi ${application.first_name || application.full_name?.split(' ')[0] || 'Client'},</p>
-          <p>Our F&I team has reviewed and adjusted your application figures to ensure maximum bank approval odds.</p>
-          <p>Please click the secure link below to review the adjustments and securely re-sign the document to authorize these changes.</p>
+          <p>Our F&I team has reviewed and optimized your application structure to maximize your bank approval odds.</p>
+          <p>Please click the secure link below to review the updated parameters and apply your digital signature to authorize these adjustments.</p>
           <br/>
           <a href="${revisionLink}" style="padding: 10px 20px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">Review & Re-Sign Application</a>
           <br/><br/>
