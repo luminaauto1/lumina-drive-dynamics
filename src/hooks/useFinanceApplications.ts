@@ -95,9 +95,32 @@ export const useUpdateFinanceApplication = () => {
             </div>
           `;
 
-          supabase.functions.invoke('send-email', {
-            body: { to: [currentApp.email], subject, html: emailHtml }
-          }).catch(err => console.error("Auto-mailer failed:", err));
+          // Direct Frontend Dispatch to EmailJS
+          fetch("https://api.emailjs.com/api/v1.0/email/send", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              service_id: "service_myacl2m",
+              template_id: "template_b2igduv",
+              user_id: "pWT3blntfZk-_syL4",
+              template_params: {
+                to_email: currentApp.email,
+                subject: subject,
+                html_message: emailHtml,
+              }
+            }),
+          })
+          .then(async (res) => {
+            if (!res.ok) {
+              const text = await res.text();
+              console.error("EmailJS API Rejected the request:", text);
+            } else {
+              console.log("EmailJS successfully received the payload.");
+            }
+          })
+          .catch(err => console.error("Frontend failed to reach EmailJS:", err));
         }
       }
 
