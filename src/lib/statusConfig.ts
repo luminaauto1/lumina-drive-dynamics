@@ -32,6 +32,8 @@ export const STATUS_STEP_ORDER: Record<string, number> = {
   vehicle_selected: 3, // Parallel to documents_received
   approved: 2, // Legacy - maps to pre_approved
   finalized: 8, // Same as delivered
+  needs_revision: 0, // Sent back for revision
+  revision_submitted: 1, // Re-submitted after revision
 };
 
 // What the USER sees - strategic "hook" messaging
