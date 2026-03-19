@@ -356,10 +356,6 @@ const AdminSettings = () => {
                 <CreditCard className="w-4 h-4" />
                 Features
               </TabsTrigger>
-              <TabsTrigger value="emails" className="gap-2">
-                <Mail className="w-4 h-4" />
-                Emails
-              </TabsTrigger>
             </TabsList>
 
             {/* Finance Configuration Tab */}
