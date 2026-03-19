@@ -706,11 +706,21 @@ const AdminDealRoom = () => {
                   </Button>
                   <Button
                     size="sm"
-                    onClick={saveEdits}
-                    className="bg-primary hover:bg-primary/90 text-xs md:text-sm"
+                    onClick={() => saveEdits(true)}
+                    className="text-xs md:text-sm bg-red-600/20 text-red-500 hover:bg-red-600/30 border border-red-500/30"
+                    title="Save changes without emailing the client"
                   >
                     <Save className="w-4 h-4 mr-1 md:mr-2" />
-                    Save
+                    Force Save (Silent)
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => saveEdits(false)}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-xs md:text-sm"
+                    title="Save changes and email client to re-sign"
+                  >
+                    <Mail className="w-4 h-4 mr-1 md:mr-2" />
+                    Save & Request Signature
                   </Button>
                 </>
               ) : (
