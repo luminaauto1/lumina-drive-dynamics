@@ -166,37 +166,50 @@ const AdminDealRoom = () => {
       // 1. Update Database Status
       await updateApplication.mutateAsync({ 
         id: application.id, 
-        updates: { status: 'needs_revision' } 
+        updates: { status: 'needs_revision' } as any
       });
       
-      // 2. Generate the Secure Link
+      // 2. Generate the Secure Link & Email HTML
       const revisionLink = `https://luminaauto.co.za/finance?edit=${application.id}`;
+      const emailHtml = `
+        <h2>Action Required: Finance Application Revision</h2>
+        <p>Hi ${application.first_name},</p>
+        <p>Our F&I team has reviewed your application. To help us secure your bank approval, we need you to review and adjust some of your declared expenses to improve your affordability ratio.</p>
+        <p>Please click the secure link below to unlock your application, adjust your figures, and re-sign the document.</p>
+        <br/>
+        <a href="${revisionLink}" style="padding: 10px 20px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">Unlock My Application</a>
+        <br/><br/>
+        <p>Best regards,<br/>The Lumina Auto F&I Team</p>
+      `;
       
-      // 3. Fire the Edge Function
-      const { error } = await supabase.functions.invoke('send-email', {
-        body: {
-          to: [application.email],
-          subject: "Lumina Auto - Finance Application Revision Required",
-          html: `
-            <h2>Action Required: Finance Application Revision</h2>
-            <p>Hi ${application.first_name || application.full_name?.split(' ')[0] || 'Client'},</p>
-            <p>Our F&I team has reviewed your application. To help us secure your bank approval, we need you to review and adjust some of your declared expenses to improve your affordability ratio.</p>
-            <p>Please click the secure link below to unlock your application, adjust your figures, and re-sign the document.</p>
-            <br/>
-            <a href="${revisionLink}" style="padding: 10px 20px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px;">Unlock My Application</a>
-            <br/><br/>
-            <p>Best regards,<br/>The Lumina Auto F&I Team</p>
-          `
-        }
+      // 3. Direct Frontend Dispatch to EmailJS
+      const emailRes = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          service_id: "service_myacl2m",
+          template_id: "template_b2igduv",
+          user_id: "pWT3blntfZk-_syL4",
+          template_params: {
+            to_email: application.email,
+            subject: "Lumina Auto - Finance Application Revision Required",
+            html_message: emailHtml,
+          }
+        }),
       });
 
-      if (error) throw error;
+      if (!emailRes.ok) {
+        const text = await emailRes.text();
+        throw new Error(text);
+      }
 
-      toast.success("Revision request sent to client");
+      toast.success("Revision request sent to client via EmailJS");
       setApplication(prev => prev ? { ...prev, status: 'needs_revision' } : null);
     } catch (error: any) {
       console.error('Failed to request revision:', error);
-      toast.error("Failed to send revision email");
+      toast.error("Failed to send revision email. Check console.");
     }
   };
 
