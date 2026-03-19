@@ -29,6 +29,8 @@ export const getClientStatusDescription = (status: string): string => {
     approved: 'Budget Confirmed - Preparing Vehicle Options',
     vehicle_selected: 'Vehicle Reserved - Preparing Contract',
     declined: 'Application Unsuccessful',
+    needs_revision: 'Revision Required - Please Update Your Details',
+    revision_submitted: 'Revision Submitted - Under Review',
   };
   
   return descriptions[status] || status;
