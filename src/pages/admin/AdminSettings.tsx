@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Settings, DollarSign, Phone, Palette, Loader2, MapPin, CreditCard, Users, Plus, X, Target, Mail, TestTube, Building2 } from 'lucide-react';
+import { Settings, DollarSign, Phone, Palette, Loader2, MapPin, CreditCard, Users, Plus, X, Target, TestTube, Building2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Switch } from '@/components/ui/switch';
