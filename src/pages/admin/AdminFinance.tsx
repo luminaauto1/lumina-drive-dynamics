@@ -606,6 +606,37 @@ const AdminFinance = () => {
           onOpenChange={setCashDealModalOpen}
           onCreated={(appId) => navigate(`/admin/finance/${appId}`)}
         />
+        {/* CRM Audit Trail Modal */}
+        <Dialog open={statusModalOpen} onOpenChange={setStatusModalOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Update Status & CRM Note</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Add a comment for the sales team</Label>
+                <Textarea
+                  placeholder="E.g. Client called back, awaiting payslips..."
+                  value={statusNote}
+                  onChange={(e) => setStatusNote(e.target.value)}
+                  className="min-h-[100px]"
+                />
+              </div>
+              {pendingApp?.notes && (
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wider">Previous CRM History</Label>
+                  <div className="text-xs bg-muted/50 border border-border p-3 rounded-md max-h-[120px] overflow-auto whitespace-pre-wrap text-muted-foreground font-mono">
+                    {pendingApp.notes}
+                  </div>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setStatusModalOpen(false)}>Cancel</Button>
+              <Button onClick={confirmStatusUpdate} className="bg-emerald-600 hover:bg-emerald-700 text-white">Save Update</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );
