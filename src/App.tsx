@@ -100,6 +100,7 @@ const AppLayout = () => {
           <Route path="/admin/reports/partner-payout/:dealId" element={<ProtectedRoute requireAdmin><AdminPartnerPayout /></ProtectedRoute>} />
           <Route path="/admin/network" element={<ProtectedRoute requireAdmin><AdminNetwork /></ProtectedRoute>} />
           <Route path="/admin/clients/:id" element={<ProtectedRoute requireAdmin><ClientProfile /></ProtectedRoute>} />
+          <Route path="/admin/crm-sheet" element={<ProtectedRoute requireAdmin><CRMSheet /></ProtectedRoute>} />
           <Route path="/update-password" element={<UpdatePassword />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -37,6 +37,7 @@ const menuItems: MenuItem[] = [
     children: [
       { title: 'Pipeline', path: '/admin/leads' },
       { title: 'Contacts', path: '/admin/contacts' },
+      { title: 'CRM Sheet', path: '/admin/crm-sheet' },
     ],
   },
   { title: 'Finance', icon: CreditCard, path: '/admin/finance' },
