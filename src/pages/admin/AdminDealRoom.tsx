@@ -170,14 +170,14 @@ const AdminDealRoom = () => {
       });
       
       // 2. Generate the Secure Link & Email HTML
-      const revisionLink = `https://luminaauto.co.za/finance?edit=${application.id}`;
+      const revisionLink = `https://luminaauto.co.za/finance-application?edit=${application.id}`;
       const emailHtml = `
-        <h2>Action Required: Finance Application Revision</h2>
+        <h2>Action Required: Application Review & Signature</h2>
         <p>Hi ${application.first_name},</p>
-        <p>Our F&I team has reviewed your application. To help us secure your bank approval, we need you to review and adjust some of your declared expenses to improve your affordability ratio.</p>
-        <p>Please click the secure link below to unlock your application, adjust your figures, and re-sign the document.</p>
+        <p>Our F&I team has reviewed and optimized your application structure to maximize your bank approval odds.</p>
+        <p>Please click the secure link below to review the updated parameters and apply your digital signature to authorize these adjustments.</p>
         <br/>
-        <a href="${revisionLink}" style="padding: 10px 20px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">Unlock My Application</a>
+        <a href="${revisionLink}" style="padding: 10px 20px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">Review & Re-Sign Application</a>
         <br/><br/>
         <p>Best regards,<br/>The Lumina Auto F&I Team</p>
       `;
@@ -501,12 +501,12 @@ const AdminDealRoom = () => {
       setEditedData({});
 
       if (!isForceEdit) {
-        const revisionLink = `https://luminaauto.co.za/finance?edit=${application.id}`;
+        const revisionLink = `https://luminaauto.co.za/finance-application?edit=${application.id}`;
         const emailHtml = `
-          <h2>Action Required: Finance Application Revision</h2>
+          <h2>Action Required: Application Review & Signature</h2>
           <p>Hi ${application.first_name || application.full_name?.split(' ')[0] || 'Client'},</p>
-          <p>Our F&I team has reviewed and adjusted your application figures to ensure maximum bank approval odds.</p>
-          <p>Please click the secure link below to review the adjustments and securely re-sign the document to authorize these changes.</p>
+          <p>Our F&I team has reviewed and optimized your application structure to maximize your bank approval odds.</p>
+          <p>Please click the secure link below to review the updated parameters and apply your digital signature to authorize these adjustments.</p>
           <br/>
           <a href="${revisionLink}" style="padding: 10px 20px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">Review & Re-Sign Application</a>
           <br/><br/>
