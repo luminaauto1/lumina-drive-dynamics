@@ -1,4 +1,4 @@
-import { LayoutDashboard, Car, Users, CreditCard, Settings, ChevronLeft, ChevronRight, ChevronDown, BarChart3, Package, Home, FileBarChart, Banknote, ShoppingCart, Calculator, Contact, Briefcase } from 'lucide-react';
+import { LayoutDashboard, Car, Users, CreditCard, Settings, ChevronLeft, ChevronRight, ChevronDown, BarChart3, Package, Home, FileBarChart, Banknote, ShoppingCart, Calculator, Contact, Briefcase, TableProperties } from 'lucide-react';
 import { NavLink, useLocation, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
@@ -37,6 +37,7 @@ const menuItems: MenuItem[] = [
     children: [
       { title: 'Pipeline', path: '/admin/leads' },
       { title: 'Contacts', path: '/admin/contacts' },
+      { title: 'CRM Sheet', path: '/admin/crm-sheet' },
     ],
   },
   { title: 'Finance', icon: CreditCard, path: '/admin/finance' },

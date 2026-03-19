@@ -38,6 +38,7 @@ import AdminCarsToBuy from "./pages/admin/AdminCarsToBuy";
 import AdminPartnerPayout from "./pages/admin/AdminPartnerPayout";
 import AdminNetwork from "./pages/admin/AdminNetwork";
 import AdminContacts from "./pages/admin/AdminContacts";
+import CRMSheet from "./pages/admin/CRMSheet";
 import ClientProfile from "./pages/admin/ClientProfile";
 import UpdatePassword from "./pages/UpdatePassword";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
@@ -99,6 +100,7 @@ const AppLayout = () => {
           <Route path="/admin/reports/partner-payout/:dealId" element={<ProtectedRoute requireAdmin><AdminPartnerPayout /></ProtectedRoute>} />
           <Route path="/admin/network" element={<ProtectedRoute requireAdmin><AdminNetwork /></ProtectedRoute>} />
           <Route path="/admin/clients/:id" element={<ProtectedRoute requireAdmin><ClientProfile /></ProtectedRoute>} />
+          <Route path="/admin/crm-sheet" element={<ProtectedRoute requireAdmin><CRMSheet /></ProtectedRoute>} />
           <Route path="/update-password" element={<UpdatePassword />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
