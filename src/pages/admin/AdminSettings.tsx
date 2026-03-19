@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSiteSettings, useUpdateSiteSettings, SiteSettings } from '@/hooks/useSiteSettings';
-import EmailTemplateEditor from '@/components/admin/EmailTemplateEditor';
+
 import BankIntegrationsTab from '@/components/admin/BankIntegrationsTab';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -355,10 +355,6 @@ const AdminSettings = () => {
               <TabsTrigger value="features" className="gap-2">
                 <CreditCard className="w-4 h-4" />
                 Features
-              </TabsTrigger>
-              <TabsTrigger value="emails" className="gap-2">
-                <Mail className="w-4 h-4" />
-                Emails
               </TabsTrigger>
             </TabsList>
 
@@ -788,10 +784,6 @@ const AdminSettings = () => {
               </motion.div>
             </TabsContent>
 
-            {/* Email Templates Tab */}
-            <TabsContent value="emails">
-              <EmailTemplateEditor />
-            </TabsContent>
           </Tabs>
 
           {/* Save Button */}
