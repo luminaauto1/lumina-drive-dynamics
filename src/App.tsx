@@ -38,6 +38,7 @@ import AdminCarsToBuy from "./pages/admin/AdminCarsToBuy";
 import AdminPartnerPayout from "./pages/admin/AdminPartnerPayout";
 import AdminNetwork from "./pages/admin/AdminNetwork";
 import AdminContacts from "./pages/admin/AdminContacts";
+import AdminEmailSettings from "./pages/admin/AdminEmailSettings";
 import CRMSheet from "./pages/admin/CRMSheet";
 import ClientProfile from "./pages/admin/ClientProfile";
 import UpdatePassword from "./pages/UpdatePassword";
