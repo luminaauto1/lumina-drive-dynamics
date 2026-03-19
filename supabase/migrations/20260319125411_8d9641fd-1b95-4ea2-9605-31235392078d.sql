@@ -1,0 +1,1 @@
+ALTER TABLE public.finance_applications ADD COLUMN IF NOT EXISTS lead_id UUID REFERENCES public.leads(id);

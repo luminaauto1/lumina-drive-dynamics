@@ -468,6 +468,7 @@ export type Database = {
           kin_contact: string | null
           kin_name: string | null
           last_name: string | null
+          lead_id: string | null
           loan_term_months: number | null
           marital_status: string | null
           monthly_income: number | null
@@ -520,6 +521,7 @@ export type Database = {
           kin_contact?: string | null
           kin_name?: string | null
           last_name?: string | null
+          lead_id?: string | null
           loan_term_months?: number | null
           marital_status?: string | null
           monthly_income?: number | null
@@ -572,6 +574,7 @@ export type Database = {
           kin_contact?: string | null
           kin_name?: string | null
           last_name?: string | null
+          lead_id?: string | null
           loan_term_months?: number | null
           marital_status?: string | null
           monthly_income?: number | null
@@ -591,6 +594,13 @@ export type Database = {
           vehicle_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "finance_applications_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "finance_applications_selected_vehicle_id_fkey"
             columns: ["selected_vehicle_id"]
