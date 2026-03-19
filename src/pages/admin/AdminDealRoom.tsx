@@ -466,17 +466,56 @@ const AdminDealRoom = () => {
     setEditedData({});
   };
 
-  const saveEdits = async () => {
+  const saveEdits = async (isForceEdit: boolean = false) => {
     if (!application) return;
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("No active session");
+
+      const updates = { ...editedData };
+      
+      if (!isForceEdit) {
+        (updates as any).status = 'needs_revision';
+      }
+
       await updateApplication.mutateAsync({ 
         id: application.id, 
-        updates: editedData as any
+        updates: updates as any
       });
-      setApplication(prev => prev ? { ...prev, ...editedData } : null);
+      
+      setApplication(prev => prev ? { ...prev, ...updates } : null);
       setIsEditing(false);
       setEditedData({});
-      toast.success('Application updated');
+
+      if (!isForceEdit) {
+        const revisionLink = `https://luminaauto.co.za/finance?edit=${application.id}`;
+        
+        const { error } = await supabase.functions.invoke('send-email', {
+          body: {
+            to: [application.email],
+            subject: "Lumina Auto - Finance Application Revision Required",
+            html: `
+              <h2>Action Required: Finance Application Revision</h2>
+              <p>Hi ${application.first_name || application.full_name?.split(' ')[0] || 'Client'},</p>
+              <p>Our F&I team has reviewed and adjusted your application figures to ensure maximum bank approval odds.</p>
+              <p>Please click the secure link below to review the adjustments and securely re-sign the document to authorize these changes.</p>
+              <br/>
+              <a href="${revisionLink}" style="padding: 10px 20px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">Review & Re-Sign Application</a>
+              <br/><br/>
+              <p>Best regards,<br/>The Lumina Auto F&I Team</p>
+            `
+          }
+        });
+
+        if (error) {
+          console.error('Email trigger failed:', error);
+          toast.error('Saved, but failed to dispatch email.');
+        } else {
+          toast.success('Edits saved & client notified for signature');
+        }
+      } else {
+        toast.success('Application forcefully updated (Silent)');
+      }
     } catch (error) {
       console.error('Failed to save edits:', error);
       toast.error('Failed to save changes');
@@ -666,11 +705,21 @@ const AdminDealRoom = () => {
                   </Button>
                   <Button
                     size="sm"
-                    onClick={saveEdits}
-                    className="bg-primary hover:bg-primary/90 text-xs md:text-sm"
+                    onClick={() => saveEdits(true)}
+                    className="text-xs md:text-sm bg-red-600/20 text-red-500 hover:bg-red-600/30 border border-red-500/30"
+                    title="Save changes without emailing the client"
                   >
                     <Save className="w-4 h-4 mr-1 md:mr-2" />
-                    Save
+                    Force Save (Silent)
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => saveEdits(false)}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-xs md:text-sm"
+                    title="Save changes and email client to re-sign"
+                  >
+                    <Mail className="w-4 h-4 mr-1 md:mr-2" />
+                    Save & Request Signature
                   </Button>
                 </>
               ) : (
