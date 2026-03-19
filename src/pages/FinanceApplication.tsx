@@ -1372,7 +1372,7 @@ const FinanceApplication = () => {
                   disabled={isSubmitting || !formData.popia_consent}
                   className="min-w-[160px] bg-accent text-accent-foreground"
                 >
-                  {isSubmitting ? "Submitting..." : "Submit Application"}
+                  {isSubmitting ? "Submitting..." : isRevisionMode ? "Submit Revision" : "Submit Application"}
                   <CheckCircle className="ml-2 w-4 h-4" />
                 </Button>
               )}
