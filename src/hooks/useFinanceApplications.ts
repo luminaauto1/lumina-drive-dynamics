@@ -52,41 +52,27 @@ export const useUpdateFinanceApplication = () => {
 
       if (error) throw error;
 
-      // 3. Auto-Mailer Engine
+      // 3. Auto-Mailer Engine — Dynamic Templates
       if (updates.status && currentApp && updates.status !== currentApp.status && currentApp.email) {
-        let subject = "";
-        let message = "";
-        const firstName = currentApp.first_name || "Valued Client";
+        const { data: template } = await supabase
+          .from('email_templates')
+          .select('*')
+          .eq('status_key', updates.status)
+          .eq('is_active', true)
+          .maybeSingle();
 
-        switch (updates.status) {
-          case 'pre_approved':
-            subject = "Great News! Your Finance is Pre-Approved";
-            message = `<p>Hi ${firstName},</p><p>Fantastic news. Your finance application has been pre-approved. Our F&I team will be in touch shortly to help you finalize your vehicle selection within your approved structure.</p>`;
-            break;
-          case 'approved':
-            subject = "Congratulations! Your Vehicle Finance is Approved";
-            message = `<p>Hi ${firstName},</p><p>Congratulations. Your vehicle finance has been officially approved by the bank. We are currently preparing your contracts and will contact you to arrange the signing and delivery process.</p>`;
-            break;
-          case 'declined':
-            subject = "Update on Your Finance Application";
-            message = `<p>Hi ${firstName},</p><p>We regret to inform you that the banks have currently declined your finance application. Our F&I team will reach out to explain the reasons and discuss potential future steps or alternative options to secure your mobility.</p>`;
-            break;
-          case 'validations_pending':
-            subject = "Action Required: FICA & Validations";
-            message = `<p>Hi ${firstName},</p><p>Your application is moving forward. To proceed to the final approval stage, the bank requires standard validation documents (e.g., ID, Proof of Address, Payslips). Our team will contact you shortly with the exact requirements.</p>`;
-            break;
-          case 'delivered':
-            subject = "Congratulations on Your New Vehicle";
-            message = `<p>Hi ${firstName},</p><p>Congratulations on taking delivery of your new vehicle. Thank you for choosing Lumina Auto. We wish you many safe and happy miles.</p>`;
-            break;
-        }
+        if (template) {
+          const firstName = currentApp.first_name || "Valued Client";
+          const subject = template.subject;
+          const heading = (template.heading || '').replace(/\{\{clientName\}\}/g, firstName);
+          const bodyContent = (template.body_content || '').replace(/\{\{clientName\}\}/g, firstName);
 
-        if (subject && message) {
           const emailHtml = `
             <div style="font-family: system-ui, -apple-system, sans-serif; background-color: #09090b; color: #ffffff; padding: 40px; border-radius: 8px; max-width: 600px; margin: 0 auto; border: 1px solid #27272a;">
               <h2 style="color: #ffffff; border-bottom: 1px solid #27272a; padding-bottom: 15px; font-weight: 500; letter-spacing: 1px;">LUMINA AUTO</h2>
               <div style="color: #a1a1aa; font-size: 15px; line-height: 1.6; padding-top: 10px;">
-                ${message}
+                <p style="color: #ffffff; font-size: 16px;">${heading}</p>
+                <p>${bodyContent}</p>
               </div>
               <br/><br/>
               <p style="color: #52525b; font-size: 12px; border-top: 1px solid #27272a; padding-top: 15px;">
@@ -98,9 +84,7 @@ export const useUpdateFinanceApplication = () => {
           // Direct Frontend Dispatch to EmailJS
           fetch("https://api.emailjs.com/api/v1.0/email/send", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               service_id: "service_myacl2m",
               template_id: "template_b2igduv",
