@@ -784,10 +784,6 @@ const AdminSettings = () => {
               </motion.div>
             </TabsContent>
 
-            {/* Email Templates Tab */}
-            <TabsContent value="emails">
-              <EmailTemplateEditor />
-            </TabsContent>
           </Tabs>
 
           {/* Save Button */}
