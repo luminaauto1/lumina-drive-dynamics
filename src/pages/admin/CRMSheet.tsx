@@ -228,7 +228,7 @@ const CRMSheet = () => {
                       </TableCell>
                       <TableCell className="py-0.5 px-2">
                         <Input
-                          defaultValue={row.notes}
+                          defaultValue=""
                           onBlur={(e) => {
                             if (e.target.value !== row.notes) {
                               handleNotesChange(row.id, row.type, e.target.value);
