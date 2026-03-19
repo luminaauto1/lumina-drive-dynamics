@@ -156,6 +156,50 @@ const AdminDealRoom = () => {
     }
   };
 
+  const handleRequestRevision = async () => {
+    if (!application) return;
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("No active session");
+
+      // 1. Update Database Status
+      await updateApplication.mutateAsync({ 
+        id: application.id, 
+        updates: { status: 'needs_revision' } 
+      });
+      
+      // 2. Generate the Secure Link
+      const revisionLink = `https://luminaauto.co.za/finance?edit=${application.id}`;
+      
+      // 3. Fire the Edge Function
+      const { error } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: [application.email],
+          subject: "Lumina Auto - Finance Application Revision Required",
+          html: `
+            <h2>Action Required: Finance Application Revision</h2>
+            <p>Hi ${application.first_name || application.full_name?.split(' ')[0] || 'Client'},</p>
+            <p>Our F&I team has reviewed your application. To help us secure your bank approval, we need you to review and adjust some of your declared expenses to improve your affordability ratio.</p>
+            <p>Please click the secure link below to unlock your application, adjust your figures, and re-sign the document.</p>
+            <br/>
+            <a href="${revisionLink}" style="padding: 10px 20px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px;">Unlock My Application</a>
+            <br/><br/>
+            <p>Best regards,<br/>The Lumina Auto F&I Team</p>
+          `
+        }
+      });
+
+      if (error) throw error;
+
+      toast.success("Revision request sent to client");
+      setApplication(prev => prev ? { ...prev, status: 'needs_revision' } : null);
+    } catch (error: any) {
+      console.error('Failed to request revision:', error);
+      toast.error("Failed to send revision email");
+    }
+  };
+
   const handleConfirmDecline = async () => {
     if (!application) return;
     
@@ -631,6 +675,15 @@ const AdminDealRoom = () => {
                 </>
               ) : (
                 <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRequestRevision}
+                    className="text-xs md:text-sm border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                  >
+                    <MessageCircle className="w-4 h-4 mr-1 md:mr-2" />
+                    Request Revision
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
