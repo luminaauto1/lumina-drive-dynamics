@@ -36,10 +36,10 @@ interface GridRow {
 }
 
 const getStatusColor = (status: string) => {
-  const green = ['approved', 'delivered', 'finalized', 'qualified'];
+  const green = ['approved', 'delivered', 'finalized', 'qualified', 'converted'];
   const red = ['declined', 'lost'];
   const blue = ['pre_approved', 'vehicle_selected', 'validations_pending'];
-  const yellow = ['new', 'pending', 'contacted', 'in_progress'];
+  const yellow = ['new', 'pending', 'contacted', 'in_progress', 'under_review', 'needs_revision'];
 
   if (green.includes(status)) return 'border-l-emerald-500 bg-emerald-500/5';
   if (red.includes(status)) return 'border-l-red-500 bg-red-500/5';
