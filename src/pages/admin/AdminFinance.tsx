@@ -141,21 +141,41 @@ const AdminFinance = () => {
     return matchesSearch && matchesStatus && matchesViewMode;
   });
 
-  const handleInternalStatusChange = async (appId: string, newStatus: string) => {
+  const handleStatusDropdownChange = (app: any, newStatus: string) => {
+    setPendingApp(app);
+    setPendingStatus(newStatus);
+    setStatusNote('');
+    setStatusModalOpen(true);
+  };
+
+  const confirmStatusUpdate = async () => {
+    if (!pendingApp || !pendingStatus) return;
     try {
+      let updatedNotes = pendingApp.notes || '';
+      if (statusNote.trim()) {
+        const timestamp = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+        const statusLabel = INTERNAL_STATUSES[pendingStatus as keyof typeof INTERNAL_STATUSES]?.label || pendingStatus;
+        const newEntry = `[${timestamp}] ${statusLabel}: ${statusNote}`;
+        updatedNotes = updatedNotes ? `${newEntry}\n\n${updatedNotes}` : newEntry;
+      }
       const { error } = await supabase
         .from('finance_applications')
-        .update({ 
-          internal_status: newStatus,
-          attention_updated_at: new Date().toISOString() 
+        .update({
+          internal_status: pendingStatus,
+          attention_updated_at: new Date().toISOString(),
+          notes: updatedNotes,
         } as any)
-        .eq('id', appId);
-      
+        .eq('id', pendingApp.id);
       if (error) throw error;
-      toast({ title: "Status updated" });
+      toast({ title: "Status & CRM notes updated" });
       refetch();
     } catch (error: any) {
       toast({ title: "Failed to update status", variant: "destructive" });
+    } finally {
+      setStatusModalOpen(false);
+      setPendingApp(null);
+      setPendingStatus('');
+      setStatusNote('');
     }
   };
 
