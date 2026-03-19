@@ -1,133 +1,67 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Whitelist of allowed recipient email addresses
-const ALLOWED_RECIPIENTS = ["lumina.auto1@gmail.com"];
-
-interface SendEmailRequest {
-  to: string[];
-  subject: string;
-  html: string;
-  from?: string;
-}
-
-// HTML escape function to prevent XSS
-function escapeHtml(unsafe: string): string {
-  return unsafe
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Verify authentication
+    // 1. Verify Request
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      console.error("No authorization header provided");
-      return new Response(
-        JSON.stringify({ success: false, error: "Unauthorized" }),
-        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+    if (!authHeader) throw new Error("Unauthorized");
+
+    const { to, subject, html } = await req.json();
+    if (!to || to.length === 0) throw new Error("No recipients specified");
+
+    // 2. Fetch EmailJS Credentials from Supabase Secrets
+    const serviceId = Deno.env.get("EMAILJS_SERVICE_ID");
+    const templateId = Deno.env.get("EMAILJS_TEMPLATE_ID");
+    const publicKey = Deno.env.get("EMAILJS_PUBLIC_KEY");
+    const privateKey = Deno.env.get("EMAILJS_PRIVATE_KEY");
+
+    if (!serviceId || !templateId || !publicKey) {
+      throw new Error("EmailJS credentials are not configured in Supabase Secrets.");
     }
 
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
-    if (authError || !user) {
-      console.error("Authentication failed:", authError?.message);
-      return new Response(
-        JSON.stringify({ success: false, error: "Unauthorized" }),
-        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-
-    console.log(`Authenticated user: ${user.id}`);
-
-    const { to, subject, html, from }: SendEmailRequest = await req.json();
-
-    // Validate recipients against whitelist
-    const invalidRecipients = to.filter(email => !ALLOWED_RECIPIENTS.includes(email.toLowerCase()));
-    if (invalidRecipients.length > 0) {
-      console.error("Invalid recipients attempted:", invalidRecipients);
-      return new Response(
-        JSON.stringify({ success: false, error: "Invalid recipients" }),
-        { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-
-    console.log(`Sending email to: ${to.join(", ")}`);
-    console.log(`Subject: ${subject}`);
-
-    if (!to || to.length === 0) {
-      throw new Error("No recipients specified");
-    }
-
-    if (!subject) {
-      throw new Error("No subject specified");
-    }
-
-    if (!html) {
-      throw new Error("No email body specified");
-    }
-
-    const response = await fetch("https://api.resend.com/emails", {
+    // 3. Fire payload to EmailJS REST API
+    const emailjsResponse = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: from || "Lumina Auto <onboarding@resend.dev>",
-        to,
-        subject: escapeHtml(subject),
-        html,
+        service_id: serviceId,
+        template_id: templateId,
+        user_id: publicKey,
+        accessToken: privateKey,
+        template_params: {
+          to_email: to[0],
+          subject: subject,
+          html_message: html,
+        }
       }),
     });
 
-    if (!response.ok) {
-      const error = await response.text();
-      console.error("Resend API error:", error);
-      throw new Error(`Failed to send email: ${error}`);
+    if (!emailjsResponse.ok) {
+      const errorText = await emailjsResponse.text();
+      throw new Error(`EmailJS API error: ${errorText}`);
     }
 
-    const result = await response.json();
-    console.log("Email sent successfully:", result);
-
-    return new Response(
-      JSON.stringify({ success: true, data: result }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
-    );
+    return new Response(JSON.stringify({ success: true, message: "Email dispatched via EmailJS" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
   } catch (error: any) {
-    console.error("Error in send-email function:", error);
-    return new Response(
-      JSON.stringify({ success: false, error: error.message }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
-    );
+    console.error("Email error:", error.message);
+    return new Response(JSON.stringify({ success: false, error: error.message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
   }
 };
 
