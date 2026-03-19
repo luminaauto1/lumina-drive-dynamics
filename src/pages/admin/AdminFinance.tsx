@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
@@ -66,6 +69,12 @@ const AdminFinance = () => {
   const [selectedAppForDelivery, setSelectedAppForDelivery] = useState<FinanceApplication | null>(null);
   const [cashDealModalOpen, setCashDealModalOpen] = useState(false);
 
+  // CRM Audit Trail Modal State
+  const [statusModalOpen, setStatusModalOpen] = useState(false);
+  const [pendingApp, setPendingApp] = useState<any>(null);
+  const [pendingStatus, setPendingStatus] = useState('');
+  const [statusNote, setStatusNote] = useState('');
+
   const { data: applications = [], isLoading, refetch } = useFinanceApplications();
   const updateApplication = useUpdateFinanceApplication();
   const deleteApplication = useDeleteFinanceApplication();
@@ -132,21 +141,41 @@ const AdminFinance = () => {
     return matchesSearch && matchesStatus && matchesViewMode;
   });
 
-  const handleInternalStatusChange = async (appId: string, newStatus: string) => {
+  const handleStatusDropdownChange = (app: any, newStatus: string) => {
+    setPendingApp(app);
+    setPendingStatus(newStatus);
+    setStatusNote('');
+    setStatusModalOpen(true);
+  };
+
+  const confirmStatusUpdate = async () => {
+    if (!pendingApp || !pendingStatus) return;
     try {
+      let updatedNotes = pendingApp.notes || '';
+      if (statusNote.trim()) {
+        const timestamp = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+        const statusLabel = INTERNAL_STATUSES[pendingStatus as keyof typeof INTERNAL_STATUSES]?.label || pendingStatus;
+        const newEntry = `[${timestamp}] ${statusLabel}: ${statusNote}`;
+        updatedNotes = updatedNotes ? `${newEntry}\n\n${updatedNotes}` : newEntry;
+      }
       const { error } = await supabase
         .from('finance_applications')
-        .update({ 
-          internal_status: newStatus,
-          attention_updated_at: new Date().toISOString() 
+        .update({
+          internal_status: pendingStatus,
+          attention_updated_at: new Date().toISOString(),
+          notes: updatedNotes,
         } as any)
-        .eq('id', appId);
-      
+        .eq('id', pendingApp.id);
       if (error) throw error;
-      toast({ title: "Status updated" });
+      toast({ title: "Status & CRM notes updated" });
       refetch();
     } catch (error: any) {
       toast({ title: "Failed to update status", variant: "destructive" });
+    } finally {
+      setStatusModalOpen(false);
+      setPendingApp(null);
+      setPendingStatus('');
+      setStatusNote('');
     }
   };
 
@@ -436,7 +465,7 @@ const AdminFinance = () => {
                         return (
                           <Select 
                             value={safeStatusKey} 
-                            onValueChange={(value) => handleInternalStatusChange(app.id, value)}
+                            onValueChange={(value) => handleStatusDropdownChange(app, value)}
                           >
                             <SelectTrigger className={`w-[200px] h-7 text-xs border ${statusConfig.color}`}>
                               <SelectValue />
@@ -577,6 +606,37 @@ const AdminFinance = () => {
           onOpenChange={setCashDealModalOpen}
           onCreated={(appId) => navigate(`/admin/finance/${appId}`)}
         />
+        {/* CRM Audit Trail Modal */}
+        <Dialog open={statusModalOpen} onOpenChange={setStatusModalOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Update Status & CRM Note</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Add a comment for the sales team</Label>
+                <Textarea
+                  placeholder="E.g. Client called back, awaiting payslips..."
+                  value={statusNote}
+                  onChange={(e) => setStatusNote(e.target.value)}
+                  className="min-h-[100px]"
+                />
+              </div>
+              {pendingApp?.notes && (
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wider">Previous CRM History</Label>
+                  <div className="text-xs bg-muted/50 border border-border p-3 rounded-md max-h-[120px] overflow-auto whitespace-pre-wrap text-muted-foreground font-mono">
+                    {pendingApp.notes}
+                  </div>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setStatusModalOpen(false)}>Cancel</Button>
+              <Button onClick={confirmStatusUpdate} className="bg-emerald-600 hover:bg-emerald-700 text-white">Save Update</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );
