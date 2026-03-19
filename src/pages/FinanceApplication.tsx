@@ -758,16 +758,27 @@ const FinanceApplication = () => {
 
       <div className="min-h-screen pt-24 pb-16">
         <div className="container mx-auto px-6 max-w-3xl">
+          {isRevisionMode && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 p-4 rounded-lg border border-pink-500/30 bg-pink-500/10"
+            >
+              <p className="text-sm font-medium text-pink-400">
+                ⚠️ Your application has been sent back for revision. Please update the necessary fields and re-sign at the end to resubmit.
+              </p>
+            </motion.div>
+          )}
           <div className="text-center mb-8">
             <motion.span
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="text-primary text-sm font-semibold uppercase tracking-widest mb-4 block"
             >
-              Check Your Buying Power
+              {isRevisionMode ? 'Revise Your Application' : 'Check Your Buying Power'}
             </motion.span>
             <h1 className="text-4xl font-bold mb-4">
-              <KineticText>Finance Application</KineticText>
+              <KineticText>{isRevisionMode ? 'Application Revision' : 'Finance Application'}</KineticText>
             </h1>
           </div>
 
