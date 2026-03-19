@@ -69,6 +69,12 @@ const AdminFinance = () => {
   const [selectedAppForDelivery, setSelectedAppForDelivery] = useState<FinanceApplication | null>(null);
   const [cashDealModalOpen, setCashDealModalOpen] = useState(false);
 
+  // CRM Audit Trail Modal State
+  const [statusModalOpen, setStatusModalOpen] = useState(false);
+  const [pendingApp, setPendingApp] = useState<any>(null);
+  const [pendingStatus, setPendingStatus] = useState('');
+  const [statusNote, setStatusNote] = useState('');
+
   const { data: applications = [], isLoading, refetch } = useFinanceApplications();
   const updateApplication = useUpdateFinanceApplication();
   const deleteApplication = useDeleteFinanceApplication();
