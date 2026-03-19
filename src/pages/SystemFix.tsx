@@ -11,6 +11,8 @@ const SQL_CODE = `-- ============================================
 
 -- 1. REMOVE THE STATUS RESTRICTION (Fixes "Violates Check Constraint" errors)
 ALTER TABLE finance_applications DROP CONSTRAINT IF EXISTS finance_applications_status_check;
+ALTER TABLE finance_applications DROP CONSTRAINT IF EXISTS finance_applications_check_constraint;
+ALTER TABLE finance_applications DROP CONSTRAINT IF EXISTS finance_applications_status_check1;
 
 -- 2. FIX VEHICLE STATUS CONSTRAINT (Allows ALL required statuses including 'hidden')
 ALTER TABLE vehicles DROP CONSTRAINT IF EXISTS vehicles_status_check;
