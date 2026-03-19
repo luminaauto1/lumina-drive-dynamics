@@ -65,6 +65,7 @@ const FinanceApplication = () => {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [showTrustModal, setShowTrustModal] = useState(true);
   const [resumedApplicationId, setResumedApplicationId] = useState<string | null>(null);
+  const [isRevisionMode, setIsRevisionMode] = useState(false);
   const [formData, setFormData] = useState({
     // Personal
     first_name: "",
