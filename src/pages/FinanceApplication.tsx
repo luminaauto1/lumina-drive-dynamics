@@ -127,7 +127,12 @@ const FinanceApplication = () => {
     if (resumeId && user) {
       loadDraftApplication(resumeId);
     }
-  }, [user, navigate, vehicleId, loading, resumeId]);
+
+    // If editing for revision, load the application data (no auth required)
+    if (editId) {
+      loadRevisionApplication(editId);
+    }
+  }, [user, navigate, vehicleId, loading, resumeId, editId]);
 
   const loadDraftApplication = async (draftId: string) => {
     const { data, error } = await supabase
