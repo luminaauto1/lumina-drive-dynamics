@@ -1,4 +1,4 @@
-import { LayoutDashboard, Car, Users, CreditCard, Settings, ChevronLeft, ChevronRight, ChevronDown, BarChart3, Package, Home, FileBarChart, Banknote, ShoppingCart, Calculator, Contact, Briefcase, TableProperties } from 'lucide-react';
+import { LayoutDashboard, Car, Users, CreditCard, Settings, ChevronLeft, ChevronRight, ChevronDown, BarChart3, Package, Home, FileBarChart, Banknote, ShoppingCart, Calculator, Contact, Briefcase, TableProperties, Mail } from 'lucide-react';
 import { NavLink, useLocation, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
@@ -53,7 +53,14 @@ const menuItems: MenuItem[] = [
       { title: 'Analytics', path: '/admin/analytics' },
     ],
   },
-  { title: 'Settings', icon: Settings, path: '/admin/settings' },
+  {
+    title: 'Settings',
+    icon: Settings,
+    children: [
+      { title: 'General', path: '/admin/settings' },
+      { title: 'Email Templates', path: '/admin/settings/email' },
+    ],
+  },
 ];
 
 interface AdminSidebarProps {
