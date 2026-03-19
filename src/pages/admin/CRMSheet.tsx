@@ -20,6 +20,7 @@ const LEAD_STATUS_OPTIONS = [
   { value: 'contacted', label: 'Contacted' },
   { value: 'in_progress', label: 'In Progress' },
   { value: 'qualified', label: 'Qualified' },
+  { value: 'converted', label: 'Converted to App' },
   { value: 'lost', label: 'Lost' },
 ];
 
