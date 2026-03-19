@@ -12,6 +12,8 @@ export const getClientStatusLabel = (status: string): string => {
     approved: 'Budget Confirmed',
     vehicle_selected: 'Vehicle Reserved',
     declined: 'Application Unsuccessful',
+    needs_revision: 'Revision Required - Please Update',
+    revision_submitted: 'Revision Submitted - Under Review',
   };
   
   return labels[status] || status;
@@ -27,6 +29,8 @@ export const getClientStatusDescription = (status: string): string => {
     approved: 'Budget Confirmed - Preparing Vehicle Options',
     vehicle_selected: 'Vehicle Reserved - Preparing Contract',
     declined: 'Application Unsuccessful',
+    needs_revision: 'Revision Required - Please Update Your Details',
+    revision_submitted: 'Revision Submitted - Under Review',
   };
   
   return descriptions[status] || status;
@@ -42,6 +46,8 @@ export const getStatusBadgeStyle = (status: string): string => {
     approved: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
     vehicle_selected: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
     declined: 'bg-red-500/20 text-red-400 border-red-500/30',
+    needs_revision: 'bg-pink-500/20 text-pink-400 border-pink-500/30',
+    revision_submitted: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
   };
   
   return styles[status] || styles.pending;

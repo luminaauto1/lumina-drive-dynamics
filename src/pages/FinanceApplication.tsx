@@ -58,12 +58,14 @@ const FinanceApplication = () => {
   const [searchParams] = useSearchParams();
   const vehicleId = searchParams.get("vehicle");
   const resumeId = searchParams.get("resume");
+  const editId = searchParams.get("edit");
 
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [showTrustModal, setShowTrustModal] = useState(true);
   const [resumedApplicationId, setResumedApplicationId] = useState<string | null>(null);
+  const [isRevisionMode, setIsRevisionMode] = useState(false);
   const [formData, setFormData] = useState({
     // Personal
     first_name: "",
@@ -125,7 +127,12 @@ const FinanceApplication = () => {
     if (resumeId && user) {
       loadDraftApplication(resumeId);
     }
-  }, [user, navigate, vehicleId, loading, resumeId]);
+
+    // If editing for revision, load the application data (no auth required)
+    if (editId) {
+      loadRevisionApplication(editId);
+    }
+  }, [user, navigate, vehicleId, loading, resumeId, editId]);
 
   const loadDraftApplication = async (draftId: string) => {
     const { data, error } = await supabase
@@ -201,6 +208,76 @@ const FinanceApplication = () => {
     else setCurrentStep(1);
 
     toast.success("Draft loaded. Continue your application.");
+  };
+
+  const loadRevisionApplication = async (appId: string) => {
+    // Use service-level fetch - the app might belong to a different user
+    const { data, error } = await supabase
+      .from("finance_applications")
+      .select("*")
+      .eq("id", appId)
+      .single();
+
+    if (error || !data) {
+      toast.error("Could not load application for revision");
+      return;
+    }
+
+    // Only allow revision if status is needs_revision
+    if (data.status !== 'needs_revision') {
+      toast.error("This application is not currently open for revision.");
+      return;
+    }
+
+    setShowTrustModal(false);
+    setResumedApplicationId(appId);
+    setIsRevisionMode(true);
+
+    // Parse employment period
+    let empPeriodValue = "";
+    let empPeriodUnit = "years";
+    if (data.employment_period) {
+      const match = data.employment_period.match(/^(\d+)\s*(\w+)$/);
+      if (match) {
+        empPeriodValue = match[1];
+        empPeriodUnit = match[2] || "years";
+      }
+    }
+
+    setFormData({
+      first_name: data.first_name || "",
+      last_name: data.last_name || "",
+      id_number: data.id_number || "",
+      marital_status: data.marital_status || "",
+      gender: data.gender || "",
+      qualification: data.qualification || "",
+      email: data.email || "",
+      phone: data.phone || "",
+      street_address: data.street_address || "",
+      area_code: data.area_code || "",
+      employer_name: data.employer_name || "",
+      job_title: data.job_title || "",
+      employment_period_value: empPeriodValue,
+      employment_period_unit: empPeriodUnit,
+      kin_name: data.kin_name || "",
+      kin_contact: data.kin_contact || "",
+      bank_name: data.bank_name || "",
+      account_type: data.account_type || "",
+      account_number: data.account_number || "",
+      income_sources: data.gross_salary 
+        ? [{ source: "", amount: String(data.gross_salary) }] 
+        : [{ source: "", amount: "" }],
+      net_salary: data.net_salary ? String(data.net_salary) : "",
+      expenses_summary: data.expenses_summary || "",
+      popia_consent: false, // Must re-consent
+      signature_url: "", // Must re-sign
+      preferred_vehicle_text: data.preferred_vehicle_text || "",
+      has_drivers_license: data.has_drivers_license === true ? "yes" : data.has_drivers_license === false ? "no" : "",
+      credit_score_status: data.credit_score_status || "",
+    });
+
+    setCurrentStep(1);
+    toast.info("Please review and update your details, then re-sign to submit.");
   };
 
   const fetchProfile = async () => {
@@ -367,10 +444,10 @@ const FinanceApplication = () => {
       .map(src => src.source)
       .join(" + ");
 
-    // If guest, create ghost account first
+    // If guest and NOT in revision mode, create ghost account first
     let effectiveUserId = user?.id;
     
-    if (!user) {
+    if (!user && !isRevisionMode) {
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: formData.email.trim().toLowerCase(),
         password: formData.id_number.trim(),
@@ -433,7 +510,7 @@ const FinanceApplication = () => {
       preferred_vehicle_text: formData.preferred_vehicle_text?.trim() || null,
       has_drivers_license: formData.has_drivers_license === "yes" ? true : formData.has_drivers_license === "no" ? false : null,
       credit_score_status: formData.credit_score_status || null,
-      status: "pending",
+      status: isRevisionMode ? "revision_submitted" : "pending",
     };
 
     // 3. Save to Database - Update if resuming a draft, otherwise insert
@@ -681,16 +758,27 @@ const FinanceApplication = () => {
 
       <div className="min-h-screen pt-24 pb-16">
         <div className="container mx-auto px-6 max-w-3xl">
+          {isRevisionMode && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 p-4 rounded-lg border border-pink-500/30 bg-pink-500/10"
+            >
+              <p className="text-sm font-medium text-pink-400">
+                ⚠️ Your application has been sent back for revision. Please update the necessary fields and re-sign at the end to resubmit.
+              </p>
+            </motion.div>
+          )}
           <div className="text-center mb-8">
             <motion.span
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="text-primary text-sm font-semibold uppercase tracking-widest mb-4 block"
             >
-              Check Your Buying Power
+              {isRevisionMode ? 'Revise Your Application' : 'Check Your Buying Power'}
             </motion.span>
             <h1 className="text-4xl font-bold mb-4">
-              <KineticText>Finance Application</KineticText>
+              <KineticText>{isRevisionMode ? 'Application Revision' : 'Finance Application'}</KineticText>
             </h1>
           </div>
 
@@ -1295,7 +1383,7 @@ const FinanceApplication = () => {
                   disabled={isSubmitting || !formData.popia_consent}
                   className="min-w-[160px] bg-accent text-accent-foreground"
                 >
-                  {isSubmitting ? "Submitting..." : "Submit Application"}
+                  {isSubmitting ? "Submitting..." : isRevisionMode ? "Submit Revision" : "Submit Application"}
                   <CheckCircle className="ml-2 w-4 h-4" />
                 </Button>
               )}

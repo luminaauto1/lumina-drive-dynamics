@@ -13,6 +13,8 @@ export const STATUS_OPTIONS = [
   { value: 'vehicle_delivered', label: 'Vehicle Delivered' },
   { value: 'declined', label: 'Declined' },
   { value: 'vehicle_selected', label: 'Vehicle Selected' },
+  { value: 'needs_revision', label: 'Needs Revision' },
+  { value: 'revision_submitted', label: 'Revision Submitted' },
 ];
 
 // Step order for progress tracking (0-indexed)
@@ -30,6 +32,8 @@ export const STATUS_STEP_ORDER: Record<string, number> = {
   vehicle_selected: 3, // Parallel to documents_received
   approved: 2, // Legacy - maps to pre_approved
   finalized: 8, // Same as delivered
+  needs_revision: 0, // Sent back for revision
+  revision_submitted: 1, // Re-submitted after revision
 };
 
 // What the USER sees - strategic "hook" messaging
@@ -49,6 +53,8 @@ export const USER_STATUS_LABELS: Record<string, string> = {
   finalized: '🎉 Deal Complete!',
   draft: 'Draft - Not Submitted',
   archived: 'Archived',
+  needs_revision: '⚠️ Revision Required - Please Update Your Details',
+  revision_submitted: 'Revision Submitted - Under Review',
 };
 
 // Badge styling with distinct colors for each step
@@ -68,6 +74,8 @@ export const STATUS_STYLES: Record<string, string> = {
   finalized: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
   draft: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
   archived: 'bg-gray-600/20 text-gray-500 border-gray-600/30',
+  needs_revision: 'bg-pink-500/20 text-pink-400 border-pink-500/30 animate-pulse',
+  revision_submitted: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
 };
 
 // Admin labels (internal view)
@@ -87,6 +95,8 @@ export const ADMIN_STATUS_LABELS: Record<string, string> = {
   finalized: 'Finalized',
   draft: 'Draft',
   archived: 'Archived',
+  needs_revision: '⚠️ Needs Revision',
+  revision_submitted: 'Revision Submitted',
 };
 
 // Steps for the visual stepper component

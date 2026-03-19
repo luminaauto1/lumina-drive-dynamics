@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import { isToday } from 'date-fns';
-import { Search, MessageCircle, ExternalLink, Trash2, Archive, UserPlus, Copy, Link, ClipboardList, Banknote, Calculator } from 'lucide-react';
+import { Search, MessageCircle, ExternalLink, Trash2, Archive, UserPlus, Copy, Link, ClipboardList, Banknote, Calculator, MailWarning } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -171,6 +171,46 @@ const AdminFinance = () => {
 
   const handleDelete = async (appId: string) => {
     await deleteApplication.mutateAsync(appId);
+  };
+
+  const handleRequestRevision = async (app: FinanceApplication, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      // Update status to needs_revision
+      await updateApplication.mutateAsync({ 
+        id: app.id, 
+        updates: { status: 'needs_revision' } as any 
+      });
+
+      // Send revision email via edge function
+      const editLink = `https://luminaauto.co.za/finance-application?edit=${app.id}`;
+      const clientName = app.first_name || app.full_name?.split(' ')[0] || 'Client';
+      
+      await supabase.functions.invoke('send-email', {
+        body: {
+          to: ['lumina.auto1@gmail.com'],
+          subject: `Revision Required: ${app.full_name}'s Finance Application`,
+          html: `
+            <h2>Client Revision Request</h2>
+            <p><strong>${app.full_name}</strong> needs to revise their finance application.</p>
+            <p>Forward this link to the client at <strong>${app.email}</strong>:</p>
+            <p><a href="${editLink}" style="display:inline-block;padding:12px 24px;background:#6366f1;color:white;text-decoration:none;border-radius:8px;">Revise Application</a></p>
+            <p>Direct link: ${editLink}</p>
+          `,
+        },
+      });
+
+      // Also copy the revision link for WhatsApp
+      await navigator.clipboard.writeText(editLink);
+
+      toast({
+        title: "Revision requested",
+        description: `Status updated & revision link copied to clipboard. Send it to ${clientName}.`,
+      });
+    } catch (error: any) {
+      toast({ title: "Failed to request revision", variant: "destructive" });
+      console.error('Revision request error:', error);
+    }
   };
 
   // Stats for active applications only
@@ -417,6 +457,18 @@ const AdminFinance = () => {
                     </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
+                        {/* Request Revision */}
+                        {['pending', 'application_submitted', 'pre_approved', 'documents_received', 'revision_submitted'].includes(app.status) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => handleRequestRevision(app, e)}
+                            className="text-pink-500 hover:text-pink-400 hover:bg-pink-500/10"
+                            title="Request Client Revision"
+                          >
+                            <MailWarning className="w-4 h-4" />
+                          </Button>
+                        )}
                         {/* Delivery Prep - Show for approved/signed statuses */}
                         {['pre_approved', 'approved', 'vehicle_selected', 'contract_signed', 'vehicle_delivered'].includes(app.status) && (
                           <Button
