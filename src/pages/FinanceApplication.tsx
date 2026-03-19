@@ -58,6 +58,7 @@ const FinanceApplication = () => {
   const [searchParams] = useSearchParams();
   const vehicleId = searchParams.get("vehicle");
   const resumeId = searchParams.get("resume");
+  const editId = searchParams.get("edit");
 
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
