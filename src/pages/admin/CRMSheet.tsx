@@ -266,7 +266,7 @@ const CRMSheet = () => {
               <TabsTrigger value="pre_approved" className="text-[10px] py-1 px-2">Pre-Approved</TabsTrigger>
               <TabsTrigger value="validated" className="text-[10px] py-1 px-2">Validated</TabsTrigger>
               <TabsTrigger value="aftersales" className="text-[10px] py-1 px-2">Aftersales</TabsTrigger>
-              <TabsTrigger value="declined" className="text-[10px] py-1 px-2">Declined</TabsTrigger>
+              <TabsTrigger value="declined" className="text-[10px] py-1 px-2">Lost & Declined</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
