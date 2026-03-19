@@ -74,6 +74,8 @@ export const STATUS_STYLES: Record<string, string> = {
   finalized: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
   draft: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
   archived: 'bg-gray-600/20 text-gray-500 border-gray-600/30',
+  needs_revision: 'bg-pink-500/20 text-pink-400 border-pink-500/30 animate-pulse',
+  revision_submitted: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
 };
 
 // Admin labels (internal view)
