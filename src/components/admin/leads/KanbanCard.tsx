@@ -77,9 +77,11 @@ const KanbanCard = ({ lead, onEdit }: KanbanCardProps) => {
         </div>
       )}
 
-      {/* Notes preview */}
+      {/* CRM Notes Preview */}
       {lead.notes && (
-        <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{lead.notes}</p>
+        <div className="mt-2 mb-2 p-2 bg-black/40 border border-white/5 rounded-md text-[10px] text-zinc-400 font-mono line-clamp-3 whitespace-pre-wrap break-words">
+          {lead.notes}
+        </div>
       )}
 
       {/* Footer Actions */}
