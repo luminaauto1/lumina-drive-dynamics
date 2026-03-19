@@ -95,6 +95,8 @@ export const ADMIN_STATUS_LABELS: Record<string, string> = {
   finalized: 'Finalized',
   draft: 'Draft',
   archived: 'Archived',
+  needs_revision: '⚠️ Needs Revision',
+  revision_submitted: 'Revision Submitted',
 };
 
 // Steps for the visual stepper component
