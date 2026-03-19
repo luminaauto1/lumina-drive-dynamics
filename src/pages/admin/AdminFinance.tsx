@@ -173,6 +173,46 @@ const AdminFinance = () => {
     await deleteApplication.mutateAsync(appId);
   };
 
+  const handleRequestRevision = async (app: FinanceApplication, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      // Update status to needs_revision
+      await updateApplication.mutateAsync({ 
+        id: app.id, 
+        updates: { status: 'needs_revision' } as any 
+      });
+
+      // Send revision email via edge function
+      const editLink = `https://luminaauto.co.za/finance-application?edit=${app.id}`;
+      const clientName = app.first_name || app.full_name?.split(' ')[0] || 'Client';
+      
+      await supabase.functions.invoke('send-email', {
+        body: {
+          to: ['lumina.auto1@gmail.com'],
+          subject: `Revision Required: ${app.full_name}'s Finance Application`,
+          html: `
+            <h2>Client Revision Request</h2>
+            <p><strong>${app.full_name}</strong> needs to revise their finance application.</p>
+            <p>Forward this link to the client at <strong>${app.email}</strong>:</p>
+            <p><a href="${editLink}" style="display:inline-block;padding:12px 24px;background:#6366f1;color:white;text-decoration:none;border-radius:8px;">Revise Application</a></p>
+            <p>Direct link: ${editLink}</p>
+          `,
+        },
+      });
+
+      // Also copy the revision link for WhatsApp
+      await navigator.clipboard.writeText(editLink);
+
+      toast({
+        title: "Revision requested",
+        description: `Status updated & revision link copied to clipboard. Send it to ${clientName}.`,
+      });
+    } catch (error: any) {
+      toast({ title: "Failed to request revision", variant: "destructive" });
+      console.error('Revision request error:', error);
+    }
+  };
+
   // Stats for active applications only
   const activeApps = applications.filter(a => a.status !== 'archived');
 
