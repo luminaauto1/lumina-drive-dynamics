@@ -457,6 +457,18 @@ const AdminFinance = () => {
                     </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
+                        {/* Request Revision */}
+                        {['pending', 'application_submitted', 'pre_approved', 'documents_received', 'revision_submitted'].includes(app.status) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => handleRequestRevision(app, e)}
+                            className="text-pink-500 hover:text-pink-400 hover:bg-pink-500/10"
+                            title="Request Client Revision"
+                          >
+                            <MailWarning className="w-4 h-4" />
+                          </Button>
+                        )}
                         {/* Delivery Prep - Show for approved/signed statuses */}
                         {['pre_approved', 'approved', 'vehicle_selected', 'contract_signed', 'vehicle_delivered'].includes(app.status) && (
                           <Button
