@@ -210,6 +210,76 @@ const FinanceApplication = () => {
     toast.success("Draft loaded. Continue your application.");
   };
 
+  const loadRevisionApplication = async (appId: string) => {
+    // Use service-level fetch - the app might belong to a different user
+    const { data, error } = await supabase
+      .from("finance_applications")
+      .select("*")
+      .eq("id", appId)
+      .single();
+
+    if (error || !data) {
+      toast.error("Could not load application for revision");
+      return;
+    }
+
+    // Only allow revision if status is needs_revision
+    if (data.status !== 'needs_revision') {
+      toast.error("This application is not currently open for revision.");
+      return;
+    }
+
+    setShowTrustModal(false);
+    setResumedApplicationId(appId);
+    setIsRevisionMode(true);
+
+    // Parse employment period
+    let empPeriodValue = "";
+    let empPeriodUnit = "years";
+    if (data.employment_period) {
+      const match = data.employment_period.match(/^(\d+)\s*(\w+)$/);
+      if (match) {
+        empPeriodValue = match[1];
+        empPeriodUnit = match[2] || "years";
+      }
+    }
+
+    setFormData({
+      first_name: data.first_name || "",
+      last_name: data.last_name || "",
+      id_number: data.id_number || "",
+      marital_status: data.marital_status || "",
+      gender: data.gender || "",
+      qualification: data.qualification || "",
+      email: data.email || "",
+      phone: data.phone || "",
+      street_address: data.street_address || "",
+      area_code: data.area_code || "",
+      employer_name: data.employer_name || "",
+      job_title: data.job_title || "",
+      employment_period_value: empPeriodValue,
+      employment_period_unit: empPeriodUnit,
+      kin_name: data.kin_name || "",
+      kin_contact: data.kin_contact || "",
+      bank_name: data.bank_name || "",
+      account_type: data.account_type || "",
+      account_number: data.account_number || "",
+      income_sources: data.gross_salary 
+        ? [{ source: "", amount: String(data.gross_salary) }] 
+        : [{ source: "", amount: "" }],
+      net_salary: data.net_salary ? String(data.net_salary) : "",
+      expenses_summary: data.expenses_summary || "",
+      popia_consent: false, // Must re-consent
+      signature_url: "", // Must re-sign
+      preferred_vehicle_text: data.preferred_vehicle_text || "",
+      has_drivers_license: data.has_drivers_license === true ? "yes" : data.has_drivers_license === false ? "no" : "",
+      credit_score_status: data.credit_score_status || "",
+    });
+
+    setCurrentStep(1);
+    toast.info("Please review and update your details, then re-sign to submit.");
+  };
+
   const fetchProfile = async () => {
     if (!user) return;
     // Don't overwrite with profile data if resuming a draft
