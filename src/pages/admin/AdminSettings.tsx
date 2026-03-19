@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSiteSettings, useUpdateSiteSettings, SiteSettings } from '@/hooks/useSiteSettings';
-import EmailTemplateEditor from '@/components/admin/EmailTemplateEditor';
+
 import BankIntegrationsTab from '@/components/admin/BankIntegrationsTab';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
