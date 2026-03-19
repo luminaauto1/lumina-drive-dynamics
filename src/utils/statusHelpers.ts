@@ -12,6 +12,8 @@ export const getClientStatusLabel = (status: string): string => {
     approved: 'Budget Confirmed',
     vehicle_selected: 'Vehicle Reserved',
     declined: 'Application Unsuccessful',
+    needs_revision: 'Revision Required - Please Update',
+    revision_submitted: 'Revision Submitted - Under Review',
   };
   
   return labels[status] || status;
