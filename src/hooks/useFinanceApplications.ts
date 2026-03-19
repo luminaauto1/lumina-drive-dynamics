@@ -34,23 +34,81 @@ export const useUpdateFinanceApplication = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: Partial<Tables<'finance_applications'>> }) => {
+    mutationFn: async ({ id, updates }: { id: string; updates: any }) => {
+      // 1. Fetch current app to detect status change and get email
+      const { data: currentApp } = await supabase
+        .from('finance_applications')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      // 2. Perform the database update
       const { data, error } = await supabase
         .from('finance_applications')
         .update(updates)
         .eq('id', id)
         .select()
         .single();
-      
+
       if (error) throw error;
+
+      // 3. Auto-Mailer Engine
+      if (updates.status && currentApp && updates.status !== currentApp.status && currentApp.email) {
+        let subject = "";
+        let message = "";
+        const firstName = currentApp.first_name || "Valued Client";
+
+        switch (updates.status) {
+          case 'pre_approved':
+            subject = "Great News! Your Finance is Pre-Approved";
+            message = `<p>Hi ${firstName},</p><p>Fantastic news. Your finance application has been pre-approved. Our F&I team will be in touch shortly to help you finalize your vehicle selection within your approved structure.</p>`;
+            break;
+          case 'approved':
+            subject = "Congratulations! Your Vehicle Finance is Approved";
+            message = `<p>Hi ${firstName},</p><p>Congratulations. Your vehicle finance has been officially approved by the bank. We are currently preparing your contracts and will contact you to arrange the signing and delivery process.</p>`;
+            break;
+          case 'declined':
+            subject = "Update on Your Finance Application";
+            message = `<p>Hi ${firstName},</p><p>We regret to inform you that the banks have currently declined your finance application. Our F&I team will reach out to explain the reasons and discuss potential future steps or alternative options to secure your mobility.</p>`;
+            break;
+          case 'validations_pending':
+            subject = "Action Required: FICA & Validations";
+            message = `<p>Hi ${firstName},</p><p>Your application is moving forward. To proceed to the final approval stage, the bank requires standard validation documents (e.g., ID, Proof of Address, Payslips). Our team will contact you shortly with the exact requirements.</p>`;
+            break;
+          case 'delivered':
+            subject = "Congratulations on Your New Vehicle";
+            message = `<p>Hi ${firstName},</p><p>Congratulations on taking delivery of your new vehicle. Thank you for choosing Lumina Auto. We wish you many safe and happy miles.</p>`;
+            break;
+        }
+
+        if (subject && message) {
+          const emailHtml = `
+            <div style="font-family: system-ui, -apple-system, sans-serif; background-color: #09090b; color: #ffffff; padding: 40px; border-radius: 8px; max-width: 600px; margin: 0 auto; border: 1px solid #27272a;">
+              <h2 style="color: #ffffff; border-bottom: 1px solid #27272a; padding-bottom: 15px; font-weight: 500; letter-spacing: 1px;">LUMINA AUTO</h2>
+              <div style="color: #a1a1aa; font-size: 15px; line-height: 1.6; padding-top: 10px;">
+                ${message}
+              </div>
+              <br/><br/>
+              <p style="color: #52525b; font-size: 12px; border-top: 1px solid #27272a; padding-top: 15px;">
+                Pretoria, South Africa<br/>Premium Pre-Owned Vehicles & Finance
+              </p>
+            </div>
+          `;
+
+          supabase.functions.invoke('send-email', {
+            body: { to: [currentApp.email], subject, html: emailHtml }
+          }).catch(err => console.error("Auto-mailer failed:", err));
+        }
+      }
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['finance-applications'] });
-      toast.success('Application updated successfully');
+      toast.success('Status updated');
     },
-    onError: (error) => {
-      toast.error('Failed to update application: ' + error.message);
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to update application');
     },
   });
 };
