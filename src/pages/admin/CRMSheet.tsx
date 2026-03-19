@@ -77,28 +77,44 @@ const CRMSheet = () => {
   const gridData: GridRow[] = useMemo(() => {
     switch (activeTab) {
       case 'leads':
-        return leads.map((l) => ({
-          id: l.id,
-          type: 'lead' as const,
-          firstName: l.client_name?.split(' ')[0] || 'Unknown',
-          lastName: l.client_name?.split(' ').slice(1).join(' ') || '',
-          phone: l.client_phone || 'N/A',
-          status: l.status || 'new',
-          notes: l.notes || '',
-          options: LEAD_STATUS_OPTIONS,
-        }));
+        return leads
+          .filter(l => !['lost', 'converted'].includes(l.status || ''))
+          .map((l) => ({
+            id: l.id,
+            type: 'lead' as const,
+            firstName: l.client_name?.split(' ')[0] || 'Unknown',
+            lastName: l.client_name?.split(' ').slice(1).join(' ') || '',
+            phone: l.client_phone || 'N/A',
+            status: l.status || 'new',
+            notes: l.notes || '',
+            options: LEAD_STATUS_OPTIONS,
+          }));
       case 'apps_received':
-        return apps.filter((a) => a.status === 'pending').map(formatAppRow);
+        return apps.filter((a) => ['pending', 'under_review', 'needs_revision'].includes(a.status)).map(formatAppRow);
       case 'pre_approved':
-        return apps.filter((a) => a.status === 'pre_approved').map(formatAppRow);
+        return apps.filter((a) => ['pre_approved', 'vehicle_selected'].includes(a.status)).map(formatAppRow);
       case 'validated':
         return apps
-          .filter((a) => ['validations_pending', 'approved', 'vehicle_selected'].includes(a.status))
+          .filter((a) => ['validations_pending', 'approved'].includes(a.status))
           .map(formatAppRow);
       case 'aftersales':
         return apps.filter((a) => ['finalized', 'delivered'].includes(a.status)).map(formatAppRow);
-      case 'declined':
-        return apps.filter((a) => a.status === 'declined').map(formatAppRow);
+      case 'declined': {
+        const lostLeads: GridRow[] = leads
+          .filter(l => l.status === 'lost')
+          .map((l) => ({
+            id: l.id,
+            type: 'lead' as const,
+            firstName: l.client_name?.split(' ')[0] || 'Unknown',
+            lastName: l.client_name?.split(' ').slice(1).join(' ') || '',
+            phone: l.client_phone || 'N/A',
+            status: l.status || 'lost',
+            notes: l.notes || '',
+            options: LEAD_STATUS_OPTIONS,
+          }));
+        const declinedApps = apps.filter((a) => a.status === 'declined').map(formatAppRow);
+        return [...lostLeads, ...declinedApps];
+      }
       default:
         return [];
     }
