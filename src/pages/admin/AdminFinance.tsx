@@ -465,7 +465,7 @@ const AdminFinance = () => {
                         return (
                           <Select 
                             value={safeStatusKey} 
-                            onValueChange={(value) => handleInternalStatusChange(app.id, value)}
+                            onValueChange={(value) => handleStatusDropdownChange(app, value)}
                           >
                             <SelectTrigger className={`w-[200px] h-7 text-xs border ${statusConfig.color}`}>
                               <SelectValue />
