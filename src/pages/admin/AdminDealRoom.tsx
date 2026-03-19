@@ -467,16 +467,56 @@ const AdminDealRoom = () => {
   };
 
   const saveEdits = async () => {
+  const saveEdits = async (isForceEdit: boolean = false) => {
     if (!application) return;
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("No active session");
+
+      const updates = { ...editedData };
+      
+      if (!isForceEdit) {
+        (updates as any).status = 'needs_revision';
+      }
+
       await updateApplication.mutateAsync({ 
         id: application.id, 
-        updates: editedData as any
+        updates: updates as any
       });
-      setApplication(prev => prev ? { ...prev, ...editedData } : null);
+      
+      setApplication(prev => prev ? { ...prev, ...updates } : null);
       setIsEditing(false);
       setEditedData({});
-      toast.success('Application updated');
+
+      if (!isForceEdit) {
+        const revisionLink = `https://luminaauto.co.za/finance?edit=${application.id}`;
+        
+        const { error } = await supabase.functions.invoke('send-email', {
+          body: {
+            to: [application.email],
+            subject: "Lumina Auto - Finance Application Revision Required",
+            html: `
+              <h2>Action Required: Finance Application Revision</h2>
+              <p>Hi ${application.first_name || application.full_name?.split(' ')[0] || 'Client'},</p>
+              <p>Our F&I team has reviewed and adjusted your application figures to ensure maximum bank approval odds.</p>
+              <p>Please click the secure link below to review the adjustments and securely re-sign the document to authorize these changes.</p>
+              <br/>
+              <a href="${revisionLink}" style="padding: 10px 20px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">Review & Re-Sign Application</a>
+              <br/><br/>
+              <p>Best regards,<br/>The Lumina Auto F&I Team</p>
+            `
+          }
+        });
+
+        if (error) {
+          console.error('Email trigger failed:', error);
+          toast.error('Saved, but failed to dispatch email.');
+        } else {
+          toast.success('Edits saved & client notified for signature');
+        }
+      } else {
+        toast.success('Application forcefully updated (Silent)');
+      }
     } catch (error) {
       console.error('Failed to save edits:', error);
       toast.error('Failed to save changes');
