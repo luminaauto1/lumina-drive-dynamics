@@ -264,7 +264,7 @@ export const generateFinancePDF = async (application: FinanceApplication, vehicl
   const signatureUrl = application.signature_url;
   
   yPos += 10;
-  if (yPos > 220) {
+  if (yPos > 210) {
     doc.addPage();
     yPos = 30;
   }
@@ -277,25 +277,39 @@ export const generateFinancePDF = async (application: FinanceApplication, vehicl
   
   if (signatureUrl) {
     try {
-      // Use Image constructor method for reliable CORS handling
-      const sigBase64 = await getBase64FromUrl(signatureUrl);
-      doc.addImage(sigBase64, 'PNG', leftMargin, yPos, 60, 25);
-      yPos += 30;
+      let sigBase64 = signatureUrl;
+      
+      // If it's a remote URL (not a data URL), convert via canvas
+      if (!signatureUrl.startsWith('data:')) {
+        sigBase64 = await getBase64FromUrl(signatureUrl);
+      }
+      
+      // Draw signature box background
+      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(leftMargin, yPos, 70, 30, 2, 2, 'FD');
+      
+      // Add the signature image inside the box with padding
+      doc.addImage(sigBase64, 'PNG', leftMargin + 3, yPos + 2, 64, 26);
+      yPos += 34;
+      
       doc.setFontSize(8);
       doc.setTextColor(mutedColor);
       doc.text(`Digital Signature ID: ${application.id.slice(0, 8)}`, leftMargin, yPos);
+      yPos += 4;
+      doc.text('Legally binding digital signature trace.', leftMargin, yPos);
     } catch (err) {
       console.error('Signature Load Error', err);
       doc.setFontSize(8);
       doc.setTextColor(mutedColor);
-      doc.text('[Signature Verified on System]', leftMargin, yPos);
+      doc.text('[Signature Verified on System - Image Rendering Failed]', leftMargin, yPos);
       yPos += 10;
     }
   } else {
-    // No signature URL available at all
     doc.setFontSize(8);
     doc.setTextColor(mutedColor);
-    doc.text('[Signed Digitally]', leftMargin, yPos);
+    doc.text('[Signed Digitally - Image Pending]', leftMargin, yPos);
     yPos += 10;
   }
   
