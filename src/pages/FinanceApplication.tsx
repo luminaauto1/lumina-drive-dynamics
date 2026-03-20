@@ -511,6 +511,7 @@ const FinanceApplication = () => {
       has_drivers_license: formData.has_drivers_license === "yes" ? true : formData.has_drivers_license === "no" ? false : null,
       credit_score_status: formData.credit_score_status || null,
       status: isRevisionMode ? "revision_submitted" : "pending",
+      signature_url: formData.signature_url || null,
     };
 
     // 3. Save to Database - Update if resuming a draft, otherwise insert
