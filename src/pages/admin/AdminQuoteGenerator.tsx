@@ -240,10 +240,15 @@ const AdminQuoteGenerator = () => {
   const [scenarioTitle, setScenarioTitle] = useState('Option 1');
   const [quoteOptions, setQuoteOptions] = useState<QuoteOption[]>([]);
   const [copied, setCopied] = useState(false);
+  const [tradeInOffer, setTradeInOffer] = useState<number>(0);
+  const [settlementAmount, setSettlementAmount] = useState<number>(0);
 
-  /* ── derived calculation ── */
+  /* ── derived calculation (with shortfall/equity engine) ── */
   const extras = inputs.licenseFee + inputs.adminFee + inputs.warranty + inputs.initiationFee;
-  const totalFinanced = Math.max(0, inputs.price + extras - inputs.deposit);
+  const shortfall = Math.max(0, settlementAmount - tradeInOffer);
+  const tradeInEquity = Math.max(0, tradeInOffer - settlementAmount);
+  const effectiveDeposit = inputs.deposit + tradeInEquity;
+  const totalFinanced = Math.max(0, inputs.price + extras + shortfall - effectiveDeposit);
   const balloonAmount = Math.round(inputs.price * (inputs.balloon / 100));
   const basePmt = calculatePMT(totalFinanced, inputs.rate, inputs.term, balloonAmount);
   const installment = basePmt + inputs.monthlyFee;
