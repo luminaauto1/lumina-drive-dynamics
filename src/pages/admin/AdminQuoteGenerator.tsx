@@ -240,10 +240,15 @@ const AdminQuoteGenerator = () => {
   const [scenarioTitle, setScenarioTitle] = useState('Option 1');
   const [quoteOptions, setQuoteOptions] = useState<QuoteOption[]>([]);
   const [copied, setCopied] = useState(false);
+  const [tradeInOffer, setTradeInOffer] = useState<number>(0);
+  const [settlementAmount, setSettlementAmount] = useState<number>(0);
 
-  /* ── derived calculation ── */
+  /* ── derived calculation (with shortfall/equity engine) ── */
   const extras = inputs.licenseFee + inputs.adminFee + inputs.warranty + inputs.initiationFee;
-  const totalFinanced = Math.max(0, inputs.price + extras - inputs.deposit);
+  const shortfall = Math.max(0, settlementAmount - tradeInOffer);
+  const tradeInEquity = Math.max(0, tradeInOffer - settlementAmount);
+  const effectiveDeposit = inputs.deposit + tradeInEquity;
+  const totalFinanced = Math.max(0, inputs.price + extras + shortfall - effectiveDeposit);
   const balloonAmount = Math.round(inputs.price * (inputs.balloon / 100));
   const basePmt = calculatePMT(totalFinanced, inputs.rate, inputs.term, balloonAmount);
   const installment = basePmt + inputs.monthlyFee;
@@ -320,11 +325,42 @@ const AdminQuoteGenerator = () => {
             <Card className="glass-card">
               <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-2"><Calculator className="h-4 w-4" /> Vehicle & Deal</CardTitle></CardHeader>
               <CardContent className="space-y-4">
+            <Card className="glass-card border-border/50 bg-card/50">
+              <CardHeader className="pb-3"><CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Trade-In & Shortfall (Admin Only)</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Trade-In Offer (Lumina Pays)</Label>
+                    <Input type="number" placeholder="0" value={tradeInOffer || ''} onChange={(e) => setTradeInOffer(Number(e.target.value))} className="font-mono h-8 text-sm" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Settlement Amount (Client Owes)</Label>
+                    <Input type="number" placeholder="0" value={settlementAmount || ''} onChange={(e) => setSettlementAmount(Number(e.target.value))} className="font-mono h-8 text-sm" />
+                  </div>
+                </div>
+                {shortfall > 0 && (
+                  <div className="text-xs text-destructive bg-destructive/10 p-2.5 rounded border border-destructive/20 font-mono">
+                    Shortfall of R {shortfall.toLocaleString()} added to principal finance amount.
+                  </div>
+                )}
+                {tradeInEquity > 0 && (
+                  <div className="text-xs text-primary bg-primary/10 p-2.5 rounded border border-primary/20 font-mono">
+                    Equity of R {tradeInEquity.toLocaleString()} added to effective deposit.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="glass-card">
+              <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-2"><Calculator className="h-4 w-4" /> Vehicle & Deal</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
                 <ControlRow label="Vehicle Price" field="price" value={inputs.price} isVisible={show.price} onValueChange={v => updateInput('price', v)} onVisibilityChange={c => updateShow('price', c)} prefix="R" />
                 <ControlRow label="Deposit" field="deposit" value={inputs.deposit} isVisible={show.deposit} onValueChange={v => updateInput('deposit', v)} onVisibilityChange={c => updateShow('deposit', c)} prefix="R" min={0} max={inputs.price * 0.5} step={5000} slider />
                 <ControlRow label="Interest Rate" field="rate" value={inputs.rate} isVisible={show.rate} onValueChange={v => updateInput('rate', v)} onVisibilityChange={c => updateShow('rate', c)} suffix="%" min={7} max={25} step={0.1} slider />
                 <ControlRow label="Term (Months)" field="term" value={inputs.term} isVisible={show.term} onValueChange={v => updateInput('term', v)} onVisibilityChange={c => updateShow('term', c)} suffix="mo" min={12} max={96} step={12} slider />
                 <ControlRow label="Balloon %" field="balloon" value={inputs.balloon} isVisible={show.balloon} onValueChange={v => updateInput('balloon', v)} onVisibilityChange={c => updateShow('balloon', c)} suffix="%" min={0} max={75} step={5} slider />
+              </CardContent>
+            </Card>
               </CardContent>
             </Card>
 
