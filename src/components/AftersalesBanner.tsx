@@ -4,7 +4,7 @@ import { ShieldCheck, Wrench, Handshake } from 'lucide-react';
 const items = [
   {
     icon: ShieldCheck,
-    text: 'Lumina Certified Multi-Point Quality Check on Every Vehicle.',
+    text: 'Lumina Certified Multi-Point Quality Check on Every Used Vehicle.',
   },
   {
     icon: Wrench,
