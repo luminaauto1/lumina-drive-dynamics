@@ -7,7 +7,7 @@ const FloatingWhatsApp = () => {
 
   return (
     <motion.a
-      href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hi Lumina Auto, I am looking to get pre-approved for vehicle finance. Can you assist me?')}`}
+      href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hi Lumina Auto, I would like to inquire about vehicle finance.')}`}
       target="_blank"
       rel="noopener noreferrer"
       initial={{ scale: 0 }}
