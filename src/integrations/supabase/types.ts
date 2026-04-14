@@ -1068,6 +1068,7 @@ export type Database = {
           secondary_phone: string | null
           show_finance_tab: boolean
           show_physical_location: boolean
+          show_trade_in: boolean
           tiktok_url: string
           trustpilot_url: string | null
           updated_at: string
@@ -1101,6 +1102,7 @@ export type Database = {
           secondary_phone?: string | null
           show_finance_tab?: boolean
           show_physical_location?: boolean
+          show_trade_in?: boolean
           tiktok_url?: string
           trustpilot_url?: string | null
           updated_at?: string
@@ -1134,6 +1136,7 @@ export type Database = {
           secondary_phone?: string | null
           show_finance_tab?: boolean
           show_physical_location?: boolean
+          show_trade_in?: boolean
           tiktok_url?: string
           trustpilot_url?: string | null
           updated_at?: string
