@@ -295,7 +295,7 @@ const AdminSettings = () => {
 
   const isMaintenanceMode = watch('is_maintenance_mode');
   const showPhysicalLocation = watch('show_physical_location');
-  const showFinanceTab = watch('show_finance_tab');
+  const showTradeIn = watch('show_trade_in' as any) ?? true;
 
   if (isLoading) {
     return (
@@ -770,6 +770,19 @@ const AdminSettings = () => {
                   <Switch 
                     checked={showFinanceTab}
                     onCheckedChange={(checked) => setValue('show_finance_tab', checked)}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                  <div>
+                    <Label>Show "Trade-In Experts" Section</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Toggle the visibility of the trade-in feature card on the homepage
+                    </p>
+                  </div>
+                  <Switch 
+                    checked={showTradeIn}
+                    onCheckedChange={(checked) => setValue('show_trade_in' as any, checked)}
                   />
                 </div>
 
