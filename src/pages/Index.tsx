@@ -205,7 +205,7 @@ const Index = () => {
             </motion.h1>
 
             <motion.p variants={itemVariants} className="text-muted-foreground text-lg md:text-xl max-w-2xl mx-auto mb-10">
-              Experience Pretoria's most trusted, hassle-free finance process. We specialize in vehicle sourcing, bank-approved financing, and premium quality pre-owned sales.
+              Experience South Africas's most trusted, hassle-free finance process. We specialize in vehicle sourcing, bank-approved financing, and premium quality new & pre-owned sales.
             </motion.p>
 
             <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-center gap-4">
