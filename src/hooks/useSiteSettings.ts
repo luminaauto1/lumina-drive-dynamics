@@ -9,6 +9,7 @@ export interface SiteSettings {
   max_balloon_percent: number;
   default_balloon_percent: number | null;
   show_finance_tab: boolean;
+  show_trade_in: boolean;
   is_maintenance_mode: boolean;
   hero_headline: string;
   hero_subheadline: string;

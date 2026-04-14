@@ -69,7 +69,7 @@ const Index = () => {
     value: '101',
     label: 'Point Inspection'
   }];
-  const features = [{
+  const allFeatures = [{
     icon: Shield,
     title: 'Quality Assured',
     description: 'Every vehicle undergoes a rigorous 101-point inspection.'
@@ -86,6 +86,10 @@ const Index = () => {
     title: 'Trade-In Experts',
     description: 'Get the best value for your current vehicle.'
   }];
+
+  const features = settings?.show_trade_in === false
+    ? allFeatures.filter(f => f.title !== 'Trade-In Experts')
+    : allFeatures;
   const containerVariants = {
     hidden: {
       opacity: 0

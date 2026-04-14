@@ -1,0 +1,1 @@
+ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS show_trade_in BOOLEAN NOT NULL DEFAULT true;
