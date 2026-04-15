@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { Clock, Car, User, FileText } from 'lucide-react';
+import LiveCallCopilot from './LiveCallCopilot';
 
 interface UniversalClientHubProps {
   open: boolean;
@@ -156,7 +157,14 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
               </Button>
             </div>
 
-            <ScrollArea className="flex-1">
+            <LiveCallCopilot
+              clientEmail={clientEmail}
+              clientPhone={clientPhone}
+              clientName={masterName}
+              onCallEnd={fetchGlobalProfile}
+            />
+
+            <ScrollArea className="flex-1 mt-3">
               <div className="space-y-3 pl-4 relative before:absolute before:left-1.5 before:top-0 before:h-full before:w-px before:bg-border">
                 {logs.length === 0 ? (
                   <p className="text-[10px] text-muted-foreground italic text-center py-4">No history recorded yet.</p>
