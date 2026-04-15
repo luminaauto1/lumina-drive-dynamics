@@ -179,7 +179,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-2xl p-0 bg-card border-border overflow-hidden">
+      <SheetContent side="right" className="w-full sm:max-w-2xl p-0 bg-card border-border flex flex-col h-[100dvh]">
         <SheetHeader className="px-5 pt-5 pb-3 border-b border-white/10 bg-gradient-to-r from-zinc-900 to-black shadow-md">
           <div className="flex items-center justify-between">
             <div>
@@ -195,9 +195,9 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
           </div>
         </SheetHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-0 h-[calc(100vh-5rem)] overflow-hidden">
+        <div className="flex-1 overflow-y-auto md:overflow-hidden flex flex-col md:flex-row">
           {/* LEFT: Data */}
-          <div className="border-r border-border p-4 overflow-y-auto space-y-4">
+          <div className="w-full md:w-1/2 md:border-r border-b md:border-b-0 border-white/10 p-4 flex flex-col gap-4 md:overflow-y-auto flex-none md:flex-auto">
             <div className="space-y-2">
               <h3 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
                 <Car className="w-3 h-3" /> Active Finance Apps
@@ -234,7 +234,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
           </div>
 
           {/* RIGHT: Timeline */}
-          <div className="p-4 flex flex-col overflow-hidden">
+          <div className="w-full md:w-1/2 p-4 flex flex-col overflow-hidden">
             <h3 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mb-3">
               <Clock className="w-3 h-3" /> Universal Timeline
             </h3>
