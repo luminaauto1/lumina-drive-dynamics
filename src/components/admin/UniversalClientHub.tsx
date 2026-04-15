@@ -219,9 +219,9 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
           </div>
         </SheetHeader>
 
-        <div className="flex-1 flex flex-col md:flex-row md:overflow-hidden min-h-min">
+        <div className="flex-1 flex flex-col md:flex-row md:overflow-hidden min-h-0">
           {/* LEFT: Data */}
-          <div className="w-full md:w-1/2 md:border-r border-b md:border-b-0 border-white/10 p-6 flex flex-col gap-6 md:overflow-y-auto h-auto md:h-full shrink-0">
+          <div className="w-full md:w-1/2 md:border-r border-b md:border-b-0 border-white/10 p-6 flex flex-col gap-6 md:overflow-y-auto h-auto md:h-full">
             {/* 1. THE GARAGE (LIFETIME PURCHASES) */}
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-wider text-amber-500 mb-3 flex items-center gap-2">
