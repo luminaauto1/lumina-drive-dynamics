@@ -186,7 +186,16 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
     fetchGlobalProfile();
   };
 
-  const allApps = [...pastDeals, ...activeApps];
+  const handleDeleteNote = async (id: string) => {
+    const { error } = await supabase.from('client_audit_logs').delete().eq('id', id);
+    if (error) {
+      toast.error("Failed to delete note");
+    } else {
+      toast.success("Note permanently deleted");
+      fetchGlobalProfile();
+    }
+  };
+
   const masterName = allApps[0]?.first_name
     ? `${allApps[0].first_name} ${allApps[0].last_name || ''}`.trim()
     : allApps[0]?.full_name || leads[0]?.client_name || 'Unknown Client';
