@@ -287,7 +287,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
           </div>
 
           {/* RIGHT: Timeline */}
-          <div className="w-full md:w-1/2 p-6 flex flex-col bg-black/20 h-auto md:h-full shrink-0 overflow-hidden">
+          <div className="w-full md:w-1/2 p-6 flex flex-col bg-black/20 h-auto md:h-full min-h-0 overflow-hidden">
             <h3 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mb-3">
               <Clock className="w-3 h-3" /> Universal Timeline
             </h3>
