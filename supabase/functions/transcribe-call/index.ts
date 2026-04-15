@@ -11,47 +11,27 @@ serve(async (req) => {
 
   try {
     const formData = await req.formData();
-    const file = formData.get("file");
+    const file = formData.get("file") as File | null;
     const clientEmail = formData.get("clientEmail")?.toString();
     const clientPhone = formData.get("clientPhone")?.toString();
     const clientName = formData.get("clientName")?.toString();
 
     if (!file) throw new Error("No audio file provided.");
 
-    const openAiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!openAiKey) throw new Error("OPENAI_API_KEY is not set in secrets.");
-
-    // 1. Transcribe via OpenAI Whisper
-    const whisperFormData = new FormData();
-    whisperFormData.append("file", file);
-    whisperFormData.append("model", "whisper-1");
-
-    const whisperRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${openAiKey}` },
-      body: whisperFormData,
-    });
-
-    if (!whisperRes.ok) {
-      const errText = await whisperRes.text();
-      console.error("Whisper error:", whisperRes.status, errText);
-      throw new Error("Audio transcription failed.");
-    }
-
-    const whisperData = await whisperRes.json();
-    const transcript = whisperData.text;
-
-    if (!transcript || transcript.trim().length < 10) {
-      throw new Error("Transcription returned insufficient content.");
-    }
-
-    // 2. Summarize via Lovable AI Gateway
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
     if (!lovableKey) throw new Error("LOVABLE_API_KEY is not configured.");
 
-    const systemPrompt = `You are an elite, premium automotive F&I Sales Co-Pilot for Lumina Auto in South Africa. Client: ${clientName || "Unknown"}. Keep language sharp, professional, and direct.`;
-    const prompt = `Here is the full transcript of an uploaded sales call:\n"${transcript}"\n\nWrite a concise, professional CRM note summarizing the call. Focus on: Budget, Vehicle Interest, Timeline, and Next Steps. Do not use pleasantries. Format with bullet points.`;
+    // Convert audio file to base64
+    const arrayBuffer = await file.arrayBuffer();
+    const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
+    // Determine MIME type
+    const mimeType = file.type || "audio/webm";
+
+    const systemPrompt = `You are an elite, premium automotive F&I Sales Co-Pilot for Lumina Auto in South Africa. Client: ${clientName || "Unknown"}. Keep language sharp, professional, and direct.`;
+    const prompt = `Listen to this audio recording of a sales call. First transcribe it, then write a concise, professional CRM note summarizing the call. Focus on: Budget, Vehicle Interest, Timeline, and Next Steps. Do not use pleasantries. Format with bullet points under a "## Summary" heading.`;
+
+    // Send audio directly to Gemini via Lovable AI Gateway
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -59,10 +39,22 @@ serve(async (req) => {
         Authorization: `Bearer ${lovableKey}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: prompt },
+          {
+            role: "user",
+            content: [
+              {
+                type: "input_audio",
+                input_audio: {
+                  data: base64Audio,
+                  format: mimeType.includes("wav") ? "wav" : mimeType.includes("mp3") ? "mp3" : "webm",
+                },
+              },
+              { type: "text", text: prompt },
+            ],
+          },
         ],
         temperature: 0.7,
       }),
@@ -82,13 +74,13 @@ serve(async (req) => {
       }
       const errText = await aiResponse.text();
       console.error("AI gateway error:", status, errText);
-      throw new Error("AI summarization failed.");
+      throw new Error("AI transcription & summarization failed.");
     }
 
     const aiData = await aiResponse.json();
     const summary = aiData.choices?.[0]?.message?.content?.trim() || "No summary generated.";
 
-    // 3. Save to CRM Timeline
+    // Save to CRM Timeline
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
