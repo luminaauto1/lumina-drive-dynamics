@@ -110,7 +110,7 @@ const CRMSheet = () => {
   const updateApp = useUpdateFinanceApplication();
 
   const gridData: GridRow[] = useMemo(() => {
-    const mapLead = (l: any): GridRow => ({
+    const formatLeadRow = (l: any): GridRow => ({
       id: l.id,
       type: 'lead',
       firstName: l.client_name?.split(' ')[0] || 'Unknown',
@@ -125,20 +125,28 @@ const CRMSheet = () => {
 
     switch (activeTab) {
       case 'leads':
-        return leads.filter(l => !['lost', 'converted'].includes(l.status || '')).map(mapLead);
+        return leads.filter(l => {
+          const s = l.status?.toLowerCase()?.trim() || '';
+          return !['lost', 'converted', 'declined', 'finalized', 'delivered'].includes(s);
+        }).map(formatLeadRow);
       case 'apps_received':
-        return apps.filter(a => ['pending', 'under_review', 'needs_revision'].includes(a.status)).map(formatAppRow);
+        return apps.filter(a => ['pending', 'under_review', 'needs_revision'].includes(a.status?.toLowerCase()?.trim())).map(formatAppRow);
       case 'pre_approved':
-        return apps.filter(a => ['pre_approved', 'vehicle_selected'].includes(a.status)).map(formatAppRow);
+        return apps.filter(a => ['pre_approved', 'vehicle_selected'].includes(a.status?.toLowerCase()?.trim())).map(formatAppRow);
       case 'validated':
-        return apps.filter(a => ['validations_pending', 'approved'].includes(a.status)).map(formatAppRow);
+        return apps.filter(a => ['validations_pending', 'approved'].includes(a.status?.toLowerCase()?.trim())).map(formatAppRow);
       case 'aftersales':
-        return apps.filter(a => ['finalized', 'delivered'].includes(a.status)).map(formatAppRow);
-      case 'declined': {
-        const lostLeads = leads.filter(l => l.status === 'lost').map(mapLead);
-        const declinedApps = apps.filter(a => a.status === 'declined').map(formatAppRow);
-        return [...lostLeads, ...declinedApps];
-      }
+        return apps.filter(a => ['finalized', 'delivered'].includes(a.status?.toLowerCase()?.trim())).map(formatAppRow);
+      case 'finalized':
+        return [
+          ...leads.filter(l => ['finalized', 'delivered', 'converted'].includes(l.status?.toLowerCase()?.trim())).map(formatLeadRow),
+          ...apps.filter(a => ['finalized', 'delivered'].includes(a.status?.toLowerCase()?.trim())).map(formatAppRow)
+        ];
+      case 'declined':
+        return [
+          ...leads.filter(l => l.status?.toLowerCase()?.trim() === 'lost').map(formatLeadRow),
+          ...apps.filter(a => a.status?.toLowerCase()?.trim() === 'declined').map(formatAppRow)
+        ];
       default:
         return [];
     }
@@ -307,6 +315,7 @@ const CRMSheet = () => {
               <TabsTrigger value="pre_approved" className="text-[10px] py-1 px-2">Pre-Approved</TabsTrigger>
               <TabsTrigger value="validated" className="text-[10px] py-1 px-2">Validated</TabsTrigger>
               <TabsTrigger value="aftersales" className="text-[10px] py-1 px-2">Aftersales</TabsTrigger>
+              <TabsTrigger value="finalized" className="text-[10px] py-1 px-2 data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400">Finalized Deals</TabsTrigger>
               <TabsTrigger value="declined" className="text-[10px] py-1 px-2">Lost & Declined</TabsTrigger>
             </TabsList>
           </Tabs>
