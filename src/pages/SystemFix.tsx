@@ -115,6 +115,31 @@ ON CONFLICT (id) DO NOTHING;`;
 const SystemFix = () => {
   const [copied, setCopied] = useState(false);
   const [applied, setApplied] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+
+  const handleRestoreArchivedDeals = async () => {
+    setRestoring(true);
+    try {
+      const { error: financeError } = await supabase
+        .from('finance_applications')
+        .update({ status: 'finalized' })
+        .eq('status', 'archived')
+        .not('id_number', 'is', null);
+      if (financeError) throw financeError;
+
+      const { error: leadsError } = await supabase
+        .from('leads')
+        .update({ status: 'finalized' })
+        .eq('status', 'archived')
+        .not('client_phone', 'is', null);
+      if (leadsError) throw leadsError;
+
+      toast.success("System Fix Complete: Archived deals restored to Finalized.");
+    } catch (error: any) {
+      toast.error(`Fix Failed: ${error.message}`);
+    }
+    setRestoring(false);
+  };
 
   const handleCopy = async () => {
     try {
