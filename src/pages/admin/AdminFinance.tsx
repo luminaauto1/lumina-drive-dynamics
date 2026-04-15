@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import UniversalClientHub from '@/components/admin/UniversalClientHub';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
@@ -68,6 +69,17 @@ const AdminFinance = () => {
   const [deliveryModalOpen, setDeliveryModalOpen] = useState(false);
   const [selectedAppForDelivery, setSelectedAppForDelivery] = useState<FinanceApplication | null>(null);
   const [cashDealModalOpen, setCashDealModalOpen] = useState(false);
+
+  // Universal Client Hub state
+  const [hubOpen, setHubOpen] = useState(false);
+  const [selectedEmail, setSelectedEmail] = useState<string | undefined>();
+  const [selectedPhone, setSelectedPhone] = useState<string | undefined>();
+
+  const openClientHub = (email?: string, phone?: string) => {
+    setSelectedEmail(email || undefined);
+    setSelectedPhone(phone || undefined);
+    setHubOpen(true);
+  };
 
   // CRM Audit Trail Modal State
   const [statusModalOpen, setStatusModalOpen] = useState(false);
@@ -167,6 +179,16 @@ const AdminFinance = () => {
         } as any)
         .eq('id', pendingApp.id);
       if (error) throw error;
+
+      // Dual-sync: Push to Global Universal Timeline
+      await supabase.from('client_audit_logs').insert([{
+        client_email: pendingApp.email || null,
+        client_phone: pendingApp.phone || null,
+        note: `[Finance Stage Updated to ${INTERNAL_STATUSES[pendingStatus as keyof typeof INTERNAL_STATUSES]?.label || pendingStatus}] ${statusNote || 'No comment'}`,
+        author_name: 'F&I Admin',
+        action_type: 'Status Update'
+      }]);
+
       toast({ title: "Status & CRM notes updated" });
       refetch();
     } catch (error: any) {
@@ -409,12 +431,15 @@ const AdminFinance = () => {
                     className={`border-white/10 hover:bg-white/5 cursor-pointer ${isNew ? 'bg-emerald-500/5' : ''} ${isStagnant ? 'bg-orange-500/5' : ''}`}
                     onClick={() => navigate(`/admin/finance/${app.id}`)}
                   >
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-2">
-                        <div>
+                        <button
+                          onClick={(e) => { e.preventDefault(); openClientHub(app.email, app.phone); }}
+                          className="hover:text-emerald-400 hover:underline cursor-pointer text-left focus:outline-none"
+                        >
                           <p className="font-medium">{app.first_name} {app.last_name}</p>
                           <p className="text-xs text-muted-foreground">{app.email}</p>
-                        </div>
+                        </button>
                         {isNew && (
                           <span className="px-1.5 py-0.5 text-[10px] uppercase font-bold rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse">
                             🔥 NEW
@@ -638,6 +663,13 @@ const AdminFinance = () => {
           </DialogContent>
         </Dialog>
       </div>
+
+      <UniversalClientHub
+        open={hubOpen}
+        onOpenChange={setHubOpen}
+        clientEmail={selectedEmail}
+        clientPhone={selectedPhone}
+      />
     </AdminLayout>
   );
 };

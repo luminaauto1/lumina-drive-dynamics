@@ -219,14 +219,20 @@ const CRMSheet = () => {
                   gridData.map((row) => (
                     <TableRow key={row.id} className={`h-7 border-l-2 ${getStatusColor(row.status)}`}>
                       <TableCell className="py-0.5 px-2 text-[11px] font-medium">
-                        <span className="cursor-pointer hover:text-primary hover:underline transition-colors" onClick={() => openClientHub(row.email, row.phone)}>
+                        <button
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); openClientHub(row.email, row.phone); }}
+                          className="hover:text-emerald-400 hover:underline cursor-pointer text-left focus:outline-none w-full truncate"
+                        >
                           {row.firstName}
-                        </span>
+                        </button>
                       </TableCell>
                       <TableCell className="py-0.5 px-2 text-[11px]">
-                        <span className="cursor-pointer hover:text-primary hover:underline transition-colors" onClick={() => openClientHub(row.email, row.phone)}>
+                        <button
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); openClientHub(row.email, row.phone); }}
+                          className="hover:text-emerald-400 hover:underline cursor-pointer text-left focus:outline-none w-full truncate"
+                        >
                           {row.lastName}
-                        </span>
+                        </button>
                       </TableCell>
                       <TableCell className="py-0.5 px-2 text-[11px] font-mono">{row.phone}</TableCell>
                       <TableCell className={`py-0.5 px-2 text-[10px] ${getThermalAgeColor(row.createdAt)}`}>
