@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Sheet, Plus, ArrowRightLeft } from 'lucide-react';
+import UniversalClientHub from '@/components/admin/UniversalClientHub';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -51,6 +52,7 @@ interface GridRow {
   type: 'lead' | 'finance';
   firstName: string;
   lastName: string;
+  email: string;
   phone: string;
   status: string;
   notes: string;
@@ -64,6 +66,7 @@ function formatAppRow(app: any): GridRow {
     type: 'finance',
     firstName: app.first_name || app.full_name?.split(' ')[0] || 'Unknown',
     lastName: app.last_name || app.full_name?.split(' ').slice(1).join(' ') || '',
+    email: app.email || '',
     phone: app.phone || 'N/A',
     status: app.status || 'pending',
     notes: app.notes || '',
