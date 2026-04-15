@@ -196,7 +196,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
     }
   };
 
-  const masterName = allApps[0]?.first_name
+  const allApps = [...pastDeals, ...activeApps];
     ? `${allApps[0].first_name} ${allApps[0].last_name || ''}`.trim()
     : allApps[0]?.full_name || leads[0]?.client_name || 'Unknown Client';
 
