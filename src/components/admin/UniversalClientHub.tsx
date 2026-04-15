@@ -3,10 +3,13 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { Clock, Car, User, FileText } from 'lucide-react';
+import { Clock, Car, User, FileText, Calculator } from 'lucide-react';
 import LiveCallCopilot from './LiveCallCopilot';
 
 interface UniversalClientHubProps {
@@ -16,16 +19,42 @@ interface UniversalClientHubProps {
   clientPhone?: string;
 }
 
+const getCardBorderClass = (status: string) => {
+  const green = ['approved', 'delivered', 'finalized', 'qualified', 'converted'];
+  const red = ['declined', 'lost'];
+  const blue = ['pre_approved', 'vehicle_selected', 'validations_pending'];
+  if (green.includes(status)) return 'border-emerald-500/30';
+  if (red.includes(status)) return 'border-red-500/30';
+  if (blue.includes(status)) return 'border-blue-500/30';
+  return 'border-amber-500/30';
+};
+
 export default function UniversalClientHub({ open, onOpenChange, clientEmail, clientPhone }: UniversalClientHubProps) {
   const [logs, setLogs] = useState<any[]>([]);
   const [financeApps, setFinanceApps] = useState<any[]>([]);
   const [leads, setLeads] = useState<any[]>([]);
   const [newNote, setNewNote] = useState('');
 
+  // Calculator state
+  const [calcOpen, setCalcOpen] = useState(false);
+  const [calcPrice, setCalcPrice] = useState(0);
+  const [calcDeposit, setCalcDeposit] = useState(0);
+  const [calcTradeIn, setCalcTradeIn] = useState(0);
+  const [calcSettlement, setCalcSettlement] = useState(0);
+  const [calcTerm, setCalcTerm] = useState(72);
+  const [calcRate, setCalcRate] = useState(13.25);
+
+  const shortfall = Math.max(0, calcSettlement - calcTradeIn);
+  const equity = Math.max(0, calcTradeIn - calcSettlement);
+  const principal = (calcPrice || 0) + shortfall - (calcDeposit || 0) - equity;
+  const monthlyRate = (calcRate || 13.25) / 100 / 12;
+  const pmt = principal > 0 && calcRate > 0
+    ? (principal * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -(calcTerm || 72)))
+    : (principal / (calcTerm || 72));
+
   const fetchGlobalProfile = useCallback(async () => {
     if (!clientEmail && !clientPhone) return;
 
-    // Fetch Finance Apps
     let financeQuery = supabase.from('finance_applications').select('*');
     if (clientEmail && clientPhone) {
       financeQuery = financeQuery.or(`email.eq.${clientEmail},phone.eq.${clientPhone}`);
@@ -37,7 +66,6 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
     const { data: fData } = await financeQuery;
     setFinanceApps(fData || []);
 
-    // Fetch Leads
     let leadQuery = supabase.from('leads').select('*');
     if (clientEmail && clientPhone) {
       leadQuery = leadQuery.or(`client_email.eq.${clientEmail},client_phone.eq.${clientPhone}`);
@@ -49,7 +77,6 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
     const { data: lData } = await leadQuery;
     setLeads(lData || []);
 
-    // Fetch Audit Logs
     let logQuery = supabase.from('client_audit_logs').select('*').order('created_at', { ascending: false });
     if (clientEmail && clientPhone) {
       logQuery = logQuery.or(`client_email.eq.${clientEmail},client_phone.eq.${clientPhone}`);
@@ -94,11 +121,18 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-2xl p-0 bg-card border-border overflow-hidden">
         <SheetHeader className="px-5 pt-5 pb-3 border-b border-white/10 bg-gradient-to-r from-zinc-900 to-black shadow-md">
-          <div className="flex items-center gap-2">
-            <User className="w-4 h-4 text-emerald-400" />
-            <SheetTitle className="text-sm">{masterName}</SheetTitle>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 text-emerald-400" />
+                <SheetTitle className="text-sm">{masterName}</SheetTitle>
+              </div>
+              <p className="text-[10px] text-muted-foreground">{clientEmail || 'No Email'} | {clientPhone || 'No Phone'}</p>
+            </div>
+            <Button onClick={() => setCalcOpen(true)} size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2 text-xs">
+              <Calculator className="w-3 h-3" /> Quick Quote
+            </Button>
           </div>
-          <p className="text-[10px] text-muted-foreground">{clientEmail || 'No Email'} | {clientPhone || 'No Phone'}</p>
         </SheetHeader>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-0 h-[calc(100vh-5rem)] overflow-hidden">
@@ -111,7 +145,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
               {financeApps.length === 0 ? (
                 <p className="text-[10px] text-muted-foreground italic">No applications found.</p>
               ) : financeApps.map(app => (
-                <div key={app.id} className="p-2.5 rounded-md bg-muted/30 border border-border space-y-1 hover:border-emerald-500/30 transition-colors">
+                <div key={app.id} className={`p-2.5 rounded-md bg-muted/30 border ${getCardBorderClass(app.status)} space-y-1 hover:brightness-110 transition-all`}>
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-medium text-foreground">{app.full_name}</span>
                     <span className={`text-[9px] px-1.5 py-0.5 rounded border ${['approved','finalized','delivered'].includes(app.status) ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' : ['declined'].includes(app.status) ? 'bg-red-500/20 text-red-400 border-red-500/50' : 'bg-amber-500/20 text-amber-400 border-amber-500/50'}`}>{app.status}</span>
@@ -128,7 +162,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
               {leads.length === 0 ? (
                 <p className="text-[10px] text-muted-foreground italic">No active leads.</p>
               ) : leads.map(lead => (
-                <div key={lead.id} className="p-2.5 rounded-md bg-muted/30 border border-border space-y-1 hover:border-blue-500/30 transition-colors">
+                <div key={lead.id} className={`p-2.5 rounded-md bg-muted/30 border ${getCardBorderClass(lead.status)} space-y-1 hover:brightness-110 transition-all`}>
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-medium text-foreground">{lead.client_name || 'Lead'}</span>
                     <span className={`text-[9px] px-1.5 py-0.5 rounded border ${['converted','qualified'].includes(lead.status) ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' : ['lost'].includes(lead.status) ? 'bg-red-500/20 text-red-400 border-red-500/50' : 'bg-blue-500/20 text-blue-400 border-blue-500/50'}`}>{lead.status}</span>
@@ -186,6 +220,62 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
             </ScrollArea>
           </div>
         </div>
+
+        {/* Quick Quote Calculator Modal */}
+        <Dialog open={calcOpen} onOpenChange={setCalcOpen}>
+          <DialogContent className="sm:max-w-md bg-card border-border">
+            <DialogHeader>
+              <DialogTitle className="text-sm flex items-center gap-2">
+                <Calculator className="w-4 h-4 text-emerald-400" /> Fast Finance Quote
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Vehicle Price</Label>
+                  <Input type="number" value={calcPrice || ''} onChange={(e) => setCalcPrice(Number(e.target.value))} className="bg-muted/30 border-border h-8 text-xs" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Cash Deposit</Label>
+                  <Input type="number" value={calcDeposit || ''} onChange={(e) => setCalcDeposit(Number(e.target.value))} className="bg-muted/30 border-border h-8 text-xs" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Trade-In Offer</Label>
+                  <Input type="number" value={calcTradeIn || ''} onChange={(e) => setCalcTradeIn(Number(e.target.value))} className="bg-muted/30 border-border h-8 text-xs" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Settlement (Owed)</Label>
+                  <Input type="number" value={calcSettlement || ''} onChange={(e) => setCalcSettlement(Number(e.target.value))} className="bg-muted/30 border-border h-8 text-xs" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Term (Months)</Label>
+                  <Input type="number" value={calcTerm || ''} onChange={(e) => setCalcTerm(Number(e.target.value))} className="bg-muted/30 border-border h-8 text-xs" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Interest Rate (%)</Label>
+                  <Input type="number" step="0.25" value={calcRate || ''} onChange={(e) => setCalcRate(Number(e.target.value))} className="bg-muted/30 border-border h-8 text-xs" />
+                </div>
+              </div>
+
+              <div className="border-t border-border pt-3 mt-2">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-md bg-muted/30 border border-border text-center">
+                    <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Principal Financed</p>
+                    <p className="text-sm font-bold text-foreground">R {principal.toLocaleString()}</p>
+                  </div>
+                  <div className="p-3 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-center">
+                    <p className="text-[9px] text-emerald-400 uppercase tracking-wider">Est. Installment</p>
+                    <p className="text-sm font-bold text-emerald-400">R {Math.round(pmt).toLocaleString()} /mo</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </SheetContent>
     </Sheet>
   );
