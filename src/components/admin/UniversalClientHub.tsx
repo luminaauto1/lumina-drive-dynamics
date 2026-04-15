@@ -93,9 +93,9 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-2xl p-0 bg-card border-border overflow-hidden">
-        <SheetHeader className="px-5 pt-5 pb-3 border-b border-border">
+        <SheetHeader className="px-5 pt-5 pb-3 border-b border-white/10 bg-gradient-to-r from-zinc-900 to-black shadow-md">
           <div className="flex items-center gap-2">
-            <User className="w-4 h-4 text-primary" />
+            <User className="w-4 h-4 text-emerald-400" />
             <SheetTitle className="text-sm">{masterName}</SheetTitle>
           </div>
           <p className="text-[10px] text-muted-foreground">{clientEmail || 'No Email'} | {clientPhone || 'No Phone'}</p>
@@ -111,10 +111,10 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
               {financeApps.length === 0 ? (
                 <p className="text-[10px] text-muted-foreground italic">No applications found.</p>
               ) : financeApps.map(app => (
-                <div key={app.id} className="p-2.5 rounded-md bg-muted/30 border border-border space-y-1">
+                <div key={app.id} className="p-2.5 rounded-md bg-muted/30 border border-border space-y-1 hover:border-emerald-500/30 transition-colors">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-medium text-foreground">{app.full_name}</span>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">{app.status}</span>
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded border ${['approved','finalized','delivered'].includes(app.status) ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' : ['declined'].includes(app.status) ? 'bg-red-500/20 text-red-400 border-red-500/50' : 'bg-amber-500/20 text-amber-400 border-amber-500/50'}`}>{app.status}</span>
                   </div>
                   <p className="text-[9px] text-muted-foreground font-mono">ID: {app.id.slice(0, 8)}</p>
                 </div>
@@ -128,10 +128,10 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
               {leads.length === 0 ? (
                 <p className="text-[10px] text-muted-foreground italic">No active leads.</p>
               ) : leads.map(lead => (
-                <div key={lead.id} className="p-2.5 rounded-md bg-muted/30 border border-border space-y-1">
+                <div key={lead.id} className="p-2.5 rounded-md bg-muted/30 border border-border space-y-1 hover:border-blue-500/30 transition-colors">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-medium text-foreground">{lead.client_name || 'Lead'}</span>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">{lead.status}</span>
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded border ${['converted','qualified'].includes(lead.status) ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' : ['lost'].includes(lead.status) ? 'bg-red-500/20 text-red-400 border-red-500/50' : 'bg-blue-500/20 text-blue-400 border-blue-500/50'}`}>{lead.status}</span>
                   </div>
                   <p className="text-[9px] text-muted-foreground">Created: {format(new Date(lead.created_at), 'dd MMM yyyy')}</p>
                 </div>
