@@ -154,7 +154,12 @@ const CRMSheet = () => {
     }
   }, [activeTab, leads, apps]);
 
-  const handleStatusChange = async (id: string, type: string, newStatus: string) => {
+  const handleStatusChange = async (id: string, type: string, newStatus: string, currentStatus: string) => {
+    if (newStatus === 'finalized' && currentStatus !== 'archived') {
+      toast.error("Action Blocked: You must use the Deal Room / Podium to finalize active deals to ensure all delivery data is captured.");
+      return;
+    }
+
     if (type === 'lead') {
       await updateLead.mutateAsync({ id, updates: { status: newStatus } as any });
     } else {
@@ -262,7 +267,7 @@ const CRMSheet = () => {
                         {row.createdAt ? format(new Date(row.createdAt), 'dd MMM') : 'N/A'}
                       </TableCell>
                       <TableCell className="py-0.5 px-2">
-                        <Select value={row.status} onValueChange={(val) => handleStatusChange(row.id, row.type, val)}>
+                        <Select value={row.status} onValueChange={(val) => handleStatusChange(row.id, row.type, val, row.status)}>
                           <SelectTrigger className={`h-6 text-[10px] w-[130px] rounded-md border px-2 ${getStatusColor(row.status)}`}>
                             <SelectValue />
                           </SelectTrigger>
