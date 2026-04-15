@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import LiveCallCopilot from "@/components/admin/LiveCallCopilot";
 import { useNavigate } from "react-router-dom";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -343,6 +344,15 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
                     <Button size="sm" className="bg-blue-600 hover:bg-blue-500 h-7 text-xs font-bold" onClick={addActivity}>Save</Button>
                   </div>
                 </div>
+              </div>
+
+              {/* AI Co-Pilot */}
+              <div className="p-4 border-b border-zinc-800 shrink-0">
+                <LiveCallCopilot
+                  clientEmail={lead?.client_email}
+                  clientPhone={lead?.client_phone}
+                  clientName={lead?.client_name}
+                />
               </div>
 
               {/* Activity History */}
