@@ -140,6 +140,36 @@ export type Database = {
           },
         ]
       }
+      client_audit_logs: {
+        Row: {
+          action_type: string | null
+          author_name: string | null
+          client_email: string | null
+          client_phone: string | null
+          created_at: string | null
+          id: string
+          note: string
+        }
+        Insert: {
+          action_type?: string | null
+          author_name?: string | null
+          client_email?: string | null
+          client_phone?: string | null
+          created_at?: string | null
+          id?: string
+          note: string
+        }
+        Update: {
+          action_type?: string | null
+          author_name?: string | null
+          client_email?: string | null
+          client_phone?: string | null
+          created_at?: string | null
+          id?: string
+          note?: string
+        }
+        Relationships: []
+      }
       client_comments: {
         Row: {
           admin_id: string
