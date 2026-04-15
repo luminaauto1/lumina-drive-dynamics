@@ -29,7 +29,7 @@ export const usePublicVehicles = () => {
     queryKey: ['publicVehicles'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('vehicles')
+        .from('public_vehicles' as any)
         .select('*')
         .in('status', ['available', 'sourcing', 'incoming'])
         .order('created_at', { ascending: false });
@@ -45,7 +45,7 @@ export const useVehicle = (id: string) => {
     queryKey: ['vehicles', id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('vehicles')
+        .from('public_vehicles' as any)
         .select('*')
         .eq('id', id)
         .single();
