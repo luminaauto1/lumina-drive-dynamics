@@ -56,12 +56,12 @@ serve(async (req: Request) => {
     if (deal.application_id) {
       const { data: app } = await supabaseAdmin
         .from("finance_applications")
-        .select("first_name, full_name, vehicle_id")
+        .select("first_name, full_name, vehicle_id, handover_name")
         .eq("id", deal.application_id)
         .single();
 
       if (app) {
-        clientFirstName = app.first_name || app.full_name?.split(" ")[0] || "Valued Client";
+        clientFirstName = app.handover_name || app.first_name || app.full_name?.split(" ")[0] || "Valued Client";
 
         if (app.vehicle_id) {
           const { data: vehicle } = await supabaseAdmin

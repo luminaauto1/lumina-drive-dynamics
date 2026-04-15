@@ -3,16 +3,35 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Upload, Copy, Gift, Trash2 } from "lucide-react";
+import { Loader2, Upload, Copy, Gift, Trash2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { APP_DOMAIN } from "@/lib/appConfig";
 
-export const HandoverSetupModal = ({ dealId, currentPhotos = [], clientName = '' }: { dealId: string; currentPhotos?: string[]; clientName?: string }) => {
+interface HandoverSetupModalProps {
+  dealId: string;
+  currentPhotos?: string[];
+  clientName?: string;
+  applicationId?: string;
+  firstName?: string;
+  lastName?: string;
+}
+
+export const HandoverSetupModal = ({ dealId, currentPhotos = [], clientName = '', applicationId, firstName = '', lastName = '' }: HandoverSetupModalProps) => {
   const [photos, setPhotos] = useState<string[]>(currentPhotos);
   const [uploading, setUploading] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [handoverName, setHandoverName] = useState<string>(clientName);
+  const [nameFormat, setNameFormat] = useState('full');
+  const [customName, setCustomName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  const getDisplayName = () => {
+    if (nameFormat === 'first') return firstName || '';
+    if (nameFormat === 'full') return `${firstName || ''} ${lastName || ''}`.trim();
+    if (nameFormat === 'last') return `Mr/Ms ${lastName || ''}`;
+    return customName;
+  };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
@@ -37,13 +56,33 @@ export const HandoverSetupModal = ({ dealId, currentPhotos = [], clientName = ''
     setUploading(false);
   };
 
+  const handleSaveHandoverConfig = async () => {
+    if (!applicationId) {
+      toast.error("No linked application found for this deal");
+      return;
+    }
+    setIsSaving(true);
+    const finalName = getDisplayName();
+
+    const { error } = await supabase
+      .from('finance_applications')
+      .update({ handover_name: finalName } as any)
+      .eq('id', applicationId);
+
+    setIsSaving(false);
+    if (error) {
+      toast.error("Failed to save handover configuration");
+    } else {
+      toast.success(`Handover name saved: "${finalName}"`);
+    }
+  };
+
   const copyLink = async () => {
-    const nameParam = handoverName.trim() ? `?name=${encodeURIComponent(handoverName.trim())}` : '';
-    const url = `${APP_DOMAIN}/handover/${dealId}${nameParam}`;
+    const url = `${APP_DOMAIN}/handover/${dealId}`;
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
-      toast.success("Custom handover link copied to clipboard.");
+      toast.success("Handover link copied to clipboard.");
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error("Could not copy link.");
@@ -115,15 +154,50 @@ export const HandoverSetupModal = ({ dealId, currentPhotos = [], clientName = ''
             </div>
           )}
 
-          {/* HANDOVER NAME OVERRIDE */}
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Display Name on Handover Screen</Label>
-            <Input
-              value={handoverName}
-              onChange={(e) => setHandoverName(e.target.value)}
-              className="bg-background border-input h-9 text-sm"
-              placeholder="e.g., John & Jane Doe"
-            />
+          {/* HANDOVER NAME CONFIGURATION */}
+          <div className="space-y-3 p-4 bg-black/20 border border-white/10 rounded-md">
+            <h3 className="text-sm font-medium text-zinc-200">Handover Display Name</h3>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-zinc-400">Select Display Name Format</Label>
+              <Select value={nameFormat} onValueChange={setNameFormat}>
+                <SelectTrigger className="w-full bg-black/50 border-white/10 text-sm h-9">
+                  <SelectValue placeholder="Select format" />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-950 border-white/10">
+                  <SelectItem value="first" className="text-xs">First Name Only ({firstName || '—'})</SelectItem>
+                  <SelectItem value="full" className="text-xs">Full Name ({firstName} {lastName})</SelectItem>
+                  <SelectItem value="last" className="text-xs">Surname (Mr/Ms {lastName || '—'})</SelectItem>
+                  <SelectItem value="custom" className="text-xs">Custom (e.g., Mr. & Mrs. Smith)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {nameFormat === 'custom' && (
+              <div className="space-y-1.5">
+                <Label className="text-xs text-zinc-400">Enter Custom Name</Label>
+                <Input
+                  value={customName}
+                  onChange={(e) => setCustomName(e.target.value)}
+                  className="bg-black/50 border-white/10 h-9 text-sm focus:border-primary"
+                  placeholder="e.g., Mr. & Mrs. Smith"
+                />
+              </div>
+            )}
+
+            <p className="text-[10px] text-muted-foreground">
+              Preview: <span className="text-emerald-400 font-medium">Congratulations, {getDisplayName() || '...'}</span>
+            </p>
+
+            <Button
+              onClick={handleSaveHandoverConfig}
+              disabled={isSaving || (nameFormat === 'custom' && !customName) || !applicationId}
+              size="sm"
+              className="w-full bg-zinc-800 hover:bg-zinc-700 text-white border border-white/10"
+            >
+              <Save className="w-3 h-3 mr-1.5" />
+              {isSaving ? 'Saving...' : 'Save Name to Database'}
+            </Button>
           </div>
 
           {/* LINK GENERATOR */}
@@ -131,7 +205,7 @@ export const HandoverSetupModal = ({ dealId, currentPhotos = [], clientName = ''
             <div className="min-w-0 mr-3">
               <p className="text-xs font-semibold text-emerald-500">Handover Link Ready</p>
               <p className="text-xs text-muted-foreground truncate">
-                {APP_DOMAIN}/handover/{dealId}{handoverName.trim() ? `?name=${encodeURIComponent(handoverName.trim())}` : ''}
+                {APP_DOMAIN}/handover/{dealId}
               </p>
             </div>
             <Button size="sm" variant="outline" onClick={copyLink}>
