@@ -26,29 +26,29 @@ const LEAD_STATUS_OPTIONS = [
   { value: 'lost', label: 'Lost' },
 ];
 
-const getStatusBadge = (status: string) => {
-  const green = ['approved', 'delivered', 'finalized', 'qualified', 'converted'];
-  const red = ['declined', 'lost'];
-  const blue = ['pre_approved', 'vehicle_selected', 'validations_pending'];
-  const yellow = ['new', 'pending', 'contacted', 'in_progress', 'under_review', 'needs_revision'];
-
-  if (green.includes(status)) return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.1)]';
-  if (red.includes(status)) return 'bg-red-500/20 text-red-400 border-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.1)]';
-  if (blue.includes(status)) return 'bg-blue-500/20 text-blue-400 border-blue-500/50 shadow-[0_0_10px_rgba(59,130,246,0.1)]';
-  if (yellow.includes(status)) return 'bg-amber-500/20 text-amber-400 border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.1)]';
-  return 'bg-zinc-800/50 text-zinc-300 border-zinc-600';
+const getStatusColor = (status: string) => {
+  const s = (status || '').toLowerCase().trim();
+  if (['new', 'draft'].includes(s)) return 'border-zinc-400 bg-zinc-500/10 text-zinc-300';
+  if (['contacted'].includes(s)) return 'border-sky-400 bg-sky-500/10 text-sky-400';
+  if (['in_progress'].includes(s)) return 'border-yellow-400 bg-yellow-500/10 text-yellow-400';
+  if (['pending', 'application_submitted', 'needs_revision', 'revision_submitted', 'under_review'].includes(s)) return 'border-orange-500 bg-orange-500/10 text-orange-400';
+  if (['pre_approved', 'documents_received', 'vehicle_selected', 'approved'].includes(s)) return 'border-purple-500 bg-purple-500/10 text-purple-400';
+  if (['validations_pending', 'validations_complete', 'contract_sent', 'contract_signed'].includes(s)) return 'border-blue-500 bg-blue-500/10 text-blue-400';
+  if (['finalized', 'delivered', 'vehicle_delivered', 'converted', 'qualified'].includes(s)) return 'border-emerald-500 bg-emerald-500/10 text-emerald-400';
+  if (['lost', 'declined', 'archived'].includes(s)) return 'border-red-500 bg-red-500/10 text-red-400';
+  return 'border-zinc-600 bg-zinc-500/10 text-zinc-300';
 };
 
 const getRowBorderColor = (status: string) => {
-  const green = ['approved', 'delivered', 'finalized', 'qualified', 'converted'];
-  const red = ['declined', 'lost'];
-  const blue = ['pre_approved', 'vehicle_selected', 'validations_pending'];
-  const yellow = ['new', 'pending', 'contacted', 'in_progress', 'under_review', 'needs_revision'];
-
-  if (green.includes(status)) return 'border-l-emerald-500';
-  if (red.includes(status)) return 'border-l-red-500';
-  if (blue.includes(status)) return 'border-l-blue-500';
-  if (yellow.includes(status)) return 'border-l-amber-500';
+  const s = (status || '').toLowerCase().trim();
+  if (['new', 'draft'].includes(s)) return 'border-l-zinc-400';
+  if (['contacted'].includes(s)) return 'border-l-sky-400';
+  if (['in_progress'].includes(s)) return 'border-l-yellow-400';
+  if (['pending', 'application_submitted', 'needs_revision', 'revision_submitted', 'under_review'].includes(s)) return 'border-l-orange-500';
+  if (['pre_approved', 'documents_received', 'vehicle_selected', 'approved'].includes(s)) return 'border-l-purple-500';
+  if (['validations_pending', 'validations_complete', 'contract_sent', 'contract_signed'].includes(s)) return 'border-l-blue-500';
+  if (['finalized', 'delivered', 'vehicle_delivered', 'converted', 'qualified'].includes(s)) return 'border-l-emerald-500';
+  if (['lost', 'declined', 'archived'].includes(s)) return 'border-l-red-500';
   return 'border-l-zinc-600';
 };
 
@@ -65,27 +65,11 @@ interface GridRow {
   type: 'lead' | 'finance';
   firstName: string;
   lastName: string;
-  email: string;
   phone: string;
   status: string;
   notes: string;
   createdAt: string;
   options: { value: string; label: string }[];
-}
-
-function formatAppRow(app: any): GridRow {
-  return {
-    id: app.id,
-    type: 'finance',
-    firstName: app.first_name || app.full_name?.split(' ')[0] || 'Unknown',
-    lastName: app.last_name || app.full_name?.split(' ').slice(1).join(' ') || '',
-    email: app.email || '',
-    phone: app.phone || 'N/A',
-    status: app.status || 'pending',
-    notes: app.notes || '',
-    createdAt: app.created_at,
-    options: FINANCE_STATUS_OPTIONS,
-  };
 }
 
 const CRMSheet = () => {
@@ -110,12 +94,11 @@ const CRMSheet = () => {
   const updateApp = useUpdateFinanceApplication();
 
   const gridData: GridRow[] = useMemo(() => {
-    const formatLeadRow = (l: any): GridRow => ({
+    const mapLead = (l: any): GridRow => ({
       id: l.id,
       type: 'lead',
       firstName: l.client_name?.split(' ')[0] || 'Unknown',
       lastName: l.client_name?.split(' ').slice(1).join(' ') || '',
-      email: l.client_email || '',
       phone: l.client_phone || 'N/A',
       status: l.status || 'new',
       notes: l.notes || '',
@@ -123,29 +106,46 @@ const CRMSheet = () => {
       options: LEAD_STATUS_OPTIONS,
     });
 
+    const mapApp = (a: any): GridRow => ({
+      id: a.id,
+      type: 'finance',
+      firstName: a.first_name || a.full_name?.split(' ')[0] || 'Unknown',
+      lastName: a.last_name || a.full_name?.split(' ').slice(1).join(' ') || '',
+      phone: a.phone || 'N/A',
+      status: a.status || 'pending',
+      notes: a.notes || '',
+      createdAt: a.created_at,
+      options: FINANCE_STATUS_OPTIONS,
+    });
+
+    const safeStatus = (s: any) => (s || '').toLowerCase().trim();
+
     switch (activeTab) {
       case 'leads':
-        return leads.filter(l => {
-          const s = l.status?.toLowerCase()?.trim() || '';
-          return !['lost', 'converted', 'declined', 'finalized', 'delivered'].includes(s);
-        }).map(formatLeadRow);
+        return leads
+          .filter(l => !['lost', 'converted', 'declined', 'finalized', 'delivered', 'vehicle_delivered', 'archived'].includes(safeStatus(l.status)))
+          .map(mapLead);
       case 'apps_received':
-        return apps.filter(a => ['pending', 'under_review', 'needs_revision'].includes(a.status?.toLowerCase()?.trim())).map(formatAppRow);
+        return apps
+          .filter(a => ['pending', 'application_submitted', 'under_review', 'needs_revision', 'revision_submitted'].includes(safeStatus(a.status)))
+          .map(mapApp);
       case 'pre_approved':
-        return apps.filter(a => ['pre_approved', 'vehicle_selected'].includes(a.status?.toLowerCase()?.trim())).map(formatAppRow);
+        return apps
+          .filter(a => ['pre_approved', 'vehicle_selected', 'documents_received', 'approved'].includes(safeStatus(a.status)))
+          .map(mapApp);
       case 'validated':
-        return apps.filter(a => ['validations_pending', 'approved'].includes(a.status?.toLowerCase()?.trim())).map(formatAppRow);
-      case 'aftersales':
-        return apps.filter(a => ['finalized', 'delivered'].includes(a.status?.toLowerCase()?.trim())).map(formatAppRow);
+        return apps
+          .filter(a => ['validations_pending', 'validations_complete', 'contract_sent', 'contract_signed'].includes(safeStatus(a.status)))
+          .map(mapApp);
       case 'finalized':
         return [
-          ...leads.filter(l => ['finalized', 'delivered', 'converted'].includes(l.status?.toLowerCase()?.trim())).map(formatLeadRow),
-          ...apps.filter(a => ['finalized', 'delivered'].includes(a.status?.toLowerCase()?.trim())).map(formatAppRow)
+          ...leads.filter(l => ['finalized', 'delivered', 'vehicle_delivered'].includes(safeStatus(l.status))).map(mapLead),
+          ...apps.filter(a => ['finalized', 'delivered', 'vehicle_delivered'].includes(safeStatus(a.status))).map(mapApp)
         ];
       case 'declined':
         return [
-          ...leads.filter(l => l.status?.toLowerCase()?.trim() === 'lost').map(formatLeadRow),
-          ...apps.filter(a => a.status?.toLowerCase()?.trim() === 'declined').map(formatAppRow)
+          ...leads.filter(l => ['lost', 'archived'].includes(safeStatus(l.status))).map(mapLead),
+          ...apps.filter(a => ['declined', 'archived'].includes(safeStatus(a.status))).map(mapApp)
         ];
       default:
         return [];
@@ -238,10 +238,10 @@ const CRMSheet = () => {
                   </TableRow>
                 ) : (
                   gridData.map((row) => (
-                    <TableRow key={row.id} className={`h-7 border-l-2 ${getRowBorderColor(row.status)} even:bg-white/[0.02] odd:bg-transparent`}>
+                    <TableRow key={row.id} className={`h-7 border-l-2 ${getRowBorderColor(row.status)} even:bg-white/[0.02] odd:bg-transparent`} onClick={() => openClientHub(undefined, row.phone)}>
                       <TableCell className="py-0.5 px-2 text-[11px] font-medium">
                         <button
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); openClientHub(row.email, row.phone); }}
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); openClientHub(undefined, row.phone); }}
                           className="hover:text-emerald-400 hover:underline cursor-pointer text-left focus:outline-none w-full truncate"
                         >
                           {row.firstName}
@@ -249,7 +249,7 @@ const CRMSheet = () => {
                       </TableCell>
                       <TableCell className="py-0.5 px-2 text-[11px]">
                         <button
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); openClientHub(row.email, row.phone); }}
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); openClientHub(undefined, row.phone); }}
                           className="hover:text-emerald-400 hover:underline cursor-pointer text-left focus:outline-none w-full truncate"
                         >
                           {row.lastName}
@@ -261,7 +261,7 @@ const CRMSheet = () => {
                       </TableCell>
                       <TableCell className="py-0.5 px-2">
                         <Select value={row.status} onValueChange={(val) => handleStatusChange(row.id, row.type, val)}>
-                          <SelectTrigger className={`h-6 text-[10px] w-[130px] rounded-md border px-2 ${getStatusBadge(row.status)}`}>
+                          <SelectTrigger className={`h-6 text-[10px] w-[130px] rounded-md border px-2 ${getStatusColor(row.status)}`}>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -312,9 +312,8 @@ const CRMSheet = () => {
             <TabsList className="w-full justify-start overflow-x-auto h-8">
               <TabsTrigger value="leads" className="text-[10px] py-1 px-2">Leads</TabsTrigger>
               <TabsTrigger value="apps_received" className="text-[10px] py-1 px-2">Apps Received</TabsTrigger>
-              <TabsTrigger value="pre_approved" className="text-[10px] py-1 px-2">Pre-Approved</TabsTrigger>
-              <TabsTrigger value="validated" className="text-[10px] py-1 px-2">Validated</TabsTrigger>
-              <TabsTrigger value="aftersales" className="text-[10px] py-1 px-2">Aftersales</TabsTrigger>
+              <TabsTrigger value="pre_approved" className="text-[10px] py-1 px-2">Pre-Approved & Docs</TabsTrigger>
+              <TabsTrigger value="validated" className="text-[10px] py-1 px-2">Validated & Contracts</TabsTrigger>
               <TabsTrigger value="finalized" className="text-[10px] py-1 px-2 data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400">Finalized Deals</TabsTrigger>
               <TabsTrigger value="declined" className="text-[10px] py-1 px-2">Lost & Declined</TabsTrigger>
             </TabsList>
