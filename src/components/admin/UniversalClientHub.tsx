@@ -203,7 +203,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-2xl p-0 bg-card border-border flex flex-col h-[100dvh] overflow-y-auto md:overflow-hidden">
+      <SheetContent side="right" className="w-full sm:max-w-2xl p-0 bg-card border-border flex flex-col h-[100dvh] overflow-y-auto md:overflow-hidden" aria-describedby={undefined}>
         <SheetHeader className="px-5 pt-5 pb-3 border-b border-white/10 bg-gradient-to-r from-zinc-900 to-black shadow-md">
           <div className="flex items-center justify-between">
             <div>
