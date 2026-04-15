@@ -1509,7 +1509,7 @@ const AdminAftersales = () => {
                               >
                                 <Eye className="w-4 h-4" />
                               </Button>
-                              <HandoverSetupModal dealId={deal.id} currentPhotos={(deal as any).delivery_photos || []} clientName={deal.application?.full_name || ''} />
+                              <HandoverSetupModal dealId={deal.id} currentPhotos={(deal as any).delivery_photos || []} clientName={deal.application?.full_name || ''} applicationId={deal.application_id || ''} firstName={deal.application?.first_name || ''} lastName={deal.application?.last_name || ''} />
                               {!isLocked && (
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
