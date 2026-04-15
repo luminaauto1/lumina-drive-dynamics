@@ -16,6 +16,7 @@ export default function LiveCallCopilot({ clientEmail, clientPhone, clientName, 
   const [transcript, setTranscript] = useState('');
   const [liveHint, setLiveHint] = useState('Start the call. I will listen and provide live suggestions here.');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [language, setLanguage] = useState<'en-ZA' | 'af-ZA'>('en-ZA');
   const recognitionRef = useRef<any>(null);
   const lastHintTimeRef = useRef(Date.now());
 
@@ -75,6 +76,7 @@ export default function LiveCallCopilot({ clientEmail, clientPhone, clientName, 
     setTranscript('');
     setLiveHint('Listening... waiting for conversation context.');
     if (recognitionRef.current) {
+      recognitionRef.current.lang = language;
       recognitionRef.current.start();
       setIsListening(true);
     } else {
@@ -112,13 +114,21 @@ export default function LiveCallCopilot({ clientEmail, clientPhone, clientName, 
           <Sparkles className="w-3 h-3 text-primary" />
           <span className="text-[10px] font-semibold text-primary">AI Co-Pilot Live</span>
         </div>
-        <Button
-          onClick={toggleListening}
-          size="sm"
-          variant={isListening ? 'destructive' : 'default'}
-          className="h-7 text-[10px] gap-1"
-          disabled={isProcessing}
-        >
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setLanguage(lang => lang === 'en-ZA' ? 'af-ZA' : 'en-ZA')}
+            disabled={isListening}
+            className="text-[10px] px-2 py-1 rounded bg-black/50 border border-white/10 text-zinc-400 hover:text-white disabled:opacity-50 transition-colors"
+          >
+            {language === 'en-ZA' ? '🇬🇧 EN' : '🇿🇦 AF'}
+          </button>
+          <Button
+            onClick={toggleListening}
+            size="sm"
+            variant={isListening ? 'destructive' : 'default'}
+            className="h-7 text-[10px] gap-1"
+            disabled={isProcessing}
+          >
           {isProcessing ? (
             <Loader2 className="w-3 h-3 animate-spin" />
           ) : isListening ? (
@@ -126,7 +136,8 @@ export default function LiveCallCopilot({ clientEmail, clientPhone, clientName, 
           ) : (
             <><Mic className="w-3 h-3" /> Start Call / Listen</>
           )}
-        </Button>
+          </Button>
+        </div>
       </div>
 
       {/* Live Coach Display */}
