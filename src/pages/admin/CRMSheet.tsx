@@ -24,6 +24,8 @@ const LEAD_STATUS_OPTIONS = [
   { value: 'qualified', label: 'Qualified' },
   { value: 'converted', label: 'Converted to App' },
   { value: 'lost', label: 'Lost' },
+  { value: 'finalized', label: 'Finalized' },
+  { value: 'archived', label: 'Archived' },
 ];
 
 const getStatusColor = (status: string) => {

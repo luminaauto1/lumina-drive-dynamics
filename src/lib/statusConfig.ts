@@ -15,6 +15,8 @@ export const STATUS_OPTIONS = [
   { value: 'vehicle_selected', label: 'Vehicle Selected' },
   { value: 'needs_revision', label: 'Needs Revision' },
   { value: 'revision_submitted', label: 'Revision Submitted' },
+  { value: 'finalized', label: 'Finalized / Delivered' },
+  { value: 'archived', label: 'Archived' },
 ];
 
 // Step order for progress tracking (0-indexed)
