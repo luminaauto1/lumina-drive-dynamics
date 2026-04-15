@@ -29,8 +29,10 @@ export default function LiveCallCopilot({ clientEmail, clientPhone, clientName, 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
       const recognition = new SpeechRecognition();
+      // Device detection: disable interimResults on mobile to prevent jitter
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       recognition.continuous = true;
-      recognition.interimResults = true;
+      recognition.interimResults = !isMobile;
 
       recognition.onresult = (event: any) => {
         let interimTranscript = '';
