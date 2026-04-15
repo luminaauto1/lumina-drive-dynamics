@@ -5,11 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Slider } from '@/components/ui/slider';
+import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { Clock, Car, User, FileText, Calculator } from 'lucide-react';
+import { Clock, Car, User, FileText, Calculator, Copy, Check, Plus, X, Eye } from 'lucide-react';
 import LiveCallCopilot from './LiveCallCopilot';
 
 interface UniversalClientHubProps {
