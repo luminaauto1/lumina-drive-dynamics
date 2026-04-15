@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import UniversalClientHub from "@/components/admin/UniversalClientHub";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -90,6 +91,15 @@ const AdminLeads = () => {
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [hubOpen, setHubOpen] = useState(false);
+  const [selectedHubEmail, setSelectedHubEmail] = useState<string | undefined>();
+  const [selectedHubPhone, setSelectedHubPhone] = useState<string | undefined>();
+
+  const handleCardClick = (email?: string, phone?: string) => {
+    setSelectedHubEmail(email || undefined);
+    setSelectedHubPhone(phone || undefined);
+    setHubOpen(true);
+  };
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [newAccounts, setNewAccounts] = useState<any[]>([]);
 
@@ -450,7 +460,7 @@ const AdminLeads = () => {
                                     <Card
                                       ref={provided.innerRef}
                                       {...provided.draggableProps}
-                                      onClick={() => setSelectedLeadId(lead.id)}
+                                      onClick={() => handleCardClick(lead.client_email || undefined, lead.client_phone || undefined)}
                                       className={`lead-card p-3 relative group transition-all cursor-pointer border-l-4 ${col.color.replace('border-', 'border-l-')} bg-card hover:bg-accent/50 ${snapshot.isDragging ? 'shadow-lg ring-2 ring-primary/30' : ''}`}
                                     >
                                       <div {...provided.dragHandleProps} className="absolute top-2 left-1 opacity-0 group-hover:opacity-50 transition-opacity">
@@ -510,6 +520,12 @@ const AdminLeads = () => {
         isOpen={!!selectedLeadId}
         onClose={() => setSelectedLeadId(null)}
         onUpdate={fetchLeads}
+      />
+      <UniversalClientHub
+        open={hubOpen}
+        onOpenChange={setHubOpen}
+        clientEmail={selectedHubEmail}
+        clientPhone={selectedHubPhone}
       />
     </AdminLayout>
   );

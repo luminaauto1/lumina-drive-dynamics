@@ -26,17 +26,30 @@ const LEAD_STATUS_OPTIONS = [
   { value: 'lost', label: 'Lost' },
 ];
 
-const getStatusColor = (status: string) => {
+const getStatusBadge = (status: string) => {
   const green = ['approved', 'delivered', 'finalized', 'qualified', 'converted'];
   const red = ['declined', 'lost'];
   const blue = ['pre_approved', 'vehicle_selected', 'validations_pending'];
   const yellow = ['new', 'pending', 'contacted', 'in_progress', 'under_review', 'needs_revision'];
 
-  if (green.includes(status)) return 'border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20';
-  if (red.includes(status)) return 'border-red-500 bg-red-500/10 hover:bg-red-500/20';
-  if (blue.includes(status)) return 'border-blue-500 bg-blue-500/10 hover:bg-blue-500/20';
-  if (yellow.includes(status)) return 'border-amber-500 bg-amber-500/10 hover:bg-amber-500/20';
-  return 'border-zinc-500 bg-zinc-500/10 hover:bg-zinc-500/20';
+  if (green.includes(status)) return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.1)]';
+  if (red.includes(status)) return 'bg-red-500/20 text-red-400 border-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.1)]';
+  if (blue.includes(status)) return 'bg-blue-500/20 text-blue-400 border-blue-500/50 shadow-[0_0_10px_rgba(59,130,246,0.1)]';
+  if (yellow.includes(status)) return 'bg-amber-500/20 text-amber-400 border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.1)]';
+  return 'bg-zinc-800/50 text-zinc-300 border-zinc-600';
+};
+
+const getRowBorderColor = (status: string) => {
+  const green = ['approved', 'delivered', 'finalized', 'qualified', 'converted'];
+  const red = ['declined', 'lost'];
+  const blue = ['pre_approved', 'vehicle_selected', 'validations_pending'];
+  const yellow = ['new', 'pending', 'contacted', 'in_progress', 'under_review', 'needs_revision'];
+
+  if (green.includes(status)) return 'border-l-emerald-500';
+  if (red.includes(status)) return 'border-l-red-500';
+  if (blue.includes(status)) return 'border-l-blue-500';
+  if (yellow.includes(status)) return 'border-l-amber-500';
+  return 'border-l-zinc-600';
 };
 
 const getThermalAgeColor = (dateString: string) => {
@@ -217,7 +230,7 @@ const CRMSheet = () => {
                   </TableRow>
                 ) : (
                   gridData.map((row) => (
-                    <TableRow key={row.id} className={`h-7 border-l-2 ${getStatusColor(row.status)}`}>
+                    <TableRow key={row.id} className={`h-7 border-l-2 ${getRowBorderColor(row.status)} even:bg-white/[0.02] odd:bg-transparent`}>
                       <TableCell className="py-0.5 px-2 text-[11px] font-medium">
                         <button
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); openClientHub(row.email, row.phone); }}
@@ -240,7 +253,7 @@ const CRMSheet = () => {
                       </TableCell>
                       <TableCell className="py-0.5 px-2">
                         <Select value={row.status} onValueChange={(val) => handleStatusChange(row.id, row.type, val)}>
-                          <SelectTrigger className="h-6 text-[10px] w-[130px] border-transparent bg-transparent">
+                          <SelectTrigger className={`h-6 text-[10px] w-[130px] rounded-md border px-2 ${getStatusBadge(row.status)}`}>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>

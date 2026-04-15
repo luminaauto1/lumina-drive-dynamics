@@ -36,7 +36,6 @@ const menuItems: MenuItem[] = [
     icon: Users,
     children: [
       { title: 'Pipeline', path: '/admin/leads' },
-      { title: 'Contacts', path: '/admin/contacts' },
       { title: 'CRM Sheet', path: '/admin/crm-sheet' },
     ],
   },
