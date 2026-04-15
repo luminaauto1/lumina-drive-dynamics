@@ -1,14 +1,18 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Upload, Copy, Gift, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { APP_DOMAIN } from "@/lib/appConfig";
 
-export const HandoverSetupModal = ({ dealId, currentPhotos = [] }: { dealId: string; currentPhotos?: string[] }) => {
+export const HandoverSetupModal = ({ dealId, currentPhotos = [], clientName = '' }: { dealId: string; currentPhotos?: string[]; clientName?: string }) => {
   const [photos, setPhotos] = useState<string[]>(currentPhotos);
   const [uploading, setUploading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [handoverName, setHandoverName] = useState<string>(clientName);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
@@ -34,11 +38,12 @@ export const HandoverSetupModal = ({ dealId, currentPhotos = [] }: { dealId: str
   };
 
   const copyLink = async () => {
-    const url = `${window.location.origin}/handover/${dealId}`;
+    const nameParam = handoverName.trim() ? `?name=${encodeURIComponent(handoverName.trim())}` : '';
+    const url = `${APP_DOMAIN}/handover/${dealId}${nameParam}`;
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
-      toast.success("Link copied! Send this to the client.");
+      toast.success("Custom handover link copied to clipboard.");
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error("Could not copy link.");
@@ -110,12 +115,23 @@ export const HandoverSetupModal = ({ dealId, currentPhotos = [] }: { dealId: str
             </div>
           )}
 
+          {/* HANDOVER NAME OVERRIDE */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Display Name on Handover Screen</Label>
+            <Input
+              value={handoverName}
+              onChange={(e) => setHandoverName(e.target.value)}
+              className="bg-background border-input h-9 text-sm"
+              placeholder="e.g., John & Jane Doe"
+            />
+          </div>
+
           {/* LINK GENERATOR */}
           <div className="flex items-center justify-between bg-zinc-900 rounded-lg p-3 border border-zinc-800">
             <div className="min-w-0 mr-3">
               <p className="text-xs font-semibold text-emerald-500">Handover Link Ready</p>
               <p className="text-xs text-muted-foreground truncate">
-                {window.location.origin}/handover/{dealId}
+                {APP_DOMAIN}/handover/{dealId}{handoverName.trim() ? `?name=${encodeURIComponent(handoverName.trim())}` : ''}
               </p>
             </div>
             <Button size="sm" variant="outline" onClick={copyLink}>
