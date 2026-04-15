@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.analyze-business-state]
 verify_jwt = false
+
+[functions.sales-copilot]
+verify_jwt = false
