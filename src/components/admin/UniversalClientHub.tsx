@@ -126,8 +126,14 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
     }
     const { data: fData } = await financeQuery;
     if (fData) {
-      setPastDeals(fData.filter(app => ['finalized', 'delivered'].includes(app.status?.toLowerCase())));
-      setActiveApps(fData.filter(app => !['finalized', 'delivered', 'declined', 'lost'].includes(app.status?.toLowerCase())));
+      setPastDeals(fData.filter(app => {
+        const s = app.status?.toLowerCase()?.trim() || '';
+        return ['finalized', 'delivered'].includes(s);
+      }));
+      setActiveApps(fData.filter(app => {
+        const s = app.status?.toLowerCase()?.trim() || '';
+        return !['finalized', 'delivered', 'declined', 'lost'].includes(s);
+      }));
     } else {
       setPastDeals([]);
       setActiveApps([]);
@@ -187,7 +193,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-2xl p-0 bg-card border-border flex flex-col h-[100dvh]">
+      <SheetContent side="right" className="w-full sm:max-w-2xl p-0 bg-card border-border flex flex-col h-[100dvh] overflow-y-auto md:overflow-hidden">
         <SheetHeader className="px-5 pt-5 pb-3 border-b border-white/10 bg-gradient-to-r from-zinc-900 to-black shadow-md">
           <div className="flex items-center justify-between">
             <div>
@@ -203,9 +209,9 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
           </div>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto md:overflow-hidden flex flex-col md:flex-row">
+        <div className="flex-1 flex flex-col md:flex-row md:overflow-hidden min-h-min">
           {/* LEFT: Data */}
-          <div className="w-full md:w-1/2 md:border-r border-b md:border-b-0 border-white/10 p-4 flex flex-col gap-6 md:overflow-y-auto flex-none md:flex-auto">
+          <div className="w-full md:w-1/2 md:border-r border-b md:border-b-0 border-white/10 p-6 flex flex-col gap-6 md:overflow-y-auto h-auto md:h-full shrink-0">
             {/* 1. THE GARAGE (LIFETIME PURCHASES) */}
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-wider text-amber-500 mb-3 flex items-center gap-2">
@@ -271,7 +277,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
           </div>
 
           {/* RIGHT: Timeline */}
-          <div className="w-full md:w-1/2 p-6 flex flex-col bg-black/20 flex-none md:flex-auto md:h-full">
+          <div className="w-full md:w-1/2 p-6 flex flex-col bg-black/20 h-auto md:h-full shrink-0">
             <h3 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mb-3">
               <Clock className="w-3 h-3" /> Universal Timeline
             </h3>
@@ -295,7 +301,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
               onCallEnd={fetchGlobalProfile}
             />
 
-            <ScrollArea className="h-[500px] md:h-auto md:flex-1 mt-3 pr-4">
+            <ScrollArea className="h-auto md:h-auto md:flex-1 mt-3 pr-4">
               <div className="space-y-3 pl-4 relative before:absolute before:left-1.5 before:top-0 before:h-full before:w-px before:bg-border">
                 {logs.length === 0 ? (
                   <p className="text-[10px] text-muted-foreground italic text-center py-4">No history recorded yet.</p>
