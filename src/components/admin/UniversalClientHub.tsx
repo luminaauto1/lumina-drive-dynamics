@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { Clock, Car, User, FileText, Calculator, Copy, Check, Plus, X, Eye } from 'lucide-react';
+import { Clock, Car, User, FileText, Calculator, Copy, Check, Plus, X, Eye, Trophy } from 'lucide-react';
 import LiveCallCopilot from './LiveCallCopilot';
 
 interface UniversalClientHubProps {
@@ -34,7 +34,8 @@ const getCardBorderClass = (status: string) => {
 
 export default function UniversalClientHub({ open, onOpenChange, clientEmail, clientPhone }: UniversalClientHubProps) {
   const [logs, setLogs] = useState<any[]>([]);
-  const [financeApps, setFinanceApps] = useState<any[]>([]);
+  const [activeApps, setActiveApps] = useState<any[]>([]);
+  const [pastDeals, setPastDeals] = useState<any[]>([]);
   const [leads, setLeads] = useState<any[]>([]);
   const [newNote, setNewNote] = useState('');
 
@@ -124,7 +125,13 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
       financeQuery = financeQuery.eq('phone', clientPhone);
     }
     const { data: fData } = await financeQuery;
-    setFinanceApps(fData || []);
+    if (fData) {
+      setPastDeals(fData.filter(app => ['finalized', 'delivered'].includes(app.status?.toLowerCase())));
+      setActiveApps(fData.filter(app => !['finalized', 'delivered', 'declined', 'lost'].includes(app.status?.toLowerCase())));
+    } else {
+      setPastDeals([]);
+      setActiveApps([]);
+    }
 
     let leadQuery = supabase.from('leads').select('*');
     if (clientEmail && clientPhone) {
@@ -173,9 +180,10 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
     fetchGlobalProfile();
   };
 
-  const masterName = financeApps[0]?.first_name
-    ? `${financeApps[0].first_name} ${financeApps[0].last_name || ''}`.trim()
-    : financeApps[0]?.full_name || leads[0]?.client_name || 'Unknown Client';
+  const allApps = [...pastDeals, ...activeApps];
+  const masterName = allApps[0]?.first_name
+    ? `${allApps[0].first_name} ${allApps[0].last_name || ''}`.trim()
+    : allApps[0]?.full_name || leads[0]?.client_name || 'Unknown Client';
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -197,37 +205,66 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
 
         <div className="flex-1 overflow-y-auto md:overflow-hidden flex flex-col md:flex-row">
           {/* LEFT: Data */}
-          <div className="w-full md:w-1/2 md:border-r border-b md:border-b-0 border-white/10 p-4 flex flex-col gap-4 md:overflow-y-auto flex-none md:flex-auto">
-            <div className="space-y-2">
-              <h3 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                <Car className="w-3 h-3" /> Active Finance Apps
+          <div className="w-full md:w-1/2 md:border-r border-b md:border-b-0 border-white/10 p-4 flex flex-col gap-6 md:overflow-y-auto flex-none md:flex-auto">
+            {/* 1. THE GARAGE (LIFETIME PURCHASES) */}
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-amber-500 mb-3 flex items-center gap-2">
+                <Trophy className="w-4 h-4"/> The Garage (Purchase History)
               </h3>
-              {financeApps.length === 0 ? (
-                <p className="text-[10px] text-muted-foreground italic">No applications found.</p>
-              ) : financeApps.map(app => (
-                <div key={app.id} className={`p-2.5 rounded-md bg-muted/30 border ${getCardBorderClass(app.status)} space-y-1 hover:brightness-110 transition-all`}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-medium text-foreground">{app.full_name}</span>
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded border ${['approved','finalized','delivered'].includes(app.status) ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' : ['declined'].includes(app.status) ? 'bg-red-500/20 text-red-400 border-red-500/50' : 'bg-amber-500/20 text-amber-400 border-amber-500/50'}`}>{app.status}</span>
+              {pastDeals.length === 0 ? (
+                <div className="bg-black/30 border border-white/5 p-3 rounded-md flex items-center gap-3 shadow-inner">
+                  <div className="p-2 bg-zinc-900 border border-white/5 rounded-full"><Car className="w-4 h-4 text-zinc-600"/></div>
+                  <div>
+                    <p className="text-xs font-medium text-zinc-300">First-Time Buyer</p>
+                    <p className="text-[10px] text-zinc-500">No finalized deliveries on record.</p>
                   </div>
-                  <p className="text-[9px] text-muted-foreground font-mono">ID: {app.id.slice(0, 8)}</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="text-[10px] text-amber-500/80 mb-2 font-mono uppercase tracking-wider">Total Vehicles Bought: {pastDeals.length}</div>
+                  {pastDeals.map(deal => (
+                    <div key={deal.id} className="bg-gradient-to-r from-amber-950/30 to-black border border-amber-500/20 p-3 rounded-md flex justify-between items-center shadow-[0_0_15px_rgba(245,158,11,0.05)]">
+                      <div>
+                        <p className="text-sm font-bold text-amber-400">{deal.preferred_vehicle_text || deal.full_name || 'Unknown Vehicle'}</p>
+                        <p className="text-[10px] text-zinc-400 font-mono mt-0.5">App ID: {deal.id.slice(0,8)}</p>
+                      </div>
+                      <span className="text-[9px] px-2 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 uppercase tracking-wider font-bold">
+                        {deal.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 2. ACTIVE FINANCE PIPELINE */}
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-emerald-500 mb-3 flex items-center gap-2">
+                <Car className="w-4 h-4"/> Active Applications
+              </h3>
+              {activeApps.length === 0 ? <p className="text-xs text-zinc-600 italic">No active applications.</p> : activeApps.map(app => (
+                <div key={app.id} className="bg-black/50 border border-emerald-500/20 p-3 rounded-md mb-2 shadow-[0_0_10px_rgba(16,185,129,0.05)]">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-xs font-bold text-white">{app.preferred_vehicle_text || app.full_name || 'Vehicle Pending'}</span>
+                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase font-bold tracking-wider">{app.status?.replace('_', ' ')}</span>
+                  </div>
+                  <p className="text-[10px] text-zinc-500 font-mono">App ID: {app.id.slice(0,8)}</p>
                 </div>
               ))}
             </div>
 
-            <div className="space-y-2">
-              <h3 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                <FileText className="w-3 h-3" /> CRM Leads
+            {/* 3. CRM LEADS */}
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-blue-500 mb-3 flex items-center gap-2">
+                <FileText className="w-4 h-4"/> Active CRM Leads
               </h3>
-              {leads.length === 0 ? (
-                <p className="text-[10px] text-muted-foreground italic">No active leads.</p>
-              ) : leads.map(lead => (
-                <div key={lead.id} className={`p-2.5 rounded-md bg-muted/30 border ${getCardBorderClass(lead.status)} space-y-1 hover:brightness-110 transition-all`}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-medium text-foreground">{lead.client_name || 'Lead'}</span>
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded border ${['converted','qualified'].includes(lead.status) ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' : ['lost'].includes(lead.status) ? 'bg-red-500/20 text-red-400 border-red-500/50' : 'bg-blue-500/20 text-blue-400 border-blue-500/50'}`}>{lead.status}</span>
+              {leads.length === 0 ? <p className="text-xs text-zinc-600 italic">No active leads.</p> : leads.map(lead => (
+                <div key={lead.id} className="bg-black/50 border border-blue-500/20 p-3 rounded-md mb-2 shadow-[0_0_10px_rgba(59,130,246,0.05)]">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-xs font-bold text-white">{lead.client_name || 'Lead Profile'}</span>
+                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30 uppercase font-bold tracking-wider">{lead.status?.replace('_', ' ')}</span>
                   </div>
-                  <p className="text-[9px] text-muted-foreground">Created: {format(new Date(lead.created_at), 'dd MMM yyyy')}</p>
+                  <p className="text-[10px] text-zinc-500 font-mono">Created: {format(new Date(lead.created_at), 'dd MMM yyyy')}</p>
                 </div>
               ))}
             </div>
