@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { Clock, Car, User, FileText, Calculator, Copy, Check, Plus, X, Eye, Trophy } from 'lucide-react';
+import { Clock, Car, User, FileText, Calculator, Copy, Check, Plus, X, Eye, Trophy, Trash2 } from 'lucide-react';
 import LiveCallCopilot from './LiveCallCopilot';
 
 interface UniversalClientHubProps {
