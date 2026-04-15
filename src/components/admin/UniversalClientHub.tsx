@@ -170,8 +170,10 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
                   <p className="text-[10px] text-muted-foreground italic text-center py-4">No history recorded yet.</p>
                 ) : logs.map(log => (
                   <div key={log.id} className="relative">
-                    <div className="absolute -left-[10.5px] top-1.5 w-2 h-2 rounded-full bg-emerald-500 border border-background" />
-                    <div className="p-2.5 rounded-md bg-muted/20 border border-border">
+                    <div className="absolute -left-[10.5px] top-1.5 flex items-center justify-center w-3 h-3 rounded-full border-2 border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_10px_rgba(16,185,129,0.2)] z-10">
+                      <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></div>
+                    </div>
+                    <div className="p-2.5 rounded-md bg-muted/20 border border-border hover:border-emerald-500/20 transition-colors">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-[10px] font-semibold text-emerald-500">{log.author_name}</span>
                         <span className="text-[9px] text-muted-foreground font-mono">{format(new Date(log.created_at), 'dd MMM HH:mm')}</span>
