@@ -4,6 +4,8 @@ import { Wrench, CheckCircle, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import KineticText from '@/components/KineticText';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const SQL_CODE = `-- ============================================
 -- LUMINA DMS 3.0 - COMPLETE DATABASE REPAIR
