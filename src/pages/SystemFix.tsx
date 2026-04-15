@@ -258,7 +258,22 @@ const SystemFix = () => {
               </Button>
             </div>
 
-            {/* Instructions */}
+            {/* Archive Recovery */}
+            <div className="bg-black/40 border border-white/10 p-6 rounded-lg flex justify-between items-center shadow-md">
+              <div>
+                <h3 className="text-sm font-semibold text-white">Restore Archived Deals</h3>
+                <p className="text-xs text-zinc-400 mt-1">Scans the archive and restores finalized deals connected to a client ID back to the active Garage.</p>
+              </div>
+              <Button
+                onClick={handleRestoreArchivedDeals}
+                disabled={restoring}
+                className="bg-zinc-800 hover:bg-zinc-700 text-white border border-white/10 text-xs h-9"
+              >
+                {restoring ? 'Restoring...' : 'Execute Recovery'}
+              </Button>
+            </div>
+
+
             <div className="glass-card rounded-xl p-6 space-y-4">
               <h3 className="font-semibold">What This Fixes:</h3>
               <ul className="list-disc list-inside text-muted-foreground space-y-2 text-sm">
