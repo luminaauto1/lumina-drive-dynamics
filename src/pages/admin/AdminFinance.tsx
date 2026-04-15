@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import UniversalClientHub from '@/components/admin/UniversalClientHub';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
@@ -68,6 +69,17 @@ const AdminFinance = () => {
   const [deliveryModalOpen, setDeliveryModalOpen] = useState(false);
   const [selectedAppForDelivery, setSelectedAppForDelivery] = useState<FinanceApplication | null>(null);
   const [cashDealModalOpen, setCashDealModalOpen] = useState(false);
+
+  // Universal Client Hub state
+  const [hubOpen, setHubOpen] = useState(false);
+  const [selectedEmail, setSelectedEmail] = useState<string | undefined>();
+  const [selectedPhone, setSelectedPhone] = useState<string | undefined>();
+
+  const openClientHub = (email?: string, phone?: string) => {
+    setSelectedEmail(email || undefined);
+    setSelectedPhone(phone || undefined);
+    setHubOpen(true);
+  };
 
   // CRM Audit Trail Modal State
   const [statusModalOpen, setStatusModalOpen] = useState(false);
