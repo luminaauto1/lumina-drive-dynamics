@@ -330,7 +330,6 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
                           </button>
                         </div>
                       </div>
-                      </div>
                       <p className="text-[11px] text-foreground/80 leading-relaxed whitespace-pre-wrap">{log.note}</p>
                     </div>
                   </div>
