@@ -490,6 +490,7 @@ export type Database = {
           full_name: string
           gender: string | null
           gross_salary: number | null
+          handover_name: string | null
           has_drivers_license: boolean | null
           id: string
           id_number: string | null
@@ -543,6 +544,7 @@ export type Database = {
           full_name: string
           gender?: string | null
           gross_salary?: number | null
+          handover_name?: string | null
           has_drivers_license?: boolean | null
           id?: string
           id_number?: string | null
@@ -596,6 +598,7 @@ export type Database = {
           full_name?: string
           gender?: string | null
           gross_salary?: number | null
+          handover_name?: string | null
           has_drivers_license?: boolean | null
           id?: string
           id_number?: string | null
