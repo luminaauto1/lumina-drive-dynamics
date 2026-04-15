@@ -21,9 +21,15 @@ serve(async (req) => {
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
     if (!lovableKey) throw new Error("LOVABLE_API_KEY is not configured.");
 
-    // Convert audio file to base64
+    // Convert audio file to base64 (chunked to avoid stack overflow)
     const arrayBuffer = await file.arrayBuffer();
-    const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = "";
+    const chunkSize = 8192;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+    }
+    const base64Audio = btoa(binary);
 
     // Determine MIME type
     const mimeType = file.type || "audio/webm";
