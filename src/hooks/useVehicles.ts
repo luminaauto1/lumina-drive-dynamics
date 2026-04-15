@@ -35,7 +35,7 @@ export const usePublicVehicles = () => {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data as Vehicle[];
+      return data as unknown as Vehicle[];
     },
   });
 };
@@ -51,7 +51,7 @@ export const useVehicle = (id: string) => {
         .single();
       
       if (error) throw error;
-      return data as Vehicle;
+      return data as unknown as Vehicle;
     },
     enabled: !!id,
   });
