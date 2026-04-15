@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { Clock, Car, User, FileText, Calculator, Copy, Check, Plus, X, Eye, Trophy } from 'lucide-react';
+import { Clock, Car, User, FileText, Calculator, Copy, Check, Plus, X, Eye, Trophy, Trash2 } from 'lucide-react';
 import LiveCallCopilot from './LiveCallCopilot';
 
 interface UniversalClientHubProps {
@@ -186,6 +186,16 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
     fetchGlobalProfile();
   };
 
+  const handleDeleteNote = async (id: string) => {
+    const { error } = await supabase.from('client_audit_logs').delete().eq('id', id);
+    if (error) {
+      toast.error("Failed to delete note");
+    } else {
+      toast.success("Note permanently deleted");
+      fetchGlobalProfile();
+    }
+  };
+
   const allApps = [...pastDeals, ...activeApps];
   const masterName = allApps[0]?.first_name
     ? `${allApps[0].first_name} ${allApps[0].last_name || ''}`.trim()
@@ -313,7 +323,12 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
                     <div className="p-2.5 rounded-md bg-muted/20 border border-border hover:border-emerald-500/20 transition-colors">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-[10px] font-semibold text-emerald-500">{log.author_name}</span>
-                        <span className="text-[9px] text-muted-foreground font-mono">{format(new Date(log.created_at), 'dd MMM HH:mm')}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] text-muted-foreground font-mono">{format(new Date(log.created_at), 'dd MMM HH:mm')}</span>
+                          <button onClick={() => handleDeleteNote(log.id)} className="text-zinc-600 hover:text-red-500 transition-colors" title="Delete Note">
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
                       <p className="text-[11px] text-foreground/80 leading-relaxed whitespace-pre-wrap">{log.note}</p>
                     </div>
