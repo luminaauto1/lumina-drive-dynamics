@@ -146,9 +146,10 @@ const AdminFinance = () => {
     
     const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
     
-    // Filter by active/archived
-    const isArchived = app.status === 'archived';
-    const matchesViewMode = viewMode === 'archived' ? isArchived : !isArchived;
+    // Filter by active/archived — terminal states auto-hide from active view
+    const s = (app.status || '').toLowerCase().trim();
+    const isTerminal = ['finalized', 'delivered', 'vehicle_delivered', 'archived', 'declined'].includes(s);
+    const matchesViewMode = viewMode === 'archived' ? isTerminal : !isTerminal;
 
     return matchesSearch && matchesStatus && matchesViewMode;
   });
@@ -265,7 +266,7 @@ const AdminFinance = () => {
   };
 
   // Stats for active applications only
-  const activeApps = applications.filter(a => a.status !== 'archived');
+  const activeApps = applications.filter(a => !['finalized', 'delivered', 'vehicle_delivered', 'archived', 'declined'].includes((a.status || '').toLowerCase().trim()));
 
   return (
     <AdminLayout>
