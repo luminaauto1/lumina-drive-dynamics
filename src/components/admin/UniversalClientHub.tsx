@@ -287,7 +287,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
           </div>
 
           {/* RIGHT: Timeline */}
-          <div className="w-full md:w-1/2 p-6 flex flex-col bg-black/20 h-auto md:h-full shrink-0">
+          <div className="w-full md:w-1/2 p-6 flex flex-col bg-black/20 h-auto md:h-full shrink-0 overflow-hidden">
             <h3 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mb-3">
               <Clock className="w-3 h-3" /> Universal Timeline
             </h3>
@@ -311,7 +311,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
               onCallEnd={fetchGlobalProfile}
             />
 
-            <ScrollArea className="h-auto md:h-auto md:flex-1 mt-3 pr-4">
+            <ScrollArea className="flex-1 min-h-0 mt-3 pr-4">
               <div className="space-y-3 pl-4 relative before:absolute before:left-1.5 before:top-0 before:h-full before:w-px before:bg-border">
                 {logs.length === 0 ? (
                   <p className="text-[10px] text-muted-foreground italic text-center py-4">No history recorded yet.</p>
