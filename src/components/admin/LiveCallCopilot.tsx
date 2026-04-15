@@ -17,8 +17,13 @@ export default function LiveCallCopilot({ clientEmail, clientPhone, clientName, 
   const [liveHint, setLiveHint] = useState('Start the call. I will listen and provide live suggestions here.');
   const [isProcessing, setIsProcessing] = useState(false);
   const [language, setLanguage] = useState<'en-ZA' | 'af-ZA'>('en-ZA');
+
   const recognitionRef = useRef<any>(null);
   const lastHintTimeRef = useRef(Date.now());
+
+  // Mobile stability refs — prevent jitter and handle Android mic kills
+  const finalTranscriptRef = useRef('');
+  const isManuallyStoppedRef = useRef(false);
 
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -28,14 +33,25 @@ export default function LiveCallCopilot({ clientEmail, clientPhone, clientName, 
       recognition.interimResults = true;
 
       recognition.onresult = (event: any) => {
-        let currentTranscript = '';
-        for (let i = 0; i < event.results.length; i++) {
-          currentTranscript += event.results[i][0].transcript;
-        }
-        setTranscript(currentTranscript);
+        let interimTranscript = '';
+        let newFinal = '';
 
-        if (currentTranscript.length > 50 && Date.now() - lastHintTimeRef.current > 15000) {
-          fetchHint(currentTranscript);
+        // Strictly separate final results from guesses to prevent mobile jitter
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const text = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            newFinal += text + ' ';
+          } else {
+            interimTranscript += text;
+          }
+        }
+
+        finalTranscriptRef.current += newFinal;
+        const fullText = finalTranscriptRef.current + interimTranscript;
+        setTranscript(fullText);
+
+        if (fullText.length > 50 && Date.now() - lastHintTimeRef.current > 15000) {
+          fetchHint(fullText);
           lastHintTimeRef.current = Date.now();
         }
       };
@@ -47,9 +63,21 @@ export default function LiveCallCopilot({ clientEmail, clientPhone, clientName, 
         }
       };
 
+      // CRITICAL ANDROID FIX: Auto-restart if OS kills mic on a pause
+      recognition.onend = () => {
+        if (!isManuallyStoppedRef.current) {
+          try {
+            recognition.start();
+          } catch (e) {
+            console.error('Failed to auto-restart mic', e);
+          }
+        }
+      };
+
       recognitionRef.current = recognition;
     }
     return () => {
+      isManuallyStoppedRef.current = true;
       if (recognitionRef.current) {
         try { recognitionRef.current.stop(); } catch {}
       }
@@ -73,29 +101,39 @@ export default function LiveCallCopilot({ clientEmail, clientPhone, clientName, 
   };
 
   const startListening = () => {
+    isManuallyStoppedRef.current = false;
+    finalTranscriptRef.current = '';
     setTranscript('');
     setLiveHint('Listening... waiting for conversation context.');
+
     if (recognitionRef.current) {
       recognitionRef.current.lang = language;
-      recognitionRef.current.start();
-      setIsListening(true);
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+      } catch (e) {
+        console.error(e);
+      }
     } else {
       toast.error('Your browser does not support live dictation. Use Chrome.');
     }
   };
 
   const stopListening = async () => {
+    isManuallyStoppedRef.current = true;
+    setIsListening(false);
     if (recognitionRef.current) {
       try { recognitionRef.current.stop(); } catch {}
     }
-    setIsListening(false);
 
-    if (transcript.length > 50) {
+    const fullText = finalTranscriptRef.current || transcript;
+
+    if (fullText.length > 50) {
       setIsProcessing(true);
       toast.info('Call ended. AI is writing your CRM summary...');
       try {
-        const { data, error } = await supabase.functions.invoke('sales-copilot', {
-          body: { action: 'summarize', transcript, clientEmail, clientPhone, clientName },
+        const { error } = await supabase.functions.invoke('sales-copilot', {
+          body: { action: 'summarize', transcript: fullText, clientEmail, clientPhone, clientName },
         });
         if (error) throw error;
         toast.success('Call summarized and saved to timeline.');
@@ -112,7 +150,7 @@ export default function LiveCallCopilot({ clientEmail, clientPhone, clientName, 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <Sparkles className="w-3 h-3 text-primary" />
-          <span className="text-[10px] font-semibold text-primary">AI Co-Pilot Live</span>
+          <span className="text-[10px] font-semibold text-primary">AI Co-Pilot</span>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -129,13 +167,13 @@ export default function LiveCallCopilot({ clientEmail, clientPhone, clientName, 
             className="h-7 text-[10px] gap-1"
             disabled={isProcessing}
           >
-          {isProcessing ? (
-            <Loader2 className="w-3 h-3 animate-spin" />
-          ) : isListening ? (
-            <><Square className="w-3 h-3" /> End Call &amp; Auto-Log</>
-          ) : (
-            <><Mic className="w-3 h-3" /> Start Call / Listen</>
-          )}
+            {isProcessing ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : isListening ? (
+              <><Square className="w-3 h-3" /> End Call &amp; Auto-Log</>
+            ) : (
+              <><Mic className="w-3 h-3" /> Start Call</>
+            )}
           </Button>
         </div>
       </div>
