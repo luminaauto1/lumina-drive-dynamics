@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Sheet, Plus, ArrowRightLeft } from 'lucide-react';
+import UniversalClientHub from '@/components/admin/UniversalClientHub';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -51,6 +52,7 @@ interface GridRow {
   type: 'lead' | 'finance';
   firstName: string;
   lastName: string;
+  email: string;
   phone: string;
   status: string;
   notes: string;
@@ -64,6 +66,7 @@ function formatAppRow(app: any): GridRow {
     type: 'finance',
     firstName: app.first_name || app.full_name?.split(' ')[0] || 'Unknown',
     lastName: app.last_name || app.full_name?.split(' ').slice(1).join(' ') || '',
+    email: app.email || '',
     phone: app.phone || 'N/A',
     status: app.status || 'pending',
     notes: app.notes || '',
@@ -78,7 +81,15 @@ const CRMSheet = () => {
   const [addLeadOpen, setAddLeadOpen] = useState(false);
   const [newLeadName, setNewLeadName] = useState('');
   const [newLeadPhone, setNewLeadPhone] = useState('');
+  const [hubOpen, setHubOpen] = useState(false);
+  const [selectedEmail, setSelectedEmail] = useState<string | undefined>();
+  const [selectedPhone, setSelectedPhone] = useState<string | undefined>();
 
+  const openClientHub = (email?: string, phone?: string) => {
+    setSelectedEmail(email || undefined);
+    setSelectedPhone(phone || undefined);
+    setHubOpen(true);
+  };
   const { data: leads = [] } = useLeads();
   const { data: apps = [] } = useFinanceApplications();
   const updateLead = useUpdateLead();
@@ -91,6 +102,7 @@ const CRMSheet = () => {
       type: 'lead',
       firstName: l.client_name?.split(' ')[0] || 'Unknown',
       lastName: l.client_name?.split(' ').slice(1).join(' ') || '',
+      email: l.client_email || '',
       phone: l.client_phone || 'N/A',
       status: l.status || 'new',
       notes: l.notes || '',
@@ -206,8 +218,16 @@ const CRMSheet = () => {
                 ) : (
                   gridData.map((row) => (
                     <TableRow key={row.id} className={`h-7 border-l-2 ${getStatusColor(row.status)}`}>
-                      <TableCell className="py-0.5 px-2 text-[11px] font-medium">{row.firstName}</TableCell>
-                      <TableCell className="py-0.5 px-2 text-[11px]">{row.lastName}</TableCell>
+                      <TableCell className="py-0.5 px-2 text-[11px] font-medium">
+                        <span className="cursor-pointer hover:text-primary hover:underline transition-colors" onClick={() => openClientHub(row.email, row.phone)}>
+                          {row.firstName}
+                        </span>
+                      </TableCell>
+                      <TableCell className="py-0.5 px-2 text-[11px]">
+                        <span className="cursor-pointer hover:text-primary hover:underline transition-colors" onClick={() => openClientHub(row.email, row.phone)}>
+                          {row.lastName}
+                        </span>
+                      </TableCell>
                       <TableCell className="py-0.5 px-2 text-[11px] font-mono">{row.phone}</TableCell>
                       <TableCell className={`py-0.5 px-2 text-[10px] ${getThermalAgeColor(row.createdAt)}`}>
                         {row.createdAt ? format(new Date(row.createdAt), 'dd MMM') : 'N/A'}
@@ -296,6 +316,13 @@ const CRMSheet = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <UniversalClientHub
+        open={hubOpen}
+        onOpenChange={setHubOpen}
+        clientEmail={selectedEmail}
+        clientPhone={selectedPhone}
+      />
     </AdminLayout>
   );
 };
