@@ -1,6 +1,20 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
+
+// GA4 pageview tracker — wires React Router changes to gtag
+export const useAnalytics = () => {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', 'page_view', {
+        page_path: location.pathname + location.search,
+      });
+    }
+  }, [location]);
+};
 
 interface AnalyticsEvent {
   event_type: string;

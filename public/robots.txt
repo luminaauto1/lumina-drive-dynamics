@@ -1,9 +1,4 @@
 User-agent: *
 Allow: /
-Disallow: /admin/
-Disallow: /handover/
-Disallow: /upload-documents/
-Disallow: /system-fix
-Disallow: /update-password
 
 Sitemap: https://luminaauto.co.za/sitemap.xml
