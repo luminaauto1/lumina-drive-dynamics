@@ -7,7 +7,8 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import { isToday } from 'date-fns';
-import { Search, MessageCircle, ExternalLink, Trash2, Archive, UserPlus, Copy, Link, ClipboardList, Banknote, Calculator, MailWarning } from 'lucide-react';
+import { Search, MessageCircle, ExternalLink, Trash2, Archive, UserPlus, Copy, Link, ClipboardList, Banknote, Calculator, MailWarning, MessageSquare } from 'lucide-react';
+import WhatsAppParserModal from '@/components/admin/WhatsAppParserModal';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -69,6 +70,7 @@ const AdminFinance = () => {
   const [deliveryModalOpen, setDeliveryModalOpen] = useState(false);
   const [selectedAppForDelivery, setSelectedAppForDelivery] = useState<FinanceApplication | null>(null);
   const [cashDealModalOpen, setCashDealModalOpen] = useState(false);
+  const [waModalOpen, setWaModalOpen] = useState(false);
 
   // Universal Client Hub state
   const [hubOpen, setHubOpen] = useState(false);
@@ -294,6 +296,10 @@ const AdminFinance = () => {
             <Button variant="outline" onClick={() => setCashDealModalOpen(true)} className="w-fit">
               <Banknote className="w-4 h-4 mr-2" />
               Cash Deal
+            </Button>
+            <Button variant="outline" onClick={() => setWaModalOpen(true)} className="w-fit">
+              <MessageSquare className="w-4 h-4 mr-2 text-emerald-500" />
+              WhatsApp to PDF
             </Button>
             <Button variant="outline" onClick={() => navigate('/admin/quotes')} className="w-fit">
               <Calculator className="w-4 h-4 mr-2" />
@@ -671,6 +677,7 @@ const AdminFinance = () => {
         clientEmail={selectedEmail}
         clientPhone={selectedPhone}
       />
+      <WhatsAppParserModal open={waModalOpen} onOpenChange={setWaModalOpen} />
     </AdminLayout>
   );
 };
