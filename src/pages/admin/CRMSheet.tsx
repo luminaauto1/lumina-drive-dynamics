@@ -160,10 +160,17 @@ const CRMSheet = () => {
       return;
     }
 
+    // Auto-Archive Logic: Declined/Lost deals are immediately moved to archive
+    const finalStatus = (newStatus === 'declined' || newStatus === 'lost') ? 'archived' : newStatus;
+
     if (type === 'lead') {
-      await updateLead.mutateAsync({ id, updates: { status: newStatus } as any });
+      await updateLead.mutateAsync({ id, updates: { status: finalStatus } as any });
     } else {
-      await updateApp.mutateAsync({ id, updates: { status: newStatus } });
+      await updateApp.mutateAsync({ id, updates: { status: finalStatus } });
+    }
+
+    if (finalStatus === 'archived' && (newStatus === 'declined' || newStatus === 'lost')) {
+      toast.success(`Marked as ${newStatus} and moved to Archive.`);
     }
   };
 
