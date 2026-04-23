@@ -15,9 +15,15 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured.");
     if (!rawText || typeof rawText !== "string") throw new Error("No text provided.");
 
+    const currentDate = new Date().toLocaleDateString('en-ZA', { month: 'long', year: 'numeric' });
+
     const systemPrompt = `You are a data extraction AI for a premium auto dealership. Extract the client's finance application details from the provided WhatsApp text. The client may have misspelled things or left things blank.
 Return ONLY a valid JSON object with the exact following keys. If a value is missing, return an empty string "". Do not include markdown formatting like \`\`\`json.
+
 CRITICAL RULE FOR EXPENSES: For the 'living_expenses' field, DO NOT strip out the descriptive words. You MUST extract both the descriptive text and the amount exactly as the client wrote it (e.g., "Rent 5000, Food 2000, Water 500").
+
+CRITICAL RULE FOR EMPLOYMENT: The current date is ${currentDate}. For the 'employment_start' field, you must calculate the exact duration in years and months from their start date to the current date. Format the output exactly like this: "[Original Date] (X Years, Y Months)". Example: "June 2022 (3 Years, 10 Months)". If they already provided the duration instead of a date, just use what they provided.
+
 Keys: first_name, last_name, id_number, email, phone, marital_status, physical_address, employer_name, job_title, employment_start, employment_status, gross_income, net_income, living_expenses, bank_name, account_number, kin_name, kin_phone.`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
