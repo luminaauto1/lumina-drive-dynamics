@@ -56,7 +56,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
         id: crypto.randomUUID(),
         first_name: parsedData.first_name || '',
         last_name: parsedData.last_name || '',
-        full_name: `${parsedData.first_name || ''} ${parsedData.last_name || ''}`.trim(),
+        full_name: `${parsedData.first_name || ''} ${parsedData.last_name || ''}`.trim() || 'Unknown',
         id_number: parsedData.id_number || '',
         email: parsedData.email || '',
         phone: parsedData.phone || '',
@@ -76,11 +76,36 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
         popia_consent: false,
         created_at: new Date().toISOString(),
       };
+
+      // 1. Generate the PDF
       await generateFinancePDF(applicationObj);
-      toast.success('PDF generated successfully');
+
+      // 2. Create basic tracking shell in finance_applications (contact info only — no sensitive financials)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const fullName = `${parsedData.first_name || ''} ${parsedData.last_name || ''}`.trim() || 'WhatsApp Lead';
+        const { error: insertError } = await supabase.from('finance_applications').insert([{
+          user_id: user.id,
+          first_name: parsedData.first_name || 'Unknown',
+          last_name: parsedData.last_name || '',
+          full_name: fullName,
+          email: parsedData.email || `wa-${Date.now()}@lumina.local`,
+          phone: parsedData.phone || 'N/A',
+          status: 'pending',
+          internal_status: 'new_lead',
+          notes: `[WhatsApp Parser] Tracking shell created on PDF generation. Sensitive data intentionally omitted.`,
+          // Intentionally omitting sensitive data (id_number, income, bank, kin) per admin instruction
+        } as any]);
+        if (insertError) console.warn('Tracking shell insert failed:', insertError);
+      }
+
+      toast.success('PDF Generated & Tracking Lead Created');
+      setRawText('');
+      setParsedData(null);
+      onOpenChange(false);
     } catch (error) {
       console.error(error);
-      toast.error('Failed to generate PDF');
+      toast.error('Failed to process application');
     }
   };
 

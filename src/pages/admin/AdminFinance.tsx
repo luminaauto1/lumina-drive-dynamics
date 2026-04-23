@@ -166,6 +166,10 @@ const AdminFinance = () => {
   const confirmStatusUpdate = async () => {
     if (!pendingApp || !pendingStatus) return;
     try {
+      // Auto-Archive Logic: Declined/Lost are immediately archived
+      const isTerminal = pendingStatus === 'declined' || pendingStatus === 'lost';
+      const finalStatus = isTerminal ? 'archived' : pendingStatus;
+
       let updatedNotes = pendingApp.notes || '';
       if (statusNote.trim()) {
         const timestamp = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -173,13 +177,17 @@ const AdminFinance = () => {
         const newEntry = `[${timestamp}] ${statusLabel}: ${statusNote}`;
         updatedNotes = updatedNotes ? `${newEntry}\n\n${updatedNotes}` : newEntry;
       }
+      const updatePayload: any = {
+        internal_status: finalStatus,
+        attention_updated_at: new Date().toISOString(),
+        notes: updatedNotes,
+      };
+      if (isTerminal) {
+        updatePayload.status = 'archived';
+      }
       const { error } = await supabase
         .from('finance_applications')
-        .update({
-          internal_status: pendingStatus,
-          attention_updated_at: new Date().toISOString(),
-          notes: updatedNotes,
-        } as any)
+        .update(updatePayload)
         .eq('id', pendingApp.id);
       if (error) throw error;
 
