@@ -514,8 +514,11 @@ const FinanceApplication = () => {
 
     // If guest and NOT in revision mode, create ghost account first.
     // SECURITY: Use a cryptographically random password (never the ID number).
-    // Client receives a password-reset email so they set their own password.
+    // The temp password is delivered ONCE inside the confirmation email,
+    // alongside instructions to reset it via "Forgot Password" on the portal.
     let effectiveUserId = user?.id;
+    let generatedTempPassword: string | null = null;
+    let accountAlreadyExisted = false;
 
     if (!user && !isRevisionMode) {
       const generateSecurePassword = () =>
@@ -536,22 +539,15 @@ const FinanceApplication = () => {
       });
 
       if (signUpError || !signUpData?.user) {
-        // Account likely exists already — trigger a password-reset email
-        // so the existing owner can claim/recover access. Do NOT attempt
-        // to sign in with a guessable credential.
-        await supabase.auth.resetPasswordForEmail(normalizedEmail, {
-          redirectTo: `${window.location.origin}/update-password`,
-        });
-
-        // Submit the application anonymously (no user_id) so it isn't
-        // silently attached to a stranger's account.
+        // Account likely exists already — do NOT auto-send a reset email
+        // (the user did not explicitly request one). Submit anonymously
+        // so the application is not silently attached to a stranger's account.
+        // The confirmation email will instruct them to use "Forgot Password".
+        accountAlreadyExisted = true;
         effectiveUserId = undefined;
       } else {
         effectiveUserId = signUpData.user.id;
-        // Send password setup email so the client picks their own password.
-        await supabase.auth.resetPasswordForEmail(normalizedEmail, {
-          redirectTo: `${window.location.origin}/update-password`,
-        });
+        generatedTempPassword = tempPassword;
       }
 
       setGhostAccountCreated(true);
