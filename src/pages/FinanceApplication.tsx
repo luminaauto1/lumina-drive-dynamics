@@ -83,8 +83,8 @@ const FinanceApplication = () => {
     employer_name: "",
     employer_address: "",
     job_title: "",
-    employment_period_value: "",
-    employment_period_unit: "years",
+    employment_years: "",
+    employment_months: "",
     // Next of Kin
     kin_name: "",
     kin_contact: "",
