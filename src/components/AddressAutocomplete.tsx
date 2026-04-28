@@ -50,7 +50,6 @@ const AddressAutocompleteInner = ({ value, onChange, onPostalCodeChange, placeho
         }
       );
     }
-    }
   }, [onChange, onPostalCodeChange]);
 
   return (
