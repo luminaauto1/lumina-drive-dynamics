@@ -10,7 +10,7 @@ interface AddressAutocompleteProps {
   required?: boolean;
 }
 
-const AddressAutocompleteInner = ({ value, onChange, onPostalCodeChange, placeholder, required }: AddressAutocompleteProps) => {
+const AddressAutocomplete = ({ value, onChange, onPostalCodeChange, placeholder, required }: AddressAutocompleteProps) => {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
   // Controlled input state — survives parent re-renders so the field never gets wiped
