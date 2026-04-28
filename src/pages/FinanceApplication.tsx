@@ -1093,29 +1093,31 @@ const FinanceApplication = () => {
                         />
                       </div>
                       <div className="space-y-2 md:col-span-2">
-                        <Label htmlFor="employment_period">Period at Employer</Label>
-                        <div className="flex gap-3">
-                          <Input
-                            id="employment_period_value"
-                            type="number"
-                            value={formData.employment_period_value}
-                            onChange={(e) => handleInputChange("employment_period_value", e.target.value)}
-                            placeholder="Time"
-                            className="flex-1"
-                            min={0}
-                          />
-                          <Select
-                            value={formData.employment_period_unit}
-                            onValueChange={(v) => handleInputChange("employment_period_unit", v)}
-                          >
-                            <SelectTrigger className="w-32">
-                              <SelectValue placeholder="Unit" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="months">Months</SelectItem>
-                              <SelectItem value="years">Years</SelectItem>
-                            </SelectContent>
-                          </Select>
+                        <Label>Time at Employer</Label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Input
+                              id="employment_years"
+                              type="number"
+                              min={0}
+                              placeholder="Years"
+                              value={formData.employment_years}
+                              onChange={(e) => handleInputChange("employment_years", e.target.value)}
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">Years</p>
+                          </div>
+                          <div>
+                            <Input
+                              id="employment_months"
+                              type="number"
+                              min={0}
+                              max={11}
+                              placeholder="Months"
+                              value={formData.employment_months}
+                              onChange={(e) => handleInputChange("employment_months", e.target.value)}
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">Months</p>
+                          </div>
                         </div>
                       </div>
                     </div>
