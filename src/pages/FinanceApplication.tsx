@@ -81,6 +81,7 @@ const FinanceApplication = () => {
     area_code: "",
     // Employment
     employer_name: "",
+    employer_address: "",
     job_title: "",
     employment_period_value: "",
     employment_period_unit: "years",
@@ -175,6 +176,7 @@ const FinanceApplication = () => {
       street_address: data.street_address || "",
       area_code: data.area_code || "",
       employer_name: data.employer_name || "",
+      employer_address: (data as any).employer_address || "",
       job_title: data.job_title || "",
       employment_period_value: empPeriodValue,
       employment_period_unit: empPeriodUnit,
@@ -256,6 +258,7 @@ const FinanceApplication = () => {
       street_address: data.street_address || "",
       area_code: data.area_code || "",
       employer_name: data.employer_name || "",
+      employer_address: (data as any).employer_address || "",
       job_title: data.job_title || "",
       employment_period_value: empPeriodValue,
       employment_period_unit: empPeriodUnit,
@@ -394,8 +397,30 @@ const FinanceApplication = () => {
     return <p className="text-xs text-destructive mt-1">{fieldErrors[field]}</p>;
   };
 
+  // Auto-scroll to top when step changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentStep]);
+
   const nextStep = () => {
     if (validateStep(currentStep)) {
+      // Silent CRM lead capture on Step 1 -> Step 2 transition (drop-off protection)
+      if (currentStep === 1) {
+        try {
+          supabase.from('leads').insert([{
+            client_name: `${formData.first_name || ''} ${formData.last_name || ''}`.trim() || 'Anonymous',
+            client_email: formData.email || '',
+            client_phone: formData.phone || '',
+            source: 'website',
+            status: 'new',
+            notes: 'Partial Finance Application Started (Drop-off Capture)'
+          }] as any).then(({ error }) => {
+            if (error) console.error('Silent lead capture failed', error);
+          });
+        } catch (error) {
+          console.error('Silent lead capture failed', error);
+        }
+      }
       setCurrentStep((prev) => Math.min(prev + 1, 5));
     }
   };
@@ -496,6 +521,7 @@ const FinanceApplication = () => {
       street_address: formData.street_address.trim(),
       area_code: formData.area_code?.trim() || null,
       employer_name: formData.employer_name.trim() || incomeSourceNames || null,
+      employer_address: formData.employer_address?.trim() || null,
       job_title: formData.job_title?.trim() || null,
       employment_period: getEmploymentPeriod() || null,
       kin_name: formData.kin_name.trim(),
@@ -615,6 +641,7 @@ const FinanceApplication = () => {
       street_address: formData.street_address.trim() || null,
       area_code: formData.area_code?.trim() || null,
       employer_name: formData.employer_name.trim() || null,
+      employer_address: formData.employer_address?.trim() || null,
       job_title: formData.job_title?.trim() || null,
       employment_period: getEmploymentPeriod() || null,
       kin_name: formData.kin_name.trim() || null,
@@ -1041,6 +1068,14 @@ const FinanceApplication = () => {
                           id="job_title"
                           value={formData.job_title}
                           onChange={(e) => handleInputChange("job_title", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor="employer_address">Company Location / Address</Label>
+                        <AddressAutocomplete
+                          value={formData.employer_address}
+                          onChange={(value) => handleInputChange("employer_address", value)}
+                          placeholder="Start typing company name or address..."
                         />
                       </div>
                       <div className="space-y-2 md:col-span-2">
