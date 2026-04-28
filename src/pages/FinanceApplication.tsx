@@ -440,8 +440,8 @@ const FinanceApplication = () => {
         toast.error("Please enter a valid cell number.");
         return;
       }
-      if (!formData.id_number || !/^\d{13}$/.test(formData.id_number.trim())) {
-        toast.error("ID number is required and must be exactly 13 digits.");
+      if (!formData.id_number || formData.id_number.trim().length < 6) {
+        toast.error("ID or Passport number is required.");
         return;
       }
     }
