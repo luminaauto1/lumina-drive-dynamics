@@ -610,11 +610,24 @@ const FinanceApplication = () => {
       const { data: functionData, error: functionError } = await supabase.functions.invoke('submit-finance-app', {
         body: { insertData: sanitizedData }
       });
-      if (functionError || (functionData && functionData.error)) {
-        error = new Error(functionError?.message || functionData?.error || "Failed to submit application");
-      } else {
-        insertedApp = functionData?.data ?? null;
+
+      // Check for network/invocation errors
+      if (functionError) {
+        console.error("Invocation Error:", functionError);
+        toast.error(`Network Error: ${functionError.message || 'Could not reach server.'}`);
+        setSubmitting(false);
+        return;
       }
+
+      // Check for database/logic errors returned inside the function payload
+      if (functionData && functionData.error) {
+        console.error("Database Error:", functionData.error);
+        toast.error(`Database Rejection: ${functionData.error}`);
+        setSubmitting(false);
+        return;
+      }
+
+      insertedApp = functionData?.data ?? null;
     }
 
     if (error) {
