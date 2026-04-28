@@ -759,6 +759,33 @@ const FinanceApplication = () => {
         console.error("Failed to send client confirmation email", clientEmailError);
       }
 
+      // 3. FIRE WHATSAPP NOTIFICATION VIA EASYSOCIAL
+      try {
+        if (formData.phone) {
+          // Clean the phone number: remove all non-numeric characters (spaces, dashes, + signs)
+          let cleanPhone = formData.phone.replace(/\D/g, '');
+
+          // Auto-format for South Africa: If the user entered a local number starting with '0', replace it with '27'
+          if (cleanPhone.startsWith('0')) {
+            cleanPhone = '27' + cleanPhone.substring(1);
+          }
+
+          // Construct the webhook URL with the cleaned mobile number
+          const waUrl = `https://api.easysocial.in/api/v1/wa-templates/send/cmoiw52ffaq1eiyxphla895wb/18908/4026/API/${cleanPhone}`;
+
+          // Fire the API call asynchronously (do not await, so it doesn't slow down the user's redirect)
+          fetch(waUrl, {
+            method: 'POST',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            }
+          }).catch(err => console.error("WhatsApp API network error:", err));
+        }
+      } catch (err) {
+        console.error("Failed to trigger WhatsApp notification", err);
+      }
+
       setIsSubmitted(true);
       toast.success("Application submitted successfully!");
     }
