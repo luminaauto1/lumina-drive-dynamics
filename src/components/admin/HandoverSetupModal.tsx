@@ -39,11 +39,12 @@ export const HandoverSetupModal = ({ dealId, currentPhotos = [], clientName = ''
 
     const newUrls: string[] = [];
     for (const file of Array.from(e.target.files)) {
-      const fileName = `${dealId}/${Date.now()}-${file.name}`;
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const fileName = `${dealId}/${Date.now()}-${safeName}`;
       const { data, error } = await supabase.storage.from('delivery-photos').upload(fileName, file);
       if (!error && data) {
-        const { data: urlData } = supabase.storage.from('delivery-photos').getPublicUrl(fileName);
-        newUrls.push(urlData.publicUrl);
+        // Store the storage path; signed URLs are generated on demand for the public handover page
+        newUrls.push(fileName);
       }
     }
 

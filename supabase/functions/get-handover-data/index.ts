@@ -77,10 +77,30 @@ serve(async (req: Request) => {
       }
     }
 
+    // Convert stored photo entries (paths or legacy public URLs) into fresh signed URLs.
+    const rawPhotos: string[] = Array.isArray(deal.delivery_photos) ? deal.delivery_photos : [];
+    const signedPhotos: string[] = [];
+    for (const entry of rawPhotos) {
+      if (!entry) continue;
+      // Extract storage path: handle legacy full public URLs and new path-only entries.
+      let path = entry;
+      const marker = "/delivery-photos/";
+      const idx = entry.indexOf(marker);
+      if (idx !== -1) {
+        path = entry.substring(idx + marker.length);
+      }
+      const { data: signed, error: signErr } = await supabaseAdmin.storage
+        .from("delivery-photos")
+        .createSignedUrl(path, 60 * 60 * 24); // 24h
+      if (!signErr && signed?.signedUrl) {
+        signedPhotos.push(signed.signedUrl);
+      }
+    }
+
     return new Response(
       JSON.stringify({
         id: deal.id,
-        delivery_photos: deal.delivery_photos || [],
+        delivery_photos: signedPhotos,
         client_first_name: clientFirstName,
         vehicle: vehicleInfo,
       }),
