@@ -607,28 +607,18 @@ const FinanceApplication = () => {
       insertedApp = data;
       error = updateError;
     } else {
-      // Insert new application via God-mode edge function (bypasses RLS)
+      // Insert new application via Edge Function Tunnel to bypass RLS
       const { data: functionData, error: functionError } = await supabase.functions.invoke('submit-finance-app', {
         body: { insertData: sanitizedData }
       });
-
-      // Check for network/invocation errors
+      
       if (functionError) {
-        console.error("Invocation Error:", functionError);
-        toast.error(`Network Error: ${functionError.message || 'Could not reach server.'}`);
-        setIsSubmitting(false);
-        return;
+        error = functionError;
+      } else if (functionData && functionData.error) {
+        error = new Error(functionData.error);
+      } else {
+        insertedApp = functionData?.data || null;
       }
-
-      // Check for database/logic errors returned inside the function payload
-      if (functionData && functionData.error) {
-        console.error("Database Error:", functionData.error);
-        toast.error(`Database Rejection: ${functionData.error}`);
-        setIsSubmitting(false);
-        return;
-      }
-
-      insertedApp = functionData?.data ?? null;
     }
 
     if (error) {
