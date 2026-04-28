@@ -417,14 +417,34 @@ const FinanceApplication = () => {
   }, [currentStep]);
 
   const nextStep = () => {
+    // STEP 1 VALIDATION GATEKEEPER (explicit checks before schema validation)
+    if (currentStep === 1) {
+      if (!formData.first_name || formData.first_name.trim().length < 2) {
+        toast.error("First name must be at least 2 characters.");
+        return;
+      }
+      if (!formData.last_name || formData.last_name.trim().length < 2) {
+        toast.error("Surname must be at least 2 characters.");
+        return;
+      }
+      if (!formData.email || !/^\S+@\S+\.\S+$/.test(formData.email)) {
+        toast.error("Please enter a valid email address.");
+        return;
+      }
+      if (!formData.phone || formData.phone.trim().length < 9) {
+        toast.error("Please enter a valid cell number.");
+        return;
+      }
+    }
+
     if (validateStep(currentStep)) {
       // Silent CRM lead capture on Step 1 -> Step 2 transition (drop-off protection)
       if (currentStep === 1) {
         try {
           supabase.from('leads').insert([{
-            client_name: `${formData.first_name || ''} ${formData.last_name || ''}`.trim() || 'Anonymous',
-            client_email: formData.email || '',
-            client_phone: formData.phone || '',
+            client_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
+            client_email: formData.email.trim(),
+            client_phone: formData.phone.trim(),
             source: 'website',
             status: 'new',
             notes: 'Partial Finance Application Started (Drop-off Capture)'
