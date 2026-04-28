@@ -296,7 +296,7 @@ const FinanceApplication = () => {
       preferred_vehicle_text: data.preferred_vehicle_text || "",
       has_drivers_license: data.has_drivers_license === true ? "yes" : data.has_drivers_license === false ? "no" : "",
       credit_score_status: data.credit_score_status || "",
-    });
+    }));
 
     setCurrentStep(1);
     toast.info("Please review and update your details, then re-sign to submit.");
