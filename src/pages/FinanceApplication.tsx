@@ -81,6 +81,7 @@ const FinanceApplication = () => {
     area_code: "",
     // Employment
     employer_name: "",
+    employer_address: "",
     job_title: "",
     employment_period_value: "",
     employment_period_unit: "years",
