@@ -546,8 +546,12 @@ const FinanceApplication = () => {
         accountAlreadyExisted = true;
         effectiveUserId = undefined;
       } else {
-        effectiveUserId = signUpData.user.id;
+        // NOTE: signUp returns a user object but no session when email
+        // confirmation is required. Without a session, auth.uid() is null
+        // at insert time and the RLS check `auth.uid() = user_id` fails.
+        // Only attach the user_id if a session was actually established.
         generatedTempPassword = tempPassword;
+        effectiveUserId = signUpData.session ? signUpData.user.id : undefined;
       }
 
       setGhostAccountCreated(true);
@@ -556,7 +560,7 @@ const FinanceApplication = () => {
 
     // 2. Prepare Data
     const sanitizedData = {
-      user_id: effectiveUserId!,
+      user_id: effectiveUserId ?? null,
       vehicle_id: vehicleId || null,
       full_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
       first_name: formData.first_name.trim(),
