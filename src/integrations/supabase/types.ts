@@ -505,6 +505,7 @@ export type Database = {
           email: string
           employer_address: string | null
           employer_name: string | null
+          employer_postal_code: string | null
           employment_period: string | null
           employment_status: string | null
           expenses_summary: string | null
@@ -560,6 +561,7 @@ export type Database = {
           email: string
           employer_address?: string | null
           employer_name?: string | null
+          employer_postal_code?: string | null
           employment_period?: string | null
           employment_status?: string | null
           expenses_summary?: string | null
@@ -615,6 +617,7 @@ export type Database = {
           email?: string
           employer_address?: string | null
           employer_name?: string | null
+          employer_postal_code?: string | null
           employment_period?: string | null
           employment_status?: string | null
           expenses_summary?: string | null
