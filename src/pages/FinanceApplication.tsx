@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Helmet } from "react-helmet-async";
@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import KineticText from "@/components/KineticText";
 import SignaturePad from "@/components/SignaturePad";
-import AddressAutocomplete from "@/components/AddressAutocomplete";
+
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -117,6 +117,86 @@ const FinanceApplication = () => {
 
   const [ghostAccountCreated, setGhostAccountCreated] = useState(false);
   const [ghostEmail, setGhostEmail] = useState("");
+
+  // Refs for native Google Maps Places Autocomplete
+  const addressInputRef = useRef<HTMLInputElement | null>(null);
+  const employerAddressRef = useRef<HTMLInputElement | null>(null);
+
+  // Force-load Google Maps script and bind autocomplete to address fields
+  useEffect(() => {
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+    console.log("Maps API Key Present:", !!apiKey);
+    if (!apiKey) return;
+
+    const scriptId = "google-maps-script";
+    let script = document.getElementById(scriptId) as HTMLScriptElement | null;
+
+    const setupAutocomplete = () => {
+      if (!(window as any).google?.maps?.places) return;
+
+      if (addressInputRef.current && !(addressInputRef.current as any)._autocompleteBound) {
+        const auto1 = new (window as any).google.maps.places.Autocomplete(addressInputRef.current, {
+          componentRestrictions: { country: 'za' },
+          fields: ['formatted_address', 'address_components'],
+          types: ['address'],
+        });
+        auto1.addListener('place_changed', () => {
+          const place = auto1.getPlace();
+          if (place.formatted_address) {
+            let postalCode = '';
+            if (place.address_components) {
+              const pc = place.address_components.find((c: any) => c.types.includes('postal_code'));
+              if (pc) postalCode = pc.long_name;
+            }
+            setFormData(prev => ({
+              ...prev,
+              street_address: place.formatted_address,
+              ...(postalCode ? { area_code: postalCode } : {}),
+            }));
+          }
+        });
+        (addressInputRef.current as any)._autocompleteBound = true;
+      }
+
+      if (employerAddressRef.current && !(employerAddressRef.current as any)._autocompleteBound) {
+        const auto2 = new (window as any).google.maps.places.Autocomplete(employerAddressRef.current, {
+          componentRestrictions: { country: 'za' },
+          fields: ['formatted_address', 'address_components', 'name'],
+          types: ['establishment', 'geocode'],
+        });
+        auto2.addListener('place_changed', () => {
+          const place = auto2.getPlace();
+          if (place.formatted_address) {
+            let postalCode = '';
+            if (place.address_components) {
+              const pc = place.address_components.find((c: any) => c.types.includes('postal_code'));
+              if (pc) postalCode = pc.long_name;
+            }
+            setFormData(prev => ({
+              ...prev,
+              employer_address: place.name && !place.formatted_address.includes(place.name)
+                ? `${place.name}, ${place.formatted_address}`
+                : place.formatted_address,
+              employer_postal_code: postalCode,
+            }));
+          }
+        });
+        (employerAddressRef.current as any)._autocompleteBound = true;
+      }
+    };
+
+    if (!script) {
+      script = document.createElement('script');
+      script.id = scriptId;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+      script.async = true;
+      script.onload = setupAutocomplete;
+      document.head.appendChild(script);
+    } else {
+      setupAutocomplete();
+    }
+  }, [currentStep]);
+
 
   useEffect(() => {
     // Don't redirect while loading - wait for auth state to resolve
@@ -1201,12 +1281,15 @@ const FinanceApplication = () => {
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="street_address">Physical Address *</Label>
-                      <AddressAutocomplete
+                      <Input
+                        id="street_address"
+                        ref={addressInputRef}
                         value={formData.street_address}
-                        onChange={(value) => handleInputChange("street_address", value)}
-                        onPostalCodeChange={(postalCode) => handleInputChange("area_code", postalCode)}
+                        onChange={(e) => handleInputChange("street_address", e.target.value)}
                         placeholder="Start typing your address..."
+                        autoComplete="off"
                         required
+                        className={getErrorClass("street_address")}
                       />
                       <FieldError field="street_address" />
                     </div>
@@ -1244,11 +1327,13 @@ const FinanceApplication = () => {
                       </div>
                       <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="employer_address">Company Location / Address</Label>
-                        <AddressAutocomplete
+                        <Input
+                          id="employer_address"
+                          ref={employerAddressRef}
                           value={formData.employer_address}
-                          onChange={(value) => handleInputChange("employer_address", value)}
-                          onPostalCodeChange={(code) => handleInputChange("employer_postal_code", code)}
+                          onChange={(e) => handleInputChange("employer_address", e.target.value)}
                           placeholder="Start typing company name or address..."
+                          autoComplete="off"
                         />
                         {formData.employer_postal_code && (
                           <p className="text-xs text-muted-foreground mt-1">Postal Code: {formData.employer_postal_code}</p>
