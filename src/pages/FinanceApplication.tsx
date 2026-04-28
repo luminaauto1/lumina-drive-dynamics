@@ -560,7 +560,7 @@ const FinanceApplication = () => {
 
     // 2. Prepare Data
     const sanitizedData = {
-      user_id: effectiveUserId!,
+      user_id: effectiveUserId ?? null,
       vehicle_id: vehicleId || null,
       full_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
       first_name: formData.first_name.trim(),
