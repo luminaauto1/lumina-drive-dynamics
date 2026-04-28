@@ -615,7 +615,7 @@ const FinanceApplication = () => {
       if (functionError) {
         console.error("Invocation Error:", functionError);
         toast.error(`Network Error: ${functionError.message || 'Could not reach server.'}`);
-        setSubmitting(false);
+        setIsSubmitting(false);
         return;
       }
 
@@ -623,7 +623,7 @@ const FinanceApplication = () => {
       if (functionData && functionData.error) {
         console.error("Database Error:", functionData.error);
         toast.error(`Database Rejection: ${functionData.error}`);
-        setSubmitting(false);
+        setIsSubmitting(false);
         return;
       }
 
