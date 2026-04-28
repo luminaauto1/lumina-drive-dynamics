@@ -1327,11 +1327,13 @@ const FinanceApplication = () => {
                       </div>
                       <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="employer_address">Company Location / Address</Label>
-                        <AddressAutocomplete
+                        <Input
+                          id="employer_address"
+                          ref={employerAddressRef}
                           value={formData.employer_address}
-                          onChange={(value) => handleInputChange("employer_address", value)}
-                          onPostalCodeChange={(code) => handleInputChange("employer_postal_code", code)}
+                          onChange={(e) => handleInputChange("employer_address", e.target.value)}
                           placeholder="Start typing company name or address..."
+                          autoComplete="off"
                         />
                         {formData.employer_postal_code && (
                           <p className="text-xs text-muted-foreground mt-1">Postal Code: {formData.employer_postal_code}</p>
