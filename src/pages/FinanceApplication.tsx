@@ -455,6 +455,7 @@ const FinanceApplication = () => {
               client_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
               client_email: formData.email.trim(),
               client_phone: formData.phone.trim(),
+              source: 'website',
               status: 'new',
               notes: 'Partial Finance Application Started (Drop-off Capture)'
             }}
@@ -633,6 +634,8 @@ const FinanceApplication = () => {
     if (error) {
       toast.error(`Submission failed: ${error.message || 'Unknown error. Please try again.'}`);
       console.error("Submission error:", error);
+      setIsSubmitting(false);
+      return; // CRITICAL: Stop execution so emails/whatsapp don't fire on a failed save
     } else {
       // 4. Auto-create Lead via secure edge function
       try {
