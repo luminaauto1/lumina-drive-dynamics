@@ -695,6 +695,9 @@ const FinanceApplication = () => {
       // 7. Send client confirmation email (non-blocking)
       try {
         if (formData.email) {
+          const accountUsername = formData.email.trim().toLowerCase();
+          const accountPassword = formData.id_number?.trim() || "Please use the 'Forgot Password' option to reset.";
+          const loginLink = `${window.location.origin}/auth`;
           const clientSubject = `Finance Application Received - Lumina Auto`;
           const clientBody = `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -702,6 +705,16 @@ const FinanceApplication = () => {
               <p>Hi ${formData.first_name},</p>
               <p>Thank you for choosing <strong>Lumina Auto</strong>. We have successfully received your finance application.</p>
               <p>Our F&amp;I team will review your details and be in touch with you shortly regarding the next steps.</p>
+              <div style="background: #faf7ee; border: 1px solid #d4af37; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <h3 style="margin: 0 0 8px 0; color: #1a1a1a; font-size: 16px;">Your Client Portal Account</h3>
+                <p style="margin: 0 0 8px 0; color: #333;">A secure account has been automatically created for you to track your application progress in real time.</p>
+                <p style="margin: 4px 0; color: #1a1a1a;"><strong>Username:</strong> ${accountUsername}</p>
+                <p style="margin: 4px 0; color: #1a1a1a;"><strong>Password:</strong> ${accountPassword}</p>
+                <p style="margin: 12px 0 0 0;">
+                  <a href="${loginLink}" style="display: inline-block; background: #1a1a1a; color: #d4af37; padding: 10px 18px; text-decoration: none; border-radius: 6px; font-weight: 600;">Log In to Your Portal</a>
+                </p>
+                <p style="margin: 10px 0 0 0; color: #666; font-size: 12px;">For your security, we recommend changing your password after your first login.</p>
+              </div>
               <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
               <p style="color: #666;">Best regards,<br/>Albert &amp; The Lumina Auto Team</p>
             </div>
