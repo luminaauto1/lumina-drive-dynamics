@@ -263,7 +263,8 @@ const FinanceApplication = () => {
       }
     }
 
-    setFormData({
+    setFormData(prev => ({
+      ...prev,
       first_name: data.first_name || "",
       last_name: data.last_name || "",
       id_number: data.id_number || "",
