@@ -132,6 +132,8 @@ export const generateFinancePDF = async (application: FinanceApplication, vehicl
   doc.setFontSize(10);
   addField('Employer', application.employer_name);
   yPos += lineHeight;
+  addField('Employer Address', (application as any).employer_address);
+  yPos += lineHeight;
   addField('Job Title', application.job_title);
   yPos += lineHeight;
   addField('Period', application.employment_period);

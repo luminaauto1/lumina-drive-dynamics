@@ -83,8 +83,8 @@ const FinanceApplication = () => {
     employer_name: "",
     employer_address: "",
     job_title: "",
-    employment_period_value: "",
-    employment_period_unit: "years",
+    employment_years: "",
+    employment_months: "",
     // Next of Kin
     kin_name: "",
     kin_contact: "",
@@ -106,10 +106,12 @@ const FinanceApplication = () => {
     credit_score_status: "",
   });
 
-  // Computed employment period for validation and submission
+  // Computed employment period for validation and submission ("X Years, Y Months")
   const getEmploymentPeriod = () => {
-    if (!formData.employment_period_value) return "";
-    return `${formData.employment_period_value} ${formData.employment_period_unit}`;
+    const y = parseInt(formData.employment_years || "0", 10) || 0;
+    const m = parseInt(formData.employment_months || "0", 10) || 0;
+    if (y === 0 && m === 0) return "";
+    return `${y} Years, ${m} Months`;
   };
 
   const [ghostAccountCreated, setGhostAccountCreated] = useState(false);
@@ -152,14 +154,20 @@ const FinanceApplication = () => {
     setShowTrustModal(false);
     setResumedApplicationId(draftId);
     
-    // Parse employment period if present
-    let empPeriodValue = "";
-    let empPeriodUnit = "years";
+    // Parse employment period if present ("X Years, Y Months" or legacy "N years")
+    let empYears = "";
+    let empMonths = "";
     if (data.employment_period) {
-      const match = data.employment_period.match(/^(\d+)\s*(\w+)$/);
-      if (match) {
-        empPeriodValue = match[1];
-        empPeriodUnit = match[2] || "years";
+      const ymMatch = data.employment_period.match(/(\d+)\s*Years?,?\s*(\d+)\s*Months?/i);
+      if (ymMatch) {
+        empYears = ymMatch[1];
+        empMonths = ymMatch[2];
+      } else {
+        const legacy = data.employment_period.match(/^(\d+)\s*(\w+)/);
+        if (legacy) {
+          if (/year/i.test(legacy[2])) empYears = legacy[1];
+          else if (/month/i.test(legacy[2])) empMonths = legacy[1];
+        }
       }
     }
 
@@ -178,8 +186,8 @@ const FinanceApplication = () => {
       employer_name: data.employer_name || "",
       employer_address: (data as any).employer_address || "",
       job_title: data.job_title || "",
-      employment_period_value: empPeriodValue,
-      employment_period_unit: empPeriodUnit,
+      employment_years: empYears,
+      employment_months: empMonths,
       kin_name: data.kin_name || "",
       kin_contact: data.kin_contact || "",
       bank_name: data.bank_name || "",
@@ -235,14 +243,20 @@ const FinanceApplication = () => {
     setResumedApplicationId(appId);
     setIsRevisionMode(true);
 
-    // Parse employment period
-    let empPeriodValue = "";
-    let empPeriodUnit = "years";
+    // Parse employment period ("X Years, Y Months" or legacy)
+    let empYears = "";
+    let empMonths = "";
     if (data.employment_period) {
-      const match = data.employment_period.match(/^(\d+)\s*(\w+)$/);
-      if (match) {
-        empPeriodValue = match[1];
-        empPeriodUnit = match[2] || "years";
+      const ymMatch = data.employment_period.match(/(\d+)\s*Years?,?\s*(\d+)\s*Months?/i);
+      if (ymMatch) {
+        empYears = ymMatch[1];
+        empMonths = ymMatch[2];
+      } else {
+        const legacy = data.employment_period.match(/^(\d+)\s*(\w+)/);
+        if (legacy) {
+          if (/year/i.test(legacy[2])) empYears = legacy[1];
+          else if (/month/i.test(legacy[2])) empMonths = legacy[1];
+        }
       }
     }
 
@@ -260,8 +274,8 @@ const FinanceApplication = () => {
       employer_name: data.employer_name || "",
       employer_address: (data as any).employer_address || "",
       job_title: data.job_title || "",
-      employment_period_value: empPeriodValue,
-      employment_period_unit: empPeriodUnit,
+      employment_years: empYears,
+      employment_months: empMonths,
       kin_name: data.kin_name || "",
       kin_contact: data.kin_contact || "",
       bank_name: data.bank_name || "",
@@ -403,14 +417,34 @@ const FinanceApplication = () => {
   }, [currentStep]);
 
   const nextStep = () => {
+    // STEP 1 VALIDATION GATEKEEPER (explicit checks before schema validation)
+    if (currentStep === 1) {
+      if (!formData.first_name || formData.first_name.trim().length < 2) {
+        toast.error("First name must be at least 2 characters.");
+        return;
+      }
+      if (!formData.last_name || formData.last_name.trim().length < 2) {
+        toast.error("Surname must be at least 2 characters.");
+        return;
+      }
+      if (!formData.email || !/^\S+@\S+\.\S+$/.test(formData.email)) {
+        toast.error("Please enter a valid email address.");
+        return;
+      }
+      if (!formData.phone || formData.phone.trim().length < 9) {
+        toast.error("Please enter a valid cell number.");
+        return;
+      }
+    }
+
     if (validateStep(currentStep)) {
       // Silent CRM lead capture on Step 1 -> Step 2 transition (drop-off protection)
       if (currentStep === 1) {
         try {
           supabase.from('leads').insert([{
-            client_name: `${formData.first_name || ''} ${formData.last_name || ''}`.trim() || 'Anonymous',
-            client_email: formData.email || '',
-            client_phone: formData.phone || '',
+            client_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
+            client_email: formData.email.trim(),
+            client_phone: formData.phone.trim(),
             source: 'website',
             status: 'new',
             notes: 'Partial Finance Application Started (Drop-off Capture)'
@@ -1079,29 +1113,31 @@ const FinanceApplication = () => {
                         />
                       </div>
                       <div className="space-y-2 md:col-span-2">
-                        <Label htmlFor="employment_period">Period at Employer</Label>
-                        <div className="flex gap-3">
-                          <Input
-                            id="employment_period_value"
-                            type="number"
-                            value={formData.employment_period_value}
-                            onChange={(e) => handleInputChange("employment_period_value", e.target.value)}
-                            placeholder="Time"
-                            className="flex-1"
-                            min={0}
-                          />
-                          <Select
-                            value={formData.employment_period_unit}
-                            onValueChange={(v) => handleInputChange("employment_period_unit", v)}
-                          >
-                            <SelectTrigger className="w-32">
-                              <SelectValue placeholder="Unit" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="months">Months</SelectItem>
-                              <SelectItem value="years">Years</SelectItem>
-                            </SelectContent>
-                          </Select>
+                        <Label>Time at Employer</Label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Input
+                              id="employment_years"
+                              type="number"
+                              min={0}
+                              placeholder="Years"
+                              value={formData.employment_years}
+                              onChange={(e) => handleInputChange("employment_years", e.target.value)}
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">Years</p>
+                          </div>
+                          <div>
+                            <Input
+                              id="employment_months"
+                              type="number"
+                              min={0}
+                              max={11}
+                              placeholder="Months"
+                              value={formData.employment_months}
+                              onChange={(e) => handleInputChange("employment_months", e.target.value)}
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">Months</p>
+                          </div>
                         </div>
                       </div>
                     </div>
