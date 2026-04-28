@@ -21,8 +21,6 @@ const AddressAutocompleteInner = ({ value, onChange, onPostalCodeChange, placeho
     if (value && value !== inputValue) setInputValue(value);
   }, [value]);
 
-  if (!apiKey) return <Textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} required={required} />;
-
   const handlePlaceSelect = useCallback((val: any) => {
     if (!val) return;
 
@@ -51,6 +49,9 @@ const AddressAutocompleteInner = ({ value, onChange, onPostalCodeChange, placeho
       );
     }
   }, [onChange, onPostalCodeChange]);
+
+  // Fallback AFTER hooks (never call hooks conditionally)
+  if (!apiKey) return <Textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} required={required} />;
 
   return (
     <div className="w-full relative z-50">
