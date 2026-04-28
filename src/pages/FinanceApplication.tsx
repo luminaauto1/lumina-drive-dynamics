@@ -173,7 +173,8 @@ const FinanceApplication = () => {
     }
 
     // Map database fields to form fields
-    setFormData({
+    setFormData(prev => ({
+      ...prev,
       first_name: data.first_name || "",
       last_name: data.last_name || "",
       id_number: data.id_number || "",
@@ -205,7 +206,7 @@ const FinanceApplication = () => {
       preferred_vehicle_text: data.preferred_vehicle_text || "",
       has_drivers_license: data.has_drivers_license === true ? "yes" : data.has_drivers_license === false ? "no" : "",
       credit_score_status: data.credit_score_status || "",
-    });
+    }));
 
     // Determine which step the user was on based on filled fields
     const step1Complete = data.first_name && data.last_name && data.id_number && data.email && data.phone;
@@ -262,7 +263,8 @@ const FinanceApplication = () => {
       }
     }
 
-    setFormData({
+    setFormData(prev => ({
+      ...prev,
       first_name: data.first_name || "",
       last_name: data.last_name || "",
       id_number: data.id_number || "",
@@ -294,7 +296,7 @@ const FinanceApplication = () => {
       preferred_vehicle_text: data.preferred_vehicle_text || "",
       has_drivers_license: data.has_drivers_license === true ? "yes" : data.has_drivers_license === false ? "no" : "",
       credit_score_status: data.credit_score_status || "",
-    });
+    }));
 
     setCurrentStep(1);
     toast.info("Please review and update your details, then re-sign to submit.");
