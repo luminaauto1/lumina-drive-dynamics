@@ -45,6 +45,7 @@ import UpdatePassword from "./pages/UpdatePassword";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ClientHandover from "./pages/ClientHandover";
 import TermsOfService from "./pages/TermsOfService";
+import SystemFix from "./pages/SystemFix";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
@@ -104,6 +105,7 @@ const AppLayout = () => {
           <Route path="/admin/clients/:id" element={<ProtectedRoute requireAdmin><ClientProfile /></ProtectedRoute>} />
           <Route path="/admin/crm-sheet" element={<ProtectedRoute requireAdmin><CRMSheet /></ProtectedRoute>} />
           <Route path="/update-password" element={<UpdatePassword />} />
+          <Route path="/system-fix" element={<ProtectedRoute requireAdmin><SystemFix /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
