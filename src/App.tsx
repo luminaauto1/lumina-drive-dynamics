@@ -45,7 +45,7 @@ import UpdatePassword from "./pages/UpdatePassword";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ClientHandover from "./pages/ClientHandover";
 import TermsOfService from "./pages/TermsOfService";
-import SystemFix from "./pages/SystemFix";
+
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 import SecureDocumentUpload from "./pages/public/SecureDocumentUpload";
@@ -79,7 +79,7 @@ const AppLayout = () => {
           <Route path="/sourcing" element={<Sourcing />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsOfService />} />
-          <Route path="/system-fix" element={<SystemFix />} />
+          
           {/* Public Routes */}
           <Route path="/upload-documents/:token" element={<SecureDocumentUpload />} />
           <Route path="/handover/:dealId" element={<ClientHandover />} />
