@@ -80,10 +80,5 @@ const AddressAutocomplete = ({ value, onChange, onPostalCodeChange, placeholder,
     </div>
   );
 };
-
-// Memoized so parent re-renders (form state changes, validation errors, etc.) don't remount
-// the autocomplete and wipe the Google Places script binding.
-const AddressAutocomplete = memo(AddressAutocompleteInner);
-
 export default AddressAutocomplete;
 
