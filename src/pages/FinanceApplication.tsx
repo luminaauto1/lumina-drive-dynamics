@@ -1114,8 +1114,12 @@ const FinanceApplication = () => {
                         <AddressAutocomplete
                           value={formData.employer_address}
                           onChange={(value) => handleInputChange("employer_address", value)}
+                          onPostalCodeChange={(code) => handleInputChange("employer_postal_code", code)}
                           placeholder="Start typing company name or address..."
                         />
+                        {formData.employer_postal_code && (
+                          <p className="text-xs text-muted-foreground mt-1">Postal Code: {formData.employer_postal_code}</p>
+                        )}
                       </div>
                       <div className="space-y-2 md:col-span-2">
                         <Label>Time at Employer</Label>
