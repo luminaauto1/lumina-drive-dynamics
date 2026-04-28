@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import KineticText from "@/components/KineticText";
 import SignaturePad from "@/components/SignaturePad";
-import AddressAutocomplete from "@/components/AddressAutocomplete";
+
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
