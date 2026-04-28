@@ -397,8 +397,30 @@ const FinanceApplication = () => {
     return <p className="text-xs text-destructive mt-1">{fieldErrors[field]}</p>;
   };
 
+  // Auto-scroll to top when step changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentStep]);
+
   const nextStep = () => {
     if (validateStep(currentStep)) {
+      // Silent CRM lead capture on Step 1 -> Step 2 transition (drop-off protection)
+      if (currentStep === 1) {
+        try {
+          supabase.from('leads').insert([{
+            client_name: `${formData.first_name || ''} ${formData.last_name || ''}`.trim() || 'Anonymous',
+            client_email: formData.email || '',
+            client_phone: formData.phone || '',
+            source: 'website',
+            status: 'new',
+            notes: 'Partial Finance Application Started (Drop-off Capture)'
+          }] as any).then(({ error }) => {
+            if (error) console.error('Silent lead capture failed', error);
+          });
+        } catch (error) {
+          console.error('Silent lead capture failed', error);
+        }
+      }
       setCurrentStep((prev) => Math.min(prev + 1, 5));
     }
   };
