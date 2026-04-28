@@ -52,16 +52,47 @@ export const useUpdateFinanceApplication = () => {
 
       if (error) throw error;
 
-      // 3. Auto-Mailer Engine — Dynamic Templates
-      if (updates.status && currentApp && updates.status !== currentApp.status && currentApp.email) {
+      // 3. Auto-Mailer Engine — STRICT 1:1 Status → Template Mapping
+      // Only these statuses are permitted to dispatch a client email.
+      // Each must have an EXACT matching `status_key` row in `email_templates`
+      // with `is_active=true`. No fallbacks, no fuzzy matches, no cross-firing.
+      const EMAIL_ELIGIBLE_STATUSES = new Set<string>([
+        'pending',
+        'application_submitted',
+        'pre_approved',
+        'documents_received',
+        'validations_pending',
+        'validations_complete',
+        'contract_sent',
+        'contract_signed',
+        'vehicle_delivered',
+        'declined',
+        'vehicle_selected',
+        'approved',
+      ]);
+
+      const newStatus = updates.status as string | undefined;
+      const statusActuallyChanged =
+        !!newStatus && !!currentApp && newStatus !== currentApp.status;
+
+      if (
+        statusActuallyChanged &&
+        currentApp.email &&
+        EMAIL_ELIGIBLE_STATUSES.has(newStatus!)
+      ) {
+        // Strict lookup: status_key MUST equal the new status exactly.
         const { data: template } = await supabase
           .from('email_templates')
           .select('*')
-          .eq('status_key', updates.status)
+          .eq('status_key', newStatus!)
           .eq('is_active', true)
           .maybeSingle();
 
-        if (template) {
+        // Guard: if no active template exists for THIS exact status, send nothing.
+        // Never fall back to another template (prevents Pre-Approved email firing
+        // on Validations Complete or any other status).
+        if (template && template.status_key === newStatus) {
+          console.log(`[Auto-Mailer] Status ${currentApp.status} → ${newStatus}. Dispatching template "${template.status_key}".`);
           const firstName = currentApp.first_name || "Valued Client";
           const subject = template.subject;
           const heading = (template.heading || '').replace(/\{\{clientName\}\}/g, firstName);
@@ -105,7 +136,11 @@ export const useUpdateFinanceApplication = () => {
             }
           })
           .catch(err => console.error("Frontend failed to reach EmailJS:", err));
+        } else if (statusActuallyChanged) {
+          console.log(`[Auto-Mailer] Status changed to "${newStatus}" — no active template with status_key="${newStatus}". No email sent.`);
         }
+      } else if (statusActuallyChanged && !EMAIL_ELIGIBLE_STATUSES.has(newStatus!)) {
+        console.log(`[Auto-Mailer] Status "${newStatus}" is not email-eligible. Silent transition.`);
       }
 
       return data;
