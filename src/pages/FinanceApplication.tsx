@@ -82,6 +82,7 @@ const FinanceApplication = () => {
     // Employment
     employer_name: "",
     employer_address: "",
+    employer_postal_code: "",
     job_title: "",
     employment_years: "",
     employment_months: "",
