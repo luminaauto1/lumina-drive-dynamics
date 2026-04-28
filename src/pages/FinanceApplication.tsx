@@ -206,7 +206,7 @@ const FinanceApplication = () => {
       preferred_vehicle_text: data.preferred_vehicle_text || "",
       has_drivers_license: data.has_drivers_license === true ? "yes" : data.has_drivers_license === false ? "no" : "",
       credit_score_status: data.credit_score_status || "",
-    });
+    }));
 
     // Determine which step the user was on based on filled fields
     const step1Complete = data.first_name && data.last_name && data.id_number && data.email && data.phone;
