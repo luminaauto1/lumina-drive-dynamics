@@ -50,14 +50,22 @@ const AddressAutocompleteInner = ({ value, onChange, onPostalCodeChange, placeho
         }
       );
     }
-  };
-  
+    }
+  }, [onChange, onPostalCodeChange]);
+
   return (
     <div className="w-full relative z-50">
       <GooglePlacesAutocomplete
         apiKey={apiKey}
         selectProps={{
-          defaultInputValue: value,
+          inputValue,
+          onInputChange: (newVal: string, meta: any) => {
+            // Preserve text on blur/menu-close so re-renders never wipe the field
+            if (meta?.action === 'input-change') {
+              setInputValue(newVal);
+              onChange(newVal);
+            }
+          },
           onChange: handlePlaceSelect,
           placeholder: placeholder || "Start typing address...",
           styles: {
@@ -73,4 +81,9 @@ const AddressAutocompleteInner = ({ value, onChange, onPostalCodeChange, placeho
   );
 };
 
+// Memoized so parent re-renders (form state changes, validation errors, etc.) don't remount
+// the autocomplete and wipe the Google Places script binding.
+const AddressAutocomplete = memo(AddressAutocompleteInner);
+
 export default AddressAutocomplete;
+
