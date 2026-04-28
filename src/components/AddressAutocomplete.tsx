@@ -1,4 +1,4 @@
-import { memo, useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import GooglePlacesAutocomplete from 'react-google-places-autocomplete';
 import { Textarea } from '@/components/ui/textarea';
 
@@ -10,7 +10,7 @@ interface AddressAutocompleteProps {
   required?: boolean;
 }
 
-const AddressAutocompleteInner = ({ value, onChange, onPostalCodeChange, placeholder, required }: AddressAutocompleteProps) => {
+const AddressAutocomplete = ({ value, onChange, onPostalCodeChange, placeholder, required }: AddressAutocompleteProps) => {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
   // Controlled input state — survives parent re-renders so the field never gets wiped
@@ -80,10 +80,5 @@ const AddressAutocompleteInner = ({ value, onChange, onPostalCodeChange, placeho
     </div>
   );
 };
-
-// Memoized so parent re-renders (form state changes, validation errors, etc.) don't remount
-// the autocomplete and wipe the Google Places script binding.
-const AddressAutocomplete = memo(AddressAutocompleteInner);
-
 export default AddressAutocomplete;
 
