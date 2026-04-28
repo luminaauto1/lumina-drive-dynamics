@@ -79,7 +79,7 @@ const AppLayout = () => {
           <Route path="/sourcing" element={<Sourcing />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsOfService />} />
-          <Route path="/system-fix" element={<SystemFix />} />
+          
           {/* Public Routes */}
           <Route path="/upload-documents/:token" element={<SecureDocumentUpload />} />
           <Route path="/handover/:dealId" element={<ClientHandover />} />
