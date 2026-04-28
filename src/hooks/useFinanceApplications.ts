@@ -80,18 +80,29 @@ export const useUpdateFinanceApplication = () => {
         currentApp.email &&
         EMAIL_ELIGIBLE_STATUSES.has(newStatus!)
       ) {
-        // Strict lookup: status_key MUST equal the new status exactly.
+        // Workflow Remap: When admin marks application as "Pre-Approved (Docs Req)",
+        // the client must receive the "Validations Pending" email requesting their
+        // outstanding documents (ID, Payslips, Proof of Address). The pre_approved
+        // status itself has no client-facing template — it always fires the
+        // validations_pending template instead.
+        const STATUS_TEMPLATE_REMAP: Record<string, string> = {
+          pre_approved: 'validations_pending',
+          // validations_complete intentionally omitted — keep silent to avoid
+          // re-requesting documents the client has already submitted.
+        };
+        const templateKey = STATUS_TEMPLATE_REMAP[newStatus!] ?? newStatus!;
+
+        // Strict lookup: status_key MUST equal the resolved template key exactly.
         const { data: template } = await supabase
           .from('email_templates')
           .select('*')
-          .eq('status_key', newStatus!)
+          .eq('status_key', templateKey)
           .eq('is_active', true)
           .maybeSingle();
 
-        // Guard: if no active template exists for THIS exact status, send nothing.
-        // Never fall back to another template (prevents Pre-Approved email firing
-        // on Validations Complete or any other status).
-        if (template && template.status_key === newStatus) {
+        // Guard: if no active template exists for THIS exact key, send nothing.
+        // Never fall back to another template.
+        if (template && template.status_key === templateKey) {
           console.log(`[Auto-Mailer] Status ${currentApp.status} → ${newStatus}. Dispatching template "${template.status_key}".`);
           const firstName = currentApp.first_name || "Valued Client";
           const subject = template.subject;
