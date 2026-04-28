@@ -1281,12 +1281,15 @@ const FinanceApplication = () => {
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="street_address">Physical Address *</Label>
-                      <AddressAutocomplete
+                      <Input
+                        id="street_address"
+                        ref={addressInputRef}
                         value={formData.street_address}
-                        onChange={(value) => handleInputChange("street_address", value)}
-                        onPostalCodeChange={(postalCode) => handleInputChange("area_code", postalCode)}
+                        onChange={(e) => handleInputChange("street_address", e.target.value)}
                         placeholder="Start typing your address..."
+                        autoComplete="off"
                         required
+                        className={getErrorClass("street_address")}
                       />
                       <FieldError field="street_address" />
                     </div>
