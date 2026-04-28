@@ -512,40 +512,50 @@ const FinanceApplication = () => {
       .map(src => src.source)
       .join(" + ");
 
-    // If guest and NOT in revision mode, create ghost account first
+    // If guest and NOT in revision mode, create ghost account first.
+    // SECURITY: Use a cryptographically random password (never the ID number).
+    // Client receives a password-reset email so they set their own password.
     let effectiveUserId = user?.id;
-    
+
     if (!user && !isRevisionMode) {
+      const generateSecurePassword = () =>
+        (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, '') + 'Aa1!';
+      const tempPassword = generateSecurePassword();
+      const normalizedEmail = formData.email.trim().toLowerCase();
+
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: formData.email.trim().toLowerCase(),
-        password: formData.id_number.trim(),
+        email: normalizedEmail,
+        password: tempPassword,
         options: {
+          emailRedirectTo: `${window.location.origin}/auth`,
           data: {
             full_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
             phone: formData.phone.trim(),
           },
         },
       });
-      
+
       if (signUpError || !signUpData?.user) {
-        // If account already exists, try signing in
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email: formData.email.trim().toLowerCase(),
-          password: formData.id_number.trim(),
+        // Account likely exists already — trigger a password-reset email
+        // so the existing owner can claim/recover access. Do NOT attempt
+        // to sign in with a guessable credential.
+        await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+          redirectTo: `${window.location.origin}/update-password`,
         });
-        
-        if (signInError || !signInData?.user) {
-          toast.error("Could not create your tracking account. Please try registering first.");
-          setIsSubmitting(false);
-          return;
-        }
-        effectiveUserId = signInData.user.id;
+
+        // Submit the application anonymously (no user_id) so it isn't
+        // silently attached to a stranger's account.
+        effectiveUserId = undefined;
       } else {
         effectiveUserId = signUpData.user.id;
+        // Send password setup email so the client picks their own password.
+        await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+          redirectTo: `${window.location.origin}/update-password`,
+        });
       }
-      
+
       setGhostAccountCreated(true);
-      setGhostEmail(formData.email.trim().toLowerCase());
+      setGhostEmail(normalizedEmail);
     }
 
     // 2. Prepare Data
@@ -696,7 +706,6 @@ const FinanceApplication = () => {
       try {
         if (formData.email) {
           const accountUsername = formData.email.trim().toLowerCase();
-          const accountPassword = formData.id_number?.trim() || "Please use the 'Forgot Password' option to reset.";
           const loginLink = `${window.location.origin}/auth`;
           const clientSubject = `Finance Application Received - Lumina Auto`;
           const clientBody = `
@@ -709,11 +718,10 @@ const FinanceApplication = () => {
                 <h3 style="margin: 0 0 8px 0; color: #1a1a1a; font-size: 16px;">Your Client Portal Account</h3>
                 <p style="margin: 0 0 8px 0; color: #333;">A secure account has been automatically created for you to track your application progress in real time.</p>
                 <p style="margin: 4px 0; color: #1a1a1a;"><strong>Username:</strong> ${accountUsername}</p>
-                <p style="margin: 4px 0; color: #1a1a1a;"><strong>Password:</strong> ${accountPassword}</p>
+                <p style="margin: 4px 0 12px 0; color: #333;">For your security, we've sent a separate <strong>password setup email</strong> to this address. Click the link inside to choose your own password and access your portal.</p>
                 <p style="margin: 12px 0 0 0;">
-                  <a href="${loginLink}" style="display: inline-block; background: #1a1a1a; color: #d4af37; padding: 10px 18px; text-decoration: none; border-radius: 6px; font-weight: 600;">Log In to Your Portal</a>
+                  <a href="${loginLink}" style="display: inline-block; background: #1a1a1a; color: #d4af37; padding: 10px 18px; text-decoration: none; border-radius: 6px; font-weight: 600;">Go to Portal Login</a>
                 </p>
-                <p style="margin: 10px 0 0 0; color: #666; font-size: 12px;">For your security, we recommend changing your password after your first login.</p>
               </div>
               <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
               <p style="color: #666;">Best regards,<br/>Albert &amp; The Lumina Auto Team</p>
@@ -866,7 +874,7 @@ const FinanceApplication = () => {
                 </p>
                 <div className="space-y-2">
                   <p className="text-xs text-muted-foreground"><strong className="text-foreground">Username:</strong> {ghostEmail}</p>
-                  <p className="text-xs text-muted-foreground"><strong className="text-foreground">Password:</strong> Your ID Number</p>
+                  <p className="text-xs text-muted-foreground">Check your inbox for a <strong className="text-foreground">password setup email</strong> to choose your own password.</p>
                 </div>
               </div>
             )}
