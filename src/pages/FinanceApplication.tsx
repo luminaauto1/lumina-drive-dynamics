@@ -82,6 +82,7 @@ const FinanceApplication = () => {
     // Employment
     employer_name: "",
     employer_address: "",
+    employer_postal_code: "",
     job_title: "",
     employment_years: "",
     employment_months: "",
@@ -185,6 +186,7 @@ const FinanceApplication = () => {
       area_code: data.area_code || "",
       employer_name: data.employer_name || "",
       employer_address: (data as any).employer_address || "",
+      employer_postal_code: (data as any).employer_postal_code || "",
       job_title: data.job_title || "",
       employment_years: empYears,
       employment_months: empMonths,
@@ -273,6 +275,7 @@ const FinanceApplication = () => {
       area_code: data.area_code || "",
       employer_name: data.employer_name || "",
       employer_address: (data as any).employer_address || "",
+      employer_postal_code: (data as any).employer_postal_code || "",
       job_title: data.job_title || "",
       employment_years: empYears,
       employment_months: empMonths,
@@ -556,6 +559,7 @@ const FinanceApplication = () => {
       area_code: formData.area_code?.trim() || null,
       employer_name: formData.employer_name.trim() || incomeSourceNames || null,
       employer_address: formData.employer_address?.trim() || null,
+      employer_postal_code: formData.employer_postal_code?.trim() || null,
       job_title: formData.job_title?.trim() || null,
       employment_period: getEmploymentPeriod() || null,
       kin_name: formData.kin_name.trim(),
@@ -676,6 +680,7 @@ const FinanceApplication = () => {
       area_code: formData.area_code?.trim() || null,
       employer_name: formData.employer_name.trim() || null,
       employer_address: formData.employer_address?.trim() || null,
+      employer_postal_code: formData.employer_postal_code?.trim() || null,
       job_title: formData.job_title?.trim() || null,
       employment_period: getEmploymentPeriod() || null,
       kin_name: formData.kin_name.trim() || null,
@@ -1109,8 +1114,12 @@ const FinanceApplication = () => {
                         <AddressAutocomplete
                           value={formData.employer_address}
                           onChange={(value) => handleInputChange("employer_address", value)}
+                          onPostalCodeChange={(code) => handleInputChange("employer_postal_code", code)}
                           placeholder="Start typing company name or address..."
                         />
+                        {formData.employer_postal_code && (
+                          <p className="text-xs text-muted-foreground mt-1">Postal Code: {formData.employer_postal_code}</p>
+                        )}
                       </div>
                       <div className="space-y-2 md:col-span-2">
                         <Label>Time at Employer</Label>

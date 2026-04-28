@@ -1,0 +1,1 @@
+ALTER TABLE finance_applications ADD COLUMN IF NOT EXISTS employer_postal_code TEXT;
