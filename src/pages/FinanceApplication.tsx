@@ -650,6 +650,11 @@ const FinanceApplication = () => {
         // Non-blocking - application was already saved
       }
 
+      // EmailJS direct dispatch (matches pattern in useFinanceApplications.ts)
+      const EMAILJS_SERVICE_ID = "service_myacl2m";
+      const EMAILJS_TEMPLATE_ID = "template_b2igduv";
+      const EMAILJS_USER_ID = "pWT3blntfZk-_syL4";
+
       // 6. Send admin notification to finance department (non-blocking)
       try {
         const adminSubject = `🚨 NEW FINANCE APP: ${formData.first_name} ${formData.last_name} 🏎️💨`;
@@ -666,16 +671,25 @@ const FinanceApplication = () => {
             <p>Log in to the Lumina Dealership Hub to view the full application and generate the PDF.</p>
           </div>
         `;
-        await supabase.functions.invoke('send-email', {
-          body: {
-            to: ['finance@luminaauto.co.za'],
-            subject: adminSubject,
-            html: adminBody,
-          },
+        const adminRes = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            service_id: EMAILJS_SERVICE_ID,
+            template_id: EMAILJS_TEMPLATE_ID,
+            user_id: EMAILJS_USER_ID,
+            template_params: {
+              to_email: "finance@luminaauto.co.za",
+              subject: adminSubject,
+              html_message: adminBody,
+            },
+          }),
         });
+        if (!adminRes.ok) {
+          console.error("EmailJS rejected admin notification:", await adminRes.text());
+        }
       } catch (adminEmailError) {
         console.error("Failed to send admin notification email", adminEmailError);
-        // Non-blocking
       }
 
       // 7. Send client confirmation email (non-blocking)
@@ -692,17 +706,26 @@ const FinanceApplication = () => {
               <p style="color: #666;">Best regards,<br/>Albert &amp; The Lumina Auto Team</p>
             </div>
           `;
-          await supabase.functions.invoke('send-email', {
-            body: {
-              to: [formData.email.trim().toLowerCase()],
-              subject: clientSubject,
-              html: clientBody,
-            },
+          const clientRes = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              service_id: EMAILJS_SERVICE_ID,
+              template_id: EMAILJS_TEMPLATE_ID,
+              user_id: EMAILJS_USER_ID,
+              template_params: {
+                to_email: formData.email.trim().toLowerCase(),
+                subject: clientSubject,
+                html_message: clientBody,
+              },
+            }),
           });
+          if (!clientRes.ok) {
+            console.error("EmailJS rejected client confirmation:", await clientRes.text());
+          }
         }
       } catch (clientEmailError) {
         console.error("Failed to send client confirmation email", clientEmailError);
-        // Non-blocking
       }
 
       setIsSubmitted(true);
