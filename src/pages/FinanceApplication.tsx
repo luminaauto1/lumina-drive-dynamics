@@ -521,6 +521,7 @@ const FinanceApplication = () => {
       street_address: formData.street_address.trim(),
       area_code: formData.area_code?.trim() || null,
       employer_name: formData.employer_name.trim() || incomeSourceNames || null,
+      employer_address: formData.employer_address?.trim() || null,
       job_title: formData.job_title?.trim() || null,
       employment_period: getEmploymentPeriod() || null,
       kin_name: formData.kin_name.trim(),
