@@ -1,4 +1,4 @@
-import { memo, useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import GooglePlacesAutocomplete from 'react-google-places-autocomplete';
 import { Textarea } from '@/components/ui/textarea';
 
