@@ -503,6 +503,7 @@ export type Database = {
           declined_reason: string | null
           deposit_amount: number | null
           email: string
+          employer_address: string | null
           employer_name: string | null
           employment_period: string | null
           employment_status: string | null
@@ -557,6 +558,7 @@ export type Database = {
           declined_reason?: string | null
           deposit_amount?: number | null
           email: string
+          employer_address?: string | null
           employer_name?: string | null
           employment_period?: string | null
           employment_status?: string | null
@@ -611,6 +613,7 @@ export type Database = {
           declined_reason?: string | null
           deposit_amount?: number | null
           email?: string
+          employer_address?: string | null
           employer_name?: string | null
           employment_period?: string | null
           employment_status?: string | null
