@@ -106,10 +106,12 @@ const FinanceApplication = () => {
     credit_score_status: "",
   });
 
-  // Computed employment period for validation and submission
+  // Computed employment period for validation and submission ("X Years, Y Months")
   const getEmploymentPeriod = () => {
-    if (!formData.employment_period_value) return "";
-    return `${formData.employment_period_value} ${formData.employment_period_unit}`;
+    const y = parseInt(formData.employment_years || "0", 10) || 0;
+    const m = parseInt(formData.employment_months || "0", 10) || 0;
+    if (y === 0 && m === 0) return "";
+    return `${y} Years, ${m} Months`;
   };
 
   const [ghostAccountCreated, setGhostAccountCreated] = useState(false);
