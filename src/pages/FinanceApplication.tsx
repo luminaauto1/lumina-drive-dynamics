@@ -650,6 +650,34 @@ const FinanceApplication = () => {
         // Non-blocking - application was already saved
       }
 
+      // 6. Send admin notification to finance department (non-blocking)
+      try {
+        const adminSubject = `🚨 NEW FINANCE APP: ${formData.first_name} ${formData.last_name} 🏎️💨`;
+        const adminBody = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #1a1a1a; border-bottom: 2px solid #d4af37; padding-bottom: 10px;">🚨 New Finance Application Received</h2>
+            <p><strong>Client:</strong> ${formData.first_name} ${formData.last_name}</p>
+            <p><strong>Phone:</strong> ${formData.phone}</p>
+            <p><strong>Email:</strong> ${formData.email}</p>
+            <p><strong>ID/Passport:</strong> ${formData.id_number || 'N/A'}</p>
+            <p><strong>Net Salary:</strong> R${formData.net_salary ? parseFloat(formData.net_salary).toLocaleString() : 'Not provided'}</p>
+            <p><strong>Vehicle Preference:</strong> ${formData.preferred_vehicle_text || 'None specified'}</p>
+            <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+            <p>Log in to the Lumina Dealership Hub to view the full application and generate the PDF.</p>
+          </div>
+        `;
+        await supabase.functions.invoke('send-email', {
+          body: {
+            to: ['finance@luminaauto.co.za'],
+            subject: adminSubject,
+            html: adminBody,
+          },
+        });
+      } catch (adminEmailError) {
+        console.error("Failed to send admin notification email", adminEmailError);
+        // Non-blocking
+      }
+
       setIsSubmitted(true);
       toast.success("Application submitted successfully!");
     }
