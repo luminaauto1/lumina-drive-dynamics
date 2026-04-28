@@ -258,6 +258,7 @@ const FinanceApplication = () => {
       street_address: data.street_address || "",
       area_code: data.area_code || "",
       employer_name: data.employer_name || "",
+      employer_address: (data as any).employer_address || "",
       job_title: data.job_title || "",
       employment_period_value: empPeriodValue,
       employment_period_unit: empPeriodUnit,
