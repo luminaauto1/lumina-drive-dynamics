@@ -678,6 +678,33 @@ const FinanceApplication = () => {
         // Non-blocking
       }
 
+      // 7. Send client confirmation email (non-blocking)
+      try {
+        if (formData.email) {
+          const clientSubject = `Finance Application Received - Lumina Auto`;
+          const clientBody = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <h2 style="color: #1a1a1a; border-bottom: 2px solid #d4af37; padding-bottom: 10px;">Application Successfully Submitted</h2>
+              <p>Hi ${formData.first_name},</p>
+              <p>Thank you for choosing <strong>Lumina Auto</strong>. We have successfully received your finance application.</p>
+              <p>Our F&amp;I team will review your details and be in touch with you shortly regarding the next steps.</p>
+              <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+              <p style="color: #666;">Best regards,<br/>Albert &amp; The Lumina Auto Team</p>
+            </div>
+          `;
+          await supabase.functions.invoke('send-email', {
+            body: {
+              to: [formData.email.trim().toLowerCase()],
+              subject: clientSubject,
+              html: clientBody,
+            },
+          });
+        }
+      } catch (clientEmailError) {
+        console.error("Failed to send client confirmation email", clientEmailError);
+        // Non-blocking
+      }
+
       setIsSubmitted(true);
       toast.success("Application submitted successfully!");
     }
