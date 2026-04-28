@@ -154,14 +154,20 @@ const FinanceApplication = () => {
     setShowTrustModal(false);
     setResumedApplicationId(draftId);
     
-    // Parse employment period if present
-    let empPeriodValue = "";
-    let empPeriodUnit = "years";
+    // Parse employment period if present ("X Years, Y Months" or legacy "N years")
+    let empYears = "";
+    let empMonths = "";
     if (data.employment_period) {
-      const match = data.employment_period.match(/^(\d+)\s*(\w+)$/);
-      if (match) {
-        empPeriodValue = match[1];
-        empPeriodUnit = match[2] || "years";
+      const ymMatch = data.employment_period.match(/(\d+)\s*Years?,?\s*(\d+)\s*Months?/i);
+      if (ymMatch) {
+        empYears = ymMatch[1];
+        empMonths = ymMatch[2];
+      } else {
+        const legacy = data.employment_period.match(/^(\d+)\s*(\w+)/);
+        if (legacy) {
+          if (/year/i.test(legacy[2])) empYears = legacy[1];
+          else if (/month/i.test(legacy[2])) empMonths = legacy[1];
+        }
       }
     }
 
