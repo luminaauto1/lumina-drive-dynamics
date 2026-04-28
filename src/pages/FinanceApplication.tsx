@@ -243,14 +243,20 @@ const FinanceApplication = () => {
     setResumedApplicationId(appId);
     setIsRevisionMode(true);
 
-    // Parse employment period
-    let empPeriodValue = "";
-    let empPeriodUnit = "years";
+    // Parse employment period ("X Years, Y Months" or legacy)
+    let empYears = "";
+    let empMonths = "";
     if (data.employment_period) {
-      const match = data.employment_period.match(/^(\d+)\s*(\w+)$/);
-      if (match) {
-        empPeriodValue = match[1];
-        empPeriodUnit = match[2] || "years";
+      const ymMatch = data.employment_period.match(/(\d+)\s*Years?,?\s*(\d+)\s*Months?/i);
+      if (ymMatch) {
+        empYears = ymMatch[1];
+        empMonths = ymMatch[2];
+      } else {
+        const legacy = data.employment_period.match(/^(\d+)\s*(\w+)/);
+        if (legacy) {
+          if (/year/i.test(legacy[2])) empYears = legacy[1];
+          else if (/month/i.test(legacy[2])) empMonths = legacy[1];
+        }
       }
     }
 
@@ -268,8 +274,8 @@ const FinanceApplication = () => {
       employer_name: data.employer_name || "",
       employer_address: (data as any).employer_address || "",
       job_title: data.job_title || "",
-      employment_period_value: empPeriodValue,
-      employment_period_unit: empPeriodUnit,
+      employment_years: empYears,
+      employment_months: empMonths,
       kin_name: data.kin_name || "",
       kin_contact: data.kin_contact || "",
       bank_name: data.bank_name || "",
