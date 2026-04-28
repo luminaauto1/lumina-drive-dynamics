@@ -1071,6 +1071,14 @@ const FinanceApplication = () => {
                         />
                       </div>
                       <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor="employer_address">Company Location / Address</Label>
+                        <AddressAutocomplete
+                          value={formData.employer_address}
+                          onChange={(value) => handleInputChange("employer_address", value)}
+                          placeholder="Start typing company name or address..."
+                        />
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="employment_period">Period at Employer</Label>
                         <div className="flex gap-3">
                           <Input
