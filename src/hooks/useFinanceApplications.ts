@@ -136,7 +136,11 @@ export const useUpdateFinanceApplication = () => {
             }
           })
           .catch(err => console.error("Frontend failed to reach EmailJS:", err));
+        } else if (statusActuallyChanged) {
+          console.log(`[Auto-Mailer] Status changed to "${newStatus}" — no active template with status_key="${newStatus}". No email sent.`);
         }
+      } else if (statusActuallyChanged && !EMAIL_ELIGIBLE_STATUSES.has(newStatus!)) {
+        console.log(`[Auto-Mailer] Status "${newStatus}" is not email-eligible. Silent transition.`);
       }
 
       return data;
