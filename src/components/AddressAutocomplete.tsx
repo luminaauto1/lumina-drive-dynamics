@@ -1,4 +1,3 @@
-import { useCallback, useState, useEffect } from 'react';
 import GooglePlacesAutocomplete from 'react-google-places-autocomplete';
 import { Textarea } from '@/components/ui/textarea';
 
@@ -12,20 +11,13 @@ interface AddressAutocompleteProps {
 
 const AddressAutocomplete = ({ value, onChange, onPostalCodeChange, placeholder, required }: AddressAutocompleteProps) => {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-
-  // Controlled input state — survives parent re-renders so the field never gets wiped
-  const [inputValue, setInputValue] = useState(value || '');
-
-  useEffect(() => {
-    // Only sync from parent when it differs (e.g., hydration from DB), never blank it out unnecessarily
-    if (value && value !== inputValue) setInputValue(value);
-  }, [value]);
-
-  const handlePlaceSelect = useCallback((val: any) => {
+  
+  if (!apiKey) return <Textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} required={required} />;
+  
+  const handlePlaceSelect = (val: any) => {
     if (!val) return;
-
+    
     // Set the address label
-    setInputValue(val.label);
     onChange(val.label);
     
     // Extract postal code from place details if available
@@ -48,24 +40,14 @@ const AddressAutocomplete = ({ value, onChange, onPostalCodeChange, placeholder,
         }
       );
     }
-  }, [onChange, onPostalCodeChange]);
-
-  // Fallback AFTER hooks (never call hooks conditionally)
-  if (!apiKey) return <Textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} required={required} />;
-
+  };
+  
   return (
     <div className="w-full relative z-50">
       <GooglePlacesAutocomplete
         apiKey={apiKey}
         selectProps={{
-          inputValue,
-          onInputChange: (newVal: string, meta: any) => {
-            // Preserve text on blur/menu-close so re-renders never wipe the field
-            if (meta?.action === 'input-change') {
-              setInputValue(newVal);
-              onChange(newVal);
-            }
-          },
+          defaultInputValue: value,
           onChange: handlePlaceSelect,
           placeholder: placeholder || "Start typing address...",
           styles: {
@@ -80,5 +62,5 @@ const AddressAutocomplete = ({ value, onChange, onPostalCodeChange, placeholder,
     </div>
   );
 };
-export default AddressAutocomplete;
 
+export default AddressAutocomplete;
