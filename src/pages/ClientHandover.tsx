@@ -19,7 +19,7 @@ const ClientHandover = () => {
     const fetchData = async () => {
       if (!dealId) return;
 
-      const settingsRes = await supabase.from('site_settings').select('*').limit(1).single();
+      const settingsRes = await supabase.from('public_site_settings' as any).select('*').limit(1).maybeSingle();
       if (settingsRes.data) setSettings(settingsRes.data);
 
       try {

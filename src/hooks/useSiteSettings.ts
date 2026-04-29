@@ -64,11 +64,14 @@ export const useSiteSettings = () => {
   return useQuery({
     queryKey: ['site-settings'],
     queryFn: async () => {
+      // Read from public-safe view (excludes sales_reps, monthly_sales_target).
+      // Admin pages that need those fields query `site_settings` directly while
+      // authenticated as admin.
       const { data, error } = await supabase
-        .from('site_settings')
+        .from('public_site_settings' as any)
         .select('*')
         .limit(1)
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
       return data as unknown as SiteSettings;

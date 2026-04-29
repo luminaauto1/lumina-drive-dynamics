@@ -1,27 +1,8 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { ShieldAlert } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 
 const SystemFix = () => {
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleUnlockDatabase = async () => {
-    setIsLoading(true);
-    try {
-      const { error } = await supabase.rpc("admin_unlock_tables" as any);
-      if (error) throw error;
-      toast.success("Database Unlocked: Public submissions are now fully open.");
-    } catch (err: any) {
-      toast.error(`Failed to unlock database: ${err.message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <AdminLayout>
       <div className="min-h-screen bg-background text-foreground py-12 px-6">
@@ -33,31 +14,20 @@ const SystemFix = () => {
             </p>
           </div>
 
-          <Card className="bg-card/40 backdrop-blur-xl border border-destructive/30 p-8">
+          <Card className="bg-card/40 backdrop-blur-xl border border-border p-8">
             <div className="flex items-start gap-4">
-              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                <ShieldAlert className="w-6 h-6 text-destructive" />
+              <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+                <ShieldCheck className="w-6 h-6 text-primary" />
               </div>
-              <div className="flex-1 space-y-4">
-                <div className="space-y-1">
-                  <h2 className="text-xl font-semibold">
-                    Unlock Public Submissions (Fix RLS)
-                  </h2>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    If mobile or public users are experiencing "Submission Failed" errors,
-                    click this button. It executes a secure database function to forcefully
-                    disable Row-Level Security blocks on the Finance and Leads tables.
-                  </p>
-                </div>
-
-                <Button
-                  onClick={handleUnlockDatabase}
-                  disabled={isLoading}
-                  variant="destructive"
-                  className="w-full sm:w-auto"
-                >
-                  {isLoading ? "Executing Override..." : "Force Unlock Database"}
-                </Button>
+              <div className="flex-1 space-y-2">
+                <h2 className="text-xl font-semibold">Public Submission Pipeline</h2>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Public finance applications and lead captures are now protected by
+                  least-privilege Row-Level Security policies. The legacy "force unlock
+                  database" override has been removed because it allowed any caller to
+                  disable security on these tables. If you experience a submission issue,
+                  raise it with engineering rather than disabling RLS.
+                </p>
               </div>
             </div>
           </Card>
