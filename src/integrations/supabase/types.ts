@@ -1505,6 +1505,105 @@ export type Database = {
       }
     }
     Views: {
+      public_site_settings: {
+        Row: {
+          contact_email: string | null
+          contact_phone: string | null
+          created_at: string | null
+          default_balloon_percent: number | null
+          default_interest_rate: number | null
+          facebook_url: string | null
+          finance_email: string | null
+          google_review_url: string | null
+          hellopeter_url: string | null
+          hero_headline: string | null
+          hero_subheadline: string | null
+          id: string | null
+          instagram_url: string | null
+          is_maintenance_mode: boolean | null
+          max_balloon_percent: number | null
+          max_interest: number | null
+          min_balloon_percent: number | null
+          min_deposit_percent: number | null
+          min_interest: number | null
+          physical_address: string | null
+          primary_email: string | null
+          primary_phone: string | null
+          secondary_phone: string | null
+          show_finance_tab: boolean | null
+          show_physical_location: boolean | null
+          show_trade_in: boolean | null
+          tiktok_url: string | null
+          trustpilot_url: string | null
+          updated_at: string | null
+          whatsapp_number: string | null
+        }
+        Insert: {
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string | null
+          default_balloon_percent?: number | null
+          default_interest_rate?: number | null
+          facebook_url?: string | null
+          finance_email?: string | null
+          google_review_url?: string | null
+          hellopeter_url?: string | null
+          hero_headline?: string | null
+          hero_subheadline?: string | null
+          id?: string | null
+          instagram_url?: string | null
+          is_maintenance_mode?: boolean | null
+          max_balloon_percent?: number | null
+          max_interest?: number | null
+          min_balloon_percent?: number | null
+          min_deposit_percent?: number | null
+          min_interest?: number | null
+          physical_address?: string | null
+          primary_email?: string | null
+          primary_phone?: string | null
+          secondary_phone?: string | null
+          show_finance_tab?: boolean | null
+          show_physical_location?: boolean | null
+          show_trade_in?: boolean | null
+          tiktok_url?: string | null
+          trustpilot_url?: string | null
+          updated_at?: string | null
+          whatsapp_number?: string | null
+        }
+        Update: {
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string | null
+          default_balloon_percent?: number | null
+          default_interest_rate?: number | null
+          facebook_url?: string | null
+          finance_email?: string | null
+          google_review_url?: string | null
+          hellopeter_url?: string | null
+          hero_headline?: string | null
+          hero_subheadline?: string | null
+          id?: string | null
+          instagram_url?: string | null
+          is_maintenance_mode?: boolean | null
+          max_balloon_percent?: number | null
+          max_interest?: number | null
+          min_balloon_percent?: number | null
+          min_deposit_percent?: number | null
+          min_interest?: number | null
+          physical_address?: string | null
+          primary_email?: string | null
+          primary_phone?: string | null
+          secondary_phone?: string | null
+          show_finance_tab?: boolean | null
+          show_physical_location?: boolean | null
+          show_trade_in?: boolean | null
+          tiktok_url?: string | null
+          trustpilot_url?: string | null
+          updated_at?: string | null
+          whatsapp_number?: string | null
+        }
+        Relationships: []
+      }
       public_vehicles: {
         Row: {
           body_type: string | null
@@ -1609,7 +1708,6 @@ export type Database = {
       }
     }
     Functions: {
-      admin_unlock_tables: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
