@@ -538,7 +538,7 @@ export type Database = {
           status: string
           street_address: string | null
           updated_at: string
-          user_id: string
+          user_id: string | null
           vehicle_id: string | null
         }
         Insert: {
@@ -594,7 +594,7 @@ export type Database = {
           status?: string
           street_address?: string | null
           updated_at?: string
-          user_id: string
+          user_id?: string | null
           vehicle_id?: string | null
         }
         Update: {
@@ -650,7 +650,7 @@ export type Database = {
           status?: string
           street_address?: string | null
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
           vehicle_id?: string | null
         }
         Relationships: [
