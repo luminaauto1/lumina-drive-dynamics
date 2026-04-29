@@ -549,46 +549,20 @@ const FinanceApplication = () => {
       .map(src => src.source)
       .join(" + ");
 
-    // If guest and NOT in revision mode, create ghost account first.
-    // SECURITY: Use a cryptographically random password (never the ID number).
-    // The temp password is delivered ONCE inside the confirmation email,
-    // alongside instructions to reset it via "Forgot Password" on the portal.
-    let effectiveUserId = user?.id;
-    let generatedTempPassword: string | null = null;
-    let accountAlreadyExisted = false;
+    // The ghost auth account was created on Step 1 transition, so the user
+    // is already authenticated here (or accountAlreadyExisted is true).
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    const effectiveUserId = currentUser?.id ?? user?.id;
+    const generatedTempPassword = tempPassword;
 
-    if (!user && !isRevisionMode) {
-      const generateSecurePassword = () =>
-        (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, '') + 'Aa1!';
-      const tempPassword = generateSecurePassword();
-      const normalizedEmail = formData.email.trim().toLowerCase();
-
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: normalizedEmail,
-        password: tempPassword,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth`,
-          data: {
-            full_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
-            phone: formData.phone.trim(),
-          },
-        },
-      });
-
-      if (signUpError || !signUpData?.user) {
-        // Account likely exists already — do NOT auto-send a reset email
-        // (the user did not explicitly request one). Submit anonymously
-        // so the application is not silently attached to a stranger's account.
-        // The confirmation email will instruct them to use "Forgot Password".
-        accountAlreadyExisted = true;
-        effectiveUserId = undefined;
-      } else {
-        effectiveUserId = signUpData.user.id;
-        generatedTempPassword = tempPassword;
-      }
-
-      setGhostAccountCreated(true);
-      setGhostEmail(normalizedEmail);
+    if (!effectiveUserId && !isRevisionMode) {
+      toast.error(
+        accountAlreadyExisted
+          ? "An account with this email already exists. Please sign in and resume your application."
+          : "Session expired. Please refresh and try again."
+      );
+      setIsSubmitting(false);
+      return;
     }
 
     // 2. Prepare Data
