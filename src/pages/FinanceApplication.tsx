@@ -561,7 +561,10 @@ const FinanceApplication = () => {
     // than blocking the submission.
 
     // 2. Prepare Data
+    const applicationId = resumedApplicationId || crypto.randomUUID();
+
     const sanitizedData = {
+      id: applicationId,
       user_id: effectiveUserId,
       vehicle_id: vehicleId || null,
       full_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
@@ -611,13 +614,12 @@ const FinanceApplication = () => {
       insertedApp = data;
       error = updateError;
     } else {
-      // Insert new application directly
-      const { data, error: insertError } = await supabase
+      // Insert new application without requesting the row back. Public users
+      // can create applications, but cannot read them back under RLS.
+      const { error: insertError } = await supabase
         .from("finance_applications")
-        .insert(sanitizedData as any)
-        .select("id")
-        .maybeSingle();
-      insertedApp = data;
+        .insert(sanitizedData as any);
+      insertedApp = insertError ? null : { id: applicationId };
       error = insertError;
     }
 
