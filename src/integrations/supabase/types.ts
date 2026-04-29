@@ -1609,6 +1609,7 @@ export type Database = {
       }
     }
     Functions: {
+      admin_unlock_tables: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

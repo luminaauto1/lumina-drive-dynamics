@@ -450,16 +450,14 @@ const FinanceApplication = () => {
       // Silent CRM lead capture on Step 1 -> Step 2 transition (drop-off protection)
       if (currentStep === 1) {
         try {
-          supabase.functions.invoke('capture-dropoff-lead', {
-            body: { leadData: {
-              client_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
-              client_email: formData.email.trim(),
-              client_phone: formData.phone.trim(),
-              source: 'website',
-              status: 'new',
-              notes: 'Partial Finance Application Started (Drop-off Capture)'
-            }}
-          }).then(({ error }) => {
+          supabase.from('leads').insert([{
+            client_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
+            client_email: formData.email.trim(),
+            client_phone: formData.phone.trim(),
+            source: 'website',
+            status: 'new',
+            notes: 'Partial Finance Application Started (Drop-off Capture)'
+          }] as any).then(({ error }) => {
             if (error) console.error('Silent lead capture failed', error);
           });
         } catch (error) {
@@ -607,18 +605,14 @@ const FinanceApplication = () => {
       insertedApp = data;
       error = updateError;
     } else {
-      // Insert new application via Edge Function Tunnel to bypass RLS
-      const { data: functionData, error: functionError } = await supabase.functions.invoke('submit-finance-app', {
-        body: { insertData: sanitizedData }
-      });
-      
-      if (functionError) {
-        error = functionError;
-      } else if (functionData && functionData.error) {
-        error = new Error(functionData.error);
-      } else {
-        insertedApp = functionData?.data || null;
-      }
+      // Insert new application directly
+      const { data, error: insertError } = await supabase
+        .from("finance_applications")
+        .insert(sanitizedData as any)
+        .select("id")
+        .maybeSingle();
+      insertedApp = data;
+      error = insertError;
     }
 
     if (error) {
