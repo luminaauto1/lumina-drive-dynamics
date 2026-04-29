@@ -117,6 +117,8 @@ const FinanceApplication = () => {
 
   const [ghostAccountCreated, setGhostAccountCreated] = useState(false);
   const [ghostEmail, setGhostEmail] = useState("");
+  const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [accountAlreadyExisted, setAccountAlreadyExisted] = useState(false);
 
   useEffect(() => {
     // Don't redirect while loading - wait for auth state to resolve
