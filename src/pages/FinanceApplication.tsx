@@ -312,12 +312,16 @@ const FinanceApplication = () => {
     const { data } = await supabase.from("profiles").select("*").eq("user_id", user.id).single();
 
     if (data) {
+      // CRITICAL: Never overwrite values the user has already typed in the form.
+      // After ghost-account creation the `user` becomes set and this effect fires,
+      // which previously wiped fields like `phone` because the freshly-created
+      // profile row has empty values. Always prefer the in-memory form value.
       setFormData((prev) => ({
         ...prev,
-        email: data.email || user.email || "",
-        phone: data.phone || "",
-        first_name: data.full_name?.split(" ")[0] || "",
-        last_name: data.full_name?.split(" ").slice(1).join(" ") || "",
+        email: prev.email || data.email || user.email || "",
+        phone: prev.phone || data.phone || "",
+        first_name: prev.first_name || data.full_name?.split(" ")[0] || "",
+        last_name: prev.last_name || data.full_name?.split(" ").slice(1).join(" ") || "",
       }));
     }
   };
