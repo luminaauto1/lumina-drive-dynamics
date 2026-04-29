@@ -45,7 +45,7 @@ import UpdatePassword from "./pages/UpdatePassword";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ClientHandover from "./pages/ClientHandover";
 import TermsOfService from "./pages/TermsOfService";
-import SystemFix from "./pages/SystemFix";
+import SystemFix from "./pages/admin/SystemFix";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
