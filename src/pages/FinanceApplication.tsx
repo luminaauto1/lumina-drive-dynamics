@@ -423,7 +423,7 @@ const FinanceApplication = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentStep]);
 
-  const nextStep = () => {
+  const nextStep = async () => {
     // STEP 1 VALIDATION GATEKEEPER (explicit checks before schema validation)
     if (currentStep === 1) {
       if (!formData.first_name || formData.first_name.trim().length < 2) {
@@ -449,6 +449,41 @@ const FinanceApplication = () => {
     }
 
     if (validateStep(currentStep)) {
+      // STEP 1 -> 2: Create ghost auth account immediately so the user is
+      // authenticated for the rest of the flow (satisfies RLS on insert).
+      if (currentStep === 1 && !user && !isRevisionMode && !ghostAccountCreated) {
+        const generateSecurePassword = () =>
+          (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, '') + 'Aa1!';
+        const newTempPassword = generateSecurePassword();
+        const normalizedEmail = formData.email.trim().toLowerCase();
+
+        try {
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email: normalizedEmail,
+            password: newTempPassword,
+            options: {
+              emailRedirectTo: `${window.location.origin}/auth`,
+              data: {
+                full_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
+                phone: formData.phone.trim(),
+              },
+            },
+          });
+
+          if (signUpError || !signUpData?.user) {
+            // Account already exists — proceed without auth. Final submit
+            // will fail RLS gracefully and surface a friendly error.
+            setAccountAlreadyExisted(true);
+          } else {
+            setTempPassword(newTempPassword);
+          }
+          setGhostAccountCreated(true);
+          setGhostEmail(normalizedEmail);
+        } catch (err) {
+          console.error('Ghost account creation failed', err);
+        }
+      }
+
       // Silent CRM lead capture on Step 1 -> Step 2 transition (drop-off protection)
       if (currentStep === 1) {
         try {
