@@ -471,8 +471,9 @@ const FinanceApplication = () => {
           });
 
           if (signUpError || !signUpData?.user) {
-            // Account already exists — proceed without auth. Final submit
-            // will fail RLS gracefully and surface a friendly error.
+            // SILENTLY HANDLE EXISTING USER: Do not block submission.
+            // The user already exists, so we proceed with effectiveUserId = null.
+            console.log("User already exists or signup failed. Proceeding anonymously.");
             setAccountAlreadyExisted(true);
           } else {
             setTempPassword(newTempPassword);
@@ -552,22 +553,16 @@ const FinanceApplication = () => {
     // The ghost auth account was created on Step 1 transition, so the user
     // is already authenticated here (or accountAlreadyExisted is true).
     const { data: { user: currentUser } } = await supabase.auth.getUser();
-    const effectiveUserId = currentUser?.id ?? user?.id;
+    const effectiveUserId = currentUser?.id ?? user?.id ?? null;
     const generatedTempPassword = tempPassword;
 
-    if (!effectiveUserId && !isRevisionMode) {
-      toast.error(
-        accountAlreadyExisted
-          ? "An account with this email already exists. Please sign in and resume your application."
-          : "Session expired. Please refresh and try again."
-      );
-      setIsSubmitting(false);
-      return;
-    }
+    // NOTE: user_id is now nullable on finance_applications. If the email
+    // already exists in auth, we proceed anonymously (user_id = null) rather
+    // than blocking the submission.
 
     // 2. Prepare Data
     const sanitizedData = {
-      user_id: effectiveUserId!,
+      user_id: effectiveUserId,
       vehicle_id: vehicleId || null,
       full_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
       first_name: formData.first_name.trim(),
