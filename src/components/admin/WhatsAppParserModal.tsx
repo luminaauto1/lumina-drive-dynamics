@@ -85,6 +85,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
         id_number: parsedData.id_number || '',
         email: parsedData.email || '',
         phone: parsedData.phone || '',
+        gender: parsedData.gender || '',
         marital_status: parsedData.marital_status || '',
         street_address: parsedData.physical_address || '',
         employer_name: parsedData.employer_name || '',
