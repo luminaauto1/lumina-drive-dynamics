@@ -133,7 +133,7 @@ export const generateFinancePDF = async (application: FinanceApplication, vehicl
   doc.setFontSize(10);
   addField('Employer', application.employer_name);
   yPos += lineHeight;
-  addField('Employer Address', `${(application as any).employer_address || 'N/A'} (Code: ${(application as any).employer_postal_code || 'N/A'})`);
+  addField('Employer Address', (application as any).workplace_address || (application as any).employer_address || 'N/A');
   yPos += lineHeight;
   addField('Job Title', application.job_title);
   yPos += lineHeight;
