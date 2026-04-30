@@ -125,6 +125,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
   const reset = () => {
     setRawText('');
     setParsedData(null);
+    setAddressMeta(null);
   };
 
   return (
