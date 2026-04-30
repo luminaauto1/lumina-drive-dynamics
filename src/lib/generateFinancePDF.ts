@@ -173,7 +173,7 @@ export const generateFinancePDF = async (application: FinanceApplication, vehicl
   doc.setFontSize(10);
   addField('Name', application.kin_name);
   yPos += lineHeight;
-  addField('Contact', application.kin_contact);
+  addField('Contact', formatSAPhoneForPDF(application.kin_contact));
   
   // Section: Vehicle Preference
   if (vehicleDetails || application.preferred_vehicle_text) {
