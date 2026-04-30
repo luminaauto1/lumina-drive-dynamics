@@ -26,11 +26,20 @@ interface AddressMeta {
   raw: string;
 }
 
+interface WorkplaceMeta {
+  formatted_address: string;
+  source: "google_places" | "client_provided" | "none";
+  requiresManualInput: boolean;
+  query: string;
+  match_name: string;
+}
+
 export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppParserModalProps) {
   const [rawText, setRawText] = useState('');
   const [isParsing, setIsParsing] = useState(false);
   const [parsedData, setParsedData] = useState<Record<string, string> | null>(null);
   const [addressMeta, setAddressMeta] = useState<AddressMeta | null>(null);
+  const [workplaceMeta, setWorkplaceMeta] = useState<WorkplaceMeta | null>(null);
 
   const handleParse = async () => {
     if (!rawText.trim()) return;
