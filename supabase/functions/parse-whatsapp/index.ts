@@ -209,6 +209,7 @@ For 'workplace_address': only fill if the client EXPLICITLY provides the company
         const placesRes = await fetch(placesUrl);
         const placesData = await placesRes.json();
         console.log("[Workplace] Places status:", placesData.status, "| results:", placesData.results?.length || 0);
+        console.log("[Workplace] Top result sample:", JSON.stringify(placesData.results?.[0] || {}).slice(0, 500));
         workplaceMeta.api_status = placesData.status;
         if (placesData.error_message) workplaceMeta.api_error = placesData.error_message;
 
