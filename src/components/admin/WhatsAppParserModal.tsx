@@ -231,6 +231,12 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
                   {workplaceMeta.query && (
                     <p className="text-red-300/60"><span className="uppercase tracking-wider text-[10px]">Query:</span> {workplaceMeta.query}</p>
                   )}
+                  {(workplaceMeta.api_status || workplaceMeta.api_error) && (
+                    <p className="text-red-300/60">
+                      <span className="uppercase tracking-wider text-[10px]">Google API:</span>{' '}
+                      {workplaceMeta.api_status || ''}{workplaceMeta.api_error ? ` — ${workplaceMeta.api_error}` : ''}
+                    </p>
+                  )}
                 </div>
               )}
 
