@@ -15,10 +15,22 @@ interface WhatsAppParserModalProps {
   onOpenChange: (o: boolean) => void;
 }
 
+interface AddressMeta {
+  formatted_address: string;
+  street: string;
+  suburb: string;
+  city: string;
+  province: string;
+  postal_code: string;
+  requiresManualVerification: boolean;
+  raw: string;
+}
+
 export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppParserModalProps) {
   const [rawText, setRawText] = useState('');
   const [isParsing, setIsParsing] = useState(false);
   const [parsedData, setParsedData] = useState<Record<string, string> | null>(null);
+  const [addressMeta, setAddressMeta] = useState<AddressMeta | null>(null);
 
   const handleParse = async () => {
     if (!rawText.trim()) return;
@@ -34,6 +46,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
       if (data?.error) throw new Error(data.error);
       if (data?.data) {
         setParsedData(data.data);
+        setAddressMeta(data.address || null);
         toast.success('Extraction complete. Please review.');
       }
     } catch (err: any) {
