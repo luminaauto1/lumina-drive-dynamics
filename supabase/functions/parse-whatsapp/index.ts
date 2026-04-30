@@ -37,15 +37,17 @@ FORMAT B — Alternating lines (label on one line, value on the very next line).
   0821234567
   Area Code
   1804
-In FORMAT B, the line immediately following a recognised label IS the value for that label, even if the value looks like a number, a name, or a single word. Do NOT confuse labels with values. Common labels (case-insensitive, may include spaces, slashes or punctuation): First Name, Last Name / Surname, Full Name, ID Number, Email, Cell / Phone / Mobile / Contact Number, Marital Status, Physical Address / Street Address / Residential Address, Suburb, City, Province, Area Code / Postal Code, Employer / Company, Job Title / Occupation / Position, Employment Start / Start Date / Employed Since, Employment Status, Gross Income / Gross Salary, Net Income / Net Salary / Take Home, Living Expenses / Monthly Expenses, Bank / Bank Name, Account Number, Next Of Kin / Kin Name, Next Of Kin Number / Kin Phone.
+In FORMAT B, the line immediately following a recognised label IS the value for that label, even if the value looks like a number, a name, or a single word. Do NOT confuse labels with values. Common labels (case-insensitive, may include spaces, slashes or punctuation): First Name, Last Name / Surname, Full Name, ID Number, Email, Cell / Phone / Mobile / Contact Number, Gender / Sex, Marital Status, Physical Address / Street Address / Residential Address, Suburb, City, Province, Area Code / Postal Code, Employer / Company, Job Title / Occupation / Position, Employment Start / Start Date / Employed Since, Employment Status, Gross Income / Gross Salary, Net Income / Net Salary / Take Home, Living Expenses / Monthly Expenses, Bank / Bank Name, Account Number, Next Of Kin / Kin Name, Next Of Kin Number / Kin Phone.
 
 ADDRESS ASSEMBLY: If FORMAT B provides Street Address, Suburb, City, Province and/or Area Code as separate fields, COMBINE them into a single 'physical_address' string in the order: "<street>, <suburb>, <city>, <province> <area_code>" (omit any missing parts, no trailing commas). The downstream geocoder will normalize it.
+
+GENDER NORMALIZATION: Always hunt for a gender indicator. Accept variations: "Male", "M", "male", "Man" → "Male"; "Female", "F", "female", "Woman" → "Female"; "Other", "Non-binary", "NB" → "Other". If the client gives an ID number but no explicit gender, you MAY infer from the 7th-10th digits of a South African ID (0000–4999 = Female, 5000–9999 = Male) and return that value. If still unknown, return "".
 
 CRITICAL RULE FOR EXPENSES: For the 'living_expenses' field, DO NOT strip out the descriptive words. You MUST extract both the descriptive text and the amount exactly as the client wrote it (e.g., "Rent 5000, Food 2000, Water 500").
 
 CRITICAL RULE FOR EMPLOYMENT: The current date is ${currentDate}. For the 'employment_start' field, you must calculate the exact duration in years and months from their start date to the current date. Format the output exactly like this: "[Original Date] (X Years, Y Months)". Example: "June 2022 (3 Years, 10 Months)". If they already provided the duration instead of a date, just use what they provided.
 
-Keys: first_name, last_name, id_number, email, phone, marital_status, physical_address, employer_name, workplace_address, job_title, employment_start, employment_status, gross_income, net_income, living_expenses, bank_name, account_number, kin_name, kin_phone.
+Keys: first_name, last_name, id_number, email, phone, gender, marital_status, physical_address, employer_name, workplace_address, job_title, employment_start, employment_status, gross_income, net_income, living_expenses, bank_name, account_number, kin_name, kin_phone.
 
 For 'workplace_address': only fill if the client EXPLICITLY provides the company's street/business address. Do NOT guess or duplicate the residential address. If absent, return "" — the backend will auto-resolve it via Google Places.`;
 
