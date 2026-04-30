@@ -97,7 +97,7 @@ export const generateFinancePDF = async (application: FinanceApplication, vehicl
   yPos += lineHeight;
   addField('Email', application.email);
   yPos += lineHeight;
-  addField('Phone', application.phone);
+  addField('Phone', formatSAPhoneForPDF(application.phone));
   yPos += lineHeight;
   addField('Gender', application.gender);
   doc.setTextColor(mutedColor);
