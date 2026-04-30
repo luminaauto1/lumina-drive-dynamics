@@ -20,6 +20,27 @@ serve(async (req) => {
     const systemPrompt = `You are a data extraction AI for a premium auto dealership. Extract the client's finance application details from the provided WhatsApp text. The client may have misspelled things or left things blank.
 Return ONLY a valid JSON object with the exact following keys. If a value is missing, return an empty string "". Do not include markdown formatting like \`\`\`json.
 
+CRITICAL — DUAL FORMAT SUPPORT: Clients send data in TWO possible formats. You MUST detect and handle BOTH dynamically:
+
+FORMAT A — Free-form / inline (e.g. "Name: John Smith", "Bank - FNB", "Rent 5000, Food 2000").
+
+FORMAT B — Alternating lines (label on one line, value on the very next line). Example:
+  Bank
+  Tyme
+  City
+  Soweto
+  Net Income
+  18500
+  Id Number
+  9001015800087
+  Next Of Kin Number
+  0821234567
+  Area Code
+  1804
+In FORMAT B, the line immediately following a recognised label IS the value for that label, even if the value looks like a number, a name, or a single word. Do NOT confuse labels with values. Common labels (case-insensitive, may include spaces, slashes or punctuation): First Name, Last Name / Surname, Full Name, ID Number, Email, Cell / Phone / Mobile / Contact Number, Marital Status, Physical Address / Street Address / Residential Address, Suburb, City, Province, Area Code / Postal Code, Employer / Company, Job Title / Occupation / Position, Employment Start / Start Date / Employed Since, Employment Status, Gross Income / Gross Salary, Net Income / Net Salary / Take Home, Living Expenses / Monthly Expenses, Bank / Bank Name, Account Number, Next Of Kin / Kin Name, Next Of Kin Number / Kin Phone.
+
+ADDRESS ASSEMBLY: If FORMAT B provides Street Address, Suburb, City, Province and/or Area Code as separate fields, COMBINE them into a single 'physical_address' string in the order: "<street>, <suburb>, <city>, <province> <area_code>" (omit any missing parts, no trailing commas). The downstream geocoder will normalize it.
+
 CRITICAL RULE FOR EXPENSES: For the 'living_expenses' field, DO NOT strip out the descriptive words. You MUST extract both the descriptive text and the amount exactly as the client wrote it (e.g., "Rent 5000, Food 2000, Water 500").
 
 CRITICAL RULE FOR EMPLOYMENT: The current date is ${currentDate}. For the 'employment_start' field, you must calculate the exact duration in years and months from their start date to the current date. Format the output exactly like this: "[Original Date] (X Years, Y Months)". Example: "June 2022 (3 Years, 10 Months)". If they already provided the duration instead of a date, just use what they provided.
