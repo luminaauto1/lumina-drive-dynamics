@@ -136,6 +136,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
     setRawText('');
     setParsedData(null);
     setAddressMeta(null);
+    setWorkplaceMeta(null);
   };
 
   return (
