@@ -141,8 +141,8 @@ Keys: first_name, last_name, id_number, email, phone, marital_status, physical_a
         console.error("Geocoding failed:", geoErr);
         addressMeta.requiresManualVerification = true;
       }
-    } else if (rawAddress && !GOOGLE_MAPS_API_KEY) {
-      console.warn("GOOGLE_MAPS_API_KEY not set; skipping geocoding.");
+    } else if (rawAddress && !GOOGLE_GEOCODING_API_KEY) {
+      console.warn("GOOGLE_GEOCODING_API_KEY (and fallback GOOGLE_MAPS_API_KEY) not set; skipping geocoding.");
       addressMeta.requiresManualVerification = true;
     }
 
