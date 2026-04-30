@@ -118,6 +118,33 @@ For 'workplace_address': only fill if the client EXPLICITLY provides the company
     const GOOGLE_GEOCODING_API_KEY =
       Deno.env.get("GOOGLE_GEOCODING_API_KEY") || Deno.env.get("GOOGLE_MAPS_API_KEY");
 
+    // Try to extract a "Unit / Apt / Flat / No. X" prefix from the raw address before geocoding.
+    const extractUnit = (text: string): string => {
+      if (!text) return "";
+      const patterns = [
+        /\b(?:unit|apt|apartment|flat|suite|ste|no\.?|number|#)\s*([A-Za-z0-9\-\/]+)/i,
+        /^([A-Za-z0-9]+)\s*[-,]\s*\d+\s+\w+/i, // e.g. "12A - 45 Main St"
+      ];
+      for (const p of patterns) {
+        const m = text.match(p);
+        if (m && m[1]) return m[1].trim();
+      }
+      return "";
+    };
+
+    // Build a fully structured address string from components.
+    const assembleAddress = (parts: {
+      unit?: string; street_number?: string; street_name?: string;
+      suburb?: string; city?: string; province?: string; postal_code?: string;
+    }): string => {
+      const street = [parts.street_number, parts.street_name].filter(Boolean).join(" ").trim();
+      const line1 = parts.unit ? `Unit ${parts.unit}${street ? ", " + street : ""}` : street;
+      const segments = [line1, parts.suburb, parts.city, parts.province, parts.postal_code]
+        .map((s) => (s || "").trim())
+        .filter(Boolean);
+      return segments.join(", ");
+    };
+
     if (rawAddress && GOOGLE_GEOCODING_API_KEY) {
       try {
         const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(rawAddress)}&components=country:ZA&key=${GOOGLE_GEOCODING_API_KEY}`;
@@ -140,14 +167,20 @@ For 'workplace_address': only fill if the client EXPLICITLY provides the company
           const city = get("locality") || get("administrative_area_level_2");
           const province = get("administrative_area_level_1");
           const postalCode = get("postal_code");
+          const unit = get("subpremise") || extractUnit(rawAddress);
 
           // Heuristic: if Google could not pin a real route OR returned only a partial match,
           // flag for manual review.
           const isPartial = result.partial_match === true;
           const hasStreet = !!route;
 
+          const fullAssembled = assembleAddress({
+            unit, street_number: streetNumber, street_name: route,
+            suburb, city, province, postal_code: postalCode,
+          });
+
           addressMeta = {
-            formatted_address: result.formatted_address || rawAddress,
+            formatted_address: fullAssembled || result.formatted_address || rawAddress,
             street,
             suburb,
             city,
@@ -156,6 +189,9 @@ For 'workplace_address': only fill if the client EXPLICITLY provides the company
             requiresManualVerification: isPartial || !hasStreet,
             raw: rawAddress,
           };
+          (addressMeta as any).unit = unit;
+          (addressMeta as any).street_number = streetNumber;
+          (addressMeta as any).street_name = route;
         } else if (geoData.status === "ZERO_RESULTS") {
           addressMeta.requiresManualVerification = true;
         } else {
@@ -214,14 +250,43 @@ For 'workplace_address': only fill if the client EXPLICITLY provides the company
         if (placesData.error_message) workplaceMeta.api_error = placesData.error_message;
 
         if (placesData.status === "OK" && Array.isArray(placesData.results) && placesData.results.length > 0) {
-          // Prefer a result that explicitly mentions South Africa, otherwise take the top result
-          // (Places already biases to ZA via region=za + the query suffix).
           const zaResult =
             placesData.results.find((r: any) => typeof r.formatted_address === "string" && /south africa/i.test(r.formatted_address)) ||
             placesData.results[0];
 
-          let resolvedAddress: string = zaResult?.formatted_address || "";
-          // Append ", South Africa" if Google omitted it, so the PDF reads as a complete ZA address.
+          // Fetch Place Details to get address_components for structured assembly.
+          let resolvedAddress = "";
+          let wpStreetNumber = "", wpRoute = "", wpSuburb = "", wpCity = "", wpProvince = "", wpPostal = "", wpUnit = "";
+
+          if (zaResult?.place_id) {
+            try {
+              const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(zaResult.place_id)}&fields=address_components,formatted_address,name&key=${GOOGLE_GEOCODING_API_KEY}`;
+              const detailsRes = await fetch(detailsUrl);
+              const detailsData = await detailsRes.json();
+              if (detailsData.status === "OK" && detailsData.result) {
+                const comps: Array<{ long_name: string; short_name: string; types: string[] }> = detailsData.result.address_components || [];
+                const getC = (type: string) => comps.find((x) => x.types.includes(type))?.long_name || "";
+                wpStreetNumber = getC("street_number");
+                wpRoute = getC("route");
+                wpSuburb = getC("sublocality") || getC("sublocality_level_1") || getC("neighborhood");
+                wpCity = getC("locality") || getC("administrative_area_level_2");
+                wpProvince = getC("administrative_area_level_1");
+                wpPostal = getC("postal_code");
+                wpUnit = getC("subpremise");
+                resolvedAddress = assembleAddress({
+                  unit: wpUnit, street_number: wpStreetNumber, street_name: wpRoute,
+                  suburb: wpSuburb, city: wpCity, province: wpProvince, postal_code: wpPostal,
+                });
+              }
+            } catch (detailsErr) {
+              console.warn("[Workplace] Place Details fetch failed:", detailsErr);
+            }
+          }
+
+          // Fallback to formatted_address if details failed.
+          if (!resolvedAddress) {
+            resolvedAddress = zaResult?.formatted_address || "";
+          }
           if (resolvedAddress && !/south africa/i.test(resolvedAddress)) {
             resolvedAddress = `${resolvedAddress}, South Africa`;
           }
@@ -235,6 +300,13 @@ For 'workplace_address': only fill if the client EXPLICITLY provides the company
               query: placesQuery,
               match_name: zaResult.name || "",
             };
+            (workplaceMeta as any).unit = wpUnit;
+            (workplaceMeta as any).street_number = wpStreetNumber;
+            (workplaceMeta as any).street_name = wpRoute;
+            (workplaceMeta as any).suburb = wpSuburb;
+            (workplaceMeta as any).city = wpCity;
+            (workplaceMeta as any).province = wpProvince;
+            (workplaceMeta as any).postal_code = wpPostal;
             parsedData.workplace_address = resolvedAddress;
             console.log("[Workplace] Resolved:", zaResult.name, "→", resolvedAddress);
           } else {
@@ -245,7 +317,6 @@ For 'workplace_address': only fill if the client EXPLICITLY provides the company
           console.warn("[Workplace] ZERO_RESULTS for:", placesQuery);
           workplaceMeta.requiresManualInput = true;
         } else {
-          // REQUEST_DENIED, OVER_QUERY_LIMIT, INVALID_REQUEST, etc.
           console.error("[Workplace] Places non-OK:", placesData.status, placesData.error_message);
           workplaceMeta.requiresManualInput = true;
         }
