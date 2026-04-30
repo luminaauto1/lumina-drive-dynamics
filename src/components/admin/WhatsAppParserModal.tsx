@@ -32,6 +32,8 @@ interface WorkplaceMeta {
   requiresManualInput: boolean;
   query: string;
   match_name: string;
+  api_status?: string;
+  api_error?: string;
 }
 
 export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppParserModalProps) {
@@ -83,6 +85,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
         id_number: parsedData.id_number || '',
         email: parsedData.email || '',
         phone: parsedData.phone || '',
+        gender: parsedData.gender || '',
         marital_status: parsedData.marital_status || '',
         street_address: parsedData.physical_address || '',
         employer_name: parsedData.employer_name || '',
@@ -228,6 +231,12 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
                   </p>
                   {workplaceMeta.query && (
                     <p className="text-red-300/60"><span className="uppercase tracking-wider text-[10px]">Query:</span> {workplaceMeta.query}</p>
+                  )}
+                  {(workplaceMeta.api_status || workplaceMeta.api_error) && (
+                    <p className="text-red-300/60">
+                      <span className="uppercase tracking-wider text-[10px]">Google API:</span>{' '}
+                      {workplaceMeta.api_status || ''}{workplaceMeta.api_error ? ` — ${workplaceMeta.api_error}` : ''}
+                    </p>
                   )}
                 </div>
               )}

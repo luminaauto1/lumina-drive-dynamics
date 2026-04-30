@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import { FinanceApplication } from '@/hooks/useFinanceApplications';
 import { formatPrice } from '@/hooks/useVehicles';
+import { formatSAPhoneForPDF } from '@/lib/formatPhone';
 
 // Helper function to load image via Image constructor (handles CORS properly)
 const getBase64FromUrl = (url: string): Promise<string> => {
@@ -96,7 +97,7 @@ export const generateFinancePDF = async (application: FinanceApplication, vehicl
   yPos += lineHeight;
   addField('Email', application.email);
   yPos += lineHeight;
-  addField('Phone', application.phone);
+  addField('Phone', formatSAPhoneForPDF(application.phone));
   yPos += lineHeight;
   addField('Gender', application.gender);
   doc.setTextColor(mutedColor);
@@ -172,7 +173,7 @@ export const generateFinancePDF = async (application: FinanceApplication, vehicl
   doc.setFontSize(10);
   addField('Name', application.kin_name);
   yPos += lineHeight;
-  addField('Contact', application.kin_contact);
+  addField('Contact', formatSAPhoneForPDF(application.kin_contact));
   
   // Section: Vehicle Preference
   if (vehicleDetails || application.preferred_vehicle_text) {

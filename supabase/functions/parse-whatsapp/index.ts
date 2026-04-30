@@ -37,15 +37,17 @@ FORMAT B — Alternating lines (label on one line, value on the very next line).
   0821234567
   Area Code
   1804
-In FORMAT B, the line immediately following a recognised label IS the value for that label, even if the value looks like a number, a name, or a single word. Do NOT confuse labels with values. Common labels (case-insensitive, may include spaces, slashes or punctuation): First Name, Last Name / Surname, Full Name, ID Number, Email, Cell / Phone / Mobile / Contact Number, Marital Status, Physical Address / Street Address / Residential Address, Suburb, City, Province, Area Code / Postal Code, Employer / Company, Job Title / Occupation / Position, Employment Start / Start Date / Employed Since, Employment Status, Gross Income / Gross Salary, Net Income / Net Salary / Take Home, Living Expenses / Monthly Expenses, Bank / Bank Name, Account Number, Next Of Kin / Kin Name, Next Of Kin Number / Kin Phone.
+In FORMAT B, the line immediately following a recognised label IS the value for that label, even if the value looks like a number, a name, or a single word. Do NOT confuse labels with values. Common labels (case-insensitive, may include spaces, slashes or punctuation): First Name, Last Name / Surname, Full Name, ID Number, Email, Cell / Phone / Mobile / Contact Number, Gender / Sex, Marital Status, Physical Address / Street Address / Residential Address, Suburb, City, Province, Area Code / Postal Code, Employer / Company, Job Title / Occupation / Position, Employment Start / Start Date / Employed Since, Employment Status, Gross Income / Gross Salary, Net Income / Net Salary / Take Home, Living Expenses / Monthly Expenses, Bank / Bank Name, Account Number, Next Of Kin / Kin Name, Next Of Kin Number / Kin Phone.
 
 ADDRESS ASSEMBLY: If FORMAT B provides Street Address, Suburb, City, Province and/or Area Code as separate fields, COMBINE them into a single 'physical_address' string in the order: "<street>, <suburb>, <city>, <province> <area_code>" (omit any missing parts, no trailing commas). The downstream geocoder will normalize it.
+
+GENDER NORMALIZATION: Always hunt for a gender indicator. Accept variations: "Male", "M", "male", "Man" → "Male"; "Female", "F", "female", "Woman" → "Female"; "Other", "Non-binary", "NB" → "Other". If the client gives an ID number but no explicit gender, you MAY infer from the 7th-10th digits of a South African ID (0000–4999 = Female, 5000–9999 = Male) and return that value. If still unknown, return "".
 
 CRITICAL RULE FOR EXPENSES: For the 'living_expenses' field, DO NOT strip out the descriptive words. You MUST extract both the descriptive text and the amount exactly as the client wrote it (e.g., "Rent 5000, Food 2000, Water 500").
 
 CRITICAL RULE FOR EMPLOYMENT: The current date is ${currentDate}. For the 'employment_start' field, you must calculate the exact duration in years and months from their start date to the current date. Format the output exactly like this: "[Original Date] (X Years, Y Months)". Example: "June 2022 (3 Years, 10 Months)". If they already provided the duration instead of a date, just use what they provided.
 
-Keys: first_name, last_name, id_number, email, phone, marital_status, physical_address, employer_name, workplace_address, job_title, employment_start, employment_status, gross_income, net_income, living_expenses, bank_name, account_number, kin_name, kin_phone.
+Keys: first_name, last_name, id_number, email, phone, gender, marital_status, physical_address, employer_name, workplace_address, job_title, employment_start, employment_status, gross_income, net_income, living_expenses, bank_name, account_number, kin_name, kin_phone.
 
 For 'workplace_address': only fill if the client EXPLICITLY provides the company's street/business address. Do NOT guess or duplicate the residential address. If absent, return "" — the backend will auto-resolve it via Google Places.`;
 
@@ -181,6 +183,8 @@ For 'workplace_address': only fill if the client EXPLICITLY provides the company
       requiresManualInput: boolean;
       query: string;
       match_name: string;
+      api_status?: string;
+      api_error?: string;
     } = {
       formatted_address: existingWorkplace,
       source: existingWorkplace ? "client_provided" : "none",
@@ -189,6 +193,8 @@ For 'workplace_address': only fill if the client EXPLICITLY provides the company
       match_name: "",
     };
 
+    console.log("[Workplace] companyName:", companyName, "| existing:", existingWorkplace, "| keyPresent:", !!GOOGLE_GEOCODING_API_KEY);
+
     // Only auto-resolve if the client did NOT supply a workplace address themselves.
     if (!existingWorkplace && companyName && GOOGLE_GEOCODING_API_KEY) {
       const cityHint = (addressMeta.city || "").trim();
@@ -196,20 +202,24 @@ For 'workplace_address': only fill if the client EXPLICITLY provides the company
       const queryParts = [companyName, cityHint || provinceHint, "South Africa"].filter(Boolean);
       const placesQuery = queryParts.join(" ");
       workplaceMeta.query = placesQuery;
+      console.log("[Workplace] Places query:", placesQuery);
 
       try {
         const placesUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(placesQuery)}&region=za&key=${GOOGLE_GEOCODING_API_KEY}`;
         const placesRes = await fetch(placesUrl);
         const placesData = await placesRes.json();
+        console.log("[Workplace] Places status:", placesData.status, "| results:", placesData.results?.length || 0);
+        workplaceMeta.api_status = placesData.status;
+        if (placesData.error_message) workplaceMeta.api_error = placesData.error_message;
 
         if (placesData.status === "OK" && Array.isArray(placesData.results) && placesData.results.length > 0) {
-          // Defensive ZA filter — region= is a bias, not a hard lock.
           const zaResult =
             placesData.results.find((r: any) => typeof r.formatted_address === "string" && /south africa/i.test(r.formatted_address)) ||
             placesData.results[0];
 
           if (zaResult?.formatted_address && /south africa/i.test(zaResult.formatted_address)) {
             workplaceMeta = {
+              ...workplaceMeta,
               formatted_address: zaResult.formatted_address,
               source: "google_places",
               requiresManualInput: false,
@@ -217,19 +227,27 @@ For 'workplace_address': only fill if the client EXPLICITLY provides the company
               match_name: zaResult.name || "",
             };
             parsedData.workplace_address = zaResult.formatted_address;
+            console.log("[Workplace] Resolved:", zaResult.name, "→", zaResult.formatted_address);
           } else {
+            console.warn("[Workplace] Top result not in South Africa, flagging manual.");
             workplaceMeta.requiresManualInput = true;
           }
         } else if (placesData.status === "ZERO_RESULTS") {
+          console.warn("[Workplace] ZERO_RESULTS for:", placesQuery);
           workplaceMeta.requiresManualInput = true;
         } else {
-          console.warn("Places non-OK status:", placesData.status, placesData.error_message);
+          // REQUEST_DENIED, OVER_QUERY_LIMIT, INVALID_REQUEST, etc.
+          console.error("[Workplace] Places non-OK:", placesData.status, placesData.error_message);
           workplaceMeta.requiresManualInput = true;
         }
       } catch (placesErr) {
-        console.error("Places lookup failed:", placesErr);
+        console.error("[Workplace] Places fetch failed:", placesErr);
         workplaceMeta.requiresManualInput = true;
+        workplaceMeta.api_error = String(placesErr?.message || placesErr);
       }
+    } else if (companyName && !GOOGLE_GEOCODING_API_KEY) {
+      console.warn("[Workplace] No API key configured, skipping Places lookup.");
+      workplaceMeta.api_error = "No GOOGLE_GEOCODING_API_KEY / GOOGLE_MAPS_API_KEY configured.";
     }
 
     // Ensure the workplace_address key always exists on the payload for the UI.
