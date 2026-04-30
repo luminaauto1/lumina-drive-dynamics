@@ -89,11 +89,13 @@ Keys: first_name, last_name, id_number, email, phone, marital_status, physical_a
       raw: rawAddress,
     };
 
-    const GOOGLE_MAPS_API_KEY = Deno.env.get("GOOGLE_MAPS_API_KEY");
+    // Prefer the dedicated Geocoding key; fall back to the shared Maps key for backwards compat.
+    const GOOGLE_GEOCODING_API_KEY =
+      Deno.env.get("GOOGLE_GEOCODING_API_KEY") || Deno.env.get("GOOGLE_MAPS_API_KEY");
 
-    if (rawAddress && GOOGLE_MAPS_API_KEY) {
+    if (rawAddress && GOOGLE_GEOCODING_API_KEY) {
       try {
-        const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(rawAddress)}&components=country:ZA&key=${GOOGLE_MAPS_API_KEY}`;
+        const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(rawAddress)}&components=country:ZA&key=${GOOGLE_GEOCODING_API_KEY}`;
         const geoRes = await fetch(url);
         const geoData = await geoRes.json();
 
@@ -139,8 +141,8 @@ Keys: first_name, last_name, id_number, email, phone, marital_status, physical_a
         console.error("Geocoding failed:", geoErr);
         addressMeta.requiresManualVerification = true;
       }
-    } else if (rawAddress && !GOOGLE_MAPS_API_KEY) {
-      console.warn("GOOGLE_MAPS_API_KEY not set; skipping geocoding.");
+    } else if (rawAddress && !GOOGLE_GEOCODING_API_KEY) {
+      console.warn("GOOGLE_GEOCODING_API_KEY (and fallback GOOGLE_MAPS_API_KEY) not set; skipping geocoding.");
       addressMeta.requiresManualVerification = true;
     }
 
