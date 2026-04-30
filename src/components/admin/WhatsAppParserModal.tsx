@@ -56,6 +56,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
       if (data?.data) {
         setParsedData(data.data);
         setAddressMeta(data.address || null);
+        setWorkplaceMeta(data.workplace || null);
         toast.success('Extraction complete. Please review.');
       }
     } catch (err: any) {
