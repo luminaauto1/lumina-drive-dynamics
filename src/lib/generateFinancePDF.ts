@@ -104,6 +104,20 @@ export const generateFinancePDF = async (application: FinanceApplication, vehicl
   doc.text('Marital Status:', 100, yPos);
   doc.setTextColor(textColor);
   doc.text(String(application.marital_status || 'N/A'), 135, yPos);
+
+  yPos += lineHeight;
+  const licenseValue =
+    application.has_drivers_license === true ? 'Yes'
+    : application.has_drivers_license === false ? 'No'
+    : 'N/A';
+  addField("Driver's License", licenseValue);
+  doc.setTextColor(mutedColor);
+  doc.text('Credit Profile:', 100, yPos);
+  doc.setTextColor(textColor);
+  const creditValue = application.credit_score_status
+    ? String(application.credit_score_status).charAt(0).toUpperCase() + String(application.credit_score_status).slice(1)
+    : 'N/A';
+  doc.text(creditValue, 135, yPos);
   
   // Section: Address
   yPos += 12;
