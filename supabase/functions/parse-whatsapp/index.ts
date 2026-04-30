@@ -45,7 +45,9 @@ CRITICAL RULE FOR EXPENSES: For the 'living_expenses' field, DO NOT strip out th
 
 CRITICAL RULE FOR EMPLOYMENT: The current date is ${currentDate}. For the 'employment_start' field, you must calculate the exact duration in years and months from their start date to the current date. Format the output exactly like this: "[Original Date] (X Years, Y Months)". Example: "June 2022 (3 Years, 10 Months)". If they already provided the duration instead of a date, just use what they provided.
 
-Keys: first_name, last_name, id_number, email, phone, marital_status, physical_address, employer_name, job_title, employment_start, employment_status, gross_income, net_income, living_expenses, bank_name, account_number, kin_name, kin_phone.`;
+Keys: first_name, last_name, id_number, email, phone, marital_status, physical_address, employer_name, workplace_address, job_title, employment_start, employment_status, gross_income, net_income, living_expenses, bank_name, account_number, kin_name, kin_phone.
+
+For 'workplace_address': only fill if the client EXPLICITLY provides the company's street/business address. Do NOT guess or duplicate the residential address. If absent, return "" — the backend will auto-resolve it via Google Places.`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -170,7 +172,70 @@ Keys: first_name, last_name, id_number, email, phone, marital_status, physical_a
     // Overwrite physical_address with the formatted version for the admin UI
     parsedData.physical_address = addressMeta.formatted_address;
 
-    return new Response(JSON.stringify({ success: true, data: parsedData, address: addressMeta }), {
+    // ---- Workplace address auto-resolution (Google Places Text Search, ZA-bound) ----
+    const companyName: string = (parsedData.employer_name || "").trim();
+    const existingWorkplace: string = (parsedData.workplace_address || "").trim();
+    let workplaceMeta: {
+      formatted_address: string;
+      source: "google_places" | "client_provided" | "none";
+      requiresManualInput: boolean;
+      query: string;
+      match_name: string;
+    } = {
+      formatted_address: existingWorkplace,
+      source: existingWorkplace ? "client_provided" : "none",
+      requiresManualInput: !existingWorkplace,
+      query: "",
+      match_name: "",
+    };
+
+    // Only auto-resolve if the client did NOT supply a workplace address themselves.
+    if (!existingWorkplace && companyName && GOOGLE_GEOCODING_API_KEY) {
+      const cityHint = (addressMeta.city || "").trim();
+      const provinceHint = (addressMeta.province || "").trim();
+      const queryParts = [companyName, cityHint || provinceHint, "South Africa"].filter(Boolean);
+      const placesQuery = queryParts.join(" ");
+      workplaceMeta.query = placesQuery;
+
+      try {
+        const placesUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(placesQuery)}&region=za&key=${GOOGLE_GEOCODING_API_KEY}`;
+        const placesRes = await fetch(placesUrl);
+        const placesData = await placesRes.json();
+
+        if (placesData.status === "OK" && Array.isArray(placesData.results) && placesData.results.length > 0) {
+          // Defensive ZA filter — region= is a bias, not a hard lock.
+          const zaResult =
+            placesData.results.find((r: any) => typeof r.formatted_address === "string" && /south africa/i.test(r.formatted_address)) ||
+            placesData.results[0];
+
+          if (zaResult?.formatted_address && /south africa/i.test(zaResult.formatted_address)) {
+            workplaceMeta = {
+              formatted_address: zaResult.formatted_address,
+              source: "google_places",
+              requiresManualInput: false,
+              query: placesQuery,
+              match_name: zaResult.name || "",
+            };
+            parsedData.workplace_address = zaResult.formatted_address;
+          } else {
+            workplaceMeta.requiresManualInput = true;
+          }
+        } else if (placesData.status === "ZERO_RESULTS") {
+          workplaceMeta.requiresManualInput = true;
+        } else {
+          console.warn("Places non-OK status:", placesData.status, placesData.error_message);
+          workplaceMeta.requiresManualInput = true;
+        }
+      } catch (placesErr) {
+        console.error("Places lookup failed:", placesErr);
+        workplaceMeta.requiresManualInput = true;
+      }
+    }
+
+    // Ensure the workplace_address key always exists on the payload for the UI.
+    if (parsedData.workplace_address === undefined) parsedData.workplace_address = workplaceMeta.formatted_address;
+
+    return new Response(JSON.stringify({ success: true, data: parsedData, address: addressMeta, workplace: workplaceMeta }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {

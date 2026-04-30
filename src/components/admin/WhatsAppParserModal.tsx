@@ -26,11 +26,20 @@ interface AddressMeta {
   raw: string;
 }
 
+interface WorkplaceMeta {
+  formatted_address: string;
+  source: "google_places" | "client_provided" | "none";
+  requiresManualInput: boolean;
+  query: string;
+  match_name: string;
+}
+
 export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppParserModalProps) {
   const [rawText, setRawText] = useState('');
   const [isParsing, setIsParsing] = useState(false);
   const [parsedData, setParsedData] = useState<Record<string, string> | null>(null);
   const [addressMeta, setAddressMeta] = useState<AddressMeta | null>(null);
+  const [workplaceMeta, setWorkplaceMeta] = useState<WorkplaceMeta | null>(null);
 
   const handleParse = async () => {
     if (!rawText.trim()) return;
@@ -47,6 +56,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
       if (data?.data) {
         setParsedData(data.data);
         setAddressMeta(data.address || null);
+        setWorkplaceMeta(data.workplace || null);
         toast.success('Extraction complete. Please review.');
       }
     } catch (err: any) {
@@ -126,6 +136,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
     setRawText('');
     setParsedData(null);
     setAddressMeta(null);
+    setWorkplaceMeta(null);
   };
 
   return (
@@ -193,6 +204,31 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
                     {addressMeta.province && <div><span className="text-emerald-500/60">Province:</span> {addressMeta.province}</div>}
                     {addressMeta.postal_code && <div><span className="text-emerald-500/60">Postal:</span> {addressMeta.postal_code}</div>}
                   </div>
+                </div>
+              )}
+
+              {workplaceMeta && workplaceMeta.source === "google_places" && !workplaceMeta.requiresManualInput && (
+                <div className="bg-sky-500/10 border border-sky-500/30 p-3 rounded text-xs text-sky-300 space-y-1">
+                  <div className="font-semibold">Workplace auto-resolved via Google Places</div>
+                  {workplaceMeta.match_name && (
+                    <div className="text-sky-300/80"><span className="text-sky-500/60">Match:</span> {workplaceMeta.match_name}</div>
+                  )}
+                  <div className="text-sky-300/80"><span className="text-sky-500/60">Address:</span> {workplaceMeta.formatted_address}</div>
+                </div>
+              )}
+
+              {workplaceMeta && workplaceMeta.requiresManualInput && (parsedData?.employer_name || '').trim() && (
+                <div className="bg-red-500/10 border border-red-500/40 p-3 rounded text-xs text-red-300 space-y-1">
+                  <div className="flex items-center gap-2 font-semibold">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    Workplace address requires manual input
+                  </div>
+                  <p className="text-red-300/80">
+                    Google Places could not confidently locate "{parsedData?.employer_name}" in South Africa. Please enter the workplace address manually below.
+                  </p>
+                  {workplaceMeta.query && (
+                    <p className="text-red-300/60"><span className="uppercase tracking-wider text-[10px]">Query:</span> {workplaceMeta.query}</p>
+                  )}
                 </div>
               )}
 
