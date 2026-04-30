@@ -183,6 +183,8 @@ For 'workplace_address': only fill if the client EXPLICITLY provides the company
       requiresManualInput: boolean;
       query: string;
       match_name: string;
+      api_status?: string;
+      api_error?: string;
     } = {
       formatted_address: existingWorkplace,
       source: existingWorkplace ? "client_provided" : "none",
@@ -191,6 +193,8 @@ For 'workplace_address': only fill if the client EXPLICITLY provides the company
       match_name: "",
     };
 
+    console.log("[Workplace] companyName:", companyName, "| existing:", existingWorkplace, "| keyPresent:", !!GOOGLE_GEOCODING_API_KEY);
+
     // Only auto-resolve if the client did NOT supply a workplace address themselves.
     if (!existingWorkplace && companyName && GOOGLE_GEOCODING_API_KEY) {
       const cityHint = (addressMeta.city || "").trim();
@@ -198,20 +202,24 @@ For 'workplace_address': only fill if the client EXPLICITLY provides the company
       const queryParts = [companyName, cityHint || provinceHint, "South Africa"].filter(Boolean);
       const placesQuery = queryParts.join(" ");
       workplaceMeta.query = placesQuery;
+      console.log("[Workplace] Places query:", placesQuery);
 
       try {
         const placesUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(placesQuery)}&region=za&key=${GOOGLE_GEOCODING_API_KEY}`;
         const placesRes = await fetch(placesUrl);
         const placesData = await placesRes.json();
+        console.log("[Workplace] Places status:", placesData.status, "| results:", placesData.results?.length || 0);
+        workplaceMeta.api_status = placesData.status;
+        if (placesData.error_message) workplaceMeta.api_error = placesData.error_message;
 
         if (placesData.status === "OK" && Array.isArray(placesData.results) && placesData.results.length > 0) {
-          // Defensive ZA filter — region= is a bias, not a hard lock.
           const zaResult =
             placesData.results.find((r: any) => typeof r.formatted_address === "string" && /south africa/i.test(r.formatted_address)) ||
             placesData.results[0];
 
           if (zaResult?.formatted_address && /south africa/i.test(zaResult.formatted_address)) {
             workplaceMeta = {
+              ...workplaceMeta,
               formatted_address: zaResult.formatted_address,
               source: "google_places",
               requiresManualInput: false,
@@ -219,19 +227,27 @@ For 'workplace_address': only fill if the client EXPLICITLY provides the company
               match_name: zaResult.name || "",
             };
             parsedData.workplace_address = zaResult.formatted_address;
+            console.log("[Workplace] Resolved:", zaResult.name, "→", zaResult.formatted_address);
           } else {
+            console.warn("[Workplace] Top result not in South Africa, flagging manual.");
             workplaceMeta.requiresManualInput = true;
           }
         } else if (placesData.status === "ZERO_RESULTS") {
+          console.warn("[Workplace] ZERO_RESULTS for:", placesQuery);
           workplaceMeta.requiresManualInput = true;
         } else {
-          console.warn("Places non-OK status:", placesData.status, placesData.error_message);
+          // REQUEST_DENIED, OVER_QUERY_LIMIT, INVALID_REQUEST, etc.
+          console.error("[Workplace] Places non-OK:", placesData.status, placesData.error_message);
           workplaceMeta.requiresManualInput = true;
         }
       } catch (placesErr) {
-        console.error("Places lookup failed:", placesErr);
+        console.error("[Workplace] Places fetch failed:", placesErr);
         workplaceMeta.requiresManualInput = true;
+        workplaceMeta.api_error = String(placesErr?.message || placesErr);
       }
+    } else if (companyName && !GOOGLE_GEOCODING_API_KEY) {
+      console.warn("[Workplace] No API key configured, skipping Places lookup.");
+      workplaceMeta.api_error = "No GOOGLE_GEOCODING_API_KEY / GOOGLE_MAPS_API_KEY configured.";
     }
 
     // Ensure the workplace_address key always exists on the payload for the UI.
