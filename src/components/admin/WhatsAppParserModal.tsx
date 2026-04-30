@@ -89,6 +89,8 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
         marital_status: parsedData.marital_status || '',
         street_address: parsedData.physical_address || '',
         employer_name: parsedData.employer_name || '',
+        workplace_address: parsedData.workplace_address || '',
+        employer_address: parsedData.workplace_address || '',
         job_title: parsedData.job_title || '',
         employment_period: parsedData.employment_start || '',
         gross_salary: Number(String(parsedData.gross_income || '').replace(/[^\d.]/g, '')) || null,
