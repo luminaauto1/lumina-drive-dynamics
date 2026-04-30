@@ -898,6 +898,24 @@ const AdminDealRoom = () => {
                 <DetailItem label="Qualification" value={application.qualification} field="qualification" />
                 <DetailItem label="Email" value={application.email} copyable field="email" />
                 <DetailItem label="Phone" value={application.phone} copyable field="phone" />
+                <DetailItem
+                  label="Driver's License"
+                  value={
+                    application.has_drivers_license === true ? 'Yes'
+                    : application.has_drivers_license === false ? 'No'
+                    : null
+                  }
+                  field="has_drivers_license"
+                />
+                <DetailItem
+                  label="Credit Profile"
+                  value={
+                    application.credit_score_status
+                      ? application.credit_score_status.charAt(0).toUpperCase() + application.credit_score_status.slice(1)
+                      : null
+                  }
+                  field="credit_score_status"
+                />
               </div>
             </div>
 
