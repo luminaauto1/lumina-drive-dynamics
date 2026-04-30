@@ -32,6 +32,8 @@ interface WorkplaceMeta {
   requiresManualInput: boolean;
   query: string;
   match_name: string;
+  api_status?: string;
+  api_error?: string;
 }
 
 export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppParserModalProps) {
