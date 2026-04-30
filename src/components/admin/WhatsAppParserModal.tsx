@@ -15,10 +15,22 @@ interface WhatsAppParserModalProps {
   onOpenChange: (o: boolean) => void;
 }
 
+interface AddressMeta {
+  formatted_address: string;
+  street: string;
+  suburb: string;
+  city: string;
+  province: string;
+  postal_code: string;
+  requiresManualVerification: boolean;
+  raw: string;
+}
+
 export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppParserModalProps) {
   const [rawText, setRawText] = useState('');
   const [isParsing, setIsParsing] = useState(false);
   const [parsedData, setParsedData] = useState<Record<string, string> | null>(null);
+  const [addressMeta, setAddressMeta] = useState<AddressMeta | null>(null);
 
   const handleParse = async () => {
     if (!rawText.trim()) return;
@@ -34,6 +46,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
       if (data?.error) throw new Error(data.error);
       if (data?.data) {
         setParsedData(data.data);
+        setAddressMeta(data.address || null);
         toast.success('Extraction complete. Please review.');
       }
     } catch (err: any) {
@@ -112,6 +125,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
   const reset = () => {
     setRawText('');
     setParsedData(null);
+    setAddressMeta(null);
   };
 
   return (
@@ -151,6 +165,36 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
                 <AlertTriangle className="w-4 h-4 shrink-0" />
                 Review the extracted data below. You can correct any mistakes before generating the PDF.
               </div>
+
+              {addressMeta?.requiresManualVerification && (
+                <div className="bg-red-500/10 border border-red-500/40 p-3 rounded text-xs text-red-300 space-y-1">
+                  <div className="flex items-center gap-2 font-semibold">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    Address requires manual verification
+                  </div>
+                  <p className="text-red-300/80">
+                    Google could not confidently match this address within South Africa. Please confirm the street, suburb, city and postal code below before generating the PDF.
+                  </p>
+                  {addressMeta.raw && (
+                    <p className="text-red-300/60">
+                      <span className="uppercase tracking-wider text-[10px]">Raw input:</span> {addressMeta.raw}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {addressMeta && !addressMeta.requiresManualVerification && (
+                <div className="bg-emerald-500/10 border border-emerald-500/30 p-3 rounded text-xs text-emerald-300 space-y-1">
+                  <div className="font-semibold">Address normalized (ZA-bound)</div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-emerald-300/80">
+                    {addressMeta.street && <div><span className="text-emerald-500/60">Street:</span> {addressMeta.street}</div>}
+                    {addressMeta.suburb && <div><span className="text-emerald-500/60">Suburb:</span> {addressMeta.suburb}</div>}
+                    {addressMeta.city && <div><span className="text-emerald-500/60">City:</span> {addressMeta.city}</div>}
+                    {addressMeta.province && <div><span className="text-emerald-500/60">Province:</span> {addressMeta.province}</div>}
+                    {addressMeta.postal_code && <div><span className="text-emerald-500/60">Postal:</span> {addressMeta.postal_code}</div>}
+                  </div>
+                </div>
+              )}
 
               <ScrollArea className="h-[400px] pr-4">
                 <div className="grid grid-cols-2 gap-4">

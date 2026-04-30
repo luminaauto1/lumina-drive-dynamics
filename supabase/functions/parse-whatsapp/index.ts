@@ -67,7 +67,87 @@ Keys: first_name, last_name, id_number, email, phone, marital_status, physical_a
 
     const parsedData = JSON.parse(jsonString);
 
-    return new Response(JSON.stringify({ success: true, data: parsedData }), {
+    // ---- Address normalization (South Africa-bound geocoding) ----
+    const rawAddress: string = (parsedData.physical_address || "").trim();
+    let addressMeta: {
+      formatted_address: string;
+      street: string;
+      suburb: string;
+      city: string;
+      province: string;
+      postal_code: string;
+      requiresManualVerification: boolean;
+      raw: string;
+    } = {
+      formatted_address: rawAddress,
+      street: "",
+      suburb: "",
+      city: "",
+      province: "",
+      postal_code: "",
+      requiresManualVerification: !rawAddress, // empty = needs review
+      raw: rawAddress,
+    };
+
+    const GOOGLE_MAPS_API_KEY = Deno.env.get("GOOGLE_MAPS_API_KEY");
+
+    if (rawAddress && GOOGLE_MAPS_API_KEY) {
+      try {
+        const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(rawAddress)}&components=country:ZA&key=${GOOGLE_MAPS_API_KEY}`;
+        const geoRes = await fetch(url);
+        const geoData = await geoRes.json();
+
+        if (geoData.status === "OK" && Array.isArray(geoData.results) && geoData.results.length > 0) {
+          const result = geoData.results[0];
+          const components: Array<{ long_name: string; short_name: string; types: string[] }> = result.address_components || [];
+
+          const get = (type: string, short = false) => {
+            const c = components.find((x) => x.types.includes(type));
+            return c ? (short ? c.short_name : c.long_name) : "";
+          };
+
+          const streetNumber = get("street_number");
+          const route = get("route");
+          const street = [streetNumber, route].filter(Boolean).join(" ").trim();
+          const suburb = get("sublocality") || get("sublocality_level_1") || get("neighborhood");
+          const city = get("locality") || get("administrative_area_level_2");
+          const province = get("administrative_area_level_1");
+          const postalCode = get("postal_code");
+
+          // Heuristic: if Google could not pin a real route OR returned only a partial match,
+          // flag for manual review.
+          const isPartial = result.partial_match === true;
+          const hasStreet = !!route;
+
+          addressMeta = {
+            formatted_address: result.formatted_address || rawAddress,
+            street,
+            suburb,
+            city,
+            province,
+            postal_code: postalCode,
+            requiresManualVerification: isPartial || !hasStreet,
+            raw: rawAddress,
+          };
+        } else if (geoData.status === "ZERO_RESULTS") {
+          addressMeta.requiresManualVerification = true;
+        } else {
+          console.warn("Geocoding non-OK status:", geoData.status, geoData.error_message);
+          addressMeta.requiresManualVerification = true;
+        }
+      } catch (geoErr) {
+        console.error("Geocoding failed:", geoErr);
+        addressMeta.requiresManualVerification = true;
+      }
+    } else if (rawAddress && !GOOGLE_MAPS_API_KEY) {
+      console.warn("GOOGLE_MAPS_API_KEY not set; skipping geocoding.");
+      addressMeta.requiresManualVerification = true;
+    }
+
+    // Overwrite physical_address with the formatted version for the admin UI
+    parsedData.physical_address = addressMeta.formatted_address;
+
+    return new Response(JSON.stringify({ success: true, data: parsedData, address: addressMeta }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
