@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import { FinanceApplication } from '@/hooks/useFinanceApplications';
 import { formatPrice } from '@/hooks/useVehicles';
+import { formatSAPhoneForPDF } from '@/lib/formatPhone';
 
 // Helper function to load image via Image constructor (handles CORS properly)
 const getBase64FromUrl = (url: string): Promise<string> => {
