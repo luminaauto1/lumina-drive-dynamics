@@ -213,23 +213,31 @@ For 'workplace_address': only fill if the client EXPLICITLY provides the company
         if (placesData.error_message) workplaceMeta.api_error = placesData.error_message;
 
         if (placesData.status === "OK" && Array.isArray(placesData.results) && placesData.results.length > 0) {
+          // Prefer a result that explicitly mentions South Africa, otherwise take the top result
+          // (Places already biases to ZA via region=za + the query suffix).
           const zaResult =
             placesData.results.find((r: any) => typeof r.formatted_address === "string" && /south africa/i.test(r.formatted_address)) ||
             placesData.results[0];
 
-          if (zaResult?.formatted_address && /south africa/i.test(zaResult.formatted_address)) {
+          let resolvedAddress: string = zaResult?.formatted_address || "";
+          // Append ", South Africa" if Google omitted it, so the PDF reads as a complete ZA address.
+          if (resolvedAddress && !/south africa/i.test(resolvedAddress)) {
+            resolvedAddress = `${resolvedAddress}, South Africa`;
+          }
+
+          if (resolvedAddress) {
             workplaceMeta = {
               ...workplaceMeta,
-              formatted_address: zaResult.formatted_address,
+              formatted_address: resolvedAddress,
               source: "google_places",
               requiresManualInput: false,
               query: placesQuery,
               match_name: zaResult.name || "",
             };
-            parsedData.workplace_address = zaResult.formatted_address;
-            console.log("[Workplace] Resolved:", zaResult.name, "→", zaResult.formatted_address);
+            parsedData.workplace_address = resolvedAddress;
+            console.log("[Workplace] Resolved:", zaResult.name, "→", resolvedAddress);
           } else {
-            console.warn("[Workplace] Top result not in South Africa, flagging manual.");
+            console.warn("[Workplace] Top result had no formatted_address, flagging manual.");
             workplaceMeta.requiresManualInput = true;
           }
         } else if (placesData.status === "ZERO_RESULTS") {
