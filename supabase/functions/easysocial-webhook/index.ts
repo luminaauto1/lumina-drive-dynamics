@@ -197,6 +197,34 @@ Deno.serve(async (req) => {
     const changeField = payload?.entry?.[0]?.changes?.[0]?.field;
     const innerValue = payload?.entry?.[0]?.changes?.[0]?.value;
 
+    // ── Log raw inbound WhatsApp messages (ignore message_status receipts) ──
+    // Fire-and-forget so we never delay the 200 ack to EasySocial.
+    if (changeField === 'messages' && Array.isArray(innerValue?.messages) && innerValue.messages.length > 0) {
+      const msgPhone =
+        normalizePhone(innerValue?.messages?.[0]?.from) ??
+        normalizePhone(innerValue?.contacts?.[0]?.wa_id) ??
+        lead?.phone_number ?? null;
+      try {
+        const sb = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+        );
+        const insertPromise = sb
+          .from('whatsapp_messages')
+          .insert({ phone_number: msgPhone })
+          .then(({ error }) => {
+            if (error) console.error('[easysocial-webhook] message log error', error);
+          });
+        // @ts-ignore — EdgeRuntime is provided by Supabase Edge runtime
+        if (typeof EdgeRuntime !== 'undefined' && (EdgeRuntime as any).waitUntil) {
+          // @ts-ignore
+          (EdgeRuntime as any).waitUntil(insertPromise);
+        }
+      } catch (e) {
+        console.error('[easysocial-webhook] message log exception', e);
+      }
+    }
+
     if (!lead || !lead.phone_number) {
       // Deep log the inner value so we can see exactly where the bot hides data
       try {
