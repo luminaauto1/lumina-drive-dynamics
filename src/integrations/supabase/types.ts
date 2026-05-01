@@ -834,6 +834,7 @@ export type Database = {
         Row: {
           activity_log: Json | null
           admin_last_viewed_at: string | null
+          bot_outcome: string | null
           client_email: string | null
           client_name: string | null
           client_phone: string | null
@@ -853,6 +854,7 @@ export type Database = {
           next_action_note: string | null
           next_follow_up: string | null
           notes: string | null
+          phone_number: string | null
           pipeline_stage: string | null
           referrer: string | null
           source: string
@@ -862,6 +864,7 @@ export type Database = {
           trade_in_make_model: string | null
           trade_in_mileage: number | null
           trade_in_year: number | null
+          traffic_source: string | null
           updated_at: string
           utm_campaign: string | null
           utm_medium: string | null
@@ -871,6 +874,7 @@ export type Database = {
         Insert: {
           activity_log?: Json | null
           admin_last_viewed_at?: string | null
+          bot_outcome?: string | null
           client_email?: string | null
           client_name?: string | null
           client_phone?: string | null
@@ -890,6 +894,7 @@ export type Database = {
           next_action_note?: string | null
           next_follow_up?: string | null
           notes?: string | null
+          phone_number?: string | null
           pipeline_stage?: string | null
           referrer?: string | null
           source?: string
@@ -899,6 +904,7 @@ export type Database = {
           trade_in_make_model?: string | null
           trade_in_mileage?: number | null
           trade_in_year?: number | null
+          traffic_source?: string | null
           updated_at?: string
           utm_campaign?: string | null
           utm_medium?: string | null
@@ -908,6 +914,7 @@ export type Database = {
         Update: {
           activity_log?: Json | null
           admin_last_viewed_at?: string | null
+          bot_outcome?: string | null
           client_email?: string | null
           client_name?: string | null
           client_phone?: string | null
@@ -927,6 +934,7 @@ export type Database = {
           next_action_note?: string | null
           next_follow_up?: string | null
           notes?: string | null
+          phone_number?: string | null
           pipeline_stage?: string | null
           referrer?: string | null
           source?: string
@@ -936,6 +944,7 @@ export type Database = {
           trade_in_make_model?: string | null
           trade_in_mileage?: number | null
           trade_in_year?: number | null
+          traffic_source?: string | null
           updated_at?: string
           utm_campaign?: string | null
           utm_medium?: string | null
