@@ -383,12 +383,25 @@ const AdminLeads = () => {
     }
   };
 
+  // Stale = older than 24h with no progression beyond "new" and no admin action
+  const isStaleInbox = (l: MergedLead) => {
+    if (l.displayStatus !== 'new') return false;
+    if (l.appDetails) return false; // progressed to a finance application
+    const created = new Date(l.created_at).getTime();
+    if (Date.now() - created < STALE_THRESHOLD_MS) return false;
+    // Considered "actioned" if status_updated_at differs from created_at meaningfully
+    const updated = l.status_updated_at ? new Date(l.status_updated_at).getTime() : created;
+    return Math.abs(updated - created) < 60_000; // never moved
+  };
+
   // Filter: Strict separation of Active vs Archived/Lost
   const filteredLeads = leads.filter((l) => {
     // Consider it "dead" if the boolean is true OR status is lost/archived
     const isDeadFile = l.is_archived || l.displayStatus === 'lost' || l.displayStatus === 'archived';
     const matchesArchive = showArchived ? isDeadFile : !isDeadFile;
     if (!matchesArchive) return false;
+    // 24h stale filter (only applies to active view, not archived)
+    if (!showArchived && !showStale && isStaleInbox(l)) return false;
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -397,6 +410,15 @@ const AdminLeads = () => {
       l.client_email?.toLowerCase().includes(q)
     );
   });
+
+  // Stale filter for Registered Accounts (no app, no lead, > 24h old)
+  const visibleAccounts = newAccounts.filter(acc => {
+    if (showStale) return true;
+    const created = new Date(acc.created_at).getTime();
+    return Date.now() - created < STALE_THRESHOLD_MS;
+  });
+  const hiddenStaleAccountsCount = newAccounts.length - visibleAccounts.length;
+  const hiddenStaleLeadsCount = leads.filter(l => !l.is_archived && isStaleInbox(l)).length;
 
   return (
     <AdminLayout>
