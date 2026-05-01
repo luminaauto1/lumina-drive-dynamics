@@ -3,11 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
+export type StaffRole = 'super_admin' | 'sales_agent' | null;
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  /** True for super admins (legacy 'admin' role). Sales agents are NOT admins. */
   isAdmin: boolean;
+  /** True for super admins only. Alias of isAdmin for clarity in new code. */
+  isSuperAdmin: boolean;
+  /** True for sales_agent role. */
+  isSalesAgent: boolean;
+  /** True if the user is any staff member (super_admin OR sales_agent). */
+  isStaff: boolean;
+  /** Normalized role label, or null if not staff. */
+  role: StaffRole;
   signUp: (email: string, password: string, fullName?: string, phone?: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -19,7 +30,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [role, setRole] = useState<StaffRole>(null);
 
   useEffect(() => {
     let mounted = true;
