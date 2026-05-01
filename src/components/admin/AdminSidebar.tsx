@@ -50,6 +50,7 @@ const menuItems: MenuItem[] = [
     children: [
       { title: 'Deal Ledger', path: '/admin/aftersales' },
       { title: 'Reports', path: '/admin/reports' },
+      { title: 'Lead Analytics', path: '/admin/reports/lead-analytics' },
       { title: 'Analytics', path: '/admin/analytics' },
     ],
   },
