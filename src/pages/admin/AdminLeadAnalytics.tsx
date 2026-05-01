@@ -83,6 +83,8 @@ interface LeadRow {
   status: string | null;
   client_email?: string | null;
   client_phone?: string | null;
+  traffic_source?: string | null;
+  bot_outcome?: string | null;
 }
 
 interface AppRow {
