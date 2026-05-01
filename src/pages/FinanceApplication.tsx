@@ -545,6 +545,19 @@ const FinanceApplication = () => {
           if (error) console.error('Lead step update failed', error);
         });
       }
+
+      // Post-capture advisory intercepts — strict hierarchy: credit risk supersedes license.
+      if (currentStep === 1) {
+        const cs = formData.credit_score_status;
+        if (cs === "blacklisted" || cs === "debt_review" || cs === "defaults_arrears" || cs === "judgements") {
+          setCreditAdvisoryKey(cs as any);
+          return;
+        }
+        if (formData.has_drivers_license === "no") {
+          setShowLicenseAdvisory(true);
+          return;
+        }
+      }
       setCurrentStep((prev) => Math.min(prev + 1, 5));
     }
   };
