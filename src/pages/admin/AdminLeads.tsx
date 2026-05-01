@@ -522,11 +522,11 @@ const AdminLeads = () => {
               onMouseLeave={stopDraggingScroll}
               onMouseMove={onMouseMove}
             >
-              <div className="flex flex-nowrap gap-4 h-full min-w-max items-start snap-x snap-mandatory pb-6">
+              <div className="flex flex-nowrap gap-4 h-full min-w-max items-stretch snap-x snap-mandatory pb-6">
                 {COLUMNS.map((col) => {
                   const columnLeads = filteredLeads.filter((l) => l.displayStatus === col.id);
                   return (
-                    <div key={col.id} className={`flex-none w-[85vw] md:w-[260px] shrink-0 snap-center flex flex-col rounded-xl bg-muted/30 border border-border border-t-4 ${col.color}`} onMouseDown={(e) => e.stopPropagation()}>
+                    <div key={col.id} className={`flex-none w-[85vw] md:w-[260px] shrink-0 snap-center flex flex-col h-full max-h-full overflow-hidden rounded-xl bg-muted/30 border border-border border-t-4 ${col.color}`} onMouseDown={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-between px-3 py-2">
                         <span className="text-sm font-bold">{col.label}</span>
                         <span className="text-xs font-medium bg-background/50 rounded-full px-2 py-0.5">{columnLeads.length}</span>
