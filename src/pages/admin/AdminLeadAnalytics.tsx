@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import {
   TrendingUp, Users, FileCheck2, AlertTriangle, Percent,
-  Clock, Activity, ShieldAlert, Globe, Loader2,
+  Clock, Activity, ShieldAlert, Globe, Loader2, MessageCircle,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -103,6 +103,7 @@ const AdminLeadAnalytics = () => {
   const [loading, setLoading] = useState(true);
   const [leads, setLeads] = useState<LeadRow[]>([]);
   const [apps, setApps] = useState<AppRow[]>([]);
+  const [messageCount, setMessageCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -118,11 +119,14 @@ const AdminLeadAnalytics = () => {
         .select('id, created_at, updated_at, status, credit_score_status, email, phone, utm_source')
         .neq('email', 'albertprinsloo051@gmail.com')
         .order('created_at', { ascending: false }).limit(5000);
+      let msgQ = supabase.from('whatsapp_messages')
+        .select('id', { count: 'exact', head: true });
       if (cutoff) {
         leadsQ = leadsQ.gte('created_at', cutoff.toISOString());
         appsQ = appsQ.gte('created_at', cutoff.toISOString());
+        msgQ = msgQ.gte('created_at', cutoff.toISOString());
       }
-      const [{ data: leadsData }, { data: appsData }] = await Promise.all([leadsQ, appsQ]);
+      const [{ data: leadsData }, { data: appsData }, { count: msgCount }] = await Promise.all([leadsQ, appsQ, msgQ]);
       if (cancelled) return;
       // Defense-in-depth: also strip blocklisted emails client-side
       const cleanLeads = (leadsData || []).filter((l: any) =>
@@ -133,6 +137,7 @@ const AdminLeadAnalytics = () => {
       );
       setLeads(cleanLeads as any);
       setApps(cleanApps as any);
+      setMessageCount(msgCount ?? 0);
       setLoading(false);
     };
     load();
@@ -337,11 +342,12 @@ const AdminLeadAnalytics = () => {
         ) : (
           <>
             {/* KPI Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+              <KpiCard icon={MessageCircle} label="Messages Received" value={messageCount.toLocaleString()} accent />
               <KpiCard icon={Users} label="Total Leads Received" value={totalLeads.toLocaleString()} />
               <KpiCard icon={FileCheck2} label="Applications Submitted" value={totalApps.toLocaleString()} />
               <KpiCard icon={AlertTriangle} label="Abandoned / Drop-offs" value={totalAbandoned.toLocaleString()} />
-              <KpiCard icon={Percent} label="Conversion Rate" value={`${conversion.toFixed(1)}%`} accent />
+              <KpiCard icon={Percent} label="Conversion Rate" value={`${conversion.toFixed(1)}%`} />
             </div>
 
             {/* Funnel + Velocity */}

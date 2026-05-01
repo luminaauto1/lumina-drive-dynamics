@@ -1506,6 +1506,24 @@ export type Database = {
           },
         ]
       }
+      whatsapp_messages: {
+        Row: {
+          created_at: string
+          id: string
+          phone_number: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          phone_number?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          phone_number?: string | null
+        }
+        Relationships: []
+      }
       wishlists: {
         Row: {
           created_at: string
