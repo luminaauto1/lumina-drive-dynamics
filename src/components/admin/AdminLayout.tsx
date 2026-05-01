@@ -12,7 +12,7 @@ interface AdminLayoutProps {
 }
 
 const AdminLayout = ({ children }: AdminLayoutProps) => {
-  const { user, isAdmin, loading } = useAuth();
+  const { user, isStaff, loading } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -24,7 +24,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     );
   }
 
-  if (!user || !isAdmin) {
+  if (!user || !isStaff) {
     return <Navigate to="/auth" replace />;
   }
 
