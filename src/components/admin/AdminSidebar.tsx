@@ -133,7 +133,7 @@ const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
 
       {/* Navigation */}
       <nav className="p-2 space-y-1 overflow-y-auto h-[calc(100vh-8rem)]">
-        {menuItems.map((item) => {
+        {visibleMenuItems.map((item) => {
           if (isGroup(item)) {
             const groupActive = isGroupActive(item);
 
