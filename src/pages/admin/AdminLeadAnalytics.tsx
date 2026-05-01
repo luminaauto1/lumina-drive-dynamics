@@ -177,16 +177,40 @@ const AdminLeadAnalytics = () => {
   }, [enrichedLeads]);
 
   // Time analysis (avg minutes) — outliers > 24h excluded to prevent forgotten test sessions skewing averages
+  // - Abandonment: lead.created_at -> lead.updated_at (last progressive step save)
+  // - Submission: lead.created_at -> matched finance_application.created_at
   const timeAnalysis = useMemo(() => {
     const diffMin = (a: string, b: string) => Math.max(0, (new Date(b).getTime() - new Date(a).getTime()) / 60000);
     const withinCap = (m: number) => m > 0 && m <= TIME_OUTLIER_CAP_MIN;
+
+    // Build lookup of earliest app per email/phone for true funnel time
+    const appByKey = new Map<string, string>(); // key -> earliest app created_at
+    apps.forEach((a) => {
+      const keys: string[] = [];
+      if (a.email) keys.push(`e:${a.email.toLowerCase().trim()}`);
+      if (a.phone) keys.push(`p:${a.phone.replace(/\D/g, '')}`);
+      keys.forEach((k) => {
+        const existing = appByKey.get(k);
+        if (!existing || new Date(a.created_at) < new Date(existing)) appByKey.set(k, a.created_at);
+      });
+    });
+
     const abandoned = enrichedLeads
       .filter((l) => !l._submitted)
       .map((l) => diffMin(l.created_at, l.updated_at))
       .filter(withinCap);
-    const submitted = apps
-      .map((a) => diffMin(a.created_at, a.updated_at))
-      .filter(withinCap);
+
+    const submitted: number[] = [];
+    enrichedLeads.forEach((l: any) => {
+      if (!l._submitted) return;
+      const k1 = l.client_email ? `e:${String(l.client_email).toLowerCase().trim()}` : '';
+      const k2 = l.client_phone ? `p:${String(l.client_phone).replace(/\D/g, '')}` : '';
+      const appCreated = (k1 && appByKey.get(k1)) || (k2 && appByKey.get(k2));
+      if (!appCreated) return;
+      const m = diffMin(l.created_at, appCreated);
+      if (withinCap(m)) submitted.push(m);
+    });
+
     const avg = (arr: number[]) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
     return [
       { label: 'Avg time before abandonment', minutes: Math.round(avg(abandoned) * 10) / 10, sample: abandoned.length },
@@ -245,13 +269,17 @@ const AdminLeadAnalytics = () => {
     return Array.from(map.values()).sort((a, b) => (b.Submitted + b.Abandoned) - (a.Submitted + a.Abandoned)).slice(0, 8);
   }, [enrichedLeads]);
 
+  // Force light text on dark background — Recharts default tooltip text inherits
+  // OS color and renders unreadable against the dark admin theme.
   const tooltipStyle = {
-    backgroundColor: 'hsl(var(--popover))',
-    border: '1px solid hsl(var(--border))',
+    backgroundColor: '#111111',
+    border: '1px solid #333333',
     borderRadius: 8,
-    color: 'hsl(var(--popover-foreground))',
+    color: '#ffffff',
     fontSize: 12,
   };
+  const tooltipItemStyle = { color: '#ffffff' };
+  const tooltipLabelStyle = { color: '#aaaaaa', marginBottom: 4 };
 
   return (
     <AdminLayout>
@@ -299,7 +327,7 @@ const AdminLeadAnalytics = () => {
                     <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
                     <XAxis dataKey="step" stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} />
                     <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                    <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
+                    <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
                     <Bar dataKey="Abandoned" radius={[6, 6, 0, 0]}>
                       {funnelData.map((_, i) => (
                         <Cell key={i} fill={VIBRANT_PALETTE[i % VIBRANT_PALETTE.length]} />
@@ -315,7 +343,7 @@ const AdminLeadAnalytics = () => {
                     <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
                     <XAxis dataKey="label" stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} />
                     <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                    <Tooltip contentStyle={tooltipStyle} />
+                    <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} />
                     <Line
                       type="monotone"
                       dataKey="Leads"
@@ -376,7 +404,7 @@ const AdminLeadAnalytics = () => {
                           <Cell key={i} fill={VIBRANT_PALETTE[i % VIBRANT_PALETTE.length]} />
                         ))}
                       </Pie>
-                      <Tooltip contentStyle={tooltipStyle} />
+                      <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} />
                       <Legend wrapperStyle={{ fontSize: 11, color: MUTED }} />
                     </PieChart>
                   </ResponsiveContainer>
@@ -394,7 +422,7 @@ const AdminLeadAnalytics = () => {
                     <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
                     <XAxis dataKey="source" stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} />
                     <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                    <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
+                    <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
                     <Legend wrapperStyle={{ fontSize: 11, color: MUTED }} />
                     <Bar dataKey="Submitted" stackId="a" fill={VIBRANT.neonGreen} radius={[0, 0, 0, 0]} />
                     <Bar dataKey="Abandoned" stackId="a" fill={VIBRANT.crimson} radius={[6, 6, 0, 0]} />

@@ -526,11 +526,14 @@ const FinanceApplication = () => {
           console.error('Silent lead capture failed', error);
         }
       } else if (trackedLeadId) {
-        // Step N -> N+1: bump funnel progress so analytics knows where they reached
+        // Step N -> N+1: silent, async progressive save so analytics gets true
+        // funnel depth + active-time. Explicitly bump updated_at since the
+        // leads table has no auto-update trigger.
         const reached = currentStep;
         supabase.from('leads').update({
           last_step_reached: reached,
           last_step_name: STEP_NAMES[reached],
+          updated_at: new Date().toISOString(),
         } as any).eq('id', trackedLeadId).then(({ error }) => {
           if (error) console.error('Lead step update failed', error);
         });
