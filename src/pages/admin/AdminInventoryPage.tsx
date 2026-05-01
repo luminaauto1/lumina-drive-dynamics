@@ -46,6 +46,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getOptimizedImage } from '@/lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 const BODY_TYPE_OPTIONS = ['Hatchback', 'Sedan', 'SUV', 'Coupe', 'Convertible', 'Bakkie/Pickup', 'MPV'] as const;
 
@@ -80,6 +81,7 @@ const vehicleSchema = z.object({
 type VehicleFormData = z.infer<typeof vehicleSchema>;
 
 const AdminInventoryPage = () => {
+  const { isSuperAdmin } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
@@ -500,15 +502,19 @@ const AdminInventoryPage = () => {
             <p className="text-muted-foreground">Manage your vehicle listings</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <AddHiddenStockModal onSuccess={() => queryClient.invalidateQueries({ queryKey: ['vehicles'] })} />
-            <Button onClick={() => openAddSheet(true)} variant="outline" className="gap-2 border-purple-500/30 text-purple-400 hover:bg-purple-500/10">
-              <Truck className="w-4 h-4" />
-              Add Sourcing Example
-            </Button>
-            <Button onClick={() => openAddSheet(false)} className="gap-2">
-              <Plus className="w-4 h-4" />
-              Add Vehicle
-            </Button>
+            {isSuperAdmin && (
+              <>
+                <AddHiddenStockModal onSuccess={() => queryClient.invalidateQueries({ queryKey: ['vehicles'] })} />
+                <Button onClick={() => openAddSheet(true)} variant="outline" className="gap-2 border-purple-500/30 text-purple-400 hover:bg-purple-500/10">
+                  <Truck className="w-4 h-4" />
+                  Add Sourcing Example
+                </Button>
+                <Button onClick={() => openAddSheet(false)} className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  Add Vehicle
+                </Button>
+              </>
+            )}
           </div>
         </motion.div>
 
@@ -762,17 +768,20 @@ const AdminInventoryPage = () => {
                             variant="ghost"
                             size="icon"
                             onClick={() => openEditSheet(vehicle)}
+                            title={isSuperAdmin ? 'Edit vehicle' : 'View vehicle'}
                           >
-                            <Edit2 className="w-4 h-4" />
+                            {isSuperAdmin ? <Edit2 className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setDeleteVehicle(vehicle)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          {isSuperAdmin && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeleteVehicle(vehicle)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                         )}
                       </TableCell>

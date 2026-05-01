@@ -4,11 +4,14 @@ import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  /** Require ANY staff member (super_admin OR sales_agent). */
   requireAdmin?: boolean;
+  /** Require super_admin specifically. Blocks sales_agent. */
+  requireSuperAdmin?: boolean;
 }
 
-const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps) => {
-  const { user, loading, isAdmin } = useAuth();
+const ProtectedRoute = ({ children, requireAdmin = false, requireSuperAdmin = false }: ProtectedRouteProps) => {
+  const { user, loading, isAdmin, isStaff } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -23,7 +26,14 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
     return <Navigate to="/auth" state={{ returnTo: location.pathname }} replace />;
   }
 
-  if (requireAdmin && !isAdmin) {
+  if (requireSuperAdmin && !isAdmin) {
+    // Sales agents land on the leads pipeline; non-staff bounce to home.
+    return <Navigate to={isStaff ? '/admin/leads' : '/'} replace />;
+  }
+
+  // requireAdmin now means "any staff" for backwards compatibility,
+  // since most existing routes were intended for staff use.
+  if (requireAdmin && !isStaff) {
     return <Navigate to="/" replace />;
   }
 

@@ -3,11 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
+export type StaffRole = 'super_admin' | 'sales_agent' | null;
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  /** True for super admins (legacy 'admin' role). Sales agents are NOT admins. */
   isAdmin: boolean;
+  /** True for super admins only. Alias of isAdmin for clarity in new code. */
+  isSuperAdmin: boolean;
+  /** True for sales_agent role. */
+  isSalesAgent: boolean;
+  /** True if the user is any staff member (super_admin OR sales_agent). */
+  isStaff: boolean;
+  /** Normalized role label, or null if not staff. */
+  role: StaffRole;
   signUp: (email: string, password: string, fullName?: string, phone?: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -19,7 +30,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [role, setRole] = useState<StaffRole>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -44,11 +55,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // Use setTimeout to avoid potential deadlock with Supabase client
           setTimeout(() => {
             if (mounted) {
-              checkAdminRole(session.user.id);
+              fetchRole(session.user.id);
             }
           }, 0);
         } else {
-          setIsAdmin(false);
+          setRole(null);
         }
       }
     );
@@ -68,7 +79,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setLoading(false);
 
           if (session?.user) {
-            checkAdminRole(session.user.id);
+            fetchRole(session.user.id);
           }
         }
       } catch (err) {
@@ -87,15 +98,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  const checkAdminRole = async (userId: string) => {
+  const fetchRole = async (userId: string) => {
+    // Fetch all roles for this user; pick highest privilege
     const { data } = await supabase
       .from('user_roles')
       .select('role')
-      .eq('user_id', userId)
-      .eq('role', 'admin')
-      .maybeSingle();
-    
-    setIsAdmin(!!data);
+      .eq('user_id', userId);
+
+    const roles = (data || []).map((r: any) => r.role as string);
+    if (roles.includes('admin')) {
+      setRole('super_admin');
+    } else if (roles.includes('sales_agent')) {
+      setRole('sales_agent');
+    } else {
+      setRole(null);
+    }
   };
 
   const signUp = async (email: string, password: string, fullName?: string, phone?: string) => {
@@ -125,11 +142,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    setIsAdmin(false);
+    setRole(null);
   };
 
+  const isSuperAdmin = role === 'super_admin';
+  const isSalesAgent = role === 'sales_agent';
+  const isStaff = isSuperAdmin || isSalesAgent;
+  // Backwards-compat: existing code uses isAdmin to mean "full access".
+  // Sales agents are NOT admins.
+  const isAdmin = isSuperAdmin;
+
   return (
-    <AuthContext.Provider value={{ user, session, loading, isAdmin, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, isAdmin, isSuperAdmin, isSalesAgent, isStaff, role, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

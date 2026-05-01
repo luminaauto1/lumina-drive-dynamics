@@ -12,6 +12,7 @@ import { MessageCircle, UserPlus, Loader2, GripVertical, Search, RefreshCw, Arch
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import AdminLayout from "@/components/admin/AdminLayout";
+import { useAuth } from "@/contexts/AuthContext";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { LeadCockpit } from "@/components/admin/leads/LeadCockpit";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -100,6 +101,7 @@ interface MergedLead {
 }
 
 const AdminLeads = () => {
+  const { isSuperAdmin } = useAuth();
   const [leads, setLeads] = useState<MergedLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
@@ -459,7 +461,7 @@ const AdminLeads = () => {
               {showStale ? <Eye className="w-4 h-4 mr-1" /> : <EyeOff className="w-4 h-4 mr-1" />}
               {showStale ? 'Hide Stale' : `Show Stale${hiddenStaleLeadsCount + hiddenStaleAccountsCount > 0 ? ` (${hiddenStaleLeadsCount + hiddenStaleAccountsCount})` : ''}`}
             </Button>
-            {selectedIds.size > 0 && (
+            {isSuperAdmin && selectedIds.size > 0 && (
               <Button variant="destructive" size="sm" onClick={() => setConfirmDeleteOpen(true)}>
                 <Trash2 className="w-4 h-4 mr-1" /> Delete ({selectedIds.size})
               </Button>
@@ -558,7 +560,7 @@ const AdminLeads = () => {
                                         <GripVertical className="w-3.5 h-3.5 text-muted-foreground" />
                                       </div>
 
-                                      {!lead.isVirtual && (
+                                      {!lead.isVirtual && isSuperAdmin && (
                                         <div
                                           className={`absolute top-2 right-7 transition-opacity ${selectedIds.has(lead.id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                                           onClick={(e) => toggleSelect(lead.id, e)}

@@ -25,6 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 import { getUploadLink } from '@/lib/appConfig';
 import DeliveryChecklistModal from '@/components/admin/DeliveryChecklistModal';
 import QuickCashDealModal from '@/components/admin/QuickCashDealModal';
+import { useAuth } from '@/contexts/AuthContext';
 const FINANCE_INFO_REQUEST_TEMPLATE = `*Lumina Auto | Finance Application Request*
 
 Hi, to assist you with your finance application manually, please reply with the following details:
@@ -64,6 +65,7 @@ Please also send clear photos/PDFs of:
 const AdminFinance = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isSuperAdmin } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'active' | 'archived'>('active');
@@ -626,35 +628,37 @@ const AdminFinance = () => {
                             <Archive className="w-4 h-4" />
                           </Button>
                         )}
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
-                              title="Delete Application"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Application?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will permanently delete the application for {app.first_name} {app.last_name}. This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDelete(app.id)}
-                                className="bg-destructive hover:bg-destructive/90"
+                        {isSuperAdmin && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
+                                title="Delete Application"
                               >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Application?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will permanently delete the application for {app.first_name} {app.last_name}. This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDelete(app.id)}
+                                  className="bg-destructive hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
