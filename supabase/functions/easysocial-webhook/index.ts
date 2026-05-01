@@ -206,32 +206,40 @@ Deno.serve(async (req) => {
         normalizePhone(innerValue?.contacts?.[0]?.wa_id) ??
         lead?.phone_number ?? null;
 
-      // ── Platform attribution ─────────────────────────────────────────────
-      // 1) Meta referral (click-to-WA ads carry source_url / source_type)
-      // 2) Pre-filled / typed message body keywords
-      // 3) Fallback: Direct/Unknown
+      // ── Aggressive Platform attribution ──────────────────────────────────
+      // Strict optional chaining throughout — referral / context may be absent.
+      // Order: referral → context → text body. Lower-cased single blob match.
       let platformSource = 'Direct/Unknown';
-      const referralUrl = String(
-        firstMsg?.referral?.source_url ??
-        firstMsg?.referral?.source_id ??
-        firstMsg?.referral?.headline ?? ''
-      ).toLowerCase();
-      const referralType = String(firstMsg?.referral?.source_type ?? '').toLowerCase();
-      const refBlob = `${referralUrl} ${referralType}`;
+      const attributionBlob = [
+        firstMsg?.referral?.source_url,
+        firstMsg?.referral?.source_id,
+        firstMsg?.referral?.headline,
+        firstMsg?.referral?.source_type,
+        firstMsg?.referral?.body,
+        firstMsg?.context?.referred_product,
+        firstMsg?.context?.url,
+        firstMsg?.context?.id,
+        firstMsg?.text?.body,
+      ]
+        .filter((v) => v !== undefined && v !== null)
+        .map((v) => String(v))
+        .join(' ')
+        .toLowerCase();
 
-      if (refBlob.includes('instagram') || refBlob.includes(' ig ') || refBlob.startsWith('ig')) {
-        platformSource = 'Instagram';
-      } else if (refBlob.includes('facebook') || refBlob.includes('fb.') || refBlob.includes('/fb/') || refBlob.includes('fb_') || /\bfb\b/.test(refBlob)) {
-        platformSource = 'Facebook';
-      } else if (refBlob.includes('tiktok') || refBlob.includes('tt.')) {
+      if (attributionBlob.includes('tiktok')) {
         platformSource = 'TikTok';
-      } else {
-        // Optional chaining guards against image/document messages with no text
-        const bodyText = String(firstMsg?.text?.body ?? '').toLowerCase();
-        if (bodyText) {
-          if (bodyText.includes('tiktok')) platformSource = 'TikTok';
-          else if (bodyText.includes('insta') || bodyText.includes('instagram')) platformSource = 'Instagram';
-          else if (bodyText.includes('facebook') || /\bfb\b/.test(bodyText)) platformSource = 'Facebook';
+      } else if (attributionBlob.includes('facebook') || /\bfb\b/.test(attributionBlob)) {
+        platformSource = 'Facebook';
+      } else if (attributionBlob.includes('instagram') || /\big\b/.test(attributionBlob)) {
+        platformSource = 'Instagram';
+      }
+
+      // ── The "Unknown" Trap: dump the raw message JSON for later calibration
+      if (platformSource === 'Direct/Unknown') {
+        try {
+          console.log('UNKNOWN SOURCE PAYLOAD:', JSON.stringify(firstMsg, null, 2));
+        } catch {
+          console.log('UNKNOWN SOURCE PAYLOAD: <unstringifiable message>');
         }
       }
 
