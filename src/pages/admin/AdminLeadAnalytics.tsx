@@ -536,6 +536,62 @@ const AdminLeadAnalytics = () => {
                 </ResponsiveContainer>
               )}
             </ChartCard>
+
+            {/* Message Time-Matrix + Origins Pie */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="lg:col-span-2">
+                <ChartCard icon={Clock} title="Message Volume by Time & Platform" subtitle="Hourly distribution of inbound WhatsApp messages by origin">
+                  {messages.length === 0 ? (
+                    <EmptyState />
+                  ) : (
+                    <ResponsiveContainer width="100%" height={320}>
+                      <BarChart data={messagesByHourPlatform} margin={{ top: 10, right: 16, left: -8, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
+                        <XAxis dataKey="hour" stroke={MUTED} fontSize={10} tickLine={false} axisLine={false} interval={1} />
+                        <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                        <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
+                        <Legend wrapperStyle={{ fontSize: 11, color: MUTED }} />
+                        <Bar dataKey="Facebook" stackId="m" fill={PLATFORM_COLOR.Facebook} />
+                        <Bar dataKey="Instagram" stackId="m" fill={PLATFORM_COLOR.Instagram} />
+                        <Bar dataKey="TikTok" stackId="m" fill={PLATFORM_COLOR.TikTok} />
+                        <Bar dataKey="Direct/Unknown" stackId="m" fill={PLATFORM_COLOR['Direct/Unknown']} radius={[6, 6, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </ChartCard>
+              </div>
+              <ChartCard icon={Globe} title="Message Origins" subtitle="Overall split across the selected window">
+                {messageOriginsPie.length === 0 ? (
+                  <EmptyState />
+                ) : (
+                  <ResponsiveContainer width="100%" height={320}>
+                    <PieChart>
+                      <Pie
+                        data={messageOriginsPie}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={95}
+                        paddingAngle={3}
+                        dataKey="value"
+                        stroke={SURFACE}
+                      >
+                        {messageOriginsPie.map((entry, i) => (
+                          <Cell key={i} fill={PLATFORM_COLOR[entry.name] || VIBRANT_PALETTE[i % VIBRANT_PALETTE.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={tooltipStyle}
+                        itemStyle={tooltipItemStyle}
+                        labelStyle={tooltipLabelStyle}
+                        formatter={(v: any, n: any) => [`${v} msg`, n]}
+                      />
+                      <Legend wrapperStyle={{ fontSize: 11, color: MUTED }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </ChartCard>
+            </div>
           </>
         )}
       </div>
