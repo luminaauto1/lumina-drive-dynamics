@@ -305,6 +305,48 @@ const AdminLeadAnalytics = () => {
     return { data, outcomeKeys };
   }, [enrichedLeads]);
 
+  // Message Volume by Time-of-Day × Platform (24 hourly buckets)
+  const PLATFORM_COLOR: Record<string, string> = {
+    Facebook: VIBRANT.electricBlue,
+    Instagram: VIBRANT.pink,
+    TikTok: VIBRANT.neonGreen,
+    'Direct/Unknown': VIBRANT.amber,
+  };
+  const normalizePlatform = (raw: string | null | undefined): string => {
+    const v = String(raw || '').toLowerCase();
+    if (v.includes('facebook') || v === 'fb') return 'Facebook';
+    if (v.includes('insta')) return 'Instagram';
+    if (v.includes('tiktok')) return 'TikTok';
+    return 'Direct/Unknown';
+  };
+
+  const messagesByHourPlatform = useMemo(() => {
+    const buckets: Record<number, Record<string, number>> = {};
+    for (let h = 0; h < 24; h++) {
+      buckets[h] = { Facebook: 0, Instagram: 0, TikTok: 0, 'Direct/Unknown': 0 };
+    }
+    messages.forEach((m) => {
+      const hr = new Date(m.created_at).getHours();
+      const p = normalizePlatform(m.platform_source);
+      buckets[hr][p] = (buckets[hr][p] || 0) + 1;
+    });
+    return Object.entries(buckets).map(([h, row]) => ({
+      hour: `${String(h).padStart(2, '0')}:00`,
+      ...row,
+    }));
+  }, [messages]);
+
+  const messageOriginsPie = useMemo(() => {
+    const counts: Record<string, number> = { Facebook: 0, Instagram: 0, TikTok: 0, 'Direct/Unknown': 0 };
+    messages.forEach((m) => {
+      const p = normalizePlatform(m.platform_source);
+      counts[p] = (counts[p] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .filter(([, v]) => v > 0)
+      .map(([name, value]) => ({ name, value }));
+  }, [messages]);
+
 
   // Force light text on dark background — Recharts default tooltip text inherits
   // OS color and renders unreadable against the dark admin theme.
