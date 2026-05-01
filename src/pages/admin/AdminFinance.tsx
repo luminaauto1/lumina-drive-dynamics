@@ -64,6 +64,7 @@ Please also send clear photos/PDFs of:
 const AdminFinance = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isSuperAdmin } = (() => { try { return require('@/contexts/AuthContext').useAuth(); } catch { return { isSuperAdmin: false }; } })();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'active' | 'archived'>('active');
