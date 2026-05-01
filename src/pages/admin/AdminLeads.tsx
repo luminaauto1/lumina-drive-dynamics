@@ -479,14 +479,19 @@ const AdminLeads = () => {
           <div className="w-72 flex flex-col bg-muted/30 border border-border rounded-xl shrink-0 overflow-hidden border-t-4 border-t-blue-600">
             <div className="flex items-center justify-between px-3 py-2">
               <span className="text-sm font-bold text-blue-400">Registered Accounts</span>
-              <Badge variant="outline" className="text-xs border-blue-600/40 text-blue-400 bg-blue-950/20">{newAccounts.length}</Badge>
+              <Badge variant="outline" className="text-xs border-blue-600/40 text-blue-400 bg-blue-950/20">{visibleAccounts.length}{hiddenStaleAccountsCount > 0 && !showStale ? `/${newAccounts.length}` : ''}</Badge>
             </div>
             <ScrollArea className="flex-1 p-2">
               <div className="space-y-2">
-                {newAccounts.length === 0 ? (
-                  <div className="text-xs text-muted-foreground text-center py-8 opacity-50">No new accounts</div>
+                {visibleAccounts.length === 0 ? (
+                  <div className="text-xs text-muted-foreground text-center py-8 opacity-50">
+                    No new accounts
+                    {hiddenStaleAccountsCount > 0 && !showStale && (
+                      <div className="mt-1 text-[10px]">{hiddenStaleAccountsCount} stale hidden</div>
+                    )}
+                  </div>
                 ) : (
-                  newAccounts.map(acc => (
+                  visibleAccounts.map(acc => (
                     <Card key={acc.id} className="p-3 border-l-4 border-l-blue-600 bg-card hover:bg-accent/50 transition-all">
                       <p className="font-semibold text-sm truncate">{acc.full_name || 'Unknown'}</p>
                       <p className="text-xs text-muted-foreground truncate mt-0.5">{acc.email}</p>
