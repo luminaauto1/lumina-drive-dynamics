@@ -438,7 +438,7 @@ const AdminLeadAnalytics = () => {
             </div>
 
             {/* Traffic source */}
-            <ChartCard icon={Globe} title="Traffic Source / Channel" subtitle="Submitted vs abandoned by UTM source">
+            <ChartCard icon={Globe} title="Traffic Source / Channel" subtitle="Submitted vs abandoned by source (EasySocial bot + UTM)">
               {trafficSourceData.length === 0 ? (
                 <EmptyState />
               ) : (
@@ -451,6 +451,32 @@ const AdminLeadAnalytics = () => {
                     <Legend wrapperStyle={{ fontSize: 11, color: MUTED }} />
                     <Bar dataKey="Submitted" stackId="a" fill={VIBRANT.neonGreen} radius={[0, 0, 0, 0]} />
                     <Bar dataKey="Abandoned" stackId="a" fill={VIBRANT.crimson} radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </ChartCard>
+
+            {/* Lead Quality by Platform — sourced from EasySocial bot_outcome tags */}
+            <ChartCard icon={ShieldAlert} title="Lead Quality by Platform" subtitle="Bot-classified outcomes per traffic source (TikTok, Facebook, etc.)">
+              {platformQualityData.data.length === 0 ? (
+                <EmptyState />
+              ) : (
+                <ResponsiveContainer width="100%" height={320}>
+                  <BarChart data={platformQualityData.data} margin={{ top: 10, right: 16, left: -8, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis dataKey="platform" stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
+                    <Legend wrapperStyle={{ fontSize: 11, color: MUTED }} />
+                    {platformQualityData.outcomeKeys.map((key, i) => (
+                      <Bar
+                        key={key}
+                        dataKey={key}
+                        stackId="q"
+                        fill={VIBRANT_PALETTE[i % VIBRANT_PALETTE.length]}
+                        radius={i === platformQualityData.outcomeKeys.length - 1 ? [6, 6, 0, 0] : [0, 0, 0, 0]}
+                      />
+                    ))}
                   </BarChart>
                 </ResponsiveContainer>
               )}
