@@ -31,18 +31,37 @@ const STEPS: Record<number, string> = {
   5: 'Review',
 };
 
-// Brand-aligned monochrome palette w/ a single accent
-const ACCENT = 'hsl(var(--primary))';
+// Vibrant analytics palette — admin-only, intentionally pops against dark surface
+const VIBRANT = {
+  electricBlue: '#3B82F6',
+  neonGreen: '#10F49B',
+  crimson: '#EF4444',
+  brightOrange: '#F97316',
+  violet: '#8B5CF6',
+  cyan: '#22D3EE',
+  amber: '#FBBF24',
+  pink: '#EC4899',
+};
+const VIBRANT_PALETTE = [
+  VIBRANT.electricBlue,
+  VIBRANT.neonGreen,
+  VIBRANT.crimson,
+  VIBRANT.brightOrange,
+  VIBRANT.violet,
+  VIBRANT.cyan,
+  VIBRANT.amber,
+  VIBRANT.pink,
+];
+
+const ACCENT = VIBRANT.electricBlue;
 const MUTED = 'hsl(var(--muted-foreground))';
 const SURFACE = 'hsl(var(--card))';
-const PIE_COLORS = [
-  'hsl(var(--primary))',
-  'hsl(0 0% 90%)',
-  'hsl(0 0% 65%)',
-  'hsl(0 0% 45%)',
-  'hsl(0 0% 30%)',
-  'hsl(0 70% 55%)',
-];
+
+// Outlier filtering
+const TEST_EMAIL_BLOCKLIST = new Set<string>([
+  'albertprinsloo051@gmail.com',
+]);
+const TIME_OUTLIER_CAP_MIN = 1440; // 24 hours
 
 const rangeToCutoff = (r: Range): Date | null => {
   if (r === 'all') return null;
@@ -58,8 +77,12 @@ interface LeadRow {
   last_step_reached: number | null;
   last_step_name: string | null;
   utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
   source: string | null;
   status: string | null;
+  client_email?: string | null;
+  client_phone?: string | null;
 }
 
 interface AppRow {
@@ -70,6 +93,7 @@ interface AppRow {
   credit_score_status: string | null;
   email: string | null;
   phone: string | null;
+  utm_source?: string | null;
 }
 
 const AdminLeadAnalytics = () => {
