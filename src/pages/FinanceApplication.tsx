@@ -508,12 +508,17 @@ const FinanceApplication = () => {
         }
       }
 
-      // High-risk credit advisory intercept (after silent capture + ghost auth fired)
+      // Post-capture advisory intercepts — strict hierarchy: credit risk supersedes license.
       if (currentStep === 1) {
         const cs = formData.credit_score_status;
         if (cs === "blacklisted" || cs === "debt_review" || cs === "defaults_arrears" || cs === "judgements") {
           setCreditAdvisoryKey(cs as any);
-          return; // block transition until user dismisses modal
+          return; // credit risk wins — do not also show license popup
+        }
+        // Credit is acceptable ("excellent_good" or "not_sure") — evaluate license
+        if (formData.has_drivers_license === "no") {
+          setShowLicenseAdvisory(true);
+          return;
         }
       }
       setCurrentStep((prev) => Math.min(prev + 1, 5));
