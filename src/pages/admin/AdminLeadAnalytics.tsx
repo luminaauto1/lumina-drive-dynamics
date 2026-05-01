@@ -104,6 +104,7 @@ const AdminLeadAnalytics = () => {
   const [leads, setLeads] = useState<LeadRow[]>([]);
   const [apps, setApps] = useState<AppRow[]>([]);
   const [messageCount, setMessageCount] = useState(0);
+  const [messages, setMessages] = useState<{ created_at: string; platform_source: string | null }[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -119,14 +120,19 @@ const AdminLeadAnalytics = () => {
         .select('id, created_at, updated_at, status, credit_score_status, email, phone, utm_source')
         .neq('email', 'albertprinsloo051@gmail.com')
         .order('created_at', { ascending: false }).limit(5000);
-      let msgQ = supabase.from('whatsapp_messages')
+      let msgCountQ = supabase.from('whatsapp_messages')
         .select('id', { count: 'exact', head: true });
+      let msgRowsQ = supabase.from('whatsapp_messages')
+        .select('created_at, platform_source')
+        .order('created_at', { ascending: false }).limit(10000);
       if (cutoff) {
         leadsQ = leadsQ.gte('created_at', cutoff.toISOString());
         appsQ = appsQ.gte('created_at', cutoff.toISOString());
-        msgQ = msgQ.gte('created_at', cutoff.toISOString());
+        msgCountQ = msgCountQ.gte('created_at', cutoff.toISOString());
+        msgRowsQ = msgRowsQ.gte('created_at', cutoff.toISOString());
       }
-      const [{ data: leadsData }, { data: appsData }, { count: msgCount }] = await Promise.all([leadsQ, appsQ, msgQ]);
+      const [{ data: leadsData }, { data: appsData }, { count: msgCount }, { data: msgRows }] =
+        await Promise.all([leadsQ, appsQ, msgCountQ, msgRowsQ]);
       if (cancelled) return;
       // Defense-in-depth: also strip blocklisted emails client-side
       const cleanLeads = (leadsData || []).filter((l: any) =>
@@ -138,6 +144,7 @@ const AdminLeadAnalytics = () => {
       setLeads(cleanLeads as any);
       setApps(cleanApps as any);
       setMessageCount(msgCount ?? 0);
+      setMessages((msgRows as any) || []);
       setLoading(false);
     };
     load();
@@ -297,6 +304,48 @@ const AdminLeadAnalytics = () => {
     }));
     return { data, outcomeKeys };
   }, [enrichedLeads]);
+
+  // Message Volume by Time-of-Day × Platform (24 hourly buckets)
+  const PLATFORM_COLOR: Record<string, string> = {
+    Facebook: VIBRANT.electricBlue,
+    Instagram: VIBRANT.pink,
+    TikTok: VIBRANT.neonGreen,
+    'Direct/Unknown': VIBRANT.amber,
+  };
+  const normalizePlatform = (raw: string | null | undefined): string => {
+    const v = String(raw || '').toLowerCase();
+    if (v.includes('facebook') || v === 'fb') return 'Facebook';
+    if (v.includes('insta')) return 'Instagram';
+    if (v.includes('tiktok')) return 'TikTok';
+    return 'Direct/Unknown';
+  };
+
+  const messagesByHourPlatform = useMemo(() => {
+    const buckets: Record<number, Record<string, number>> = {};
+    for (let h = 0; h < 24; h++) {
+      buckets[h] = { Facebook: 0, Instagram: 0, TikTok: 0, 'Direct/Unknown': 0 };
+    }
+    messages.forEach((m) => {
+      const hr = new Date(m.created_at).getHours();
+      const p = normalizePlatform(m.platform_source);
+      buckets[hr][p] = (buckets[hr][p] || 0) + 1;
+    });
+    return Object.entries(buckets).map(([h, row]) => ({
+      hour: `${String(h).padStart(2, '0')}:00`,
+      ...row,
+    }));
+  }, [messages]);
+
+  const messageOriginsPie = useMemo(() => {
+    const counts: Record<string, number> = { Facebook: 0, Instagram: 0, TikTok: 0, 'Direct/Unknown': 0 };
+    messages.forEach((m) => {
+      const p = normalizePlatform(m.platform_source);
+      counts[p] = (counts[p] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .filter(([, v]) => v > 0)
+      .map(([name, value]) => ({ name, value }));
+  }, [messages]);
 
 
   // Force light text on dark background — Recharts default tooltip text inherits
@@ -487,6 +536,62 @@ const AdminLeadAnalytics = () => {
                 </ResponsiveContainer>
               )}
             </ChartCard>
+
+            {/* Message Time-Matrix + Origins Pie */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="lg:col-span-2">
+                <ChartCard icon={Clock} title="Message Volume by Time & Platform" subtitle="Hourly distribution of inbound WhatsApp messages by origin">
+                  {messages.length === 0 ? (
+                    <EmptyState />
+                  ) : (
+                    <ResponsiveContainer width="100%" height={320}>
+                      <BarChart data={messagesByHourPlatform} margin={{ top: 10, right: 16, left: -8, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
+                        <XAxis dataKey="hour" stroke={MUTED} fontSize={10} tickLine={false} axisLine={false} interval={1} />
+                        <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                        <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
+                        <Legend wrapperStyle={{ fontSize: 11, color: MUTED }} />
+                        <Bar dataKey="Facebook" stackId="m" fill={PLATFORM_COLOR.Facebook} />
+                        <Bar dataKey="Instagram" stackId="m" fill={PLATFORM_COLOR.Instagram} />
+                        <Bar dataKey="TikTok" stackId="m" fill={PLATFORM_COLOR.TikTok} />
+                        <Bar dataKey="Direct/Unknown" stackId="m" fill={PLATFORM_COLOR['Direct/Unknown']} radius={[6, 6, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </ChartCard>
+              </div>
+              <ChartCard icon={Globe} title="Message Origins" subtitle="Overall split across the selected window">
+                {messageOriginsPie.length === 0 ? (
+                  <EmptyState />
+                ) : (
+                  <ResponsiveContainer width="100%" height={320}>
+                    <PieChart>
+                      <Pie
+                        data={messageOriginsPie}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={95}
+                        paddingAngle={3}
+                        dataKey="value"
+                        stroke={SURFACE}
+                      >
+                        {messageOriginsPie.map((entry, i) => (
+                          <Cell key={i} fill={PLATFORM_COLOR[entry.name] || VIBRANT_PALETTE[i % VIBRANT_PALETTE.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={tooltipStyle}
+                        itemStyle={tooltipItemStyle}
+                        labelStyle={tooltipLabelStyle}
+                        formatter={(v: any, n: any) => [`${v} msg`, n]}
+                      />
+                      <Legend wrapperStyle={{ fontSize: 11, color: MUTED }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </ChartCard>
+            </div>
           </>
         )}
       </div>
