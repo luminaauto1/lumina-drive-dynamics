@@ -132,12 +132,24 @@ const AdminDashboard = () => {
         });
 
         setUrgentLeads(deduped.slice(0, 6));
-        setDeliveries(
-          activeLeads
-            .filter((l) => l.pipeline_stage === "prepping_delivery")
-            .slice(0, 6)
-        );
       }
+
+      // 4. Today's communication activity (messages / leads / apps)
+      const dayStart = startOfDay(now).toISOString();
+      const dayEnd = endOfDay(now).toISOString();
+      const [{ count: msgToday }, { count: leadsToday }, { count: appsToday }] = await Promise.all([
+        supabase.from("whatsapp_messages").select("id", { count: "exact", head: true })
+          .gte("created_at", dayStart).lte("created_at", dayEnd),
+        supabase.from("leads").select("id", { count: "exact", head: true })
+          .gte("created_at", dayStart).lte("created_at", dayEnd),
+        supabase.from("finance_applications").select("id", { count: "exact", head: true })
+          .gte("created_at", dayStart).lte("created_at", dayEnd),
+      ]);
+      setActivityToday({
+        messages: msgToday ?? 0,
+        leads: leadsToday ?? 0,
+        apps: appsToday ?? 0,
+      });
 
       setLoading(false);
     };
