@@ -506,10 +506,33 @@ const AdminFinance = () => {
                         {app.net_salary ? formatPrice(app.net_salary) : 'N/A'}
                       </span>
                     </TableCell>
-                    <TableCell>
-                      <span className={`px-2 py-1 text-xs uppercase tracking-wider rounded border ${STATUS_STYLES[app.status] || STATUS_STYLES.pending}`}>
-                        {ADMIN_STATUS_LABELS[app.status] || app.status}
-                      </span>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Select
+                        value={app.status}
+                        onValueChange={async (newStatus) => {
+                          if (newStatus === app.status) return;
+                          try {
+                            await updateApplication.mutateAsync({ id: app.id, updates: { status: newStatus } });
+                          } catch (err) {
+                            // Toast handled by hook on error
+                          }
+                        }}
+                      >
+                        <SelectTrigger
+                          className={`w-[180px] h-7 text-xs uppercase tracking-wider border ${STATUS_STYLES[app.status] || STATUS_STYLES.pending}`}
+                        >
+                          <SelectValue>
+                            {ADMIN_STATUS_LABELS[app.status] || app.status}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STATUS_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                              {ADMIN_STATUS_LABELS[opt.value] || opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       {(() => {
