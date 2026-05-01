@@ -8,12 +8,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageCircle, UserPlus, Loader2, GripVertical, Search, RefreshCw, Archive } from "lucide-react";
+import { MessageCircle, UserPlus, Loader2, GripVertical, Search, RefreshCw, Archive, Trash2, Eye, EyeOff } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { LeadCockpit } from "@/components/admin/leads/LeadCockpit";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+const STALE_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 // --- FULL STATUS COLUMNS ---
 const COLUMNS = [
