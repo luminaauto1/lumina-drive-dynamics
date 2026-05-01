@@ -88,15 +88,50 @@ const AdminDashboard = () => {
         .order("created_at", { ascending: false });
 
       if (activeLeads) {
-        setUrgentLeads(
-          activeLeads
-            .filter(
-              (l) =>
-                l.pipeline_stage === "new" ||
-                l.pipeline_stage === "validation_pending"
-            )
-            .slice(0, 6)
+        // Priority order (higher = more urgent / overrides)
+        const STAGE_PRIORITY: Record<string, number> = {
+          validation_pending: 100,
+          new: 50,
+        };
+
+        const urgent = activeLeads.filter(
+          (l) =>
+            l.pipeline_stage === "new" ||
+            l.pipeline_stage === "validation_pending"
         );
+
+        // Deduplicate by email/phone — keep highest-priority, most-recent record per client
+        const dedupeMap = new Map<string, any>();
+        urgent.forEach((l) => {
+          const key =
+            (l.client_email && l.client_email.toLowerCase().trim()) ||
+            (l.client_phone && l.client_phone.replace(/\D/g, "")) ||
+            `id:${l.id}`;
+          const existing = dedupeMap.get(key);
+          if (!existing) {
+            dedupeMap.set(key, l);
+            return;
+          }
+          const existingP = STAGE_PRIORITY[existing.pipeline_stage] || 0;
+          const incomingP = STAGE_PRIORITY[l.pipeline_stage] || 0;
+          if (
+            incomingP > existingP ||
+            (incomingP === existingP &&
+              new Date(l.created_at).getTime() >
+                new Date(existing.created_at).getTime())
+          ) {
+            dedupeMap.set(key, l);
+          }
+        });
+
+        const deduped = Array.from(dedupeMap.values()).sort((a, b) => {
+          const pa = STAGE_PRIORITY[a.pipeline_stage] || 0;
+          const pb = STAGE_PRIORITY[b.pipeline_stage] || 0;
+          if (pb !== pa) return pb - pa;
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+
+        setUrgentLeads(deduped.slice(0, 6));
         setDeliveries(
           activeLeads
             .filter((l) => l.pipeline_stage === "prepping_delivery")

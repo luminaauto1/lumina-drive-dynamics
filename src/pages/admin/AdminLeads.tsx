@@ -8,12 +8,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageCircle, UserPlus, Loader2, GripVertical, Search, RefreshCw, Archive } from "lucide-react";
+import { MessageCircle, UserPlus, Loader2, GripVertical, Search, RefreshCw, Archive, Trash2, Eye, EyeOff } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { LeadCockpit } from "@/components/admin/leads/LeadCockpit";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+const STALE_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 // --- FULL STATUS COLUMNS ---
 const COLUMNS = [
@@ -106,6 +119,43 @@ const AdminLeads = () => {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newLead, setNewLead] = useState({ name: "", phone: "", notes: "" });
   const [adding, setAdding] = useState(false);
+  const [showStale, setShowStale] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  const toggleSelect = (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const handleBulkDelete = async () => {
+    const realIds = Array.from(selectedIds).filter(id => !id.startsWith('virtual-'));
+    if (realIds.length === 0) {
+      toast.error('No deletable leads selected (virtual leads must be promoted first)');
+      setConfirmDeleteOpen(false);
+      return;
+    }
+    setBulkDeleting(true);
+    try {
+      const { error } = await supabase.from('leads').delete().in('id', realIds);
+      if (error) throw error;
+      toast.success(`Deleted ${realIds.length} lead${realIds.length > 1 ? 's' : ''}`);
+      setLeads(prev => prev.filter(l => !realIds.includes(l.id)));
+      clearSelection();
+      setConfirmDeleteOpen(false);
+    } catch (err: any) {
+      toast.error('Bulk delete failed: ' + err.message);
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isDraggingScroll, setIsDraggingScroll] = useState(false);
@@ -333,12 +383,25 @@ const AdminLeads = () => {
     }
   };
 
+  // Stale = older than 24h with no progression beyond "new" and no admin action
+  const isStaleInbox = (l: MergedLead) => {
+    if (l.displayStatus !== 'new') return false;
+    if (l.appDetails) return false; // progressed to a finance application
+    const created = new Date(l.created_at).getTime();
+    if (Date.now() - created < STALE_THRESHOLD_MS) return false;
+    // Considered "actioned" if status_updated_at differs from created_at meaningfully
+    const updated = l.status_updated_at ? new Date(l.status_updated_at).getTime() : created;
+    return Math.abs(updated - created) < 60_000; // never moved
+  };
+
   // Filter: Strict separation of Active vs Archived/Lost
   const filteredLeads = leads.filter((l) => {
     // Consider it "dead" if the boolean is true OR status is lost/archived
     const isDeadFile = l.is_archived || l.displayStatus === 'lost' || l.displayStatus === 'archived';
     const matchesArchive = showArchived ? isDeadFile : !isDeadFile;
     if (!matchesArchive) return false;
+    // 24h stale filter (only applies to active view, not archived)
+    if (!showArchived && !showStale && isStaleInbox(l)) return false;
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -347,6 +410,15 @@ const AdminLeads = () => {
       l.client_email?.toLowerCase().includes(q)
     );
   });
+
+  // Stale filter for Registered Accounts (no app, no lead, > 24h old)
+  const visibleAccounts = newAccounts.filter(acc => {
+    if (showStale) return true;
+    const created = new Date(acc.created_at).getTime();
+    return Date.now() - created < STALE_THRESHOLD_MS;
+  });
+  const hiddenStaleAccountsCount = newAccounts.length - visibleAccounts.length;
+  const hiddenStaleLeadsCount = leads.filter(l => !l.is_archived && isStaleInbox(l)).length;
 
   return (
     <AdminLayout>
@@ -378,6 +450,20 @@ const AdminLeads = () => {
                 </div>
               </DialogContent>
             </Dialog>
+            <Button
+              variant={showStale ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowStale(!showStale)}
+              title="Toggle 24h stale leads visibility"
+            >
+              {showStale ? <Eye className="w-4 h-4 mr-1" /> : <EyeOff className="w-4 h-4 mr-1" />}
+              {showStale ? 'Hide Stale' : `Show Stale${hiddenStaleLeadsCount + hiddenStaleAccountsCount > 0 ? ` (${hiddenStaleLeadsCount + hiddenStaleAccountsCount})` : ''}`}
+            </Button>
+            {selectedIds.size > 0 && (
+              <Button variant="destructive" size="sm" onClick={() => setConfirmDeleteOpen(true)}>
+                <Trash2 className="w-4 h-4 mr-1" /> Delete ({selectedIds.size})
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={() => setShowArchived(!showArchived)}>
               <Archive className="w-4 h-4 mr-1" /> {showArchived ? 'Active' : 'Archived'}
             </Button>
@@ -393,14 +479,19 @@ const AdminLeads = () => {
           <div className="w-72 flex flex-col bg-muted/30 border border-border rounded-xl shrink-0 overflow-hidden border-t-4 border-t-blue-600">
             <div className="flex items-center justify-between px-3 py-2">
               <span className="text-sm font-bold text-blue-400">Registered Accounts</span>
-              <Badge variant="outline" className="text-xs border-blue-600/40 text-blue-400 bg-blue-950/20">{newAccounts.length}</Badge>
+              <Badge variant="outline" className="text-xs border-blue-600/40 text-blue-400 bg-blue-950/20">{visibleAccounts.length}{hiddenStaleAccountsCount > 0 && !showStale ? `/${newAccounts.length}` : ''}</Badge>
             </div>
             <ScrollArea className="flex-1 p-2">
               <div className="space-y-2">
-                {newAccounts.length === 0 ? (
-                  <div className="text-xs text-muted-foreground text-center py-8 opacity-50">No new accounts</div>
+                {visibleAccounts.length === 0 ? (
+                  <div className="text-xs text-muted-foreground text-center py-8 opacity-50">
+                    No new accounts
+                    {hiddenStaleAccountsCount > 0 && !showStale && (
+                      <div className="mt-1 text-[10px]">{hiddenStaleAccountsCount} stale hidden</div>
+                    )}
+                  </div>
                 ) : (
-                  newAccounts.map(acc => (
+                  visibleAccounts.map(acc => (
                     <Card key={acc.id} className="p-3 border-l-4 border-l-blue-600 bg-card hover:bg-accent/50 transition-all">
                       <p className="font-semibold text-sm truncate">{acc.full_name || 'Unknown'}</p>
                       <p className="text-xs text-muted-foreground truncate mt-0.5">{acc.email}</p>
@@ -431,11 +522,11 @@ const AdminLeads = () => {
               onMouseLeave={stopDraggingScroll}
               onMouseMove={onMouseMove}
             >
-              <div className="flex flex-nowrap gap-4 h-full min-w-max items-start snap-x snap-mandatory pb-6">
+              <div className="flex flex-nowrap gap-4 h-full min-w-max items-stretch snap-x snap-mandatory pb-6">
                 {COLUMNS.map((col) => {
                   const columnLeads = filteredLeads.filter((l) => l.displayStatus === col.id);
                   return (
-                    <div key={col.id} className={`flex-none w-[85vw] md:w-[260px] shrink-0 snap-center flex flex-col rounded-xl bg-muted/30 border border-border border-t-4 ${col.color}`} onMouseDown={(e) => e.stopPropagation()}>
+                    <div key={col.id} className={`flex-none w-[85vw] md:w-[260px] shrink-0 snap-center flex flex-col h-full max-h-full overflow-hidden rounded-xl bg-muted/30 border border-border border-t-4 ${col.color}`} onMouseDown={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-between px-3 py-2">
                         <span className="text-sm font-bold">{col.label}</span>
                         <span className="text-xs font-medium bg-background/50 rounded-full px-2 py-0.5">{columnLeads.length}</span>
@@ -446,7 +537,7 @@ const AdminLeads = () => {
                           <div
                             ref={provided.innerRef}
                             {...provided.droppableProps}
-                            className={`flex-1 overflow-y-auto p-2 space-y-2 min-h-[100px] transition-colors ${snapshot.isDraggingOver ? 'bg-primary/5' : ''}`}
+                            className={`flex-1 min-h-0 overflow-y-auto p-2 space-y-2 transition-colors ${snapshot.isDraggingOver ? 'bg-primary/5' : ''}`}
                           >
                             {columnLeads.map((lead, index) => {
                               const needsAttention = !lead.isVirtual && (new Date(lead.status_updated_at || lead.created_at).getTime() > new Date(lead.admin_last_viewed_at || 0).getTime());
@@ -466,6 +557,19 @@ const AdminLeads = () => {
                                       <div {...provided.dragHandleProps} className="absolute top-2 left-1 opacity-0 group-hover:opacity-50 transition-opacity">
                                         <GripVertical className="w-3.5 h-3.5 text-muted-foreground" />
                                       </div>
+
+                                      {!lead.isVirtual && (
+                                        <div
+                                          className={`absolute top-2 right-7 transition-opacity ${selectedIds.has(lead.id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                                          onClick={(e) => toggleSelect(lead.id, e)}
+                                        >
+                                          <Checkbox
+                                            checked={selectedIds.has(lead.id)}
+                                            onCheckedChange={() => toggleSelect(lead.id)}
+                                            className="h-4 w-4"
+                                          />
+                                        </div>
+                                      )}
 
                                       {needsAttention && <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />}
 
@@ -527,6 +631,28 @@ const AdminLeads = () => {
         clientEmail={selectedHubEmail}
         clientPhone={selectedHubPhone}
       />
+
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedIds.size} lead{selectedIds.size > 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes the selected leads from the database. Virtual leads (from finance applications without a saved lead row) will be skipped. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleBulkDelete(); }}
+              disabled={bulkDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Trash2 className="w-4 h-4 mr-1" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 };
