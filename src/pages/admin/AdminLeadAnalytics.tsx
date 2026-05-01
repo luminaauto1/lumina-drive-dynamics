@@ -31,18 +31,37 @@ const STEPS: Record<number, string> = {
   5: 'Review',
 };
 
-// Brand-aligned monochrome palette w/ a single accent
-const ACCENT = 'hsl(var(--primary))';
+// Vibrant analytics palette — admin-only, intentionally pops against dark surface
+const VIBRANT = {
+  electricBlue: '#3B82F6',
+  neonGreen: '#10F49B',
+  crimson: '#EF4444',
+  brightOrange: '#F97316',
+  violet: '#8B5CF6',
+  cyan: '#22D3EE',
+  amber: '#FBBF24',
+  pink: '#EC4899',
+};
+const VIBRANT_PALETTE = [
+  VIBRANT.electricBlue,
+  VIBRANT.neonGreen,
+  VIBRANT.crimson,
+  VIBRANT.brightOrange,
+  VIBRANT.violet,
+  VIBRANT.cyan,
+  VIBRANT.amber,
+  VIBRANT.pink,
+];
+
+const ACCENT = VIBRANT.electricBlue;
 const MUTED = 'hsl(var(--muted-foreground))';
 const SURFACE = 'hsl(var(--card))';
-const PIE_COLORS = [
-  'hsl(var(--primary))',
-  'hsl(0 0% 90%)',
-  'hsl(0 0% 65%)',
-  'hsl(0 0% 45%)',
-  'hsl(0 0% 30%)',
-  'hsl(0 70% 55%)',
-];
+
+// Outlier filtering
+const TEST_EMAIL_BLOCKLIST = new Set<string>([
+  'albertprinsloo051@gmail.com',
+]);
+const TIME_OUTLIER_CAP_MIN = 1440; // 24 hours
 
 const rangeToCutoff = (r: Range): Date | null => {
   if (r === 'all') return null;
@@ -58,8 +77,12 @@ interface LeadRow {
   last_step_reached: number | null;
   last_step_name: string | null;
   utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
   source: string | null;
   status: string | null;
+  client_email?: string | null;
+  client_phone?: string | null;
 }
 
 interface AppRow {
@@ -70,6 +93,7 @@ interface AppRow {
   credit_score_status: string | null;
   email: string | null;
   phone: string | null;
+  utm_source?: string | null;
 }
 
 const AdminLeadAnalytics = () => {
@@ -84,16 +108,29 @@ const AdminLeadAnalytics = () => {
       setLoading(true);
       const cutoff = rangeToCutoff(range);
 
-      let leadsQ = supabase.from('leads').select('id, created_at, updated_at, last_step_reached, last_step_name, utm_source, source, status, client_email, client_phone').order('created_at', { ascending: false }).limit(5000);
-      let appsQ = supabase.from('finance_applications').select('id, created_at, updated_at, status, credit_score_status, email, phone').order('created_at', { ascending: false }).limit(5000);
+      let leadsQ = supabase.from('leads')
+        .select('id, created_at, updated_at, last_step_reached, last_step_name, utm_source, utm_medium, utm_campaign, source, status, client_email, client_phone')
+        .neq('client_email', 'albertprinsloo051@gmail.com')
+        .order('created_at', { ascending: false }).limit(5000);
+      let appsQ = supabase.from('finance_applications')
+        .select('id, created_at, updated_at, status, credit_score_status, email, phone, utm_source')
+        .neq('email', 'albertprinsloo051@gmail.com')
+        .order('created_at', { ascending: false }).limit(5000);
       if (cutoff) {
         leadsQ = leadsQ.gte('created_at', cutoff.toISOString());
         appsQ = appsQ.gte('created_at', cutoff.toISOString());
       }
       const [{ data: leadsData }, { data: appsData }] = await Promise.all([leadsQ, appsQ]);
       if (cancelled) return;
-      setLeads((leadsData || []) as any);
-      setApps((appsData || []) as any);
+      // Defense-in-depth: also strip blocklisted emails client-side
+      const cleanLeads = (leadsData || []).filter((l: any) =>
+        !l.client_email || !TEST_EMAIL_BLOCKLIST.has(String(l.client_email).toLowerCase().trim())
+      );
+      const cleanApps = (appsData || []).filter((a: any) =>
+        !a.email || !TEST_EMAIL_BLOCKLIST.has(String(a.email).toLowerCase().trim())
+      );
+      setLeads(cleanLeads as any);
+      setApps(cleanApps as any);
       setLoading(false);
     };
     load();
@@ -139,15 +176,21 @@ const AdminLeadAnalytics = () => {
     }));
   }, [enrichedLeads]);
 
-  // Time analysis (avg minutes)
+  // Time analysis (avg minutes) — outliers > 24h excluded to prevent forgotten test sessions skewing averages
   const timeAnalysis = useMemo(() => {
     const diffMin = (a: string, b: string) => Math.max(0, (new Date(b).getTime() - new Date(a).getTime()) / 60000);
-    const abandoned = enrichedLeads.filter((l) => !l._submitted).map((l) => diffMin(l.created_at, l.updated_at));
-    const submitted = apps.map((a) => diffMin(a.created_at, a.updated_at));
+    const withinCap = (m: number) => m > 0 && m <= TIME_OUTLIER_CAP_MIN;
+    const abandoned = enrichedLeads
+      .filter((l) => !l._submitted)
+      .map((l) => diffMin(l.created_at, l.updated_at))
+      .filter(withinCap);
+    const submitted = apps
+      .map((a) => diffMin(a.created_at, a.updated_at))
+      .filter(withinCap);
     const avg = (arr: number[]) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
     return [
-      { label: 'Avg time before abandonment', minutes: Math.round(avg(abandoned) * 10) / 10 },
-      { label: 'Avg time to successful submission', minutes: Math.round(avg(submitted) * 10) / 10 },
+      { label: 'Avg time before abandonment', minutes: Math.round(avg(abandoned) * 10) / 10, sample: abandoned.length },
+      { label: 'Avg time to successful submission', minutes: Math.round(avg(submitted) * 10) / 10, sample: submitted.length },
     ];
   }, [enrichedLeads, apps]);
 
@@ -257,7 +300,11 @@ const AdminLeadAnalytics = () => {
                     <XAxis dataKey="step" stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} />
                     <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
                     <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
-                    <Bar dataKey="Abandoned" fill={ACCENT} radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="Abandoned" radius={[6, 6, 0, 0]}>
+                      {funnelData.map((_, i) => (
+                        <Cell key={i} fill={VIBRANT_PALETTE[i % VIBRANT_PALETTE.length]} />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </ChartCard>
@@ -269,7 +316,14 @@ const AdminLeadAnalytics = () => {
                     <XAxis dataKey="label" stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} />
                     <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
                     <Tooltip contentStyle={tooltipStyle} />
-                    <Line type="monotone" dataKey="Leads" stroke={ACCENT} strokeWidth={2} dot={{ r: 3, fill: ACCENT }} activeDot={{ r: 5 }} />
+                    <Line
+                      type="monotone"
+                      dataKey="Leads"
+                      stroke={VIBRANT.neonGreen}
+                      strokeWidth={2.5}
+                      dot={{ r: 3, fill: VIBRANT.neonGreen, stroke: VIBRANT.neonGreen }}
+                      activeDot={{ r: 6, fill: VIBRANT.neonGreen }}
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </ChartCard>
@@ -277,22 +331,28 @@ const AdminLeadAnalytics = () => {
 
             {/* Time analysis + Credit risk */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <ChartCard icon={Clock} title="Time Analysis" subtitle="Average minutes spent in form">
+              <ChartCard icon={Clock} title="Time Analysis" subtitle="Average minutes spent in form (sessions > 24h excluded)">
                 <div className="space-y-4 pt-2">
-                  {timeAnalysis.map((row) => (
-                    <div key={row.label} className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">{row.label}</span>
-                        <span className="font-mono font-semibold">{row.minutes} min</span>
+                  {timeAnalysis.map((row, idx) => {
+                    const color = idx === 0 ? VIBRANT.crimson : VIBRANT.neonGreen;
+                    return (
+                      <div key={row.label} className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">{row.label}</span>
+                          <span className="font-mono font-semibold" style={{ color }}>
+                            {row.minutes} min
+                            <span className="ml-2 text-[10px] text-muted-foreground">n={(row as any).sample ?? 0}</span>
+                          </span>
+                        </div>
+                        <div className="h-2 rounded-full bg-muted/40 overflow-hidden">
+                          <div
+                            className="h-full rounded-full"
+                            style={{ width: `${Math.min(100, row.minutes * 4)}%`, backgroundColor: color }}
+                          />
+                        </div>
                       </div>
-                      <div className="h-2 rounded-full bg-muted/40 overflow-hidden">
-                        <div
-                          className="h-full bg-primary"
-                          style={{ width: `${Math.min(100, row.minutes * 4)}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </ChartCard>
 
@@ -313,7 +373,7 @@ const AdminLeadAnalytics = () => {
                         stroke={SURFACE}
                       >
                         {creditDist.map((_, i) => (
-                          <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                          <Cell key={i} fill={VIBRANT_PALETTE[i % VIBRANT_PALETTE.length]} />
                         ))}
                       </Pie>
                       <Tooltip contentStyle={tooltipStyle} />
@@ -325,7 +385,7 @@ const AdminLeadAnalytics = () => {
             </div>
 
             {/* Traffic source */}
-            <ChartCard icon={Globe} title="Traffic Source / Channel" subtitle="Submitted vs abandoned by source">
+            <ChartCard icon={Globe} title="Traffic Source / Channel" subtitle="Submitted vs abandoned by UTM source">
               {trafficSourceData.length === 0 ? (
                 <EmptyState />
               ) : (
@@ -336,8 +396,8 @@ const AdminLeadAnalytics = () => {
                     <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
                     <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
                     <Legend wrapperStyle={{ fontSize: 11, color: MUTED }} />
-                    <Bar dataKey="Submitted" stackId="a" fill={ACCENT} radius={[0, 0, 0, 0]} />
-                    <Bar dataKey="Abandoned" stackId="a" fill="hsl(0 0% 35%)" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="Submitted" stackId="a" fill={VIBRANT.neonGreen} radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="Abandoned" stackId="a" fill={VIBRANT.crimson} radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               )}

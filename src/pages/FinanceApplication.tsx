@@ -33,6 +33,7 @@ import SignaturePad from "@/components/SignaturePad";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { getStoredAttribution } from "@/hooks/useUTMTracking";
 import { toast } from "sonner";
 import {
   financeApplicationStep1Schema,
@@ -78,19 +79,8 @@ const FinanceApplication = () => {
     5: 'Step 5: Review & Submit',
   };
 
-  const getAttribution = () => {
-    try {
-      const sp = new URLSearchParams(window.location.search);
-      return {
-        utm_source: sp.get('utm_source') || sp.get('source') || null,
-        utm_medium: sp.get('utm_medium') || null,
-        utm_campaign: sp.get('utm_campaign') || null,
-        referrer: document.referrer ? new URL(document.referrer).hostname : null,
-      };
-    } catch {
-      return { utm_source: null, utm_medium: null, utm_campaign: null, referrer: null };
-    }
-  };
+  // Use centralized attribution from useUTMTracking (sessionStorage-backed)
+  const getAttribution = () => getStoredAttribution();
   const [formData, setFormData] = useState({
     // Personal
     first_name: "",
@@ -653,6 +643,8 @@ const FinanceApplication = () => {
       credit_score_status: formData.credit_score_status || null,
       status: isRevisionMode ? "revision_submitted" : "pending",
       signature_url: formData.signature_url || null,
+      // Marketing attribution — captured by global useUTMTracking hook
+      ...getAttribution(),
     };
 
     // 3. Save to Database - Update if resuming a draft, otherwise insert

@@ -532,6 +532,7 @@ export type Database = {
           popia_consent: boolean | null
           preferred_vehicle_text: string | null
           qualification: string | null
+          referrer: string | null
           selected_vehicle_id: string | null
           signature_url: string | null
           source_of_funds: string | null
@@ -539,6 +540,9 @@ export type Database = {
           street_address: string | null
           updated_at: string
           user_id: string | null
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
           vehicle_id: string | null
         }
         Insert: {
@@ -588,6 +592,7 @@ export type Database = {
           popia_consent?: boolean | null
           preferred_vehicle_text?: string | null
           qualification?: string | null
+          referrer?: string | null
           selected_vehicle_id?: string | null
           signature_url?: string | null
           source_of_funds?: string | null
@@ -595,6 +600,9 @@ export type Database = {
           street_address?: string | null
           updated_at?: string
           user_id?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
           vehicle_id?: string | null
         }
         Update: {
@@ -644,6 +652,7 @@ export type Database = {
           popia_consent?: boolean | null
           preferred_vehicle_text?: string | null
           qualification?: string | null
+          referrer?: string | null
           selected_vehicle_id?: string | null
           signature_url?: string | null
           source_of_funds?: string | null
@@ -651,6 +660,9 @@ export type Database = {
           street_address?: string | null
           updated_at?: string
           user_id?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
           vehicle_id?: string | null
         }
         Relationships: [
