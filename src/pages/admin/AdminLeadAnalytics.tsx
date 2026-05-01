@@ -108,16 +108,29 @@ const AdminLeadAnalytics = () => {
       setLoading(true);
       const cutoff = rangeToCutoff(range);
 
-      let leadsQ = supabase.from('leads').select('id, created_at, updated_at, last_step_reached, last_step_name, utm_source, source, status, client_email, client_phone').order('created_at', { ascending: false }).limit(5000);
-      let appsQ = supabase.from('finance_applications').select('id, created_at, updated_at, status, credit_score_status, email, phone').order('created_at', { ascending: false }).limit(5000);
+      let leadsQ = supabase.from('leads')
+        .select('id, created_at, updated_at, last_step_reached, last_step_name, utm_source, utm_medium, utm_campaign, source, status, client_email, client_phone')
+        .neq('client_email', 'albertprinsloo051@gmail.com')
+        .order('created_at', { ascending: false }).limit(5000);
+      let appsQ = supabase.from('finance_applications')
+        .select('id, created_at, updated_at, status, credit_score_status, email, phone, utm_source')
+        .neq('email', 'albertprinsloo051@gmail.com')
+        .order('created_at', { ascending: false }).limit(5000);
       if (cutoff) {
         leadsQ = leadsQ.gte('created_at', cutoff.toISOString());
         appsQ = appsQ.gte('created_at', cutoff.toISOString());
       }
       const [{ data: leadsData }, { data: appsData }] = await Promise.all([leadsQ, appsQ]);
       if (cancelled) return;
-      setLeads((leadsData || []) as any);
-      setApps((appsData || []) as any);
+      // Defense-in-depth: also strip blocklisted emails client-side
+      const cleanLeads = (leadsData || []).filter((l: any) =>
+        !l.client_email || !TEST_EMAIL_BLOCKLIST.has(String(l.client_email).toLowerCase().trim())
+      );
+      const cleanApps = (appsData || []).filter((a: any) =>
+        !a.email || !TEST_EMAIL_BLOCKLIST.has(String(a.email).toLowerCase().trim())
+      );
+      setLeads(cleanLeads as any);
+      setApps(cleanApps as any);
       setLoading(false);
     };
     load();
