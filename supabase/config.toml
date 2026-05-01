@@ -39,3 +39,6 @@ verify_jwt = false
 [functions.capture-dropoff-lead]
 verify_jwt = false
 
+[functions.easysocial-webhook]
+verify_jwt = false
+
