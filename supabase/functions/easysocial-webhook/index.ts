@@ -1,6 +1,7 @@
 // EasySocial WhatsApp bot webhook receiver
 // - GET: verification handshake (echoes hub.challenge if hub.verify_token matches)
-// - POST: ingests lead payload and upserts into public.leads keyed on phone_number
+// - POST: ingests lead payload from WhatsApp Business API / Meta Graph webhook
+//         structure and upserts into public.leads keyed on phone_number
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 const corsHeaders = {
@@ -13,16 +14,16 @@ const corsHeaders = {
 const DEFAULT_VERIFY_TOKEN = 'LuminaAuto2026';
 
 const normalizePhone = (raw: unknown): string | null => {
-  if (!raw) return null;
+  if (raw === null || raw === undefined) return null;
   const digits = String(raw).replace(/\D/g, '');
   return digits.length >= 6 ? digits : null;
 };
 
-// Best-effort field extraction across common EasySocial / WhatsApp shapes
+// Best-effort field extraction across common shapes (used as a fallback)
 const pick = (obj: any, paths: string[]): any => {
   for (const p of paths) {
     const parts = p.split('.');
-    let cur = obj;
+    let cur: any = obj;
     let ok = true;
     for (const k of parts) {
       if (cur && typeof cur === 'object' && k in cur) cur = cur[k];
@@ -33,42 +34,116 @@ const pick = (obj: any, paths: string[]): any => {
   return undefined;
 };
 
-const extractLead = (payload: any) => {
-  // Phone candidates
-  const phoneRaw = pick(payload, [
-    'phone', 'phone_number', 'from', 'contact.phone', 'contact.wa_id',
-    'sender.phone', 'sender.wa_id', 'data.phone', 'data.from',
-  ]);
+// Extract #tags or "tag: value" pairs out of free-form message text
+const extractTagsFromText = (text: string | undefined | null): string | null => {
+  if (!text || typeof text !== 'string') return null;
+  const hashTags = text.match(/#[\w-]+/g);
+  if (hashTags && hashTags.length) return hashTags.map((t) => t.replace(/^#/, '')).join(', ');
+  const m = text.match(/(?:tag|outcome|qualification|status)\s*[:=]\s*([\w\s,-]+)/i);
+  if (m && m[1]) return m[1].trim();
+  return null;
+};
 
-  // Source / platform candidates
-  const source = pick(payload, [
-    'traffic_source', 'source', 'platform', 'channel',
-    'data.source', 'contact.source', 'utm_source',
-  ]);
+interface ExtractedLead {
+  phone_number: string | null;
+  client_phone: string | null;
+  client_name: string | null;
+  client_email: string | null;
+  traffic_source: string | null;
+  bot_outcome: string | null;
+}
 
-  // Bot outcome / tag / label candidates (could be string or array)
-  let outcome = pick(payload, [
-    'bot_outcome', 'outcome', 'tag', 'tags', 'label', 'labels',
-    'qualification', 'status', 'data.tags', 'contact.tags',
-  ]);
-  if (Array.isArray(outcome)) outcome = outcome.join(', ');
-
-  const name = pick(payload, [
-    'name', 'full_name', 'contact.name', 'sender.name', 'data.name',
-  ]);
-
-  const email = pick(payload, [
-    'email', 'contact.email', 'sender.email', 'data.email',
-  ]);
-
-  return {
-    phone_number: normalizePhone(phoneRaw),
-    traffic_source: source ? String(source) : null,
-    bot_outcome: outcome ? String(outcome) : null,
-    client_name: name ? String(name) : null,
-    client_email: email ? String(email) : null,
-    client_phone: phoneRaw ? String(phoneRaw) : null,
+const extractFromWhatsAppPayload = (payload: any): ExtractedLead => {
+  const result: ExtractedLead = {
+    phone_number: null,
+    client_phone: null,
+    client_name: null,
+    client_email: null,
+    traffic_source: null,
+    bot_outcome: null,
   };
+
+  // ── Walk the WA Business / Meta Graph webhook structure ──────────────────
+  const value = payload?.entry?.[0]?.changes?.[0]?.value;
+
+  // Phone — prefer contact wa_id, fall back to message "from"
+  const waId =
+    value?.contacts?.[0]?.wa_id ??
+    value?.messages?.[0]?.from ??
+    value?.statuses?.[0]?.recipient_id;
+
+  result.phone_number = normalizePhone(waId);
+  result.client_phone = waId ? String(waId) : null;
+
+  // Name from profile
+  const profileName = value?.contacts?.[0]?.profile?.name;
+  if (profileName) result.client_name = String(profileName);
+
+  // Message body — text, button, interactive reply, etc.
+  const msg = value?.messages?.[0];
+  const messageText: string | undefined =
+    msg?.text?.body ??
+    msg?.button?.text ??
+    msg?.interactive?.button_reply?.title ??
+    msg?.interactive?.list_reply?.title ??
+    msg?.interactive?.list_reply?.description;
+
+  // Bot outcome candidates: explicit tags array, interactive reply ID, parsed text
+  let outcome: string | null = null;
+  const tagsField =
+    value?.tags ??
+    value?.contacts?.[0]?.tags ??
+    msg?.context?.tags ??
+    msg?.interactive?.button_reply?.id ??
+    msg?.interactive?.list_reply?.id;
+  if (Array.isArray(tagsField)) outcome = tagsField.join(', ');
+  else if (tagsField) outcome = String(tagsField);
+  if (!outcome) outcome = extractTagsFromText(messageText);
+  result.bot_outcome = outcome;
+
+  // Traffic source candidates
+  const source =
+    value?.traffic_source ??
+    value?.source ??
+    msg?.referral?.source_type ??
+    msg?.referral?.source_id ??
+    msg?.referral?.headline ??
+    payload?.traffic_source;
+  if (source) result.traffic_source = String(source);
+
+  // ── Fallback: flat-shape payloads (older EasySocial test posts) ──────────
+  if (!result.phone_number) {
+    const flatPhone = pick(payload, [
+      'phone', 'phone_number', 'from', 'contact.phone', 'contact.wa_id',
+      'sender.phone', 'sender.wa_id', 'data.phone', 'data.from',
+    ]);
+    result.phone_number = normalizePhone(flatPhone);
+    if (flatPhone && !result.client_phone) result.client_phone = String(flatPhone);
+  }
+  if (!result.bot_outcome) {
+    const flatOutcome = pick(payload, [
+      'bot_outcome', 'outcome', 'tag', 'tags', 'label', 'labels',
+      'qualification', 'status', 'data.tags', 'contact.tags',
+    ]);
+    if (flatOutcome) result.bot_outcome = Array.isArray(flatOutcome) ? flatOutcome.join(', ') : String(flatOutcome);
+  }
+  if (!result.traffic_source) {
+    const flatSource = pick(payload, [
+      'traffic_source', 'source', 'platform', 'channel', 'utm_source',
+      'data.source', 'contact.source',
+    ]);
+    if (flatSource) result.traffic_source = String(flatSource);
+  }
+  if (!result.client_name) {
+    const flatName = pick(payload, ['name', 'full_name', 'contact.name', 'sender.name', 'data.name']);
+    if (flatName) result.client_name = String(flatName);
+  }
+  if (!result.client_email) {
+    const flatEmail = pick(payload, ['email', 'contact.email', 'sender.email', 'data.email']);
+    if (flatEmail) result.client_email = String(flatEmail);
+  }
+
+  return result;
 };
 
 Deno.serve(async (req) => {
@@ -87,7 +162,6 @@ Deno.serve(async (req) => {
     const expected = Deno.env.get('EASYSOCIAL_VERIFY_TOKEN') ?? DEFAULT_VERIFY_TOKEN;
 
     if (mode === 'subscribe' && token === expected && challenge) {
-      // Echo challenge as raw text/plain — Meta-style handshake
       return new Response(challenge, {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
@@ -106,31 +180,46 @@ Deno.serve(async (req) => {
     try {
       payload = await req.json();
     } catch {
-      // Some senders may post form-encoded; fall back gracefully
       try {
         const txt = await req.text();
         payload = JSON.parse(txt);
       } catch { payload = {}; }
     }
 
-    const lead = extractLead(payload);
+    let lead: ExtractedLead | null = null;
+    try {
+      lead = extractFromWhatsAppPayload(payload);
+    } catch (e) {
+      console.error('[easysocial-webhook] extraction error', e);
+    }
 
-    // Acknowledge fast — process best-effort but always 200 unless misconfigured
-    if (!lead.phone_number) {
-      console.log('[easysocial-webhook] received payload without phone_number', payload);
-      return new Response(JSON.stringify({ ok: true, skipped: 'no phone_number' }), {
+    // Identify the change type so we can skip non-actionable events cleanly
+    const changeField = payload?.entry?.[0]?.changes?.[0]?.field;
+    const innerValue = payload?.entry?.[0]?.changes?.[0]?.value;
+
+    if (!lead || !lead.phone_number) {
+      // Deep log the inner value so we can see exactly where the bot hides data
+      try {
+        console.log(
+          `[easysocial-webhook] no phone_number extracted (field=${changeField ?? 'unknown'}). Inner value:`,
+          innerValue ? JSON.stringify(innerValue, null, 2) : JSON.stringify(payload, null, 2)
+        );
+      } catch {
+        console.log('[easysocial-webhook] no phone_number extracted; payload not stringifiable');
+      }
+      return new Response(JSON.stringify({ ok: true, skipped: 'no phone_number', field: changeField ?? null }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    // Only upsert when we have a real phone number
     try {
       const supabase = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       );
 
-      // Upsert keyed on phone_number (unique partial index)
       const { error } = await supabase
         .from('leads')
         .upsert(
@@ -148,13 +237,19 @@ Deno.serve(async (req) => {
         );
 
       if (error) {
-        console.error('[easysocial-webhook] upsert error', error);
-        // Still ack 200 to prevent EasySocial retries flooding the queue
+        console.error('[easysocial-webhook] upsert error', error, 'lead:', lead);
         return new Response(JSON.stringify({ ok: true, warning: error.message }), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+
+      console.log('[easysocial-webhook] upserted lead', {
+        phone_number: lead.phone_number,
+        traffic_source: lead.traffic_source,
+        bot_outcome: lead.bot_outcome,
+        field: changeField,
+      });
     } catch (e) {
       console.error('[easysocial-webhook] exception', e);
     }
