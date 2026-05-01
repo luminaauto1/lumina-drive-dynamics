@@ -300,7 +300,11 @@ const AdminLeadAnalytics = () => {
                     <XAxis dataKey="step" stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} />
                     <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
                     <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
-                    <Bar dataKey="Abandoned" fill={ACCENT} radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="Abandoned" radius={[6, 6, 0, 0]}>
+                      {funnelData.map((_, i) => (
+                        <Cell key={i} fill={VIBRANT_PALETTE[i % VIBRANT_PALETTE.length]} />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </ChartCard>
@@ -312,7 +316,14 @@ const AdminLeadAnalytics = () => {
                     <XAxis dataKey="label" stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} />
                     <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
                     <Tooltip contentStyle={tooltipStyle} />
-                    <Line type="monotone" dataKey="Leads" stroke={ACCENT} strokeWidth={2} dot={{ r: 3, fill: ACCENT }} activeDot={{ r: 5 }} />
+                    <Line
+                      type="monotone"
+                      dataKey="Leads"
+                      stroke={VIBRANT.neonGreen}
+                      strokeWidth={2.5}
+                      dot={{ r: 3, fill: VIBRANT.neonGreen, stroke: VIBRANT.neonGreen }}
+                      activeDot={{ r: 6, fill: VIBRANT.neonGreen }}
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </ChartCard>
@@ -320,22 +331,28 @@ const AdminLeadAnalytics = () => {
 
             {/* Time analysis + Credit risk */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <ChartCard icon={Clock} title="Time Analysis" subtitle="Average minutes spent in form">
+              <ChartCard icon={Clock} title="Time Analysis" subtitle="Average minutes spent in form (sessions > 24h excluded)">
                 <div className="space-y-4 pt-2">
-                  {timeAnalysis.map((row) => (
-                    <div key={row.label} className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">{row.label}</span>
-                        <span className="font-mono font-semibold">{row.minutes} min</span>
+                  {timeAnalysis.map((row, idx) => {
+                    const color = idx === 0 ? VIBRANT.crimson : VIBRANT.neonGreen;
+                    return (
+                      <div key={row.label} className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">{row.label}</span>
+                          <span className="font-mono font-semibold" style={{ color }}>
+                            {row.minutes} min
+                            <span className="ml-2 text-[10px] text-muted-foreground">n={(row as any).sample ?? 0}</span>
+                          </span>
+                        </div>
+                        <div className="h-2 rounded-full bg-muted/40 overflow-hidden">
+                          <div
+                            className="h-full rounded-full"
+                            style={{ width: `${Math.min(100, row.minutes * 4)}%`, backgroundColor: color }}
+                          />
+                        </div>
                       </div>
-                      <div className="h-2 rounded-full bg-muted/40 overflow-hidden">
-                        <div
-                          className="h-full bg-primary"
-                          style={{ width: `${Math.min(100, row.minutes * 4)}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </ChartCard>
 
@@ -356,7 +373,7 @@ const AdminLeadAnalytics = () => {
                         stroke={SURFACE}
                       >
                         {creditDist.map((_, i) => (
-                          <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                          <Cell key={i} fill={VIBRANT_PALETTE[i % VIBRANT_PALETTE.length]} />
                         ))}
                       </Pie>
                       <Tooltip contentStyle={tooltipStyle} />
@@ -368,7 +385,7 @@ const AdminLeadAnalytics = () => {
             </div>
 
             {/* Traffic source */}
-            <ChartCard icon={Globe} title="Traffic Source / Channel" subtitle="Submitted vs abandoned by source">
+            <ChartCard icon={Globe} title="Traffic Source / Channel" subtitle="Submitted vs abandoned by UTM source">
               {trafficSourceData.length === 0 ? (
                 <EmptyState />
               ) : (
@@ -379,8 +396,8 @@ const AdminLeadAnalytics = () => {
                     <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
                     <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
                     <Legend wrapperStyle={{ fontSize: 11, color: MUTED }} />
-                    <Bar dataKey="Submitted" stackId="a" fill={ACCENT} radius={[0, 0, 0, 0]} />
-                    <Bar dataKey="Abandoned" stackId="a" fill="hsl(0 0% 35%)" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="Submitted" stackId="a" fill={VIBRANT.neonGreen} radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="Abandoned" stackId="a" fill={VIBRANT.crimson} radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
