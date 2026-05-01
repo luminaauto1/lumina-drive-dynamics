@@ -67,6 +67,7 @@ const FinanceApplication = () => {
   const [resumedApplicationId, setResumedApplicationId] = useState<string | null>(null);
   const [isRevisionMode, setIsRevisionMode] = useState(false);
   const [creditAdvisoryKey, setCreditAdvisoryKey] = useState<null | "blacklisted" | "debt_review" | "defaults_arrears" | "judgements">(null);
+  const [showLicenseAdvisory, setShowLicenseAdvisory] = useState(false);
   const [formData, setFormData] = useState({
     // Personal
     first_name: "",
@@ -508,12 +509,17 @@ const FinanceApplication = () => {
         }
       }
 
-      // High-risk credit advisory intercept (after silent capture + ghost auth fired)
+      // Post-capture advisory intercepts — strict hierarchy: credit risk supersedes license.
       if (currentStep === 1) {
         const cs = formData.credit_score_status;
         if (cs === "blacklisted" || cs === "debt_review" || cs === "defaults_arrears" || cs === "judgements") {
           setCreditAdvisoryKey(cs as any);
-          return; // block transition until user dismisses modal
+          return; // credit risk wins — do not also show license popup
+        }
+        // Credit is acceptable ("excellent_good" or "not_sure") — evaluate license
+        if (formData.has_drivers_license === "no") {
+          setShowLicenseAdvisory(true);
+          return;
         }
       }
       setCurrentStep((prev) => Math.min(prev + 1, 5));
@@ -1667,6 +1673,41 @@ const FinanceApplication = () => {
                 const wasKey = creditAdvisoryKey;
                 setCreditAdvisoryKey(null);
                 if (wasKey) setCurrentStep((prev) => Math.min(prev + 1, 5));
+              }}
+              className="bg-red-500 hover:bg-red-600 text-white"
+            >
+              I Understand — Continue
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* License Advisory Modal — shown only when credit is acceptable but no license */}
+      <Dialog
+        open={showLicenseAdvisory}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowLicenseAdvisory(false);
+            setCurrentStep((prev) => Math.min(prev + 1, 5));
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[560px] border-2 border-red-500 max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-red-500 flex items-center gap-2">
+              <Info className="w-5 h-5" />
+              How can you buy a car without a Licence? 🚗
+            </DialogTitle>
+            <DialogDescription className="text-foreground/90 whitespace-pre-line text-sm leading-relaxed pt-2">
+              {`- When buying cash you don't need a licence.\n- Have a medical disability and a nominated driver (Requires a Medical Certificate).\n- Partner Licence (Must be married in Community of Property).\n- Nominated driver (Must live in the same household and have the same proof of address).`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              onClick={() => {
+                setShowLicenseAdvisory(false);
+                setCurrentStep((prev) => Math.min(prev + 1, 5));
               }}
               className="bg-red-500 hover:bg-red-600 text-white"
             >
