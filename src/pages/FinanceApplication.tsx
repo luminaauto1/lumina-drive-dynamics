@@ -1129,9 +1129,11 @@ const FinanceApplication = () => {
                           <SelectValue placeholder="Select your credit status" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="good">Good (No defaults)</SelectItem>
-                          <SelectItem value="unsure">Not Sure</SelectItem>
-                          <SelectItem value="bad">Bad (Have defaults/judgments)</SelectItem>
+                          <SelectItem value="excellent_good">Excellent / Good</SelectItem>
+                          <SelectItem value="not_sure">Not Sure</SelectItem>
+                          <SelectItem value="defaults_arrears">Defaults / Arrears (Missed payments)</SelectItem>
+                          <SelectItem value="judgements">Judgements</SelectItem>
+                          <SelectItem value="debt_review">Debt Review</SelectItem>
                           <SelectItem value="blacklisted">Blacklisted</SelectItem>
                         </SelectContent>
                       </Select>
