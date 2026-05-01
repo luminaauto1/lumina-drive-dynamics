@@ -68,9 +68,19 @@ interface AdminSidebarProps {
   onCollapse?: (collapsed: boolean) => void;
 }
 
+// Paths a sales_agent is allowed to see in the sidebar.
+const SALES_AGENT_ALLOWED_PATHS = new Set<string>([
+  '/admin/leads',
+  '/admin/crm-sheet',
+  '/admin/finance',
+  '/admin/inventory',
+  '/admin/quotes',
+]);
+
 const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const { isSuperAdmin } = useAuth();
 
   useEffect(() => {
     onCollapse?.(collapsed);
@@ -81,6 +91,20 @@ const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
 
   const isGroupActive = (group: NavGroup) =>
     group.children.some(c => isPathActive(c.path));
+
+  // Filter menu by role.
+  const visibleMenuItems = isSuperAdmin
+    ? menuItems
+    : menuItems
+        .map((item) => {
+          if (isGroup(item)) {
+            const allowedChildren = item.children.filter(c => SALES_AGENT_ALLOWED_PATHS.has(c.path));
+            if (allowedChildren.length === 0) return null;
+            return { ...item, children: allowedChildren } as NavGroup;
+          }
+          return SALES_AGENT_ALLOWED_PATHS.has(item.path) ? item : null;
+        })
+        .filter(Boolean) as MenuItem[];
 
   return (
     <aside
