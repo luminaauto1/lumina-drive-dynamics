@@ -176,15 +176,21 @@ const AdminLeadAnalytics = () => {
     }));
   }, [enrichedLeads]);
 
-  // Time analysis (avg minutes)
+  // Time analysis (avg minutes) — outliers > 24h excluded to prevent forgotten test sessions skewing averages
   const timeAnalysis = useMemo(() => {
     const diffMin = (a: string, b: string) => Math.max(0, (new Date(b).getTime() - new Date(a).getTime()) / 60000);
-    const abandoned = enrichedLeads.filter((l) => !l._submitted).map((l) => diffMin(l.created_at, l.updated_at));
-    const submitted = apps.map((a) => diffMin(a.created_at, a.updated_at));
+    const withinCap = (m: number) => m > 0 && m <= TIME_OUTLIER_CAP_MIN;
+    const abandoned = enrichedLeads
+      .filter((l) => !l._submitted)
+      .map((l) => diffMin(l.created_at, l.updated_at))
+      .filter(withinCap);
+    const submitted = apps
+      .map((a) => diffMin(a.created_at, a.updated_at))
+      .filter(withinCap);
     const avg = (arr: number[]) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
     return [
-      { label: 'Avg time before abandonment', minutes: Math.round(avg(abandoned) * 10) / 10 },
-      { label: 'Avg time to successful submission', minutes: Math.round(avg(submitted) * 10) / 10 },
+      { label: 'Avg time before abandonment', minutes: Math.round(avg(abandoned) * 10) / 10, sample: abandoned.length },
+      { label: 'Avg time to successful submission', minutes: Math.round(avg(submitted) * 10) / 10, sample: submitted.length },
     ];
   }, [enrichedLeads, apps]);
 
