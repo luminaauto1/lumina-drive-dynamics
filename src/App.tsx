@@ -52,6 +52,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 import SecureDocumentUpload from "./pages/public/SecureDocumentUpload";
 import { useUTMTracking } from "@/hooks/useUTMTracking";
+import { usePixelPageView } from "@/hooks/usePixelPageView";
 
 const queryClient = new QueryClient();
 
@@ -63,6 +64,9 @@ const AppLayout = () => {
 
   // Global UTM capture — runs on every route change, persists to sessionStorage
   useUTMTracking();
+
+  // Isolated ad-pixel PageView (Meta + TikTok). Never touches the database.
+  usePixelPageView();
 
   return (
     <>
