@@ -119,6 +119,43 @@ const AdminLeads = () => {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newLead, setNewLead] = useState({ name: "", phone: "", notes: "" });
   const [adding, setAdding] = useState(false);
+  const [showStale, setShowStale] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  const toggleSelect = (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const handleBulkDelete = async () => {
+    const realIds = Array.from(selectedIds).filter(id => !id.startsWith('virtual-'));
+    if (realIds.length === 0) {
+      toast.error('No deletable leads selected (virtual leads must be promoted first)');
+      setConfirmDeleteOpen(false);
+      return;
+    }
+    setBulkDeleting(true);
+    try {
+      const { error } = await supabase.from('leads').delete().in('id', realIds);
+      if (error) throw error;
+      toast.success(`Deleted ${realIds.length} lead${realIds.length > 1 ? 's' : ''}`);
+      setLeads(prev => prev.filter(l => !realIds.includes(l.id)));
+      clearSelection();
+      setConfirmDeleteOpen(false);
+    } catch (err: any) {
+      toast.error('Bulk delete failed: ' + err.message);
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isDraggingScroll, setIsDraggingScroll] = useState(false);
