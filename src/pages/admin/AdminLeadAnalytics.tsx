@@ -104,6 +104,7 @@ const AdminLeadAnalytics = () => {
   const [leads, setLeads] = useState<LeadRow[]>([]);
   const [apps, setApps] = useState<AppRow[]>([]);
   const [messageCount, setMessageCount] = useState(0);
+  const [messages, setMessages] = useState<{ created_at: string; platform_source: string | null }[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -119,14 +120,19 @@ const AdminLeadAnalytics = () => {
         .select('id, created_at, updated_at, status, credit_score_status, email, phone, utm_source')
         .neq('email', 'albertprinsloo051@gmail.com')
         .order('created_at', { ascending: false }).limit(5000);
-      let msgQ = supabase.from('whatsapp_messages')
+      let msgCountQ = supabase.from('whatsapp_messages')
         .select('id', { count: 'exact', head: true });
+      let msgRowsQ = supabase.from('whatsapp_messages')
+        .select('created_at, platform_source')
+        .order('created_at', { ascending: false }).limit(10000);
       if (cutoff) {
         leadsQ = leadsQ.gte('created_at', cutoff.toISOString());
         appsQ = appsQ.gte('created_at', cutoff.toISOString());
-        msgQ = msgQ.gte('created_at', cutoff.toISOString());
+        msgCountQ = msgCountQ.gte('created_at', cutoff.toISOString());
+        msgRowsQ = msgRowsQ.gte('created_at', cutoff.toISOString());
       }
-      const [{ data: leadsData }, { data: appsData }, { count: msgCount }] = await Promise.all([leadsQ, appsQ, msgQ]);
+      const [{ data: leadsData }, { data: appsData }, { count: msgCount }, { data: msgRows }] =
+        await Promise.all([leadsQ, appsQ, msgCountQ, msgRowsQ]);
       if (cancelled) return;
       // Defense-in-depth: also strip blocklisted emails client-side
       const cleanLeads = (leadsData || []).filter((l: any) =>
@@ -138,6 +144,7 @@ const AdminLeadAnalytics = () => {
       setLeads(cleanLeads as any);
       setApps(cleanApps as any);
       setMessageCount(msgCount ?? 0);
+      setMessages((msgRows as any) || []);
       setLoading(false);
     };
     load();
