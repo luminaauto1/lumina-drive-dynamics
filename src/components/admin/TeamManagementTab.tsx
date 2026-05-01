@@ -45,8 +45,8 @@ const TeamManagementTab = () => {
     loadAgents();
   }, []);
 
-  const handleInvite = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleInvite = async (e?: React.FormEvent | React.MouseEvent) => {
+    e?.preventDefault?.();
     if (!email.trim()) return;
     setInviting(true);
     try {
@@ -93,7 +93,7 @@ const TeamManagementTab = () => {
         </div>
       </div>
 
-      <form onSubmit={handleInvite} className="flex items-end gap-3 p-4 bg-muted/30 rounded-lg">
+      <div className="flex items-end gap-3 p-4 bg-muted/30 rounded-lg">
         <div className="flex-1 space-y-2">
           <Label>Sales Agent Email</Label>
           <Input
@@ -101,14 +101,14 @@ const TeamManagementTab = () => {
             placeholder="agent@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            required
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleInvite(); } }}
           />
         </div>
-        <Button type="submit" disabled={inviting} className="gap-2">
+        <Button type="button" onClick={handleInvite} disabled={inviting || !email.trim()} className="gap-2">
           {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
           Invite Agent
         </Button>
-      </form>
+      </div>
 
       <div className="space-y-2">
         <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Active Sales Agents ({agents.length})</h3>
@@ -132,6 +132,7 @@ const TeamManagementTab = () => {
                   </div>
                 </div>
                 <Button
+                  type="button"
                   variant="ghost"
                   size="icon"
                   onClick={() => handleRevoke(a.user_id, a.email || 'this agent')}
