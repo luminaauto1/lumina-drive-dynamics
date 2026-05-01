@@ -909,11 +909,23 @@ const AdminDealRoom = () => {
                 />
                 <DetailItem
                   label="Credit Profile"
-                  value={
-                    application.credit_score_status
-                      ? application.credit_score_status.charAt(0).toUpperCase() + application.credit_score_status.slice(1)
-                      : null
-                  }
+                  value={(() => {
+                    const map: Record<string, string> = {
+                      excellent_good: "Excellent / Good",
+                      not_sure: "Not Sure",
+                      defaults_arrears: "Defaults / Arrears (Missed payments)",
+                      judgements: "Judgements",
+                      debt_review: "Debt Review",
+                      blacklisted: "Blacklisted",
+                      // Legacy values
+                      good: "Good (No defaults)",
+                      unsure: "Not Sure",
+                      bad: "Bad (Have defaults/judgments)",
+                    };
+                    const cs = application.credit_score_status;
+                    if (!cs) return null;
+                    return map[cs] || (cs.charAt(0).toUpperCase() + cs.slice(1));
+                  })()}
                   field="credit_score_status"
                 />
               </div>
