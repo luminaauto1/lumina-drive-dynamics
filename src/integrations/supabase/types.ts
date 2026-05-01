@@ -1511,16 +1511,19 @@ export type Database = {
           created_at: string
           id: string
           phone_number: string | null
+          platform_source: string
         }
         Insert: {
           created_at?: string
           id?: string
           phone_number?: string | null
+          platform_source?: string
         }
         Update: {
           created_at?: string
           id?: string
           phone_number?: string | null
+          platform_source?: string
         }
         Relationships: []
       }
