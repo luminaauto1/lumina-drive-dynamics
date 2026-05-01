@@ -433,8 +433,21 @@ const AdminFinance = () => {
                   // Warning conditions
                   const lowSalary = app.net_salary && app.net_salary < 8500;
                   const noLicense = (app as any).has_drivers_license === false;
-                  const badCredit = ['bad', 'blacklisted'].includes((app as any).credit_score_status || '');
-                  const hasWarning = lowSalary || noLicense || badCredit;
+                  const cs = ((app as any).credit_score_status || '') as string;
+                  const HIGH_RISK_CREDIT_LABELS: Record<string, string> = {
+                    blacklisted: 'Blacklisted',
+                    debt_review: 'Debt Review',
+                    judgements: 'Judgements',
+                    defaults_arrears: 'Defaults/Arrears',
+                    bad: 'Bad Credit',
+                  };
+                  const creditRiskLabel = HIGH_RISK_CREDIT_LABELS[cs];
+                  // Hierarchy: credit risk supersedes license
+                  const riskReason = creditRiskLabel
+                    ? `Risk: ${creditRiskLabel}`
+                    : noLicense
+                    ? 'Risk: No License'
+                    : null;
 
                   // Freshness & stagnation
                   const isNew = (Date.now() - new Date(app.created_at).getTime()) < (24 * 60 * 60 * 1000);
@@ -465,9 +478,9 @@ const AdminFinance = () => {
                             ⏳ STALE
                           </span>
                         )}
-                        {hasWarning && (
-                          <span className="px-1.5 py-0.5 text-[10px] uppercase font-bold rounded bg-red-500/20 text-red-400 border border-red-500/30">
-                            ⚠ RISK
+                        {riskReason && (
+                          <span className="px-1.5 py-0.5 text-[10px] uppercase font-bold rounded bg-red-500/20 text-red-400 border border-red-500/30" title={riskReason}>
+                            ⚠ {riskReason}
                           </span>
                         )}
                       </div>
@@ -493,10 +506,33 @@ const AdminFinance = () => {
                         {app.net_salary ? formatPrice(app.net_salary) : 'N/A'}
                       </span>
                     </TableCell>
-                    <TableCell>
-                      <span className={`px-2 py-1 text-xs uppercase tracking-wider rounded border ${STATUS_STYLES[app.status] || STATUS_STYLES.pending}`}>
-                        {ADMIN_STATUS_LABELS[app.status] || app.status}
-                      </span>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Select
+                        value={app.status}
+                        onValueChange={async (newStatus) => {
+                          if (newStatus === app.status) return;
+                          try {
+                            await updateApplication.mutateAsync({ id: app.id, updates: { status: newStatus } });
+                          } catch (err) {
+                            // Toast handled by hook on error
+                          }
+                        }}
+                      >
+                        <SelectTrigger
+                          className={`w-[180px] h-7 text-xs uppercase tracking-wider border ${STATUS_STYLES[app.status] || STATUS_STYLES.pending}`}
+                        >
+                          <SelectValue>
+                            {ADMIN_STATUS_LABELS[app.status] || app.status}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STATUS_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                              {ADMIN_STATUS_LABELS[opt.value] || opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       {(() => {
