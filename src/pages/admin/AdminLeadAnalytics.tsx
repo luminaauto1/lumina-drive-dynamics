@@ -303,7 +303,7 @@ const AdminLeadAnalytics = () => {
                     <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
                     <XAxis dataKey="step" stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} />
                     <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                    <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
+                    <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
                     <Bar dataKey="Abandoned" radius={[6, 6, 0, 0]}>
                       {funnelData.map((_, i) => (
                         <Cell key={i} fill={VIBRANT_PALETTE[i % VIBRANT_PALETTE.length]} />
@@ -319,7 +319,7 @@ const AdminLeadAnalytics = () => {
                     <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
                     <XAxis dataKey="label" stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} />
                     <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                    <Tooltip contentStyle={tooltipStyle} />
+                    <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} />
                     <Line
                       type="monotone"
                       dataKey="Leads"
@@ -380,7 +380,7 @@ const AdminLeadAnalytics = () => {
                           <Cell key={i} fill={VIBRANT_PALETTE[i % VIBRANT_PALETTE.length]} />
                         ))}
                       </Pie>
-                      <Tooltip contentStyle={tooltipStyle} />
+                      <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} />
                       <Legend wrapperStyle={{ fontSize: 11, color: MUTED }} />
                     </PieChart>
                   </ResponsiveContainer>
@@ -398,7 +398,7 @@ const AdminLeadAnalytics = () => {
                     <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
                     <XAxis dataKey="source" stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} />
                     <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                    <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
+                    <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
                     <Legend wrapperStyle={{ fontSize: 11, color: MUTED }} />
                     <Bar dataKey="Submitted" stackId="a" fill={VIBRANT.neonGreen} radius={[0, 0, 0, 0]} />
                     <Bar dataKey="Abandoned" stackId="a" fill={VIBRANT.crimson} radius={[6, 6, 0, 0]} />
