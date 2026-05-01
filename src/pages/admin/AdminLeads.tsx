@@ -558,6 +558,19 @@ const AdminLeads = () => {
                                         <GripVertical className="w-3.5 h-3.5 text-muted-foreground" />
                                       </div>
 
+                                      {!lead.isVirtual && (
+                                        <div
+                                          className={`absolute top-2 right-7 transition-opacity ${selectedIds.has(lead.id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                                          onClick={(e) => toggleSelect(lead.id, e)}
+                                        >
+                                          <Checkbox
+                                            checked={selectedIds.has(lead.id)}
+                                            onCheckedChange={() => toggleSelect(lead.id)}
+                                            className="h-4 w-4"
+                                          />
+                                        </div>
+                                      )}
+
                                       {needsAttention && <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />}
 
                                       <div className="ml-3 mr-6">
