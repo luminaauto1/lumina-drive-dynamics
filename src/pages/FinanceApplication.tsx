@@ -66,6 +66,7 @@ const FinanceApplication = () => {
   const [showTrustModal, setShowTrustModal] = useState(true);
   const [resumedApplicationId, setResumedApplicationId] = useState<string | null>(null);
   const [isRevisionMode, setIsRevisionMode] = useState(false);
+  const [creditAdvisoryKey, setCreditAdvisoryKey] = useState<null | "blacklisted" | "debt_review" | "defaults_arrears" | "judgements">(null);
   const [formData, setFormData] = useState({
     // Personal
     first_name: "",
