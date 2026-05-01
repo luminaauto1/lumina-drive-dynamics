@@ -545,17 +545,32 @@ const AdminLeadAnalytics = () => {
                     <EmptyState />
                   ) : (
                     <ResponsiveContainer width="100%" height={320}>
-                      <BarChart data={messagesByHourPlatform} margin={{ top: 10, right: 16, left: -8, bottom: 0 }}>
+                      <LineChart data={messagesByHourPlatform} margin={{ top: 10, right: 16, left: -8, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
-                        <XAxis dataKey="hour" stroke={MUTED} fontSize={10} tickLine={false} axisLine={false} interval={1} />
+                        <XAxis
+                          dataKey="hour"
+                          stroke={MUTED}
+                          fontSize={10}
+                          tickLine={false}
+                          axisLine={false}
+                          interval={1}
+                          type="category"
+                        />
                         <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                        <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
+                        <Tooltip
+                          contentStyle={tooltipStyle}
+                          itemStyle={tooltipItemStyle}
+                          labelStyle={tooltipLabelStyle}
+                          cursor={{ stroke: 'hsl(var(--muted-foreground) / 0.4)', strokeWidth: 1 }}
+                          formatter={(v: any, n: any) => [`${v} msg`, n]}
+                          labelFormatter={(l) => `Hour: ${l}`}
+                        />
                         <Legend wrapperStyle={{ fontSize: 11, color: MUTED }} />
-                        <Bar dataKey="Facebook" stackId="m" fill={PLATFORM_COLOR.Facebook} />
-                        <Bar dataKey="Instagram" stackId="m" fill={PLATFORM_COLOR.Instagram} />
-                        <Bar dataKey="TikTok" stackId="m" fill={PLATFORM_COLOR.TikTok} />
-                        <Bar dataKey="Direct/Unknown" stackId="m" fill={PLATFORM_COLOR['Direct/Unknown']} radius={[6, 6, 0, 0]} />
-                      </BarChart>
+                        <Line type="monotone" dataKey="Facebook" stroke={PLATFORM_COLOR.Facebook} strokeWidth={2.5} dot={{ r: 2 }} activeDot={{ r: 5 }} />
+                        <Line type="monotone" dataKey="Instagram" stroke={PLATFORM_COLOR.Instagram} strokeWidth={2.5} dot={{ r: 2 }} activeDot={{ r: 5 }} />
+                        <Line type="monotone" dataKey="TikTok" stroke={PLATFORM_COLOR.TikTok} strokeWidth={2.5} dot={{ r: 2 }} activeDot={{ r: 5 }} />
+                        <Line type="monotone" dataKey="Direct/Unknown" stroke={PLATFORM_COLOR['Direct/Unknown']} strokeWidth={2} strokeDasharray="4 4" dot={{ r: 2 }} activeDot={{ r: 5 }} />
+                      </LineChart>
                     </ResponsiveContainer>
                   )}
                 </ChartCard>
