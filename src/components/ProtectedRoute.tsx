@@ -27,7 +27,8 @@ const ProtectedRoute = ({ children, requireAdmin = false, requireSuperAdmin = fa
   }
 
   if (requireSuperAdmin && !isAdmin) {
-    return <Navigate to="/admin" replace />;
+    // Sales agents land on the leads pipeline; non-staff bounce to home.
+    return <Navigate to={isStaff ? '/admin/leads' : '/'} replace />;
   }
 
   // requireAdmin now means "any staff" for backwards compatibility,
