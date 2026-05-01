@@ -450,6 +450,20 @@ const AdminLeads = () => {
                 </div>
               </DialogContent>
             </Dialog>
+            <Button
+              variant={showStale ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowStale(!showStale)}
+              title="Toggle 24h stale leads visibility"
+            >
+              {showStale ? <Eye className="w-4 h-4 mr-1" /> : <EyeOff className="w-4 h-4 mr-1" />}
+              {showStale ? 'Hide Stale' : `Show Stale${hiddenStaleLeadsCount + hiddenStaleAccountsCount > 0 ? ` (${hiddenStaleLeadsCount + hiddenStaleAccountsCount})` : ''}`}
+            </Button>
+            {selectedIds.size > 0 && (
+              <Button variant="destructive" size="sm" onClick={() => setConfirmDeleteOpen(true)}>
+                <Trash2 className="w-4 h-4 mr-1" /> Delete ({selectedIds.size})
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={() => setShowArchived(!showArchived)}>
               <Archive className="w-4 h-4 mr-1" /> {showArchived ? 'Active' : 'Archived'}
             </Button>
