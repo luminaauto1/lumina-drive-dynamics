@@ -245,13 +245,17 @@ const AdminLeadAnalytics = () => {
     return Array.from(map.values()).sort((a, b) => (b.Submitted + b.Abandoned) - (a.Submitted + a.Abandoned)).slice(0, 8);
   }, [enrichedLeads]);
 
+  // Force light text on dark background — Recharts default tooltip text inherits
+  // OS color and renders unreadable against the dark admin theme.
   const tooltipStyle = {
-    backgroundColor: 'hsl(var(--popover))',
-    border: '1px solid hsl(var(--border))',
+    backgroundColor: '#111111',
+    border: '1px solid #333333',
     borderRadius: 8,
-    color: 'hsl(var(--popover-foreground))',
+    color: '#ffffff',
     fontSize: 12,
   };
+  const tooltipItemStyle = { color: '#ffffff' };
+  const tooltipLabelStyle = { color: '#aaaaaa', marginBottom: 4 };
 
   return (
     <AdminLayout>
