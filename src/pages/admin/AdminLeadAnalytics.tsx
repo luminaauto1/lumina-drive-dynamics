@@ -177,16 +177,40 @@ const AdminLeadAnalytics = () => {
   }, [enrichedLeads]);
 
   // Time analysis (avg minutes) — outliers > 24h excluded to prevent forgotten test sessions skewing averages
+  // - Abandonment: lead.created_at -> lead.updated_at (last progressive step save)
+  // - Submission: lead.created_at -> matched finance_application.created_at
   const timeAnalysis = useMemo(() => {
     const diffMin = (a: string, b: string) => Math.max(0, (new Date(b).getTime() - new Date(a).getTime()) / 60000);
     const withinCap = (m: number) => m > 0 && m <= TIME_OUTLIER_CAP_MIN;
+
+    // Build lookup of earliest app per email/phone for true funnel time
+    const appByKey = new Map<string, string>(); // key -> earliest app created_at
+    apps.forEach((a) => {
+      const keys: string[] = [];
+      if (a.email) keys.push(`e:${a.email.toLowerCase().trim()}`);
+      if (a.phone) keys.push(`p:${a.phone.replace(/\D/g, '')}`);
+      keys.forEach((k) => {
+        const existing = appByKey.get(k);
+        if (!existing || new Date(a.created_at) < new Date(existing)) appByKey.set(k, a.created_at);
+      });
+    });
+
     const abandoned = enrichedLeads
       .filter((l) => !l._submitted)
       .map((l) => diffMin(l.created_at, l.updated_at))
       .filter(withinCap);
-    const submitted = apps
-      .map((a) => diffMin(a.created_at, a.updated_at))
-      .filter(withinCap);
+
+    const submitted: number[] = [];
+    enrichedLeads.forEach((l: any) => {
+      if (!l._submitted) return;
+      const k1 = l.client_email ? `e:${String(l.client_email).toLowerCase().trim()}` : '';
+      const k2 = l.client_phone ? `p:${String(l.client_phone).replace(/\D/g, '')}` : '';
+      const appCreated = (k1 && appByKey.get(k1)) || (k2 && appByKey.get(k2));
+      if (!appCreated) return;
+      const m = diffMin(l.created_at, appCreated);
+      if (withinCap(m)) submitted.push(m);
+    });
+
     const avg = (arr: number[]) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
     return [
       { label: 'Avg time before abandonment', minutes: Math.round(avg(abandoned) * 10) / 10, sample: abandoned.length },
