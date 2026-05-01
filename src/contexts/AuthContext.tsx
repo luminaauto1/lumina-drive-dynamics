@@ -55,11 +55,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // Use setTimeout to avoid potential deadlock with Supabase client
           setTimeout(() => {
             if (mounted) {
-              checkAdminRole(session.user.id);
+              fetchRole(session.user.id);
             }
           }, 0);
         } else {
-          setIsAdmin(false);
+          setRole(null);
         }
       }
     );
@@ -79,7 +79,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setLoading(false);
 
           if (session?.user) {
-            checkAdminRole(session.user.id);
+            fetchRole(session.user.id);
           }
         }
       } catch (err) {
@@ -98,15 +98,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  const checkAdminRole = async (userId: string) => {
+  const fetchRole = async (userId: string) => {
+    // Fetch all roles for this user; pick highest privilege
     const { data } = await supabase
       .from('user_roles')
       .select('role')
-      .eq('user_id', userId)
-      .eq('role', 'admin')
-      .maybeSingle();
-    
-    setIsAdmin(!!data);
+      .eq('user_id', userId);
+
+    const roles = (data || []).map((r: any) => r.role as string);
+    if (roles.includes('admin')) {
+      setRole('super_admin');
+    } else if (roles.includes('sales_agent')) {
+      setRole('sales_agent');
+    } else {
+      setRole(null);
+    }
   };
 
   const signUp = async (email: string, password: string, fullName?: string, phone?: string) => {
@@ -136,11 +142,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    setIsAdmin(false);
+    setRole(null);
   };
 
+  const isSuperAdmin = role === 'super_admin';
+  const isSalesAgent = role === 'sales_agent';
+  const isStaff = isSuperAdmin || isSalesAgent;
+  // Backwards-compat: existing code uses isAdmin to mean "full access".
+  // Sales agents are NOT admins.
+  const isAdmin = isSuperAdmin;
+
   return (
-    <AuthContext.Provider value={{ user, session, loading, isAdmin, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, isAdmin, isSuperAdmin, isSalesAgent, isStaff, role, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );
