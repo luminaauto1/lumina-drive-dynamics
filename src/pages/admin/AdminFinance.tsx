@@ -478,9 +478,9 @@ const AdminFinance = () => {
                             ⏳ STALE
                           </span>
                         )}
-                        {hasWarning && (
-                          <span className="px-1.5 py-0.5 text-[10px] uppercase font-bold rounded bg-red-500/20 text-red-400 border border-red-500/30">
-                            ⚠ RISK
+                        {riskReason && (
+                          <span className="px-1.5 py-0.5 text-[10px] uppercase font-bold rounded bg-red-500/20 text-red-400 border border-red-500/30" title={riskReason}>
+                            ⚠ {riskReason}
                           </span>
                         )}
                       </div>
