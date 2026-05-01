@@ -833,6 +833,8 @@ export type Database = {
           id_number: string | null
           is_archived: boolean | null
           last_activity_at: string | null
+          last_step_name: string | null
+          last_step_reached: number | null
           lead_score: number | null
           lead_temperature: string | null
           next_action_date: string | null
@@ -840,6 +842,7 @@ export type Database = {
           next_follow_up: string | null
           notes: string | null
           pipeline_stage: string | null
+          referrer: string | null
           source: string
           status: string
           status_updated_at: string | null
@@ -848,6 +851,9 @@ export type Database = {
           trade_in_mileage: number | null
           trade_in_year: number | null
           updated_at: string
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
           vehicle_id: string | null
         }
         Insert: {
@@ -864,6 +870,8 @@ export type Database = {
           id_number?: string | null
           is_archived?: boolean | null
           last_activity_at?: string | null
+          last_step_name?: string | null
+          last_step_reached?: number | null
           lead_score?: number | null
           lead_temperature?: string | null
           next_action_date?: string | null
@@ -871,6 +879,7 @@ export type Database = {
           next_follow_up?: string | null
           notes?: string | null
           pipeline_stage?: string | null
+          referrer?: string | null
           source?: string
           status?: string
           status_updated_at?: string | null
@@ -879,6 +888,9 @@ export type Database = {
           trade_in_mileage?: number | null
           trade_in_year?: number | null
           updated_at?: string
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
           vehicle_id?: string | null
         }
         Update: {
@@ -895,6 +907,8 @@ export type Database = {
           id_number?: string | null
           is_archived?: boolean | null
           last_activity_at?: string | null
+          last_step_name?: string | null
+          last_step_reached?: number | null
           lead_score?: number | null
           lead_temperature?: string | null
           next_action_date?: string | null
@@ -902,6 +916,7 @@ export type Database = {
           next_follow_up?: string | null
           notes?: string | null
           pipeline_stage?: string | null
+          referrer?: string | null
           source?: string
           status?: string
           status_updated_at?: string | null
@@ -910,6 +925,9 @@ export type Database = {
           trade_in_mileage?: number | null
           trade_in_year?: number | null
           updated_at?: string
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
           vehicle_id?: string | null
         }
         Relationships: [
