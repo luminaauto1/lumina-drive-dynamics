@@ -68,6 +68,29 @@ const FinanceApplication = () => {
   const [isRevisionMode, setIsRevisionMode] = useState(false);
   const [creditAdvisoryKey, setCreditAdvisoryKey] = useState<null | "blacklisted" | "debt_review" | "defaults_arrears" | "judgements">(null);
   const [showLicenseAdvisory, setShowLicenseAdvisory] = useState(false);
+  const [trackedLeadId, setTrackedLeadId] = useState<string | null>(null);
+
+  const STEP_NAMES: Record<number, string> = {
+    1: 'Step 1: Personal Details',
+    2: 'Step 2: Employment',
+    3: 'Step 3: Financials',
+    4: 'Step 4: Vehicle Preference',
+    5: 'Step 5: Review & Submit',
+  };
+
+  const getAttribution = () => {
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      return {
+        utm_source: sp.get('utm_source') || sp.get('source') || null,
+        utm_medium: sp.get('utm_medium') || null,
+        utm_campaign: sp.get('utm_campaign') || null,
+        referrer: document.referrer ? new URL(document.referrer).hostname : null,
+      };
+    } catch {
+      return { utm_source: null, utm_medium: null, utm_campaign: null, referrer: null };
+    }
+  };
   const [formData, setFormData] = useState({
     // Personal
     first_name: "",
@@ -494,19 +517,33 @@ const FinanceApplication = () => {
       // Silent CRM lead capture on Step 1 -> Step 2 transition (drop-off protection)
       if (currentStep === 1) {
         try {
+          const attribution = getAttribution();
           supabase.from('leads').insert([{
             client_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
             client_email: formData.email.trim(),
             client_phone: formData.phone.trim(),
-            source: 'website',
+            source: attribution.utm_source || 'website',
             status: 'new',
-            notes: 'Partial Finance Application Started (Drop-off Capture)'
-          }] as any).then(({ error }) => {
+            notes: 'Partial Finance Application Started (Drop-off Capture)',
+            last_step_reached: 1,
+            last_step_name: STEP_NAMES[1],
+            ...attribution,
+          }] as any).select('id').maybeSingle().then(({ data, error }) => {
             if (error) console.error('Silent lead capture failed', error);
+            if (data?.id) setTrackedLeadId(data.id);
           });
         } catch (error) {
           console.error('Silent lead capture failed', error);
         }
+      } else if (trackedLeadId) {
+        // Step N -> N+1: bump funnel progress so analytics knows where they reached
+        const reached = currentStep;
+        supabase.from('leads').update({
+          last_step_reached: reached,
+          last_step_name: STEP_NAMES[reached],
+        } as any).eq('id', trackedLeadId).then(({ error }) => {
+          if (error) console.error('Lead step update failed', error);
+        });
       }
 
       // Post-capture advisory intercepts — strict hierarchy: credit risk supersedes license.
@@ -514,9 +551,8 @@ const FinanceApplication = () => {
         const cs = formData.credit_score_status;
         if (cs === "blacklisted" || cs === "debt_review" || cs === "defaults_arrears" || cs === "judgements") {
           setCreditAdvisoryKey(cs as any);
-          return; // credit risk wins — do not also show license popup
+          return;
         }
-        // Credit is acceptable ("excellent_good" or "not_sure") — evaluate license
         if (formData.has_drivers_license === "no") {
           setShowLicenseAdvisory(true);
           return;

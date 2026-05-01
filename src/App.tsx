@@ -33,6 +33,7 @@ import AdminAftersales from "./pages/admin/AdminAftersales";
 import AdminCreateApplication from "./pages/admin/AdminCreateApplication";
 import AdminQuoteGenerator from "./pages/admin/AdminQuoteGenerator";
 import AdminReports from "./pages/admin/AdminReports";
+import AdminLeadAnalytics from "./pages/admin/AdminLeadAnalytics";
 import AdminExtraIncomes from "./pages/admin/AdminExtraIncomes";
 import AdminCarsToBuy from "./pages/admin/AdminCarsToBuy";
 import AdminPartnerPayout from "./pages/admin/AdminPartnerPayout";
@@ -95,6 +96,7 @@ const AppLayout = () => {
           <Route path="/admin/quotes" element={<ProtectedRoute requireAdmin><AdminQuoteGenerator /></ProtectedRoute>} />
           <Route path="/admin/aftersales" element={<ProtectedRoute requireSuperAdmin><AdminAftersales /></ProtectedRoute>} />
           <Route path="/admin/reports" element={<ProtectedRoute requireSuperAdmin><AdminReports /></ProtectedRoute>} />
+          <Route path="/admin/reports/lead-analytics" element={<ProtectedRoute requireSuperAdmin><AdminLeadAnalytics /></ProtectedRoute>} />
           <Route path="/admin/extra-incomes" element={<ProtectedRoute requireSuperAdmin><AdminExtraIncomes /></ProtectedRoute>} />
           <Route path="/admin/cars-to-buy" element={<ProtectedRoute requireSuperAdmin><AdminCarsToBuy /></ProtectedRoute>} />
           <Route path="/admin/analytics" element={<ProtectedRoute requireSuperAdmin><AdminAnalytics /></ProtectedRoute>} />
