@@ -84,7 +84,7 @@ const AdminLeadAnalytics = () => {
       setLoading(true);
       const cutoff = rangeToCutoff(range);
 
-      let leadsQ = supabase.from('leads').select('id, created_at, updated_at, last_step_reached, last_step_name, utm_source, source, status').order('created_at', { ascending: false }).limit(5000);
+      let leadsQ = supabase.from('leads').select('id, created_at, updated_at, last_step_reached, last_step_name, utm_source, source, status, client_email, client_phone').order('created_at', { ascending: false }).limit(5000);
       let appsQ = supabase.from('finance_applications').select('id, created_at, updated_at, status, credit_score_status, email, phone').order('created_at', { ascending: false }).limit(5000);
       if (cutoff) {
         leadsQ = leadsQ.gte('created_at', cutoff.toISOString());
