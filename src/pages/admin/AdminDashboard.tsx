@@ -5,7 +5,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ArrowRight, TrendingUp, AlertCircle, Car, DollarSign, Calculator, Search, MessageCircle, UserPlus, FileCheck2 } from "lucide-react";
+import { ArrowRight, TrendingUp, AlertCircle, Car, DollarSign, Calculator, Search, MessageCircle, UserPlus, FileCheck2, Activity } from "lucide-react";
 import { format, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
 import { Helmet } from "react-helmet-async";
 
