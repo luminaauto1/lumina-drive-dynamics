@@ -83,6 +83,8 @@ interface LeadRow {
   status: string | null;
   client_email?: string | null;
   client_phone?: string | null;
+  traffic_source?: string | null;
+  bot_outcome?: string | null;
 }
 
 interface AppRow {
@@ -109,7 +111,7 @@ const AdminLeadAnalytics = () => {
       const cutoff = rangeToCutoff(range);
 
       let leadsQ = supabase.from('leads')
-        .select('id, created_at, updated_at, last_step_reached, last_step_name, utm_source, utm_medium, utm_campaign, source, status, client_email, client_phone')
+        .select('id, created_at, updated_at, last_step_reached, last_step_name, utm_source, utm_medium, utm_campaign, source, status, client_email, client_phone, traffic_source, bot_outcome')
         .neq('client_email', 'albertprinsloo051@gmail.com')
         .order('created_at', { ascending: false }).limit(5000);
       let appsQ = supabase.from('finance_applications')
@@ -256,11 +258,12 @@ const AdminLeadAnalytics = () => {
     return Object.entries(counts).map(([k, v]) => ({ name: labels[k] || k, value: v }));
   }, [apps]);
 
-  // Traffic source: submitted vs abandoned by source
+  // Traffic source: submitted vs abandoned by source.
+  // Prefer EasySocial bot-provided traffic_source, then UTM, then internal source.
   const trafficSourceData = useMemo(() => {
     const map = new Map<string, { source: string; Submitted: number; Abandoned: number }>();
-    enrichedLeads.forEach((l) => {
-      const src = (l.utm_source || l.source || 'direct').toLowerCase();
+    enrichedLeads.forEach((l: any) => {
+      const src = String(l.traffic_source || l.utm_source || l.source || 'direct').toLowerCase();
       const row = map.get(src) || { source: src, Submitted: 0, Abandoned: 0 };
       if (l._submitted) row.Submitted += 1;
       else row.Abandoned += 1;
@@ -268,6 +271,28 @@ const AdminLeadAnalytics = () => {
     });
     return Array.from(map.values()).sort((a, b) => (b.Submitted + b.Abandoned) - (a.Submitted + a.Abandoned)).slice(0, 8);
   }, [enrichedLeads]);
+
+  // Lead Quality by Platform: bot_outcome breakdown grouped by traffic_source (EasySocial)
+  const platformQualityData = useMemo(() => {
+    const outcomes = new Set<string>();
+    const byPlatform = new Map<string, Record<string, number>>();
+    enrichedLeads.forEach((l: any) => {
+      if (!l.bot_outcome && !l.traffic_source) return;
+      const platform = String(l.traffic_source || 'unknown').toLowerCase();
+      const outcome = String(l.bot_outcome || 'unclassified').toLowerCase();
+      outcomes.add(outcome);
+      const row = byPlatform.get(platform) || {};
+      row[outcome] = (row[outcome] || 0) + 1;
+      byPlatform.set(platform, row);
+    });
+    const outcomeKeys = Array.from(outcomes);
+    const data = Array.from(byPlatform.entries()).map(([platform, row]) => ({
+      platform,
+      ...outcomeKeys.reduce((acc, k) => ({ ...acc, [k]: row[k] || 0 }), {} as Record<string, number>),
+    }));
+    return { data, outcomeKeys };
+  }, [enrichedLeads]);
+
 
   // Force light text on dark background — Recharts default tooltip text inherits
   // OS color and renders unreadable against the dark admin theme.
@@ -413,7 +438,7 @@ const AdminLeadAnalytics = () => {
             </div>
 
             {/* Traffic source */}
-            <ChartCard icon={Globe} title="Traffic Source / Channel" subtitle="Submitted vs abandoned by UTM source">
+            <ChartCard icon={Globe} title="Traffic Source / Channel" subtitle="Submitted vs abandoned by source (EasySocial bot + UTM)">
               {trafficSourceData.length === 0 ? (
                 <EmptyState />
               ) : (
@@ -426,6 +451,32 @@ const AdminLeadAnalytics = () => {
                     <Legend wrapperStyle={{ fontSize: 11, color: MUTED }} />
                     <Bar dataKey="Submitted" stackId="a" fill={VIBRANT.neonGreen} radius={[0, 0, 0, 0]} />
                     <Bar dataKey="Abandoned" stackId="a" fill={VIBRANT.crimson} radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </ChartCard>
+
+            {/* Lead Quality by Platform — sourced from EasySocial bot_outcome tags */}
+            <ChartCard icon={ShieldAlert} title="Lead Quality by Platform" subtitle="Bot-classified outcomes per traffic source (TikTok, Facebook, etc.)">
+              {platformQualityData.data.length === 0 ? (
+                <EmptyState />
+              ) : (
+                <ResponsiveContainer width="100%" height={320}>
+                  <BarChart data={platformQualityData.data} margin={{ top: 10, right: 16, left: -8, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis dataKey="platform" stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
+                    <Legend wrapperStyle={{ fontSize: 11, color: MUTED }} />
+                    {platformQualityData.outcomeKeys.map((key, i) => (
+                      <Bar
+                        key={key}
+                        dataKey={key}
+                        stackId="q"
+                        fill={VIBRANT_PALETTE[i % VIBRANT_PALETTE.length]}
+                        radius={i === platformQualityData.outcomeKeys.length - 1 ? [6, 6, 0, 0] : [0, 0, 0, 0]}
+                      />
+                    ))}
                   </BarChart>
                 </ResponsiveContainer>
               )}
