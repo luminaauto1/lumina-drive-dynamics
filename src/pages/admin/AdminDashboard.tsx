@@ -5,8 +5,8 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ArrowRight, TrendingUp, AlertCircle, Car, DollarSign, Calculator, Search } from "lucide-react";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { ArrowRight, TrendingUp, AlertCircle, Car, DollarSign, Calculator, Search, MessageCircle, UserPlus, FileCheck2 } from "lucide-react";
+import { format, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
 import { Helmet } from "react-helmet-async";
 
 const AdminDashboard = () => {
@@ -20,7 +20,7 @@ const AdminDashboard = () => {
     avgProfitPerUnit: 0,
   });
   const [urgentLeads, setUrgentLeads] = useState<any[]>([]);
-  const [deliveries, setDeliveries] = useState<any[]>([]);
+  const [activityToday, setActivityToday] = useState({ messages: 0, leads: 0, apps: 0 });
 
   useEffect(() => {
     const fetchDashboardData = async () => {
