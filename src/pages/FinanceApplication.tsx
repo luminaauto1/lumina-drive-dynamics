@@ -507,6 +507,15 @@ const FinanceApplication = () => {
           console.error('Silent lead capture failed', error);
         }
       }
+
+      // High-risk credit advisory intercept (after silent capture + ghost auth fired)
+      if (currentStep === 1) {
+        const cs = formData.credit_score_status;
+        if (cs === "blacklisted" || cs === "debt_review" || cs === "defaults_arrears" || cs === "judgements") {
+          setCreditAdvisoryKey(cs as any);
+          return; // block transition until user dismisses modal
+        }
+      }
       setCurrentStep((prev) => Math.min(prev + 1, 5));
     }
   };
