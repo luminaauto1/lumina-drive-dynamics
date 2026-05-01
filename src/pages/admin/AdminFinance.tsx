@@ -433,8 +433,21 @@ const AdminFinance = () => {
                   // Warning conditions
                   const lowSalary = app.net_salary && app.net_salary < 8500;
                   const noLicense = (app as any).has_drivers_license === false;
-                  const badCredit = ['bad', 'blacklisted'].includes((app as any).credit_score_status || '');
-                  const hasWarning = lowSalary || noLicense || badCredit;
+                  const cs = ((app as any).credit_score_status || '') as string;
+                  const HIGH_RISK_CREDIT_LABELS: Record<string, string> = {
+                    blacklisted: 'Blacklisted',
+                    debt_review: 'Debt Review',
+                    judgements: 'Judgements',
+                    defaults_arrears: 'Defaults/Arrears',
+                    bad: 'Bad Credit',
+                  };
+                  const creditRiskLabel = HIGH_RISK_CREDIT_LABELS[cs];
+                  // Hierarchy: credit risk supersedes license
+                  const riskReason = creditRiskLabel
+                    ? `Risk: ${creditRiskLabel}`
+                    : noLicense
+                    ? 'Risk: No License'
+                    : null;
 
                   // Freshness & stagnation
                   const isNew = (Date.now() - new Date(app.created_at).getTime()) < (24 * 60 * 60 * 1000);
