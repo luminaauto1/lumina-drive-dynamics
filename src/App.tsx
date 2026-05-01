@@ -51,6 +51,7 @@ import SystemFix from "./pages/admin/SystemFix";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 import SecureDocumentUpload from "./pages/public/SecureDocumentUpload";
+import { useUTMTracking } from "@/hooks/useUTMTracking";
 
 const queryClient = new QueryClient();
 
@@ -59,6 +60,9 @@ const AppLayout = () => {
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isPublicRoute = location.pathname.startsWith('/upload-documents') || location.pathname.startsWith('/handover');
+
+  // Global UTM capture — runs on every route change, persists to sessionStorage
+  useUTMTracking();
 
   return (
     <>
