@@ -258,11 +258,12 @@ const AdminLeadAnalytics = () => {
     return Object.entries(counts).map(([k, v]) => ({ name: labels[k] || k, value: v }));
   }, [apps]);
 
-  // Traffic source: submitted vs abandoned by source
+  // Traffic source: submitted vs abandoned by source.
+  // Prefer EasySocial bot-provided traffic_source, then UTM, then internal source.
   const trafficSourceData = useMemo(() => {
     const map = new Map<string, { source: string; Submitted: number; Abandoned: number }>();
-    enrichedLeads.forEach((l) => {
-      const src = (l.utm_source || l.source || 'direct').toLowerCase();
+    enrichedLeads.forEach((l: any) => {
+      const src = String(l.traffic_source || l.utm_source || l.source || 'direct').toLowerCase();
       const row = map.get(src) || { source: src, Submitted: 0, Abandoned: 0 };
       if (l._submitted) row.Submitted += 1;
       else row.Abandoned += 1;
@@ -270,6 +271,28 @@ const AdminLeadAnalytics = () => {
     });
     return Array.from(map.values()).sort((a, b) => (b.Submitted + b.Abandoned) - (a.Submitted + a.Abandoned)).slice(0, 8);
   }, [enrichedLeads]);
+
+  // Lead Quality by Platform: bot_outcome breakdown grouped by traffic_source (EasySocial)
+  const platformQualityData = useMemo(() => {
+    const outcomes = new Set<string>();
+    const byPlatform = new Map<string, Record<string, number>>();
+    enrichedLeads.forEach((l: any) => {
+      if (!l.bot_outcome && !l.traffic_source) return;
+      const platform = String(l.traffic_source || 'unknown').toLowerCase();
+      const outcome = String(l.bot_outcome || 'unclassified').toLowerCase();
+      outcomes.add(outcome);
+      const row = byPlatform.get(platform) || {};
+      row[outcome] = (row[outcome] || 0) + 1;
+      byPlatform.set(platform, row);
+    });
+    const outcomeKeys = Array.from(outcomes);
+    const data = Array.from(byPlatform.entries()).map(([platform, row]) => ({
+      platform,
+      ...outcomeKeys.reduce((acc, k) => ({ ...acc, [k]: row[k] || 0 }), {} as Record<string, number>),
+    }));
+    return { data, outcomeKeys };
+  }, [enrichedLeads]);
+
 
   // Force light text on dark background — Recharts default tooltip text inherits
   // OS color and renders unreadable against the dark admin theme.
