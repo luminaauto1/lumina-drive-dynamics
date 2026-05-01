@@ -537,7 +537,7 @@ const AdminLeads = () => {
                           <div
                             ref={provided.innerRef}
                             {...provided.droppableProps}
-                            className={`flex-1 overflow-y-auto p-2 space-y-2 min-h-[100px] transition-colors ${snapshot.isDraggingOver ? 'bg-primary/5' : ''}`}
+                            className={`flex-1 min-h-0 overflow-y-auto p-2 space-y-2 transition-colors ${snapshot.isDraggingOver ? 'bg-primary/5' : ''}`}
                           >
                             {columnLeads.map((lead, index) => {
                               const needsAttention = !lead.isVirtual && (new Date(lead.status_updated_at || lead.created_at).getTime() > new Date(lead.admin_last_viewed_at || 0).getTime());
