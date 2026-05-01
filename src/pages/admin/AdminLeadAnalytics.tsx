@@ -111,7 +111,7 @@ const AdminLeadAnalytics = () => {
       const cutoff = rangeToCutoff(range);
 
       let leadsQ = supabase.from('leads')
-        .select('id, created_at, updated_at, last_step_reached, last_step_name, utm_source, utm_medium, utm_campaign, source, status, client_email, client_phone')
+        .select('id, created_at, updated_at, last_step_reached, last_step_name, utm_source, utm_medium, utm_campaign, source, status, client_email, client_phone, traffic_source, bot_outcome')
         .neq('client_email', 'albertprinsloo051@gmail.com')
         .order('created_at', { ascending: false }).limit(5000);
       let appsQ = supabase.from('finance_applications')
