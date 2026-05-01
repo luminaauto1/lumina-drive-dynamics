@@ -200,10 +200,41 @@ Deno.serve(async (req) => {
     // ── Log raw inbound WhatsApp messages (ignore message_status receipts) ──
     // Fire-and-forget so we never delay the 200 ack to EasySocial.
     if (changeField === 'messages' && Array.isArray(innerValue?.messages) && innerValue.messages.length > 0) {
+      const firstMsg = innerValue?.messages?.[0];
       const msgPhone =
-        normalizePhone(innerValue?.messages?.[0]?.from) ??
+        normalizePhone(firstMsg?.from) ??
         normalizePhone(innerValue?.contacts?.[0]?.wa_id) ??
         lead?.phone_number ?? null;
+
+      // ── Platform attribution ─────────────────────────────────────────────
+      // 1) Meta referral (click-to-WA ads carry source_url / source_type)
+      // 2) Pre-filled / typed message body keywords
+      // 3) Fallback: Direct/Unknown
+      let platformSource = 'Direct/Unknown';
+      const referralUrl = String(
+        firstMsg?.referral?.source_url ??
+        firstMsg?.referral?.source_id ??
+        firstMsg?.referral?.headline ?? ''
+      ).toLowerCase();
+      const referralType = String(firstMsg?.referral?.source_type ?? '').toLowerCase();
+      const refBlob = `${referralUrl} ${referralType}`;
+
+      if (refBlob.includes('instagram') || refBlob.includes(' ig ') || refBlob.startsWith('ig')) {
+        platformSource = 'Instagram';
+      } else if (refBlob.includes('facebook') || refBlob.includes('fb.') || refBlob.includes('/fb/') || refBlob.includes('fb_') || /\bfb\b/.test(refBlob)) {
+        platformSource = 'Facebook';
+      } else if (refBlob.includes('tiktok') || refBlob.includes('tt.')) {
+        platformSource = 'TikTok';
+      } else {
+        // Optional chaining guards against image/document messages with no text
+        const bodyText = String(firstMsg?.text?.body ?? '').toLowerCase();
+        if (bodyText) {
+          if (bodyText.includes('tiktok')) platformSource = 'TikTok';
+          else if (bodyText.includes('insta') || bodyText.includes('instagram')) platformSource = 'Instagram';
+          else if (bodyText.includes('facebook') || /\bfb\b/.test(bodyText)) platformSource = 'Facebook';
+        }
+      }
+
       try {
         const sb = createClient(
           Deno.env.get('SUPABASE_URL') ?? '',
@@ -211,7 +242,7 @@ Deno.serve(async (req) => {
         );
         const insertPromise = sb
           .from('whatsapp_messages')
-          .insert({ phone_number: msgPhone })
+          .insert({ phone_number: msgPhone, platform_source: platformSource })
           .then(({ error }) => {
             if (error) console.error('[easysocial-webhook] message log error', error);
           });
