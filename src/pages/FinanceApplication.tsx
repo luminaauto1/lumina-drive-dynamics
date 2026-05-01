@@ -68,6 +68,29 @@ const FinanceApplication = () => {
   const [isRevisionMode, setIsRevisionMode] = useState(false);
   const [creditAdvisoryKey, setCreditAdvisoryKey] = useState<null | "blacklisted" | "debt_review" | "defaults_arrears" | "judgements">(null);
   const [showLicenseAdvisory, setShowLicenseAdvisory] = useState(false);
+  const [trackedLeadId, setTrackedLeadId] = useState<string | null>(null);
+
+  const STEP_NAMES: Record<number, string> = {
+    1: 'Step 1: Personal Details',
+    2: 'Step 2: Employment',
+    3: 'Step 3: Financials',
+    4: 'Step 4: Vehicle Preference',
+    5: 'Step 5: Review & Submit',
+  };
+
+  const getAttribution = () => {
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      return {
+        utm_source: sp.get('utm_source') || sp.get('source') || null,
+        utm_medium: sp.get('utm_medium') || null,
+        utm_campaign: sp.get('utm_campaign') || null,
+        referrer: document.referrer ? new URL(document.referrer).hostname : null,
+      };
+    } catch {
+      return { utm_source: null, utm_medium: null, utm_campaign: null, referrer: null };
+    }
+  };
   const [formData, setFormData] = useState({
     // Personal
     first_name: "",
