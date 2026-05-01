@@ -46,7 +46,7 @@
       s.parentNode.insertBefore(t,s)}(window, document,'script',
       'https://connect.facebook.net/en_US/fbevents.js');
       try {
-        fbq('init', 'YOUR_META_PIXEL_ID');
+        fbq('init', '2378506299315315');
         fbq('track', 'PageView');
       } catch (e) { /* pixel failure must never break UI */ }
     </script>
@@ -66,6 +66,8 @@
     </script>
   </head>
   <body>
+    <!-- Meta Pixel noscript fallback (must live in body, not head) -->
+    <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=2378506299315315&ev=PageView&noscript=1" alt="" /></noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
