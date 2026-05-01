@@ -114,8 +114,20 @@ export const generateFinancePDF = async (application: FinanceApplication, vehicl
   doc.setTextColor(mutedColor);
   doc.text('Credit Profile:', 100, yPos);
   doc.setTextColor(textColor);
-  const creditValue = application.credit_score_status
-    ? String(application.credit_score_status).charAt(0).toUpperCase() + String(application.credit_score_status).slice(1)
+  const creditMap: Record<string, string> = {
+    excellent_good: 'Excellent / Good',
+    not_sure: 'Not Sure',
+    defaults_arrears: 'Defaults / Arrears (Missed payments)',
+    judgements: 'Judgements',
+    debt_review: 'Debt Review',
+    blacklisted: 'Blacklisted',
+    good: 'Good (No defaults)',
+    unsure: 'Not Sure',
+    bad: 'Bad (Have defaults/judgments)',
+  };
+  const csRaw = application.credit_score_status;
+  const creditValue = csRaw
+    ? (creditMap[String(csRaw)] || String(csRaw).charAt(0).toUpperCase() + String(csRaw).slice(1))
     : 'N/A';
   doc.text(creditValue, 135, yPos);
   

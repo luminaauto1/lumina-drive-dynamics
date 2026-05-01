@@ -66,6 +66,7 @@ const FinanceApplication = () => {
   const [showTrustModal, setShowTrustModal] = useState(true);
   const [resumedApplicationId, setResumedApplicationId] = useState<string | null>(null);
   const [isRevisionMode, setIsRevisionMode] = useState(false);
+  const [creditAdvisoryKey, setCreditAdvisoryKey] = useState<null | "blacklisted" | "debt_review" | "defaults_arrears" | "judgements">(null);
   const [formData, setFormData] = useState({
     // Personal
     first_name: "",
@@ -504,6 +505,15 @@ const FinanceApplication = () => {
           });
         } catch (error) {
           console.error('Silent lead capture failed', error);
+        }
+      }
+
+      // High-risk credit advisory intercept (after silent capture + ghost auth fired)
+      if (currentStep === 1) {
+        const cs = formData.credit_score_status;
+        if (cs === "blacklisted" || cs === "debt_review" || cs === "defaults_arrears" || cs === "judgements") {
+          setCreditAdvisoryKey(cs as any);
+          return; // block transition until user dismisses modal
         }
       }
       setCurrentStep((prev) => Math.min(prev + 1, 5));
@@ -1129,9 +1139,11 @@ const FinanceApplication = () => {
                           <SelectValue placeholder="Select your credit status" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="good">Good (No defaults)</SelectItem>
-                          <SelectItem value="unsure">Not Sure</SelectItem>
-                          <SelectItem value="bad">Bad (Have defaults/judgments)</SelectItem>
+                          <SelectItem value="excellent_good">Excellent / Good</SelectItem>
+                          <SelectItem value="not_sure">Not Sure</SelectItem>
+                          <SelectItem value="defaults_arrears">Defaults / Arrears (Missed payments)</SelectItem>
+                          <SelectItem value="judgements">Judgements</SelectItem>
+                          <SelectItem value="debt_review">Debt Review</SelectItem>
                           <SelectItem value="blacklisted">Blacklisted</SelectItem>
                         </SelectContent>
                       </Select>
@@ -1615,6 +1627,54 @@ const FinanceApplication = () => {
           </motion.div>
         </div>
       </div>
+
+      {/* Credit Advisory Modal — high-risk credit profile guidance */}
+      <Dialog
+        open={creditAdvisoryKey !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            const wasKey = creditAdvisoryKey;
+            setCreditAdvisoryKey(null);
+            // After acknowledging, allow progression to next step
+            if (wasKey) setCurrentStep((prev) => Math.min(prev + 1, 5));
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[560px] border-2 border-red-500 max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-red-500 flex items-center gap-2">
+              <Info className="w-5 h-5" />
+              {creditAdvisoryKey === "blacklisted" && "Important: Blacklisted Profile"}
+              {creditAdvisoryKey === "debt_review" && "Important: Debt Review Active"}
+              {creditAdvisoryKey === "defaults_arrears" && "Important: Defaults / Arrears"}
+              {creditAdvisoryKey === "judgements" && "Important: Active Judgement"}
+            </DialogTitle>
+            <DialogDescription className="text-foreground/90 whitespace-pre-line text-sm leading-relaxed pt-2">
+              {creditAdvisoryKey === "blacklisted" &&
+                `Since you are blacklisted, here is some general advice that we hope will help you :)\n\n✅ 610 credit score (www.clearscore.co.za) is favorable for vehicle finance, although this is not the only factor that the banks will look at.\n✅ Once accounts and arrears are settled, you are basically starting your credit record fresh again.\n✅ You will need to build a new paying credit profile for 3-6 months.\n✅ Use less than 50% of available credit (e.g., if you have a credit limit of R10k on a store account, only use up to R5k).\n✅ If your monthly premium is R200, pay R250. Always pay more.\n✅ Cellphone, gym, internet contracts, and life policies do not carry credibility when applying for vehicle finance.\n\n❌ IMPORTANT: Do not make any credit applications, as this may affect you.\n\nIn the meanwhile, we are saving your number. We always have advice and specials on our Status 🙏 Save ours to view them, we also offer R5000 for each successful referral.`}
+              {creditAdvisoryKey === "debt_review" &&
+                `Unfortunately, banks cannot legally approve any new vehicle finance while a profile is actively under debt review.\n\n⛔ Next Steps:\n• You will need to successfully complete your debt review process.\n• Once completed, you will be issued a Clearance Certificate.\n• As soon as you have that certificate, we can apply for vehicle finance!\n\nSave our number for when you are ready, or if you need any advice in the future. 🤝\n\nRemember: We offer a R5000 referral fee to YOU for every successful referral you send us!`}
+              {creditAdvisoryKey === "defaults_arrears" &&
+                `You can be ready for finance in a few months by getting your credit score up. This is what we want you to do and what not to do:\n\nSettle any arrears. Once these are settled, build a new paying profile for 3-6 months. Cellphone, internet, and membership accounts do not build your credit score or affect it 📲\n\nDO NOT:\n• Take out any personal loans.\n• Take out any micro loans.\n• Make any more vehicle applications.\n\nRegister with Clearscore online — it's totally free. They can also give you advice and send you a free monthly report showing you your progress.\n\nSave our number and please feel free to ask during this time if there is anything else you want to know 💪🏼 We also offer R5000 for each successful referral 💰`}
+              {creditAdvisoryKey === "judgements" &&
+                `Unfortunately, we cannot secure vehicle finance while there is an active court judgement on your credit profile.\n\n⛔ Next Steps:\n• You must settle the judgement account in full.\n• Once settled, request a paid-up letter and have the judgement legally removed from your credit profile.\n\nSave our number for when your profile is cleared, or if you need advice in the meantime. 🤝 We also offer R5000 for each successful referral 💰`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              onClick={() => {
+                const wasKey = creditAdvisoryKey;
+                setCreditAdvisoryKey(null);
+                if (wasKey) setCurrentStep((prev) => Math.min(prev + 1, 5));
+              }}
+              className="bg-red-500 hover:bg-red-600 text-white"
+            >
+              I Understand — Continue
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
