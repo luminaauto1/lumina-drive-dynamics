@@ -324,48 +324,60 @@ const AdminDashboard = () => {
             )}
           </Card>
 
-          {/* Deliveries */}
+          {/* Lead & Communication Activity (Today) */}
           <Card className="p-5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <Car className="w-5 h-5 text-green-400" />
-                <h2 className="font-semibold">
-                  Prepping For Delivery ({deliveries.length})
-                </h2>
+                <Activity className="w-5 h-5 text-emerald-400" />
+                <h2 className="font-semibold">Lead &amp; Communication Activity</h2>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate("/admin/leads")}
-              >
-                View All <ArrowRight className="w-4 h-4 ml-1" />
-              </Button>
+              <span className="text-xs text-muted-foreground uppercase tracking-wider">Today</span>
             </div>
-            {deliveries.length === 0 ? (
-              <p className="text-muted-foreground text-center py-6">
-                No vehicles currently in prep.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {deliveries.map((lead) => (
-                  <div
-                    key={lead.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 cursor-pointer transition-colors"
-                    onClick={() => navigate("/admin/leads")}
-                  >
-                    <div>
-                      <p className="font-medium text-sm">
-                        {lead.client_name || "Unknown"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Awaiting Handover
-                      </p>
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                  </div>
-                ))}
-              </div>
-            )}
+
+            <div className="grid grid-cols-3 gap-3">
+              <button
+                onClick={() => navigate("/admin/lead-analytics")}
+                className="text-left p-4 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors border border-border/50"
+              >
+                <div className="flex items-center gap-2 mb-2 text-emerald-400">
+                  <MessageCircle className="w-4 h-4" />
+                  <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Messages</span>
+                </div>
+                <p className="text-2xl font-semibold tabular-nums">{activityToday.messages.toLocaleString()}</p>
+              </button>
+
+              <button
+                onClick={() => navigate("/admin/leads")}
+                className="text-left p-4 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors border border-border/50"
+              >
+                <div className="flex items-center gap-2 mb-2 text-blue-400">
+                  <UserPlus className="w-4 h-4" />
+                  <span className="text-[11px] uppercase tracking-wider text-muted-foreground">New Leads</span>
+                </div>
+                <p className="text-2xl font-semibold tabular-nums">{activityToday.leads.toLocaleString()}</p>
+              </button>
+
+              <button
+                onClick={() => navigate("/admin/finance")}
+                className="text-left p-4 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors border border-border/50"
+              >
+                <div className="flex items-center gap-2 mb-2 text-amber-400">
+                  <FileCheck2 className="w-4 h-4" />
+                  <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Finance Apps</span>
+                </div>
+                <p className="text-2xl font-semibold tabular-nums">{activityToday.apps.toLocaleString()}</p>
+              </button>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
+              <span>Top-of-funnel volume from WhatsApp + web</span>
+              <button
+                onClick={() => navigate("/admin/lead-analytics")}
+                className="text-foreground hover:text-emerald-400 transition-colors inline-flex items-center"
+              >
+                Full analytics <ArrowRight className="w-3.5 h-3.5 ml-1" />
+              </button>
+            </div>
           </Card>
         </div>
       </div>
