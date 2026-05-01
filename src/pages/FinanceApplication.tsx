@@ -34,6 +34,7 @@ import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { getStoredAttribution } from "@/hooks/useUTMTracking";
+import { trackLeadConversion } from "@/lib/pixelTracking";
 import { toast } from "sonner";
 import {
   financeApplicationStep1Schema,
@@ -680,6 +681,14 @@ const FinanceApplication = () => {
       setIsSubmitting(false);
       return; // CRITICAL: Stop execution so emails/whatsapp don't fire on a failed save
     } else {
+      // Isolated ad-pixel conversion event — Meta + TikTok.
+      // Fires only after a confirmed successful insert/update. Wrapped
+      // internally in try/catch so a failed pixel never breaks the flow.
+      trackLeadConversion({
+        content_name: "Finance Application",
+        content_category: "Lead",
+      });
+
       // 4. Auto-create Lead via secure edge function
       try {
         const { data: sessionData } = await supabase.auth.getSession();
