@@ -588,7 +588,12 @@ const AdminLeadAnalytics = () => {
                           fontSize={10}
                           tickLine={false}
                           axisLine={false}
-                          interval={1}
+                          minTickGap={30}
+                          tickFormatter={(v: string) => {
+                            // Display only HH:MM, drop seconds if present
+                            const m = String(v).match(/^(\d{1,2}:\d{2})/);
+                            return m ? m[1] : String(v);
+                          }}
                           type="category"
                         />
                         <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
@@ -600,11 +605,11 @@ const AdminLeadAnalytics = () => {
                           formatter={(v: any, n: any) => [`${v} msg`, n]}
                           labelFormatter={(l) => `Hour: ${l}`}
                         />
-                        <Legend wrapperStyle={{ fontSize: 11, color: MUTED }} />
-                        <Line type="monotone" dataKey="Facebook" stroke={PLATFORM_COLOR.Facebook} strokeWidth={2.5} dot={{ r: 2 }} activeDot={{ r: 5 }} />
-                        <Line type="monotone" dataKey="Instagram" stroke={PLATFORM_COLOR.Instagram} strokeWidth={2.5} dot={{ r: 2 }} activeDot={{ r: 5 }} />
-                        <Line type="monotone" dataKey="TikTok" stroke={PLATFORM_COLOR.TikTok} strokeWidth={2.5} dot={{ r: 2 }} activeDot={{ r: 5 }} />
-                        <Line type="monotone" dataKey="Direct/Unknown" stroke={PLATFORM_COLOR['Direct/Unknown']} strokeWidth={2} strokeDasharray="4 4" dot={{ r: 2 }} activeDot={{ r: 5 }} />
+                        <Legend content={renderInteractiveLegend} />
+                        <Line type="monotone" dataKey="Facebook" stroke={PLATFORM_COLOR.Facebook} strokeWidth={3} dot={{ r: 2 }} activeDot={{ r: 5 }} hide={hiddenSeries.Facebook} />
+                        <Line type="monotone" dataKey="Instagram" stroke={PLATFORM_COLOR.Instagram} strokeWidth={3} dot={{ r: 2 }} activeDot={{ r: 5 }} hide={hiddenSeries.Instagram} />
+                        <Line type="monotone" dataKey="TikTok" stroke={PLATFORM_COLOR.TikTok} strokeWidth={3} dot={{ r: 2 }} activeDot={{ r: 5 }} hide={hiddenSeries.TikTok} />
+                        <Line type="monotone" dataKey="Direct/Unknown" stroke={PLATFORM_COLOR['Direct/Unknown']} strokeWidth={3} dot={{ r: 2 }} activeDot={{ r: 5 }} hide={hiddenSeries['Direct/Unknown']} />
                       </LineChart>
                     </ResponsiveContainer>
                   )}
