@@ -221,29 +221,40 @@ Deno.serve(async (req) => {
       // ── Aggressive Platform attribution ──────────────────────────────────
       // Strict optional chaining throughout — referral / context may be absent.
       // Order: referral → context → text body. Lower-cased single blob match.
+      const msgType: string = String(firstMsg?.type || 'text').toLowerCase();
+      const isAudio = msgType === 'audio' || msgType === 'voice' || msgType === 'ptt';
+
+      // Audio / voice notes carry no parseable text — flag and skip parsing.
+      if (isAudio && lead) {
+        const tag = 'Voice Note Received';
+        lead.bot_outcome = lead.bot_outcome ? `${lead.bot_outcome}; ${tag}` : tag;
+      }
+
       let platformSource = 'Direct/Unknown';
-      const attributionBlob = [
-        firstMsg?.referral?.source_url,
-        firstMsg?.referral?.source_id,
-        firstMsg?.referral?.headline,
-        firstMsg?.referral?.source_type,
-        firstMsg?.referral?.body,
-        firstMsg?.context?.referred_product,
-        firstMsg?.context?.url,
-        firstMsg?.context?.id,
-        firstMsg?.text?.body,
-        // Interactive quick-reply buttons & list selections
-        firstMsg?.interactive?.button_reply?.id,
-        firstMsg?.interactive?.button_reply?.title,
-        firstMsg?.interactive?.list_reply?.id,
-        firstMsg?.interactive?.list_reply?.title,
-        firstMsg?.button?.text,
-        firstMsg?.button?.payload,
-      ]
-        .filter((v) => v !== undefined && v !== null)
-        .map((v) => String(v))
-        .join(' ')
-        .toLowerCase();
+      const attributionBlob = isAudio
+        ? ''
+        : [
+            firstMsg?.referral?.source_url,
+            firstMsg?.referral?.source_id,
+            firstMsg?.referral?.headline,
+            firstMsg?.referral?.source_type,
+            firstMsg?.referral?.body,
+            firstMsg?.context?.referred_product,
+            firstMsg?.context?.url,
+            firstMsg?.context?.id,
+            firstMsg?.text?.body,
+            // Interactive quick-reply buttons & list selections
+            firstMsg?.interactive?.button_reply?.id,
+            firstMsg?.interactive?.button_reply?.title,
+            firstMsg?.interactive?.list_reply?.id,
+            firstMsg?.interactive?.list_reply?.title,
+            firstMsg?.button?.text,
+            firstMsg?.button?.payload,
+          ]
+            .filter((v) => v !== undefined && v !== null)
+            .map((v) => String(v))
+            .join(' ')
+            .toLowerCase();
 
       if (attributionBlob.includes('tiktok')) {
         platformSource = 'TikTok';
@@ -251,10 +262,14 @@ Deno.serve(async (req) => {
         platformSource = 'Facebook';
       } else if (attributionBlob.includes('instagram') || /\big\b/.test(attributionBlob)) {
         platformSource = 'Instagram';
+      } else if (msgType === 'text' && firstMsg?.text?.body && !firstMsg?.referral) {
+        // Real organic text reply with no ad referral → label cleanly, do not noise the trap.
+        platformSource = 'Organic/Direct';
       }
 
-      // ── The "Unknown" Trap: dump the raw message JSON for later calibration
-      if (platformSource === 'Direct/Unknown') {
+      // ── The "Unknown" Trap: only dump payloads we genuinely could not classify
+      // (skip clean organic text and audio cases — those are expected).
+      if (platformSource === 'Direct/Unknown' && !isAudio) {
         try {
           console.log('UNKNOWN SOURCE PAYLOAD:', JSON.stringify(firstMsg, null, 2));
         } catch {
