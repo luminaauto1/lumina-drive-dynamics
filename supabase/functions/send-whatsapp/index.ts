@@ -1,12 +1,12 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { buildCorsHeaders, checkInternalKey } from "../_shared/publicGuard.ts";
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const cors = buildCorsHeaders(req.headers.get("origin"));
+  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+
+  const guard = checkInternalKey(req);
+  if (guard) return guard;
 
   try {
     const { phone } = await req.json();
@@ -20,24 +20,32 @@ serve(async (req) => {
       cleanPhone = '27' + cleanPhone.substring(1);
     }
 
-    const waUrl = `https://api.easysocial.in/api/v1/wa-templates/send/cmoiw52ffaq1eiyxphla895wb/18908/4026/API/${cleanPhone}`;
+    // Basic sanity check
+    if (cleanPhone.length < 8 || cleanPhone.length > 15) {
+      throw new Error("Invalid phone number");
+    }
 
-    // Execute the webhook via backend server
+    // EasySocial token now stored as a Supabase secret (no longer hardcoded)
+    const easysocialToken = Deno.env.get("EASYSOCIAL_API_KEY");
+    if (!easysocialToken) {
+      throw new Error("EasySocial API key not configured");
+    }
+
+    const waUrl = `https://api.easysocial.in/api/v1/wa-templates/send/${easysocialToken}/18908/4026/API/${cleanPhone}`;
+
     const response = await fetch(waUrl, {
       method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      }
+      headers: { 'Accept': 'application/json' }
     });
 
     const responseText = await response.text();
 
     return new Response(JSON.stringify({ success: true, api_response: responseText }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...cors, "Content-Type": "application/json" },
     });
   } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
 });
