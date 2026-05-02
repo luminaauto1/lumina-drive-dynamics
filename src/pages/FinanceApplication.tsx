@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { publicApiHeaders } from "@/lib/publicApi";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Helmet } from "react-helmet-async";
@@ -714,11 +715,9 @@ const FinanceApplication = () => {
       // 5. Send confirmation email via edge function
       try {
         await supabase.functions.invoke("send-finance-alert", {
+          headers: publicApiHeaders(),
           body: {
             applicationId: insertedApp?.id,
-            clientName: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
-            clientEmail: formData.email.trim().toLowerCase(),
-            netSalary: formData.net_salary ? parseFloat(formData.net_salary) : null,
           },
         });
       } catch (emailError) {

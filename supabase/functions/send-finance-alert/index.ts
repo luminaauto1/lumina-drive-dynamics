@@ -1,19 +1,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { buildCorsHeaders, checkInternalKey } from "../_shared/publicGuard.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
-
 interface FinanceAlertRequest {
   applicationId: string;
-  clientName: string;
-  clientEmail: string;
-  netSalary: number | null;
-  adminEmail?: string;
 }
 
 // HTML escape function to prevent XSS
@@ -50,47 +42,34 @@ const sendEmail = async (to: string, subject: string, html: string) => {
 };
 
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
+  const corsHeaders = buildCorsHeaders(req.headers.get("origin"));
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    // Verify authentication
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      console.error("No authorization header provided");
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
+  const guard = checkInternalKey(req);
+  if (guard) return guard;
 
-    const supabaseClient = createClient(
+  try {
+    const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
-    if (authError || !user) {
-      console.error("Authentication failed:", authError?.message);
+    const { applicationId }: FinanceAlertRequest = await req.json();
+    if (!applicationId || typeof applicationId !== "string") {
       return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        JSON.stringify({ error: "applicationId required" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    console.log(`Authenticated user: ${user.id}`);
-
-    const { applicationId, clientName, clientEmail, netSalary, adminEmail }: FinanceAlertRequest = await req.json();
-    
-    // Verify the application belongs to the authenticated user
-    const { data: application, error: appError } = await supabaseClient
+    // Pull all values from DB — never trust caller-supplied recipients
+    const { data: application, error: appError } = await supabaseAdmin
       .from("finance_applications")
-      .select("user_id")
+      .select("full_name, email, net_salary")
       .eq("id", applicationId)
-      .single();
+      .maybeSingle();
 
     if (appError || !application) {
       console.error("Application not found:", appError?.message);
@@ -100,17 +79,19 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    if (application.user_id !== user.id) {
-      console.error("User does not own this application");
-      return new Response(
-        JSON.stringify({ error: "Forbidden" }),
-        { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
+    const clientName = application.full_name || "Client";
+    const clientEmail = application.email;
+    const netSalary = application.net_salary as number | null;
+
+    // Look up admin recipient from site_settings — not from the request body
+    const { data: settings } = await supabaseAdmin
+      .from("site_settings")
+      .select("primary_email")
+      .maybeSingle();
+    const adminEmailAddress = settings?.primary_email || "lumina.auto1@gmail.com";
 
     console.log(`Processing finance alert for application: ${applicationId}`);
 
-    // Sanitize user inputs for HTML
     const safeClientName = escapeHtml(clientName);
     const safeClientEmail = escapeHtml(clientEmail);
 
@@ -118,9 +99,6 @@ const handler = async (req: Request): Promise<Response> => {
     const dealRoomLink = `${baseUrl}/admin/finance/${applicationId}`;
     const dashboardLink = `${baseUrl}/dashboard`;
 
-    // Email 1: To Admin
-    const adminEmailAddress = adminEmail || "lumina.auto1@gmail.com";
-    
     const adminEmailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h1 style="color: #1a1a1a; border-bottom: 2px solid #d4af37; padding-bottom: 10px;">New Application Received</h1>

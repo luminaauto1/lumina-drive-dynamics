@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { publicApiHeaders } from '@/lib/publicApi';
 import { toast } from 'sonner';
 
 interface SendNotificationParams {
@@ -20,6 +21,7 @@ export const sendStatusNotification = async ({
 }: SendNotificationParams): Promise<boolean> => {
   try {
     const { data, error } = await supabase.functions.invoke('send-status-notification', {
+      headers: publicApiHeaders(),
       body: {
         clientEmail,
         clientName,

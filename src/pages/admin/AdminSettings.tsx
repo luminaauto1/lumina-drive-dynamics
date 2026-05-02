@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { publicApiHeaders } from '@/lib/publicApi';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import { Settings, DollarSign, Phone, Palette, Loader2, MapPin, CreditCard, Users, Plus, X, Target, Mail, TestTube, Building2, Shield } from 'lucide-react';
@@ -136,12 +137,9 @@ const TestEmailButton = () => {
 
     try {
       const { data, error } = await supabase.functions.invoke('send-finance-alert', {
+        headers: publicApiHeaders(),
         body: {
           applicationId: 'test-' + Date.now(),
-          clientName: 'Test User',
-          clientEmail: 'test@example.com', // Won't actually send - just tests the function
-          netSalary: 25000,
-          adminEmail: 'lumina.auto1@gmail.com',
         },
       });
 
