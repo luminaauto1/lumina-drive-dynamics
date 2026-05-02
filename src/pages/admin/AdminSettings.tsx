@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { publicApiHeaders } from '@/lib/publicApi';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import { Settings, DollarSign, Phone, Palette, Loader2, MapPin, CreditCard, Users, Plus, X, Target, Mail, TestTube, Building2, Shield } from 'lucide-react';
