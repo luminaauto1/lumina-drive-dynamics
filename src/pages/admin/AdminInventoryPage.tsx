@@ -506,9 +506,9 @@ const AdminInventoryPage = () => {
             <p className="text-muted-foreground">Manage your vehicle listings</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {isSuperAdmin && (
+            {canManageListings && (
               <>
-                <AddHiddenStockModal onSuccess={() => queryClient.invalidateQueries({ queryKey: ['vehicles'] })} />
+                {isSuperAdmin && <AddHiddenStockModal onSuccess={() => queryClient.invalidateQueries({ queryKey: ['vehicles'] })} />}
                 <Button onClick={() => openAddSheet(true)} variant="outline" className="gap-2 border-purple-500/30 text-purple-400 hover:bg-purple-500/10">
                   <Truck className="w-4 h-4" />
                   Add Sourcing Example
@@ -772,9 +772,9 @@ const AdminInventoryPage = () => {
                             variant="ghost"
                             size="icon"
                             onClick={() => openEditSheet(vehicle)}
-                            title={isSuperAdmin ? 'Edit vehicle' : 'View vehicle'}
+                            title={canManageListings ? 'Edit vehicle' : 'View vehicle'}
                           >
-                            {isSuperAdmin ? <Edit2 className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            {canManageListings ? <Edit2 className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           </Button>
                           {isSuperAdmin && (
                             <Button
