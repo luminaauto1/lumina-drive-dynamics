@@ -136,12 +136,9 @@ const TestEmailButton = () => {
 
     try {
       const { data, error } = await supabase.functions.invoke('send-finance-alert', {
+        headers: publicApiHeaders(),
         body: {
           applicationId: 'test-' + Date.now(),
-          clientName: 'Test User',
-          clientEmail: 'test@example.com', // Won't actually send - just tests the function
-          netSalary: 25000,
-          adminEmail: 'lumina.auto1@gmail.com',
         },
       });
 

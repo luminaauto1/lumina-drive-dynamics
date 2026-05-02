@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageSquare, Sparkles, FileText, Loader2, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { publicApiHeaders } from '@/lib/publicApi';
 import { toast } from 'sonner';
 import { generateFinancePDF } from '@/lib/generateFinancePDF';
 
@@ -50,6 +51,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
 
     try {
       const { data, error } = await supabase.functions.invoke('parse-whatsapp', {
+        headers: publicApiHeaders(),
         body: { rawText },
       });
 

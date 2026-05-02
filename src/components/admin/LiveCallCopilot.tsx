@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Mic, Square, Sparkles, Loader2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { publicApiHeaders } from '@/lib/publicApi';
 import { toast } from 'sonner';
 
 interface LiveCallCopilotProps {
@@ -79,6 +80,7 @@ export default function LiveCallCopilot({ clientEmail, clientPhone, clientName, 
   const fetchHint = async (currentText: string) => {
     try {
       const { data } = await supabase.functions.invoke('sales-copilot', {
+        headers: publicApiHeaders(),
         body: { action: 'hint', transcript: currentText.slice(-300), clientName },
       });
       if (data?.result) setLiveHint(data.result);
@@ -120,6 +122,7 @@ export default function LiveCallCopilot({ clientEmail, clientPhone, clientName, 
       toast.info('Call ended. AI is writing your CRM summary...');
       try {
         const { error } = await supabase.functions.invoke('sales-copilot', {
+          headers: publicApiHeaders(),
           body: { action: 'summarize', transcript: fullText, clientEmail, clientPhone, clientName },
         });
         if (error) throw error;
@@ -152,6 +155,7 @@ export default function LiveCallCopilot({ clientEmail, clientPhone, clientName, 
       if (clientName) formData.append('clientName', clientName);
 
       const { error } = await supabase.functions.invoke('transcribe-call', {
+        headers: publicApiHeaders(),
         body: formData,
       });
 
