@@ -832,9 +832,11 @@ const FinanceApplication = () => {
       // 3. FIRE WHATSAPP NOTIFICATION VIA SECURE BACKEND
       try {
         if (formData.phone) {
+          const { publicApiHeaders } = await import('@/lib/publicApi');
           // Fire the API call asynchronously (do not await, so it doesn't block the UI redirect)
           supabase.functions.invoke('send-whatsapp', {
-            body: { phone: formData.phone }
+            body: { phone: formData.phone },
+            headers: publicApiHeaders(),
           }).then(({ error }) => {
             if (error) console.error("WhatsApp Edge Function error:", error);
           });

@@ -1,52 +1,42 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { buildCorsHeaders, checkInternalKey } from "../_shared/publicGuard.ts";
 
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const MAX_UPLOADS_PER_WINDOW = 20; // max uploads per IP per window
-const WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_UPLOADS_PER_WINDOW = 20;
+const WINDOW_MS = 10 * 60 * 1000;
 
-// In-memory rate limit store (resets on cold start, but sufficient for basic protection)
 const rateLimitMap = new Map<string, { count: number; windowStart: number }>();
 
 function isRateLimited(ip: string): boolean {
   const now = Date.now();
   const entry = rateLimitMap.get(ip);
-
   if (!entry || now - entry.windowStart > WINDOW_MS) {
     rateLimitMap.set(ip, { count: 1, windowStart: now });
     return false;
   }
-
   entry.count++;
-  if (entry.count > MAX_UPLOADS_PER_WINDOW) {
-    return true;
-  }
-  return false;
+  return entry.count > MAX_UPLOADS_PER_WINDOW;
 }
 
-// Periodic cleanup of stale entries
 setInterval(() => {
   const now = Date.now();
   for (const [ip, entry] of rateLimitMap.entries()) {
-    if (now - entry.windowStart > WINDOW_MS) {
-      rateLimitMap.delete(ip);
-    }
+    if (now - entry.windowStart > WINDOW_MS) rateLimitMap.delete(ip);
   }
 }, 60_000);
 
 serve(async (req: Request) => {
+  const corsHeaders = buildCorsHeaders(req.headers.get("origin"));
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const guard = checkInternalKey(req);
+  if (guard) return guard;
+
   try {
-    // Rate limiting by IP
     const clientIP = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
       || req.headers.get("cf-connecting-ip")
       || "unknown";
@@ -77,7 +67,7 @@ serve(async (req: Request) => {
 
     if (file.size > MAX_FILE_SIZE) {
       return new Response(
-        JSON.stringify({ error: "File too large. Maximum 10MB" }),
+        JSON.stringify({ error: "File too large. Maximum 5MB" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -89,7 +79,8 @@ serve(async (req: Request) => {
     );
 
     const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 100);
-    const filePath = `sell-requests/${Date.now()}-${sanitizedName}`;
+    // Restrict anonymous uploads to the inbound-temp/ folder per security policy
+    const filePath = `inbound-temp/${Date.now()}-${crypto.randomUUID()}-${sanitizedName}`;
 
     const fileBuffer = await file.arrayBuffer();
     const { error: uploadError } = await supabaseAdmin.storage
@@ -108,11 +99,17 @@ serve(async (req: Request) => {
       );
     }
 
-    // Build public URL
-    const publicUrl = `${supabaseUrl}/storage/v1/object/public/client-docs/${filePath}`;
+    // Bucket is private — return a 24h signed URL the form can preview/submit
+    const { data: signed } = await supabaseAdmin.storage
+      .from("client-docs")
+      .createSignedUrl(filePath, 60 * 60 * 24);
 
     return new Response(
-      JSON.stringify({ success: true, path: filePath, publicUrl }),
+      JSON.stringify({
+        success: true,
+        path: filePath,
+        publicUrl: signed?.signedUrl ?? null,
+      }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (err: unknown) {
