@@ -819,7 +819,7 @@ const AdminInventoryPage = () => {
           </SheetHeader>
 
           {/* Sheet Tabs - Only show Recon tab for existing non-sourcing vehicles */}
-          {editingVehicle && !isSourcingMode && (
+          {isSuperAdmin && editingVehicle && !isSourcingMode && (
             <Tabs value={sheetTab} onValueChange={(v) => setSheetTab(v as 'details' | 'recon')} className="mt-4">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="details">Details</TabsTrigger>
