@@ -7,8 +7,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
 interface StatusNotificationRequest {
-  clientEmail: string;
-  clientName: string;
+  // clientEmail / clientName are NO LONGER trusted from the caller — fetched from DB.
   newStatus: string;
   applicationId: string;
   accessToken?: string;
@@ -202,27 +201,51 @@ const handler = async (req: Request): Promise<Response> => {
   if (guard) return guard;
 
   try {
-    const { 
-      clientEmail, 
-      clientName, 
-      newStatus, 
+    const {
+      newStatus,
       applicationId,
       accessToken,
-      vehicleName 
+      vehicleName,
     }: StatusNotificationRequest = await req.json();
 
-    console.log(`Sending status notification: ${newStatus} to ${clientEmail}`);
-
-    if (!clientEmail || !clientName || !newStatus) {
-      throw new Error("Missing required fields: clientEmail, clientName, or newStatus");
+    if (!newStatus || !applicationId) {
+      return new Response(
+        JSON.stringify({ error: "Missing required fields: newStatus, applicationId" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     }
+
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error("Server misconfiguration: missing Supabase service credentials");
+    }
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // SECURITY: Always pull the recipient email/name from the DB using the
+    // applicationId — never trust caller-supplied addresses.
+    const { data: application, error: appError } = await supabase
+      .from("finance_applications")
+      .select("email, full_name")
+      .eq("id", applicationId)
+      .maybeSingle();
+
+    if (appError || !application?.email) {
+      console.error("Application lookup failed:", appError?.message);
+      return new Response(
+        JSON.stringify({ error: "Application not found" }),
+        { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const clientEmail = application.email as string;
+    const clientName = (application.full_name as string) || "Client";
+
+    console.log(`Sending status notification: ${newStatus} → application ${applicationId}`);
 
     // Try to fetch template from database
     let emailContent: { subject: string; html: string };
-    
-    if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
-      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-      
+
+    {
       const { data: template, error } = await supabase
         .from('email_templates')
         .select('*')
@@ -241,10 +264,8 @@ const handler = async (req: Request): Promise<Response> => {
       } else {
         emailContent = generateEmailHtml(template as EmailTemplate, escapeHtml(clientName), accessToken, vehicleName ? escapeHtml(vehicleName) : undefined);
       }
-    } else {
-      console.log('Supabase credentials not available, using fallback template');
-      emailContent = getFallbackEmailContent(newStatus, escapeHtml(clientName), accessToken, vehicleName ? escapeHtml(vehicleName) : undefined);
     }
+
 
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",

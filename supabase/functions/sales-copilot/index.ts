@@ -71,6 +71,27 @@ serve(async (req) => {
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
       );
 
+      // SECURITY: Verify caller-supplied email/phone corresponds to a real
+      // lead or finance application before writing to the CRM timeline.
+      let leadExists = false;
+      if (clientEmail) {
+        const { data: l1 } = await supabaseClient.from("leads").select("id").eq("client_email", clientEmail).limit(1).maybeSingle();
+        const { data: a1 } = await supabaseClient.from("finance_applications").select("id").eq("email", clientEmail).limit(1).maybeSingle();
+        if (l1 || a1) leadExists = true;
+      }
+      if (!leadExists && clientPhone) {
+        const { data: l2 } = await supabaseClient.from("leads").select("id").eq("client_phone", clientPhone).limit(1).maybeSingle();
+        const { data: a2 } = await supabaseClient.from("finance_applications").select("id").eq("phone", clientPhone).limit(1).maybeSingle();
+        if (l2 || a2) leadExists = true;
+      }
+
+      if (!leadExists) {
+        return new Response(
+          JSON.stringify({ error: "No matching lead or application found for the provided contact." }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       await supabaseClient.from("client_audit_logs").insert([{
         client_email: clientEmail || null,
         client_phone: clientPhone || null,
