@@ -1041,7 +1041,7 @@ const AdminInventoryPage = () => {
 
               {/* Pricing & Profitability */}
               <div className="space-y-4">
-                <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Pricing & Profitability</h3>
+                <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Pricing{isSuperAdmin ? ' & Profitability' : ''}</h3>
                 
                 <FormField
                   control={form.control}
@@ -1057,7 +1057,7 @@ const AdminInventoryPage = () => {
                   )}
                 />
                 
-                <div className="grid grid-cols-2 gap-4">
+                {isSuperAdmin && <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="purchase_price"
@@ -1084,10 +1084,10 @@ const AdminInventoryPage = () => {
                       </FormItem>
                     )}
                   />
-                </div>
+                </div>}
                 
                 {/* Estimated Profit Display */}
-                <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+                {isSuperAdmin && <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Estimated Profit</span>
                     <span className={`text-lg font-bold ${
@@ -1100,7 +1100,7 @@ const AdminInventoryPage = () => {
                       )}
                     </span>
                   </div>
-                </div>
+                </div>}
               </div>
 
               {/* Sourcing Variants Section */}
