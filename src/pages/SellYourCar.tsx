@@ -92,9 +92,10 @@ const SellYourCar = () => {
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+        const { LUMINA_PUBLIC_KEY } = await import('@/lib/publicApi');
         const res = await fetch(`${supabaseUrl}/functions/v1/upload-sell-photos`, {
           method: 'POST',
-          headers: { 'apikey': anonKey },
+          headers: { 'apikey': anonKey, 'x-lumina-key': LUMINA_PUBLIC_KEY },
           body: formData,
         });
 
