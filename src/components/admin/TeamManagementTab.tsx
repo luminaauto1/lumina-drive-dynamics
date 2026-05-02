@@ -72,6 +72,8 @@ const TeamManagementTab = () => {
       if (mode === 'manual' && (data as any)?.temp_password) {
         setLastCreds({ email: (data as any).email, password: (data as any).temp_password });
         toast.success('Agent created — share the credentials below via WhatsApp');
+      } else if ((data as any)?.email_delivery === 'not_sent_existing_user') {
+        toast.success('Existing user updated as sales agent — use Manual Password to set shareable login details');
       } else {
         toast.success(`Invitation sent to ${email}`);
       }
