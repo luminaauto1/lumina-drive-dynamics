@@ -9,7 +9,7 @@
 //
 // To rotate: change BOTH the value below AND the LUMINA_INTERNAL_API_KEY
 // Supabase secret. The two must match exactly.
-export const LUMINA_PUBLIC_KEY = "lumina-pub-2026-v1-9f3a";
+export const LUMINA_PUBLIC_KEY = "lumina-pub-2026-v2-rotate";
 
 export function publicApiHeaders(): Record<string, string> {
   return { "x-lumina-key": LUMINA_PUBLIC_KEY };
