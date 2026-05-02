@@ -42,3 +42,12 @@ verify_jwt = false
 [functions.easysocial-webhook]
 verify_jwt = false
 
+[functions.send-whatsapp]
+verify_jwt = false
+
+[functions.parse-whatsapp]
+verify_jwt = false
+
+[functions.invite-sales-agent]
+verify_jwt = false
+
