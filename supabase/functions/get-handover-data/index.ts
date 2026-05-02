@@ -91,7 +91,7 @@ serve(async (req: Request) => {
       }
       const { data: signed, error: signErr } = await supabaseAdmin.storage
         .from("delivery-photos")
-        .createSignedUrl(path, 60 * 60 * 24); // 24h
+        .createSignedUrl(path, 60 * 60 * 2); // 2h
       if (!signErr && signed?.signedUrl) {
         signedPhotos.push(signed.signedUrl);
       }
