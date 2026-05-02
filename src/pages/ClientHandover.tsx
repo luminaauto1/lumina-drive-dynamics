@@ -23,8 +23,10 @@ const ClientHandover = () => {
       if (settingsRes.data) setSettings(settingsRes.data);
 
       try {
+        const { publicApiHeaders } = await import('@/lib/publicApi');
         const { data, error } = await supabase.functions.invoke('get-handover-data', {
           body: { dealId },
+          headers: publicApiHeaders(),
         });
 
         if (error || !data) {
