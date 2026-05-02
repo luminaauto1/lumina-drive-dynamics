@@ -1,4 +1,7 @@
 // Edge function: invite a sales_agent (super_admin only)
+// Supports two modes:
+//   - inviteByEmail (default): sends Supabase invite email
+//   - manualPassword: createUser with a temp password the admin can WhatsApp
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -15,7 +18,6 @@ Deno.serve(async (req) => {
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Verify caller is super_admin
     const authHeader = req.headers.get("Authorization") || "";
     const jwt = authHeader.replace("Bearer ", "");
     if (!jwt) {
@@ -32,7 +34,7 @@ Deno.serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    // Server-side role check
+    // Server-side super_admin check
     const { data: roleRows } = await admin
       .from("user_roles")
       .select("role")
@@ -45,24 +47,58 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const email = String(body.email || "").trim().toLowerCase();
+    const mode = String(body.mode || "invite"); // "invite" | "manual"
+    const providedPassword = body.password ? String(body.password) : "";
+    const fullName = body.full_name ? String(body.full_name) : undefined;
+
     if (!email || !email.includes("@")) {
       return new Response(JSON.stringify({ error: "Valid email required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Send invite email (creates the user if they don't exist)
-    const redirectTo = `${new URL(req.url).origin.replace("supabase.co", "lovable.app")}/update-password`;
-    const { data: invite, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, { redirectTo });
+    let userId: string | undefined;
+    let tempPassword: string | undefined;
 
-    let userId: string | undefined = invite?.user?.id;
-
-    if (inviteErr) {
-      // If user already exists, look them up via list and just assign role
-      const { data: list } = await admin.auth.admin.listUsers();
-      const existing = list?.users?.find((u: any) => (u.email || "").toLowerCase() === email);
-      if (!existing) {
-        return new Response(JSON.stringify({ error: inviteErr.message }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (mode === "manual") {
+      // Generate a strong password if admin didn't supply one
+      if (providedPassword && providedPassword.length < 8) {
+        return new Response(JSON.stringify({ error: "Password must be at least 8 characters" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      userId = existing.id;
+      tempPassword = providedPassword || generateStrongPassword(14);
+
+      const { data: created, error: createErr } = await admin.auth.admin.createUser({
+        email,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: fullName ? { full_name: fullName } : undefined,
+      });
+
+      if (createErr) {
+        // Likely already exists — look up and (optionally) reset password
+        const { data: list } = await admin.auth.admin.listUsers();
+        const existing = list?.users?.find((u: any) => (u.email || "").toLowerCase() === email);
+        if (!existing) {
+          return new Response(JSON.stringify({ error: createErr.message }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        userId = existing.id;
+        // Reset to the new temp password so admin can share it
+        await admin.auth.admin.updateUserById(existing.id, { password: tempPassword, email_confirm: true });
+      } else {
+        userId = created.user?.id;
+      }
+    } else {
+      // Default: email invite
+      const redirectTo = `${new URL(req.url).origin.replace("supabase.co", "lovable.app")}/update-password`;
+      const { data: invite, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, { redirectTo });
+      userId = invite?.user?.id;
+
+      if (inviteErr) {
+        const { data: list } = await admin.auth.admin.listUsers();
+        const existing = list?.users?.find((u: any) => (u.email || "").toLowerCase() === email);
+        if (!existing) {
+          return new Response(JSON.stringify({ error: inviteErr.message }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        userId = existing.id;
+      }
     }
 
     if (!userId) {
@@ -72,8 +108,29 @@ Deno.serve(async (req) => {
     // Assign sales_agent role (idempotent)
     await admin.from("user_roles").upsert({ user_id: userId, role: "sales_agent" }, { onConflict: "user_id,role" });
 
-    return new Response(JSON.stringify({ ok: true, user_id: userId }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(
+      JSON.stringify({ ok: true, user_id: userId, mode, email, temp_password: tempPassword }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   } catch (e: any) {
     return new Response(JSON.stringify({ error: e?.message || "Unknown error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
+
+function generateStrongPassword(len = 14): string {
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lower = "abcdefghijkmnpqrstuvwxyz";
+  const digits = "23456789";
+  const symbols = "!@#$%^&*";
+  const all = upper + lower + digits + symbols;
+  const bytes = new Uint8Array(len);
+  crypto.getRandomValues(bytes);
+  let out = "";
+  // Guarantee diversity
+  out += upper[bytes[0] % upper.length];
+  out += lower[bytes[1] % lower.length];
+  out += digits[bytes[2] % digits.length];
+  out += symbols[bytes[3] % symbols.length];
+  for (let i = 4; i < len; i++) out += all[bytes[i] % all.length];
+  return out.split("").sort(() => 0.5 - Math.random()).join("");
+}
