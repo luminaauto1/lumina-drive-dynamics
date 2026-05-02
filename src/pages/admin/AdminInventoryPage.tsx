@@ -81,7 +81,8 @@ const vehicleSchema = z.object({
 type VehicleFormData = z.infer<typeof vehicleSchema>;
 
 const AdminInventoryPage = () => {
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, isSalesAgent } = useAuth();
+  const canManageListings = isSuperAdmin || isSalesAgent;
   const [searchQuery, setSearchQuery] = useState('');
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
@@ -433,11 +434,14 @@ const AdminInventoryPage = () => {
       images,
       body_type: data.body_type || null,
       is_generic_listing: data.is_generic_listing || isSourcingMode,
-      purchase_price: data.purchase_price || 0,
-      reconditioning_cost: data.reconditioning_cost || 0,
       // Save variants for sourcing vehicles
       variants: isSourcingMode && variants.length > 0 ? variants.filter(v => v.name && v.price > 0) : [],
     };
+
+    if (isSuperAdmin) {
+      vehicleData.purchase_price = data.purchase_price || 0;
+      vehicleData.reconditioning_cost = data.reconditioning_cost || 0;
+    }
 
     if (editingVehicle) {
       await updateVehicle.mutateAsync({ id: editingVehicle.id, updates: vehicleData });
@@ -502,9 +506,9 @@ const AdminInventoryPage = () => {
             <p className="text-muted-foreground">Manage your vehicle listings</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {isSuperAdmin && (
+            {canManageListings && (
               <>
-                <AddHiddenStockModal onSuccess={() => queryClient.invalidateQueries({ queryKey: ['vehicles'] })} />
+                {isSuperAdmin && <AddHiddenStockModal onSuccess={() => queryClient.invalidateQueries({ queryKey: ['vehicles'] })} />}
                 <Button onClick={() => openAddSheet(true)} variant="outline" className="gap-2 border-purple-500/30 text-purple-400 hover:bg-purple-500/10">
                   <Truck className="w-4 h-4" />
                   Add Sourcing Example
@@ -768,9 +772,9 @@ const AdminInventoryPage = () => {
                             variant="ghost"
                             size="icon"
                             onClick={() => openEditSheet(vehicle)}
-                            title={isSuperAdmin ? 'Edit vehicle' : 'View vehicle'}
+                            title={canManageListings ? 'Edit vehicle' : 'View vehicle'}
                           >
-                            {isSuperAdmin ? <Edit2 className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            {canManageListings ? <Edit2 className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           </Button>
                           {isSuperAdmin && (
                             <Button
@@ -815,7 +819,7 @@ const AdminInventoryPage = () => {
           </SheetHeader>
 
           {/* Sheet Tabs - Only show Recon tab for existing non-sourcing vehicles */}
-          {editingVehicle && !isSourcingMode && (
+          {isSuperAdmin && editingVehicle && !isSourcingMode && (
             <Tabs value={sheetTab} onValueChange={(v) => setSheetTab(v as 'details' | 'recon')} className="mt-4">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="details">Details</TabsTrigger>
@@ -1037,7 +1041,7 @@ const AdminInventoryPage = () => {
 
               {/* Pricing & Profitability */}
               <div className="space-y-4">
-                <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Pricing & Profitability</h3>
+                <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Pricing{isSuperAdmin ? ' & Profitability' : ''}</h3>
                 
                 <FormField
                   control={form.control}
@@ -1053,7 +1057,7 @@ const AdminInventoryPage = () => {
                   )}
                 />
                 
-                <div className="grid grid-cols-2 gap-4">
+                {isSuperAdmin && <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="purchase_price"
@@ -1080,10 +1084,10 @@ const AdminInventoryPage = () => {
                       </FormItem>
                     )}
                   />
-                </div>
+                </div>}
                 
                 {/* Estimated Profit Display */}
-                <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+                {isSuperAdmin && <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Estimated Profit</span>
                     <span className={`text-lg font-bold ${
@@ -1096,7 +1100,7 @@ const AdminInventoryPage = () => {
                       )}
                     </span>
                   </div>
-                </div>
+                </div>}
               </div>
 
               {/* Sourcing Variants Section */}

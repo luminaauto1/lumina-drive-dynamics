@@ -57,6 +57,7 @@ Deno.serve(async (req) => {
 
     let userId: string | undefined;
     let tempPassword: string | undefined;
+    let emailDelivery: "sent" | "not_sent_existing_user" | "manual" = mode === "manual" ? "manual" : "sent";
 
     if (mode === "manual") {
       // Generate a strong password if admin didn't supply one
@@ -87,7 +88,8 @@ Deno.serve(async (req) => {
       }
     } else {
       // Default: email invite
-      const redirectTo = `${new URL(req.url).origin.replace("supabase.co", "lovable.app")}/update-password`;
+      const appOrigin = req.headers.get("Origin") || "https://luminaauto.co.za";
+      const redirectTo = `${appOrigin}/update-password`;
       const { data: invite, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, { redirectTo });
       userId = invite?.user?.id;
 
@@ -98,6 +100,7 @@ Deno.serve(async (req) => {
           return new Response(JSON.stringify({ error: inviteErr.message }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
         userId = existing.id;
+        emailDelivery = "not_sent_existing_user";
       }
     }
 
@@ -109,7 +112,7 @@ Deno.serve(async (req) => {
     await admin.from("user_roles").upsert({ user_id: userId, role: "sales_agent" }, { onConflict: "user_id,role" });
 
     return new Response(
-      JSON.stringify({ ok: true, user_id: userId, mode, email, temp_password: tempPassword }),
+      JSON.stringify({ ok: true, user_id: userId, mode, email, temp_password: tempPassword, email_delivery: emailDelivery }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e: any) {
