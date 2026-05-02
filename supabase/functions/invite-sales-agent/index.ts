@@ -57,6 +57,7 @@ Deno.serve(async (req) => {
 
     let userId: string | undefined;
     let tempPassword: string | undefined;
+    let emailDelivery: "sent" | "not_sent_existing_user" | "manual" = mode === "manual" ? "manual" : "sent";
 
     if (mode === "manual") {
       // Generate a strong password if admin didn't supply one
@@ -98,6 +99,7 @@ Deno.serve(async (req) => {
           return new Response(JSON.stringify({ error: inviteErr.message }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
         userId = existing.id;
+        emailDelivery = "not_sent_existing_user";
       }
     }
 
