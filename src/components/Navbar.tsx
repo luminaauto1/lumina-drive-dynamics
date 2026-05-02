@@ -13,7 +13,7 @@ const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
   const { wishlist } = useWishlist();
-  const { user, isAdmin } = useAuth();
+  const { user, isStaff, isSuperAdmin } = useAuth();
   const { data: settings } = useSiteSettings();
 
   const showFinanceTab = settings?.show_finance_tab ?? true;
@@ -82,7 +82,7 @@ const Navbar = () => {
 
               {/* Auth Button */}
               {user ? <div className="hidden md:flex items-center gap-2">
-                  {isAdmin && <Link to="/admin">
+                  {isStaff && <Link to={isSuperAdmin ? "/admin" : "/admin/leads"}>
                       <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
                         <Settings className="w-4 h-4 mr-1" />
                         Admin
@@ -149,7 +149,7 @@ const Navbar = () => {
               delay: navLinks.length * 0.1
             }} className="pt-6 border-t border-border">
                   {user ? <div className="flex flex-col gap-4">
-                      {isAdmin && <Link to="/admin">
+                      {isStaff && <Link to={isSuperAdmin ? "/admin" : "/admin/leads"}>
                           <Button variant="outline" className="w-full justify-start">
                             <Settings className="w-4 h-4 mr-2" />
                             Admin Dashboard
