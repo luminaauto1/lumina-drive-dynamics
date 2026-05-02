@@ -81,7 +81,8 @@ const vehicleSchema = z.object({
 type VehicleFormData = z.infer<typeof vehicleSchema>;
 
 const AdminInventoryPage = () => {
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, isSalesAgent } = useAuth();
+  const canManageListings = isSuperAdmin || isSalesAgent;
   const [searchQuery, setSearchQuery] = useState('');
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
@@ -433,11 +434,14 @@ const AdminInventoryPage = () => {
       images,
       body_type: data.body_type || null,
       is_generic_listing: data.is_generic_listing || isSourcingMode,
-      purchase_price: data.purchase_price || 0,
-      reconditioning_cost: data.reconditioning_cost || 0,
       // Save variants for sourcing vehicles
       variants: isSourcingMode && variants.length > 0 ? variants.filter(v => v.name && v.price > 0) : [],
     };
+
+    if (isSuperAdmin) {
+      vehicleData.purchase_price = data.purchase_price || 0;
+      vehicleData.reconditioning_cost = data.reconditioning_cost || 0;
+    }
 
     if (editingVehicle) {
       await updateVehicle.mutateAsync({ id: editingVehicle.id, updates: vehicleData });
