@@ -264,10 +264,8 @@ const handler = async (req: Request): Promise<Response> => {
       } else {
         emailContent = generateEmailHtml(template as EmailTemplate, escapeHtml(clientName), accessToken, vehicleName ? escapeHtml(vehicleName) : undefined);
       }
-    } else {
-      console.log('Supabase credentials not available, using fallback template');
-      emailContent = getFallbackEmailContent(newStatus, escapeHtml(clientName), accessToken, vehicleName ? escapeHtml(vehicleName) : undefined);
     }
+
 
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
