@@ -197,6 +197,18 @@ Deno.serve(async (req) => {
     const changeField = payload?.entry?.[0]?.changes?.[0]?.field;
     const innerValue = payload?.entry?.[0]?.changes?.[0]?.value;
 
+    // ── Gracefully ignore message_status receipts AND revoked/deleted messages ──
+    // These carry no actionable lead data; ack 200 immediately.
+    const firstMsgPeek = innerValue?.messages?.[0];
+    const isRevoked = firstMsgPeek?.type === 'revoke' || firstMsgPeek?.type === 'unsupported';
+    const hasStatuses = Array.isArray(innerValue?.statuses) && innerValue.statuses.length > 0;
+    if (isRevoked || (hasStatuses && (!innerValue?.messages || innerValue.messages.length === 0))) {
+      return new Response(
+        JSON.stringify({ ok: true, skipped: isRevoked ? 'revoked_message' : 'status_receipt' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     // ── Log raw inbound WhatsApp messages (ignore message_status receipts) ──
     // Fire-and-forget so we never delay the 200 ack to EasySocial.
     if (changeField === 'messages' && Array.isArray(innerValue?.messages) && innerValue.messages.length > 0) {
