@@ -250,7 +250,9 @@ const AdminFinance = () => {
       const editLink = `https://luminaauto.co.za/finance-application?edit=${app.id}`;
       const clientName = app.first_name || app.full_name?.split(' ')[0] || 'Client';
       
+      const { publicApiHeaders } = await import('@/lib/publicApi');
       await supabase.functions.invoke('send-email', {
+        headers: publicApiHeaders(),
         body: {
           to: ['lumina.auto1@gmail.com'],
           subject: `Revision Required: ${app.full_name}'s Finance Application`,
