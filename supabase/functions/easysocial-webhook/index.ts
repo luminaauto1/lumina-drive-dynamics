@@ -220,6 +220,13 @@ Deno.serve(async (req) => {
         firstMsg?.context?.url,
         firstMsg?.context?.id,
         firstMsg?.text?.body,
+        // Interactive quick-reply buttons & list selections
+        firstMsg?.interactive?.button_reply?.id,
+        firstMsg?.interactive?.button_reply?.title,
+        firstMsg?.interactive?.list_reply?.id,
+        firstMsg?.interactive?.list_reply?.title,
+        firstMsg?.button?.text,
+        firstMsg?.button?.payload,
       ]
         .filter((v) => v !== undefined && v !== null)
         .map((v) => String(v))
