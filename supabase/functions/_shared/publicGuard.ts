@@ -36,10 +36,17 @@ export function buildCorsHeaders(origin: string | null) {
  */
 export function checkInternalKey(req: Request): Response | null {
   const expected = Deno.env.get("LUMINA_INTERNAL_API_KEY");
-  if (!expected) {
-    // Fail-open in dev if secret missing, but log loudly.
-    console.warn("LUMINA_INTERNAL_API_KEY not set — skipping check");
-    return null;
+  if (!expected || expected.trim() === "") {
+    // FAIL-CLOSED: refuse all requests if the shared secret is not configured.
+    console.error("LUMINA_INTERNAL_API_KEY not set — refusing request (fail-closed)");
+    const headers = buildCorsHeaders(req.headers.get("origin"));
+    return new Response(
+      JSON.stringify({ error: "Server misconfiguration: internal API key not set" }),
+      {
+        status: 500,
+        headers: { ...headers, "Content-Type": "application/json" },
+      },
+    );
   }
 
   const provided =
