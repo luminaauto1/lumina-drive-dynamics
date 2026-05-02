@@ -70,8 +70,61 @@ const TeamManagementTab = () => {
       if (error || (data as any)?.error) throw new Error(error?.message || (data as any)?.error || 'Request failed');
 
       if (mode === 'manual' && (data as any)?.temp_password) {
-        setLastCreds({ email: (data as any).email, password: (data as any).temp_password });
-        toast.success('Agent created — share the credentials below via WhatsApp');
+        const agentEmail = (data as any).email;
+        const tempPassword = (data as any).temp_password;
+        setLastCreds({ email: agentEmail, password: tempPassword });
+
+        // Fire credentials email via EmailJS (direct frontend dispatch — same pattern as status notifications)
+        const loginUrl = `${window.location.origin}/auth`;
+        const emailHtml = `
+          <div style="font-family: system-ui, -apple-system, sans-serif; background-color: #09090b; color: #ffffff; padding: 40px; border-radius: 8px; max-width: 600px; margin: 0 auto; border: 1px solid #27272a;">
+            <h2 style="color: #ffffff; border-bottom: 1px solid #27272a; padding-bottom: 15px; font-weight: 500; letter-spacing: 1px;">LUMINA AUTO</h2>
+            <div style="color: #a1a1aa; font-size: 15px; line-height: 1.6; padding-top: 10px;">
+              <p style="color: #ffffff; font-size: 16px;">Welcome to the Team${fullName.trim() ? `, ${fullName.trim()}` : ''}.</p>
+              <p>Your Sales Agent account has been provisioned. Use the credentials below to access the admin dashboard.</p>
+              <div style="background:#18181b;border:1px solid #27272a;border-radius:6px;padding:16px;margin:20px 0;font-family:'Courier New',monospace;font-size:13px;">
+                <div style="color:#71717a;">Email:</div>
+                <div style="color:#fff;margin-bottom:10px;">${agentEmail}</div>
+                <div style="color:#71717a;">Temporary Password:</div>
+                <div style="color:#fff;margin-bottom:10px;">${tempPassword}</div>
+                <div style="color:#71717a;">Login URL:</div>
+                <div style="color:#fff;"><a href="${loginUrl}" style="color:#fff;text-decoration:underline;">${loginUrl}</a></div>
+              </div>
+              <p style="color:#a1a1aa;font-size:13px;">For security, please change your password after first login.</p>
+            </div>
+            <p style="color: #52525b; font-size: 12px; border-top: 1px solid #27272a; padding-top: 15px;">
+              Pretoria, South Africa<br/>Premium Pre-Owned Vehicles & Finance
+            </p>
+          </div>
+        `;
+
+        fetch("https://api.emailjs.com/api/v1.0/email/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            service_id: "service_myacl2m",
+            template_id: "template_b2igduv",
+            user_id: "pWT3blntfZk-_syL4",
+            template_params: {
+              to_email: agentEmail,
+              subject: "Your Lumina Auto Sales Agent Login",
+              html_message: emailHtml,
+            }
+          }),
+        })
+        .then(async (res) => {
+          if (!res.ok) {
+            const text = await res.text();
+            console.error("EmailJS rejected agent credentials email:", text);
+            toast.success('Agent created — email failed, share credentials manually below');
+          } else {
+            toast.success(`Agent created — credentials emailed to ${agentEmail}`);
+          }
+        })
+        .catch(err => {
+          console.error("EmailJS unreachable for agent credentials:", err);
+          toast.success('Agent created — share credentials manually below');
+        });
       } else if ((data as any)?.email_delivery === 'not_sent_existing_user') {
         toast.success('Existing user updated as sales agent — use Manual Password to set shareable login details');
       } else {
