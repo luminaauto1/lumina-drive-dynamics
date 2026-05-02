@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
     await admin.from("user_roles").upsert({ user_id: userId, role: "sales_agent" }, { onConflict: "user_id,role" });
 
     return new Response(
-      JSON.stringify({ ok: true, user_id: userId, mode, email, temp_password: tempPassword }),
+      JSON.stringify({ ok: true, user_id: userId, mode, email, temp_password: tempPassword, email_delivery: emailDelivery }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e: any) {
