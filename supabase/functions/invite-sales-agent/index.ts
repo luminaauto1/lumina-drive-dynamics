@@ -88,7 +88,8 @@ Deno.serve(async (req) => {
       }
     } else {
       // Default: email invite
-      const redirectTo = `${new URL(req.url).origin.replace("supabase.co", "lovable.app")}/update-password`;
+      const appOrigin = req.headers.get("Origin") || "https://luminaauto.co.za";
+      const redirectTo = `${appOrigin}/update-password`;
       const { data: invite, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, { redirectTo });
       userId = invite?.user?.id;
 
