@@ -105,6 +105,41 @@ const AdminLeadAnalytics = () => {
   const [apps, setApps] = useState<AppRow[]>([]);
   const [messageCount, setMessageCount] = useState(0);
   const [messages, setMessages] = useState<{ created_at: string; platform_source: string | null }[]>([]);
+  const [hiddenSeries, setHiddenSeries] = useState<Record<string, boolean>>({});
+
+  const toggleSeries = (key: string) => {
+    setHiddenSeries((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const renderInteractiveLegend = (props: any) => {
+    const { payload } = props;
+    if (!payload) return null;
+    return (
+      <ul className="flex flex-wrap gap-3 justify-center pt-2 text-[11px]">
+        {payload.map((entry: any) => {
+          const hidden = !!hiddenSeries[entry.dataKey];
+          return (
+            <li
+              key={entry.dataKey}
+              onClick={() => toggleSeries(entry.dataKey)}
+              className="cursor-pointer flex items-center gap-1.5 select-none transition-opacity"
+              style={{
+                opacity: hidden ? 0.35 : 1,
+                textDecoration: hidden ? 'line-through' : 'none',
+                color: entry.color,
+              }}
+            >
+              <span
+                className="inline-block w-2.5 h-2.5 rounded-full"
+                style={{ backgroundColor: entry.color }}
+              />
+              {entry.value}
+            </li>
+          );
+        })}
+      </ul>
+    );
+  };
 
   useEffect(() => {
     let cancelled = false;
