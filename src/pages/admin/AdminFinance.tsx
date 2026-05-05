@@ -169,7 +169,7 @@ const AdminFinance = () => {
     if (!pendingApp || !pendingStatus) return;
     try {
       // Auto-Archive Logic: Declined/Lost are immediately archived
-      const isTerminal = pendingStatus === 'declined' || pendingStatus === 'lost';
+      const isTerminal = pendingStatus === 'declined' || pendingStatus === 'lost' || pendingStatus === 'blacklisted';
       const finalStatus = isTerminal ? 'archived' : pendingStatus;
 
       let updatedNotes = pendingApp.notes || '';
