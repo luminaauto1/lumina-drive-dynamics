@@ -12,6 +12,7 @@ export const STATUS_OPTIONS = [
   { value: 'contract_signed', label: 'Contract Signed' },
   { value: 'vehicle_delivered', label: 'Vehicle Delivered' },
   { value: 'declined', label: 'Declined' },
+  { value: 'blacklisted', label: 'Blacklisted / Bad Credit / Judgements' },
   { value: 'vehicle_selected', label: 'Vehicle Selected' },
   { value: 'needs_revision', label: 'Needs Revision' },
   { value: 'revision_submitted', label: 'Revision Submitted' },
