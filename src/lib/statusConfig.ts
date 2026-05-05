@@ -95,6 +95,7 @@ export const ADMIN_STATUS_LABELS: Record<string, string> = {
   contract_signed: 'Contract Signed',
   vehicle_delivered: '🎉 Delivered',
   declined: 'Declined',
+  blacklisted: 'Blacklisted / Bad Credit / Judgements',
   vehicle_selected: 'Vehicle Selected',
   approved: 'Approved - Select Vehicle',
   finalized: 'Finalized',
