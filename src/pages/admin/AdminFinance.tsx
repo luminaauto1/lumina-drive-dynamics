@@ -487,6 +487,18 @@ const AdminFinance = () => {
                             ⚠ {riskReason}
                           </span>
                         )}
+                        {(() => {
+                          const src = (app as any).submission_source || 'website';
+                          const label = src === 'whatsapp_parser' ? 'WhatsApp PDF' : 'Website';
+                          return (
+                            <span
+                              className="px-1.5 py-0.5 text-[10px] uppercase tracking-wider rounded border border-white/10 bg-white/5 text-white/70"
+                              title={`Source: ${label}`}
+                            >
+                              {label}
+                            </span>
+                          );
+                        })()}
                       </div>
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
