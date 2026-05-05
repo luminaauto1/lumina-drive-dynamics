@@ -54,3 +54,6 @@ verify_jwt = false
 [functions.notify-app-submitted]
 verify_jwt = false
 
+[functions.notify-blacklisted]
+verify_jwt = false
+
