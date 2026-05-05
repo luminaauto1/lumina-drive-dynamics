@@ -202,6 +202,62 @@ const AdminFinance = () => {
         action_type: 'Status Update'
       }]);
 
+      // Blacklisted mirrors Declined: dispatch the declined client email AND
+      // fire the dedicated blacklisted WhatsApp notification.
+      if (pendingStatus === 'blacklisted' || pendingStatus === 'declined') {
+        try {
+          const { data: tpl } = await supabase
+            .from('email_templates')
+            .select('*')
+            .eq('status_key', 'declined')
+            .eq('is_active', true)
+            .maybeSingle();
+          if (tpl && pendingApp.email) {
+            const firstName = pendingApp.first_name || 'Valued Client';
+            const heading = (tpl.heading || '').replace(/\{\{clientName\}\}/g, firstName);
+            const bodyContent = (tpl.body_content || '').replace(/\{\{clientName\}\}/g, firstName);
+            const emailHtml = `
+              <div style="font-family: system-ui, -apple-system, sans-serif; background-color: #09090b; color: #ffffff; padding: 40px; border-radius: 8px; max-width: 600px; margin: 0 auto; border: 1px solid #27272a;">
+                <h2 style="color: #ffffff; border-bottom: 1px solid #27272a; padding-bottom: 15px; font-weight: 500; letter-spacing: 1px;">LUMINA AUTO</h2>
+                <div style="color: #a1a1aa; font-size: 15px; line-height: 1.6; padding-top: 10px;">
+                  <p style="color: #ffffff; font-size: 16px;">${heading}</p>
+                  <p>${bodyContent}</p>
+                </div>
+                <br/><br/>
+                <p style="color: #52525b; font-size: 12px; border-top: 1px solid #27272a; padding-top: 15px;">
+                  Pretoria, South Africa<br/>Premium Pre-Owned Vehicles & Finance
+                </p>
+              </div>`;
+            fetch("https://api.emailjs.com/api/v1.0/email/send", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                service_id: "service_myacl2m",
+                template_id: "template_b2igduv",
+                user_id: "pWT3blntfZk-_syL4",
+                template_params: { to_email: pendingApp.email, subject: tpl.subject, html_message: emailHtml },
+              }),
+            }).catch(err => console.error("EmailJS dispatch failed:", err));
+          }
+        } catch (e) { console.error("declined-email lookup failed:", e); }
+
+        if (pendingStatus === 'blacklisted' && pendingApp.phone) {
+          try {
+            const { publicApiHeaders } = await import('@/lib/publicApi');
+            const clientName = pendingApp.first_name || pendingApp.full_name || 'Valued Client';
+            supabase.functions.invoke('notify-blacklisted', {
+              body: { phone_number: pendingApp.phone, client_name: clientName },
+              headers: publicApiHeaders(),
+            }).then(({ error: waErr }) => {
+              if (waErr) console.error('[notify-blacklisted] error:', waErr);
+              else console.log('[notify-blacklisted] dispatched for', pendingApp.phone);
+            });
+          } catch (waEx) {
+            console.error('[notify-blacklisted] failed to invoke:', waEx);
+          }
+        }
+      }
+
       toast({ title: "Status & CRM notes updated" });
       refetch();
     } catch (error: any) {
