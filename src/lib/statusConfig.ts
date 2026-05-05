@@ -73,6 +73,7 @@ export const STATUS_STYLES: Record<string, string> = {
   contract_signed: 'bg-emerald-600/20 text-emerald-500 border-emerald-600/30',
   vehicle_delivered: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
   declined: 'bg-red-500/20 text-red-400 border-red-500/30',
+  blacklisted: 'bg-red-500/20 text-red-400 border-red-500/30',
   vehicle_selected: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
   approved: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   finalized: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
