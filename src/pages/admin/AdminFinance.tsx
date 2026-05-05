@@ -280,7 +280,7 @@ const AdminFinance = () => {
   };
 
   // Stats for active applications only
-  const activeApps = applications.filter(a => !['finalized', 'delivered', 'vehicle_delivered', 'archived', 'declined'].includes((a.status || '').toLowerCase().trim()));
+  const activeApps = applications.filter(a => !['finalized', 'delivered', 'vehicle_delivered', 'archived', 'declined', 'blacklisted'].includes((a.status || '').toLowerCase().trim()));
 
   return (
     <AdminLayout>
