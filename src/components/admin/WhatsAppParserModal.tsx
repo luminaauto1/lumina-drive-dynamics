@@ -116,7 +116,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
         const fullName = `${parsedData.first_name || ''} ${parsedData.last_name || ''}`.trim() || 'WhatsApp Lead';
         const grossNum = Number(String(parsedData.gross_income || '').replace(/[^\d.]/g, '')) || null;
         const netNum = Number(String(parsedData.net_income || '').replace(/[^\d.]/g, '')) || null;
-        const { error: insertError } = await supabase.from('finance_applications').insert([{
+        const insertPayload = {
           user_id: user.id,
           first_name: parsedData.first_name || 'Unknown',
           last_name: parsedData.last_name || '',
@@ -142,7 +142,9 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
           internal_status: 'new_lead',
           submission_source: 'whatsapp_parser',
           notes: `[WhatsApp Parser] Full application saved from parsed WhatsApp message.`,
-        } as any]);
+        } as any;
+        console.log('Inserting Finance App with payload:', insertPayload);
+        const { error: insertError } = await supabase.from('finance_applications').insert([insertPayload]);
         if (insertError) console.warn('Application insert failed:', insertError);
       }
 
