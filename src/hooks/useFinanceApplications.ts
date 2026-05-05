@@ -176,6 +176,28 @@ export const useUpdateFinanceApplication = () => {
         }
       }
 
+      // WhatsApp "Blacklisted / Bad Credit" notification — same dispatch
+      // pattern as application_submitted, routed to notify-blacklisted.
+      if (
+        statusActuallyChanged &&
+        newStatus === 'blacklisted' &&
+        currentApp?.phone
+      ) {
+        try {
+          const { publicApiHeaders } = await import('@/lib/publicApi');
+          const clientName = currentApp.first_name || currentApp.full_name || 'Valued Client';
+          supabase.functions.invoke('notify-blacklisted', {
+            body: { phone_number: currentApp.phone, client_name: clientName },
+            headers: publicApiHeaders(),
+          }).then(({ error: waErr }) => {
+            if (waErr) console.error('[notify-blacklisted] error:', waErr);
+            else console.log('[notify-blacklisted] dispatched for', currentApp.phone);
+          });
+        } catch (waEx) {
+          console.error('[notify-blacklisted] failed to invoke:', waEx);
+        }
+      }
+
       return data;
     },
     onSuccess: () => {
