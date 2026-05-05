@@ -154,6 +154,28 @@ export const useUpdateFinanceApplication = () => {
         console.log(`[Auto-Mailer] Status "${newStatus}" is not email-eligible. Silent transition.`);
       }
 
+      // WhatsApp "Submitted to Bank" notification — fires when status moves
+      // from pending → application_submitted (regardless of submission_source).
+      if (
+        statusActuallyChanged &&
+        newStatus === 'application_submitted' &&
+        currentApp?.phone
+      ) {
+        try {
+          const { publicApiHeaders } = await import('@/lib/publicApi');
+          const clientName = currentApp.first_name || currentApp.full_name || 'Valued Client';
+          supabase.functions.invoke('notify-app-submitted', {
+            body: { phone_number: currentApp.phone, client_name: clientName },
+            headers: publicApiHeaders(),
+          }).then(({ error: waErr }) => {
+            if (waErr) console.error('[notify-app-submitted] error:', waErr);
+            else console.log('[notify-app-submitted] dispatched for', currentApp.phone);
+          });
+        } catch (waEx) {
+          console.error('[notify-app-submitted] failed to invoke:', waEx);
+        }
+      }
+
       return data;
     },
     onSuccess: () => {

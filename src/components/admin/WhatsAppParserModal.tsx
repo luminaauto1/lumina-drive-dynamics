@@ -110,10 +110,12 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
       // 1. Generate the PDF
       await generateFinancePDF(applicationObj);
 
-      // 2. Create basic tracking shell in finance_applications (contact info only — no sensitive financials)
+      // 2. Save FULL application to finance_applications (tagged as whatsapp_parser source)
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const fullName = `${parsedData.first_name || ''} ${parsedData.last_name || ''}`.trim() || 'WhatsApp Lead';
+        const grossNum = Number(String(parsedData.gross_income || '').replace(/[^\d.]/g, '')) || null;
+        const netNum = Number(String(parsedData.net_income || '').replace(/[^\d.]/g, '')) || null;
         const { error: insertError } = await supabase.from('finance_applications').insert([{
           user_id: user.id,
           first_name: parsedData.first_name || 'Unknown',
@@ -121,15 +123,30 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
           full_name: fullName,
           email: parsedData.email || `wa-${Date.now()}@lumina.local`,
           phone: parsedData.phone || 'N/A',
+          id_number: parsedData.id_number || null,
+          gender: parsedData.gender || null,
+          marital_status: parsedData.marital_status || null,
+          street_address: parsedData.physical_address || null,
+          employer_name: parsedData.employer_name || null,
+          employer_address: parsedData.workplace_address || null,
+          job_title: parsedData.job_title || null,
+          employment_period: parsedData.employment_start || null,
+          gross_salary: grossNum,
+          net_salary: netNum,
+          expenses_summary: parsedData.living_expenses || null,
+          bank_name: parsedData.bank_name || null,
+          account_number: parsedData.account_number || null,
+          kin_name: parsedData.kin_name || null,
+          kin_contact: parsedData.kin_phone || null,
           status: 'pending',
           internal_status: 'new_lead',
-          notes: `[WhatsApp Parser] Tracking shell created on PDF generation. Sensitive data intentionally omitted.`,
-          // Intentionally omitting sensitive data (id_number, income, bank, kin) per admin instruction
+          submission_source: 'whatsapp_parser',
+          notes: `[WhatsApp Parser] Full application saved from parsed WhatsApp message.`,
         } as any]);
-        if (insertError) console.warn('Tracking shell insert failed:', insertError);
+        if (insertError) console.warn('Application insert failed:', insertError);
       }
 
-      toast.success('PDF Generated & Tracking Lead Created');
+      toast.success('PDF Generated & Application Saved');
       setRawText('');
       setParsedData(null);
       onOpenChange(false);
