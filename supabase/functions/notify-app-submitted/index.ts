@@ -27,7 +27,7 @@ serve(async (req) => {
     const waUrl = `https://api.easysocial.in/api/v1/wa-templates/send/${easysocialToken}/19069/4026/API/${cleanPhone}?body1=${safeName}`;
 
     const response = await fetch(waUrl, {
-      method: "POST",
+      method: "GET",
       headers: { Accept: "application/json" },
     });
     const responseText = await response.text();
