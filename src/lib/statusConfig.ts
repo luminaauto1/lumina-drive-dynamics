@@ -12,6 +12,7 @@ export const STATUS_OPTIONS = [
   { value: 'contract_signed', label: 'Contract Signed' },
   { value: 'vehicle_delivered', label: 'Vehicle Delivered' },
   { value: 'declined', label: 'Declined' },
+  { value: 'blacklisted', label: 'Blacklisted / Bad Credit / Judgements' },
   { value: 'vehicle_selected', label: 'Vehicle Selected' },
   { value: 'needs_revision', label: 'Needs Revision' },
   { value: 'revision_submitted', label: 'Revision Submitted' },
@@ -31,6 +32,7 @@ export const STATUS_STEP_ORDER: Record<string, number> = {
   contract_signed: 7,
   vehicle_delivered: 8,
   declined: -1, // Exception state
+  blacklisted: -1, // Exception state — mirrors declined
   vehicle_selected: 3, // Parallel to documents_received
   approved: 2, // Legacy - maps to pre_approved
   finalized: 8, // Same as delivered
@@ -50,6 +52,7 @@ export const USER_STATUS_LABELS: Record<string, string> = {
   contract_signed: 'Contract Signed - Preparing Delivery',
   vehicle_delivered: '🎉 Vehicle Delivered - Congratulations!',
   declined: 'Application Unsuccessful',
+  blacklisted: 'Application Unsuccessful',
   vehicle_selected: 'Vehicle Reserved - Preparing Contract',
   approved: 'Approved - Select Vehicle',
   finalized: '🎉 Deal Complete!',
@@ -71,6 +74,7 @@ export const STATUS_STYLES: Record<string, string> = {
   contract_signed: 'bg-emerald-600/20 text-emerald-500 border-emerald-600/30',
   vehicle_delivered: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
   declined: 'bg-red-500/20 text-red-400 border-red-500/30',
+  blacklisted: 'bg-red-500/20 text-red-400 border-red-500/30',
   vehicle_selected: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
   approved: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   finalized: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
@@ -92,6 +96,7 @@ export const ADMIN_STATUS_LABELS: Record<string, string> = {
   contract_signed: 'Contract Signed',
   vehicle_delivered: '🎉 Delivered',
   declined: 'Declined',
+  blacklisted: 'Blacklisted / Bad Credit / Judgements',
   vehicle_selected: 'Vehicle Selected',
   approved: 'Approved - Select Vehicle',
   finalized: 'Finalized',
