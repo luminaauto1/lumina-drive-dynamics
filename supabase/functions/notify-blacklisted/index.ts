@@ -24,8 +24,9 @@ serve(async (req) => {
 
     const firstName = String(client_name).trim().split(/\s+/)[0] || "Client";
 
-    const token = "cmot25o7s6fg2awxpduliagep";
-    const apiUrl = `https://api.easysocial.in/api/v1/wa-templates/send/${token}/19097/4026/API/${sanitizedPhone}?body1=${encodeURIComponent(firstName)}`;
+    // Use the SAME working EasySocial token + template route as notify-app-submitted
+    const token = "cmoqxck4q0zsyezxpayafg220";
+    const apiUrl = `https://api.easysocial.in/api/v1/wa-templates/send/${token}/19069/4026/API/${sanitizedPhone}?body1=${encodeURIComponent(firstName)}`;
     console.log("Dispatching to EasySocial (blacklisted):", apiUrl);
 
     const response = await fetch(apiUrl, {
