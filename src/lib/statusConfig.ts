@@ -32,6 +32,7 @@ export const STATUS_STEP_ORDER: Record<string, number> = {
   contract_signed: 7,
   vehicle_delivered: 8,
   declined: -1, // Exception state
+  blacklisted: -1, // Exception state — mirrors declined
   vehicle_selected: 3, // Parallel to documents_received
   approved: 2, // Legacy - maps to pre_approved
   finalized: 8, // Same as delivered
