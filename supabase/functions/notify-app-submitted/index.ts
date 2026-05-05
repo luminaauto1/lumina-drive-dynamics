@@ -41,7 +41,7 @@ serve(async (req) => {
       console.log("Dispatching to EasySocial:", apiUrl);
 
       const response = await fetch(apiUrl, {
-        method: "POST",
+        method: "GET",
         headers: { Accept: "application/json" },
       });
 
