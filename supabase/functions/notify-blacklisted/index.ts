@@ -24,26 +24,43 @@ serve(async (req) => {
 
     const firstName = String(client_name).trim().split(/\s+/)[0] || "Client";
 
-    // Use the SAME working EasySocial token + template route as notify-app-submitted
-    const token = "cmoqxck4q0zsyezxpayafg220";
-    const apiUrl = `https://api.easysocial.in/api/v1/wa-templates/send/${token}/19069/4026/API/${sanitizedPhone}?body1=${encodeURIComponent(firstName)}`;
-    console.log("Dispatching to EasySocial (blacklisted):", apiUrl);
+    // Mirror notify-app-submitted's request format/security, but use the blacklisted template route.
+    const documentedToken = "cmot25o7s6fg2awxpduliagep";
+    const envToken = Deno.env.get("EASYSOCIAL_API_KEY")?.trim();
+    const tokens = [...new Set([documentedToken, envToken].filter(Boolean))];
 
-    const response = await fetch(apiUrl, {
-      method: "GET",
-      headers: { Accept: "application/json" },
-    });
-    const rawText = await response.text();
-    let responseData: any;
-    try { responseData = JSON.parse(rawText); } catch { responseData = { raw: rawText }; }
-    console.log("EasySocial Response (blacklisted):", responseData);
+    let responseStatus = 0;
+    let responseData: any = null;
+    let dispatchedUrl = "";
+
+    for (const token of tokens) {
+      const apiUrl = `https://api.easysocial.in/api/v1/wa-templates/send/${token}/19097/4026/API/${sanitizedPhone}?body1=${encodeURIComponent(firstName)}`;
+      dispatchedUrl = apiUrl;
+      console.log("Dispatching to EasySocial (blacklisted):", apiUrl);
+
+      const response = await fetch(apiUrl, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      });
+
+      responseStatus = response.status;
+      const rawText = await response.text();
+      try {
+        responseData = JSON.parse(rawText);
+      } catch {
+        responseData = { raw: rawText };
+      }
+      console.log("EasySocial Response (blacklisted):", responseData);
+
+      if (response.ok && responseData?.success !== false) break;
+    }
 
     return new Response(
       JSON.stringify({
-        success: response.ok && responseData?.success !== false,
-        status: response.status,
+        success: responseStatus >= 200 && responseStatus < 300 && responseData?.success !== false,
+        status: responseStatus,
         api_response: responseData,
-        dispatched_url: apiUrl,
+        dispatched_url: dispatchedUrl,
       }),
       { headers: { ...cors, "Content-Type": "application/json" } },
     );
