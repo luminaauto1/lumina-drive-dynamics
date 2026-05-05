@@ -25,30 +25,40 @@ serve(async (req) => {
     // Task 2: Extract first name + URL-encode
     const firstName = String(client_name).trim().split(/\s+/)[0] || "Client";
 
-    // Use the EasySocial token from env (preferred) but fall back to the documented account token.
-    const token = Deno.env.get("EASYSOCIAL_API_KEY") || "cmoqxck4q0zsyezxpayafg220";
+    // EasySocial logs showed the env token returning 404, so dispatch with the
+    // documented Lumina account token first and only use env as a secondary retry.
+    const documentedToken = "cmoqxck4q0zsyezxpayafg220";
+    const envToken = Deno.env.get("EASYSOCIAL_API_KEY")?.trim();
+    const tokens = [...new Set([documentedToken, envToken].filter(Boolean))];
 
-    const apiUrl = `https://api.easysocial.in/api/v1/wa-templates/send/${token}/19069/4026/API/${sanitizedPhone}?body1=${encodeURIComponent(firstName)}`;
+    let responseStatus = 0;
+    let responseData: any = null;
+    let dispatchedUrl = "";
 
-    // Task 3: Log + POST
-    console.log("Dispatching to EasySocial:", apiUrl);
+    for (const token of tokens) {
+      const apiUrl = `https://api.easysocial.in/api/v1/wa-templates/send/${token}/19069/4026/API/${sanitizedPhone}?body1=${encodeURIComponent(firstName)}`;
+      dispatchedUrl = apiUrl;
+      console.log("Dispatching to EasySocial:", apiUrl);
 
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: { Accept: "application/json" },
-    });
+      const response = await fetch(apiUrl, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      });
 
-    const rawText = await response.text();
-    let responseData: any;
-    try {
-      responseData = JSON.parse(rawText);
-    } catch {
-      responseData = { raw: rawText };
+      responseStatus = response.status;
+      const rawText = await response.text();
+      try {
+        responseData = JSON.parse(rawText);
+      } catch {
+        responseData = { raw: rawText };
+      }
+      console.log("EasySocial Response:", responseData);
+
+      if (response.ok && responseData?.success !== false) break;
     }
-    console.log("EasySocial Response:", responseData);
 
     return new Response(
-      JSON.stringify({ success: response.ok, status: response.status, api_response: responseData }),
+      JSON.stringify({ success: responseStatus >= 200 && responseStatus < 300 && responseData?.success !== false, status: responseStatus, api_response: responseData, dispatched_url: dispatchedUrl }),
       { headers: { ...cors, "Content-Type": "application/json" } },
     );
   } catch (error: any) {
