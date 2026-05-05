@@ -152,7 +152,7 @@ const AdminFinance = () => {
     
     // Filter by active/archived — terminal states auto-hide from active view
     const s = (app.status || '').toLowerCase().trim();
-    const isTerminal = ['finalized', 'delivered', 'vehicle_delivered', 'archived', 'declined'].includes(s);
+    const isTerminal = ['finalized', 'delivered', 'vehicle_delivered', 'archived', 'declined', 'blacklisted'].includes(s);
     const matchesViewMode = viewMode === 'archived' ? isTerminal : !isTerminal;
 
     return matchesSearch && matchesStatus && matchesViewMode;
