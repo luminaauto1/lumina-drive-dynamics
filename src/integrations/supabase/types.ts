@@ -538,6 +538,7 @@ export type Database = {
           source_of_funds: string | null
           status: string
           street_address: string | null
+          submission_source: string
           updated_at: string
           user_id: string | null
           utm_campaign: string | null
@@ -598,6 +599,7 @@ export type Database = {
           source_of_funds?: string | null
           status?: string
           street_address?: string | null
+          submission_source?: string
           updated_at?: string
           user_id?: string | null
           utm_campaign?: string | null
@@ -658,6 +660,7 @@ export type Database = {
           source_of_funds?: string | null
           status?: string
           street_address?: string | null
+          submission_source?: string
           updated_at?: string
           user_id?: string | null
           utm_campaign?: string | null
