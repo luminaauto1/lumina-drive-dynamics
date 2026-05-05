@@ -52,6 +52,7 @@ export const USER_STATUS_LABELS: Record<string, string> = {
   contract_signed: 'Contract Signed - Preparing Delivery',
   vehicle_delivered: '🎉 Vehicle Delivered - Congratulations!',
   declined: 'Application Unsuccessful',
+  blacklisted: 'Application Unsuccessful',
   vehicle_selected: 'Vehicle Reserved - Preparing Contract',
   approved: 'Approved - Select Vehicle',
   finalized: '🎉 Deal Complete!',
