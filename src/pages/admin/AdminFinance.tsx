@@ -488,11 +488,15 @@ const AdminFinance = () => {
                           </span>
                         )}
                         {(() => {
-                          const src = (app as any).submission_source || 'website';
-                          const label = src === 'whatsapp_parser' ? 'WhatsApp PDF' : 'Website';
+                          const src = (app as any).submission_source;
+                          let label: string | null = null;
+                          if (src === 'whatsapp_parser') label = 'WhatsApp PDF';
+                          else if (src === 'website') label = 'Website';
+                          else if (src && String(src).trim() !== '') label = String(src);
+                          else label = 'Legacy';
                           return (
                             <span
-                              className="px-1.5 py-0.5 text-[10px] uppercase tracking-wider rounded border border-white/10 bg-white/5 text-white/70"
+                              className="px-1.5 py-0.5 text-[10px] uppercase tracking-wider rounded border border-white/10 bg-white/5 text-white/60"
                               title={`Source: ${label}`}
                             >
                               {label}
