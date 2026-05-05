@@ -13,30 +13,46 @@ serve(async (req) => {
     if (!phone_number) throw new Error("No phone_number provided.");
     if (!client_name) throw new Error("No client_name provided.");
 
-    let cleanPhone = String(phone_number).replace(/\D/g, "");
-    if (cleanPhone.startsWith("0")) cleanPhone = "27" + cleanPhone.substring(1);
-    if (cleanPhone.length < 8 || cleanPhone.length > 15) {
+    // Task 1: Sanitize phone number
+    let sanitizedPhone = String(phone_number).replace(/[\s\-+()]/g, "").replace(/\D/g, "");
+    if (sanitizedPhone.startsWith("0")) {
+      sanitizedPhone = "27" + sanitizedPhone.substring(1);
+    }
+    if (sanitizedPhone.length < 8 || sanitizedPhone.length > 15) {
       throw new Error("Invalid phone number");
     }
 
-    const easysocialToken = Deno.env.get("EASYSOCIAL_API_KEY");
-    if (!easysocialToken) throw new Error("EasySocial API key not configured");
+    // Task 2: Extract first name + URL-encode
+    const firstName = String(client_name).trim().split(/\s+/)[0] || "Client";
 
-    // Distinct template (cmoqxck4q0zsyezxpayafg220 / 19069) for "Submitted to Bank"
-    const safeName = encodeURIComponent(String(client_name).trim());
-    const waUrl = `https://api.easysocial.in/api/v1/wa-templates/send/${easysocialToken}/19069/4026/API/${cleanPhone}?body1=${safeName}`;
+    // Use the EasySocial token from env (preferred) but fall back to the documented account token.
+    const token = Deno.env.get("EASYSOCIAL_API_KEY") || "cmoqxck4q0zsyezxpayafg220";
 
-    const response = await fetch(waUrl, {
-      method: "GET",
+    const apiUrl = `https://api.easysocial.in/api/v1/wa-templates/send/${token}/19069/4026/API/${sanitizedPhone}?body1=${encodeURIComponent(firstName)}`;
+
+    // Task 3: Log + POST
+    console.log("Dispatching to EasySocial:", apiUrl);
+
+    const response = await fetch(apiUrl, {
+      method: "POST",
       headers: { Accept: "application/json" },
     });
-    const responseText = await response.text();
+
+    const rawText = await response.text();
+    let responseData: any;
+    try {
+      responseData = JSON.parse(rawText);
+    } catch {
+      responseData = { raw: rawText };
+    }
+    console.log("EasySocial Response:", responseData);
 
     return new Response(
-      JSON.stringify({ success: true, api_response: responseText }),
+      JSON.stringify({ success: response.ok, status: response.status, api_response: responseData }),
       { headers: { ...cors, "Content-Type": "application/json" } },
     );
   } catch (error: any) {
+    console.error("notify-app-submitted error:", error?.message || error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...cors, "Content-Type": "application/json" },
