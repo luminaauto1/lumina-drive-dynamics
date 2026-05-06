@@ -10,6 +10,8 @@ export type FinanceApplication = Tables<'finance_applications'> & {
     year: number;
   };
   internal_status?: string | null;
+  created_by?: string | null;
+  creator?: { full_name: string | null; email: string | null } | null;
 };
 
 export const useFinanceApplications = () => {
@@ -23,9 +25,26 @@ export const useFinanceApplications = () => {
           vehicle:vehicles!finance_applications_vehicle_id_fkey(make, model, year)
         `)
         .order('created_at', { ascending: false });
-      
+
       if (error) throw error;
-      return data as FinanceApplication[];
+
+      // Attach creator profiles in batch (no FK; manual join on profiles.user_id)
+      const apps = (data || []) as FinanceApplication[];
+      const creatorIds = Array.from(
+        new Set(apps.map(a => (a as any).created_by).filter(Boolean) as string[])
+      );
+      if (creatorIds.length) {
+        const { data: profs } = await supabase
+          .from('profiles')
+          .select('user_id, full_name, email')
+          .in('user_id', creatorIds);
+        const byId = new Map((profs || []).map((p: any) => [p.user_id, p]));
+        apps.forEach(a => {
+          const cid = (a as any).created_by;
+          a.creator = cid ? (byId.get(cid) as any) || null : null;
+        });
+      }
+      return apps;
     },
   });
 };
