@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-export type StaffRole = 'super_admin' | 'sales_agent' | null;
+export type StaffRole = 'super_admin' | 'sales_agent' | 'f_and_i' | null;
 
 interface AuthContextType {
   user: User | null;
@@ -15,7 +15,9 @@ interface AuthContextType {
   isSuperAdmin: boolean;
   /** True for sales_agent role. */
   isSalesAgent: boolean;
-  /** True if the user is any staff member (super_admin OR sales_agent). */
+  /** True for f_and_i role. */
+  isFAndI: boolean;
+  /** True if the user is any staff member (super_admin OR sales_agent OR f_and_i). */
   isStaff: boolean;
   /** Normalized role label, or null if not staff. */
   role: StaffRole;
@@ -110,6 +112,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setRole('super_admin');
     } else if (roles.includes('sales_agent')) {
       setRole('sales_agent');
+    } else if (roles.includes('f_and_i')) {
+      setRole('f_and_i');
     } else {
       setRole(null);
     }
@@ -147,13 +151,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const isSuperAdmin = role === 'super_admin';
   const isSalesAgent = role === 'sales_agent';
-  const isStaff = isSuperAdmin || isSalesAgent;
+  const isFAndI = role === 'f_and_i';
+  const isStaff = isSuperAdmin || isSalesAgent || isFAndI;
   // Backwards-compat: existing code uses isAdmin to mean "full access".
   // Sales agents are NOT admins.
   const isAdmin = isSuperAdmin;
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isAdmin, isSuperAdmin, isSalesAgent, isStaff, role, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, isAdmin, isSuperAdmin, isSalesAgent, isFAndI, isStaff, role, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );
