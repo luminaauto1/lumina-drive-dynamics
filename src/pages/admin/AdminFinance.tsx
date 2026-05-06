@@ -277,6 +277,22 @@ const AdminFinance = () => {
             console.error('[notify-blacklisted] failed to invoke:', waEx);
           }
         }
+
+        if (pendingStatus === 'declined' && pendingApp.phone) {
+          try {
+            const { publicApiHeaders } = await import('@/lib/publicApi');
+            const clientName = pendingApp.first_name || pendingApp.full_name || 'Valued Client';
+            supabase.functions.invoke('notify-declined', {
+              body: { phone_number: pendingApp.phone, client_name: clientName },
+              headers: publicApiHeaders(),
+            }).then(({ error: waErr }) => {
+              if (waErr) console.error('[notify-declined] error:', waErr);
+              else console.log('[notify-declined] dispatched for', pendingApp.phone);
+            });
+          } catch (waEx) {
+            console.error('[notify-declined] failed to invoke:', waEx);
+          }
+        }
       }
 
       toast({ title: "Status & CRM notes updated" });
