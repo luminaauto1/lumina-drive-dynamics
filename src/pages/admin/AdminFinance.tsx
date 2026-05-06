@@ -728,7 +728,7 @@ const AdminFinance = () => {
                                  // (Task 4 — Feed Clearance / state reset).
                                  status: newStatus,
                                  is_archived: archiveOnTerminal,
-                                 ...(clearInternal ? { internal_status: null } : {}),
+                                 ...(clearInternal ? { internal_status: 'no_notes' } : {}),
                                },
                             });
                             // Task 3 — Auto audit note when sent_to_banks.
