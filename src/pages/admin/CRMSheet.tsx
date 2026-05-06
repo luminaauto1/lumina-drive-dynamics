@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import BankReferenceModal from '@/components/admin/BankReferenceModal';
 import { useLeads, useUpdateLead, useCreateLead } from '@/hooks/useLeads';
 import { useFinanceApplications, useUpdateFinanceApplication } from '@/hooks/useFinanceApplications';
 import { STATUS_OPTIONS as FINANCE_STATUS_OPTIONS } from '@/lib/statusConfig';
