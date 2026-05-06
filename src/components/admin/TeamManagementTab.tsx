@@ -255,6 +255,22 @@ const TeamManagementTab = () => {
           </TabsContent>
         </Tabs>
 
+        <div className="space-y-2 max-w-md">
+          <Label>Role</Label>
+          <Select value={role} onValueChange={(v) => setRole(v as StaffRoleKind)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="sales_agent">Salesperson</SelectItem>
+              <SelectItem value="f_and_i">F&I (Finance & Insurance)</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            F&I users can only move applications between Pre-Approved → Contract Signed.
+          </p>
+        </div>
+
         <div className="flex justify-end">
           <Button type="button" onClick={handleSubmit} disabled={inviting || !email.trim()} className="gap-2">
             {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
@@ -282,7 +298,7 @@ const TeamManagementTab = () => {
       </div>
 
       <div className="space-y-2">
-        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Active Sales Agents ({agents.length})</h3>
+        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Active Team Members ({agents.length})</h3>
         {loading ? (
           <div className="text-center py-6 text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin inline" /></div>
         ) : agents.length === 0 ? (
@@ -296,7 +312,12 @@ const TeamManagementTab = () => {
                     <Mail className="w-4 h-4 text-primary" />
                   </div>
                   <div>
-                    <p className="font-medium text-sm">{a.full_name || a.email || 'Unnamed agent'}</p>
+                    <p className="font-medium text-sm flex items-center gap-2">
+                      {a.full_name || a.email || 'Unnamed user'}
+                      <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-primary/30 bg-primary/10 text-primary">
+                        {ROLE_LABELS[a.role]}
+                      </span>
+                    </p>
                     {a.full_name && a.email && (
                       <p className="text-xs text-muted-foreground">{a.email}</p>
                     )}
@@ -306,7 +327,7 @@ const TeamManagementTab = () => {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  onClick={() => handleRevoke(a.user_id, a.email || 'this agent')}
+                  onClick={() => handleRevoke(a.user_id, a.email || 'this user', a.role)}
                   className="text-destructive hover:text-destructive"
                 >
                   <Trash2 className="w-4 h-4" />
