@@ -1,18 +1,23 @@
 export const INTERNAL_STATUSES = {
-  attention_needed: { label: "Attention Needed", color: "bg-red-500/10 text-red-500 border-red-500/20" },
-  feedback_provided: { label: "Feedback Provided", color: "bg-sky-500/10 text-sky-400 border-sky-500/20" },
+  no_notes: { label: "No Notes", color: "bg-zinc-500/10 text-zinc-400 border-zinc-500/20" },
+  updates_needed: { label: "Updates Needed", color: "bg-red-500/10 text-red-500 border-red-500/20" },
+  info_updated: { label: "Info Updated", color: "bg-sky-500/10 text-sky-400 border-sky-500/20" },
+  note_to_f_and_i: { label: "Note to F&I", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
+  note_to_sales: { label: "Note to Sales", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
 } as const;
 
 export type InternalStatus = keyof typeof INTERNAL_STATUSES;
 
-// Legacy keys collapse to one of the two canonical statuses for backwards
+// Legacy keys collapse to one of the canonical statuses for backwards
 // compatibility with rows still holding deprecated values.
 export const LEGACY_INTERNAL_STATUS_MAP: Record<string, InternalStatus> = {
-  give_attention: 'attention_needed',
-  attention_given: 'attention_needed',
-  new_lead: 'attention_needed',
-  feedback_received: 'feedback_provided',
-  resolved_ready_for_f_and_i: 'feedback_provided',
+  attention_needed: 'updates_needed',
+  feedback_provided: 'info_updated',
+  give_attention: 'updates_needed',
+  attention_given: 'no_notes',
+  new_lead: 'updates_needed',
+  feedback_received: 'info_updated',
+  resolved_ready_for_f_and_i: 'info_updated',
 };
 
 export function normalizeInternalStatus(value: string | null | undefined): InternalStatus | null {
