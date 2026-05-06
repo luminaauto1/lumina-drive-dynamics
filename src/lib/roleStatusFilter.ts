@@ -5,6 +5,7 @@ export const F_AND_I_ALLOWED_STATUSES = [
   'validations_complete',
   'contract_sent',
   'contract_signed',
+  'declined',
 ];
 
 export function filterStatusOptionsForRole<T extends { value: string }>(
