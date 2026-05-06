@@ -595,13 +595,20 @@ const AdminFinance = () => {
                               console.error('[notify-declined] failed to invoke:', waEx);
                             }
                           }
+                          // GUARDRAIL: only allow whitelisted finance statuses to reach DB.
+                          const validFinanceStatuses = STATUS_OPTIONS.map(o => o.value);
+                          if (!validFinanceStatuses.includes(newStatus)) {
+                            console.warn('[finance-status] rejected invalid value:', newStatus);
+                            return;
+                          }
                           const archiveOnTerminal = ['declined', 'blacklisted', 'lost'].includes(newStatus);
                           try {
                             await updateApplication.mutateAsync({
                               id: app.id,
                               updates: {
+                                 // ISOLATED: only patch the finance pipeline column.
+                                 // Never write into internal_status from this dropdown.
                                  status: newStatus,
-                                 internal_status: newStatus,
                                  is_archived: archiveOnTerminal,
                                },
                             });
