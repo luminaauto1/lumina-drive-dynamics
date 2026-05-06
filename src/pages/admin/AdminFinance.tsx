@@ -816,6 +816,23 @@ const AdminFinance = () => {
         clientPhone={selectedPhone}
       />
       <WhatsAppParserModal open={waModalOpen} onOpenChange={setWaModalOpen} />
+
+      <BankReferenceModal
+        open={bankRefModalOpen}
+        onOpenChange={(o) => { setBankRefModalOpen(o); if (!o) setBankRefApp(null); }}
+        defaultValue={(bankRefApp as any)?.bank_reference || ''}
+        onConfirm={async (reference) => {
+          if (!bankRefApp) return;
+          try {
+            await updateApplication.mutateAsync({
+              id: bankRefApp.id,
+              updates: { status: 'application_submitted', bank_reference: reference },
+            });
+          } catch (err) {
+            // error toast handled by hook
+          }
+        }}
+      />
     </AdminLayout>
   );
 };
