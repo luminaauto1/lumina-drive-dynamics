@@ -367,10 +367,11 @@ const AdminFinance = () => {
           </div>
         </motion.div>
 
-        {/* F&I Action Feed — alerts for apps flagged "Resolved - Ready for F&I" */}
+        {/* F&I Action Feed — alerts for apps flagged as ready for F&I review */}
         {(() => {
+          const actionFeedStatuses = new Set(['resolved_ready_for_f_and_i', 'feedback_received']);
           const feed = applications.filter(
-            (a: any) => a.internal_status === 'resolved_ready_for_f_and_i' && !a.is_archived,
+            (a: any) => actionFeedStatuses.has(String(a.internal_status || '').trim()) && !a.is_archived,
           );
           if (feed.length === 0) return null;
           return (
