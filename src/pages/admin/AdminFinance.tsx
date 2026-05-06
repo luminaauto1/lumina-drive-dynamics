@@ -109,7 +109,7 @@ const AdminFinance = () => {
     window.setTimeout(() => setHighlightedAppId(prev => (prev === app.id ? null : prev)), 2000);
     // Auto-open the CRM notes modal so F&I immediately sees what was resolved.
     setPendingApp(app);
-    setPendingStatus(normalizeInternalStatus((app as any).internal_status) || 'attention_needed');
+    setPendingStatus(normalizeInternalStatus((app as any).internal_status) || 'no_notes');
     setStatusNote('');
     setStatusModalOpen(true);
   };
