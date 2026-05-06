@@ -367,7 +367,7 @@ const AdminFinance = () => {
           </div>
         </motion.div>
 
-        {/* Action Feed — applications flagged "Resolved - Ready for F&I" */}
+        {/* F&I Action Feed — alerts for apps flagged "Resolved - Ready for F&I" */}
         {(() => {
           const feed = applications.filter(
             (a: any) => a.internal_status === 'resolved_ready_for_f_and_i' && !a.is_archived,
@@ -377,24 +377,35 @@ const AdminFinance = () => {
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-6 rounded-lg border border-amber-300/30 bg-amber-300/5 backdrop-blur-sm p-4"
+              className="w-full bg-[#1A1A1A] border border-zinc-800 rounded-lg p-4 mb-6 flex flex-col gap-2"
             >
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs uppercase tracking-[0.2em] text-amber-300/80 font-medium">
-                  Action Feed · Resolved — Ready for F&amp;I
+              <div className="flex items-center justify-between">
+                <p className="text-xs uppercase tracking-[0.2em] text-amber-300/80 font-medium flex items-center gap-2">
+                  <MailWarning className="w-3.5 h-3.5" />
+                  F&amp;I Action Feed
                 </p>
-                <span className="text-[10px] text-amber-300/60">{feed.length} item{feed.length === 1 ? '' : 's'}</span>
+                <span className="text-[10px] text-zinc-500">
+                  {feed.length} ready for review
+                </span>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col gap-1.5 mt-1">
                 {feed.map((app: any) => (
                   <button
                     key={app.id}
                     onClick={() => focusApplicationRow(app)}
-                    className="px-3 py-1.5 text-xs rounded-md bg-white/5 hover:bg-amber-300/10 border border-white/10 hover:border-amber-300/40 text-zinc-200 hover:text-amber-200 transition-colors"
+                    className="group flex items-center justify-between gap-3 px-3 py-2 rounded-md bg-zinc-900/60 hover:bg-amber-300/10 border border-zinc-800 hover:border-amber-300/40 text-left transition-colors"
                   >
-                    {app.first_name} {app.last_name}
-                    <span className="ml-2 text-[10px] text-zinc-500">
-                      {ADMIN_STATUS_LABELS[app.status] || app.status}
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-300 animate-pulse shrink-0" />
+                      <span className="text-sm text-zinc-200 group-hover:text-amber-200 truncate">
+                        {app.first_name} {app.last_name}
+                      </span>
+                      <span className="text-[11px] text-zinc-500 truncate">
+                        Notes Updated · Ready for Review
+                      </span>
+                    </div>
+                    <span className="text-[10px] uppercase tracking-wider text-zinc-500 group-hover:text-amber-300/70 shrink-0">
+                      {ADMIN_STATUS_LABELS[app.status] || app.status} →
                     </span>
                   </button>
                 ))}
