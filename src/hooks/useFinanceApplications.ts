@@ -86,6 +86,7 @@ export const useUpdateFinanceApplication = () => {
         'contract_signed',
         'vehicle_delivered',
         'declined',
+        'declined_conditional',
         'vehicle_selected',
         'approved',
       ]);
