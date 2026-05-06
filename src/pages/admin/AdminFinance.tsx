@@ -222,12 +222,13 @@ const AdminFinance = () => {
 
       // Blacklisted mirrors Declined: dispatch the declined client email AND
       // fire the dedicated blacklisted WhatsApp notification.
-      if (pendingStatus === 'blacklisted' || pendingStatus === 'declined') {
+      if (pendingStatus === 'blacklisted' || pendingStatus === 'declined' || pendingStatus === 'declined_conditional') {
         try {
+          const templateKey = pendingStatus === 'declined_conditional' ? 'declined_conditional' : 'declined';
           const { data: tpl } = await supabase
             .from('email_templates')
             .select('*')
-            .eq('status_key', 'declined')
+            .eq('status_key', templateKey)
             .eq('is_active', true)
             .maybeSingle();
           if (tpl && pendingApp.email) {
