@@ -91,21 +91,9 @@ export const useUpdateFinanceApplication = () => {
         'approved',
       ]);
 
-      // Effective status: when admins archive a terminal state (declined/blacklisted/lost),
-      // AdminFinance sets status='archived' and the real state in internal_status. We must
-      // detect the real semantic transition (e.g. 'declined') for notifications/emails.
-      const rawNewStatus = updates.status as string | undefined;
-      const internalNewStatus = updates.internal_status as string | undefined;
-      const newStatus =
-        rawNewStatus === 'archived' && internalNewStatus
-          ? internalNewStatus
-          : rawNewStatus;
-      const previousEffective =
-        currentApp?.status === 'archived' && (currentApp as any)?.internal_status
-          ? (currentApp as any).internal_status
-          : currentApp?.status;
+      const newStatus = updates.status as string | undefined;
       const statusActuallyChanged =
-        !!newStatus && !!currentApp && newStatus !== previousEffective;
+        !!newStatus && !!currentApp && newStatus !== currentApp.status;
 
       if (
         statusActuallyChanged &&
@@ -227,28 +215,6 @@ export const useUpdateFinanceApplication = () => {
           });
         } catch (waEx) {
           console.error('[notify-blacklisted] failed to invoke:', waEx);
-        }
-      }
-
-      // WhatsApp "Declined" notification — fires only on hard `declined`
-      // (NOT `declined_conditional`).
-      if (
-        statusActuallyChanged &&
-        newStatus === 'declined' &&
-        currentApp?.phone
-      ) {
-        try {
-          const { publicApiHeaders } = await import('@/lib/publicApi');
-          const clientName = currentApp.first_name || currentApp.full_name || 'Valued Client';
-          supabase.functions.invoke('notify-declined', {
-            body: { phone_number: currentApp.phone, client_name: clientName },
-            headers: publicApiHeaders(),
-          }).then(({ error: waErr }) => {
-            if (waErr) console.error('[notify-declined] error:', waErr);
-            else console.log('[notify-declined] dispatched for', currentApp.phone);
-          });
-        } catch (waEx) {
-          console.error('[notify-declined] failed to invoke:', waEx);
         }
       }
 

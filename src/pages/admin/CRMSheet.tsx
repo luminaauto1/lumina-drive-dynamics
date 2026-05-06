@@ -176,9 +176,8 @@ const CRMSheet = () => {
       return;
     }
 
-    // Hard Declined keeps status='declined'. It appears in the archive/lost tab
-    // because the filters treat 'declined' as terminal; only lost rewrites to archived.
-    const finalStatus = newStatus === 'lost' ? 'archived' : newStatus;
+    // Auto-Archive Logic: Declined/Lost deals are immediately moved to archive
+    const finalStatus = (newStatus === 'declined' || newStatus === 'lost') ? 'archived' : newStatus;
 
     if (type === 'lead') {
       await updateLead.mutateAsync({ id, updates: { status: finalStatus } as any });
@@ -186,7 +185,7 @@ const CRMSheet = () => {
       await updateApp.mutateAsync({ id, updates: { status: finalStatus } });
     }
 
-    if ((newStatus === 'declined') || (finalStatus === 'archived' && newStatus === 'lost')) {
+    if (finalStatus === 'archived' && (newStatus === 'declined' || newStatus === 'lost')) {
       toast.success(`Marked as ${newStatus} and moved to Archive.`);
     }
   };

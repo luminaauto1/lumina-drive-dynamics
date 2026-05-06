@@ -175,9 +175,8 @@ const AdminFinance = () => {
   const confirmStatusUpdate = async () => {
     if (!pendingApp || !pendingStatus) return;
     try {
-      // Archive bucket is driven by terminal-status filters. Hard declined must
-      // keep status='declined' so notifications and history remain semantic.
-      const isTerminal = pendingStatus === 'lost' || pendingStatus === 'blacklisted';
+      // Auto-Archive Logic: Declined/Lost are immediately archived
+      const isTerminal = pendingStatus === 'declined' || pendingStatus === 'lost' || pendingStatus === 'blacklisted';
       const finalStatus = isTerminal ? 'archived' : pendingStatus;
 
       let updatedNotes = pendingApp.notes || '';
@@ -188,14 +187,12 @@ const AdminFinance = () => {
         updatedNotes = updatedNotes ? `${newEntry}\n\n${updatedNotes}` : newEntry;
       }
       const updatePayload: any = {
-        internal_status: pendingStatus, // preserve real semantic state (e.g. 'declined')
+        internal_status: finalStatus,
         attention_updated_at: new Date().toISOString(),
         notes: updatedNotes,
       };
       if (isTerminal) {
         updatePayload.status = 'archived';
-      } else {
-        updatePayload.status = pendingStatus;
       }
       const { error } = await supabase
         .from('finance_applications')
@@ -214,7 +211,7 @@ const AdminFinance = () => {
           .maybeSingle();
         actingName = (prof as any)?.full_name || (prof as any)?.email || actingUser.email || actingName;
       }
-      const { error: auditError } = await supabase.from('client_audit_logs').insert([{
+      await supabase.from('client_audit_logs').insert([{
         client_email: pendingApp.email || null,
         client_phone: pendingApp.phone || null,
         note: `[Finance Stage Updated to ${INTERNAL_STATUSES[pendingStatus as keyof typeof INTERNAL_STATUSES]?.label || pendingStatus}] ${statusNote || 'No comment'}`,
@@ -222,7 +219,6 @@ const AdminFinance = () => {
         author_name: actingName,
         action_type: 'Status Update'
       }]);
-      if (auditError) console.error('client_audit_logs insert failed:', auditError);
 
       // Blacklisted mirrors Declined: dispatch the declined client email AND
       // fire the dedicated blacklisted WhatsApp notification.
@@ -277,21 +273,6 @@ const AdminFinance = () => {
             });
           } catch (waEx) {
             console.error('[notify-blacklisted] failed to invoke:', waEx);
-          }
-        }
-
-        if (pendingStatus === 'declined' && pendingApp.phone) {
-          try {
-            const { publicApiHeaders } = await import('@/lib/publicApi');
-            const clientName = pendingApp.first_name || pendingApp.full_name || 'Valued Client';
-            const { error: waErr } = await supabase.functions.invoke('notify-declined', {
-              body: { phone_number: pendingApp.phone, client_name: clientName },
-              headers: publicApiHeaders(),
-            });
-            if (waErr) console.error('[notify-declined] error:', waErr);
-            else console.log('[notify-declined] dispatched for', pendingApp.phone);
-          } catch (waEx) {
-            console.error('[notify-declined] failed to invoke:', waEx);
           }
         }
       }
@@ -644,17 +625,15 @@ const AdminFinance = () => {
                             setBankRefModalOpen(true);
                             return;
                           }
-                          // Hard Declined must keep status='declined'. It moves to the
-                          // Archived tab via the terminal-status filters, not by rewriting
-                          // the status to 'archived' — this preserves notification triggers.
-                          const isArchivedTerminal = ['blacklisted', 'lost'].includes(newStatus);
-                          const finalStatus = isArchivedTerminal ? 'archived' : newStatus;
+                          // Auto-archive terminal statuses
+                          const isTerminal = ['declined', 'blacklisted', 'lost'].includes(newStatus);
+                          const finalStatus = isTerminal ? 'archived' : newStatus;
                           try {
                             await updateApplication.mutateAsync({
                               id: app.id,
                               updates: {
                                 status: finalStatus,
-                                ...(isArchivedTerminal ? { internal_status: newStatus } : {}),
+                                ...(isTerminal ? { internal_status: newStatus } : {}),
                               },
                             });
                           } catch (err) {
