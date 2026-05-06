@@ -109,7 +109,7 @@ const AdminFinance = () => {
     window.setTimeout(() => setHighlightedAppId(prev => (prev === app.id ? null : prev)), 2000);
     // Auto-open the CRM notes modal so F&I immediately sees what was resolved.
     setPendingApp(app);
-    setPendingStatus(normalizeInternalStatus((app as any).internal_status) || 'attention_needed');
+    setPendingStatus(normalizeInternalStatus((app as any).internal_status) || 'no_notes');
     setStatusNote('');
     setStatusModalOpen(true);
   };
@@ -152,11 +152,7 @@ const AdminFinance = () => {
   };
 
   const getDisplayStatus = (app: any): InternalStatus => {
-    const normalized = normalizeInternalStatus(app.internal_status);
-    if (!app.attention_updated_at || !isToday(new Date(app.attention_updated_at))) {
-      return normalized || 'attention_needed';
-    }
-    return normalized || 'attention_needed';
+    return normalizeInternalStatus(app.internal_status) || 'no_notes';
   };
 
   const filteredApplications = applications.filter(app => {
@@ -232,18 +228,18 @@ const AdminFinance = () => {
         updatedNotes = updatedNotes ? `${newEntry}\n\n${updatedNotes}` : newEntry;
       }
 
-      // Auto-flip ping-pong: if Sales/Admin acts on an "Attention Needed" app,
-      // automatically transition it to "Feedback Provided" so it disappears from
-      // their feed and appears in the F&I feed — without manual toggling.
+      // Task 3 — Escalation Automation: if Sales/Admin saves a note while the
+      // app is currently "Updates Needed", auto-advance to "Info Updated" so it
+      // moves off the Sales feed and into the F&I feed.
       const currentInternal = normalizeInternalStatus(pendingApp.internal_status);
       const isSalesOrAdmin = role === 'sales_agent' || role === 'super_admin';
       let effectiveStatus = pendingStatus;
       if (
         isSalesOrAdmin &&
-        currentInternal === 'attention_needed' &&
-        pendingStatus === 'attention_needed'
+        currentInternal === 'updates_needed' &&
+        pendingStatus === 'updates_needed'
       ) {
-        effectiveStatus = 'feedback_provided';
+        effectiveStatus = 'info_updated';
       }
 
       const updatePayload: any = {
@@ -392,22 +388,21 @@ const AdminFinance = () => {
         {/* Action Feed — role-aware mirrored notification banner */}
         {(() => {
           const isFAndI = role === 'f_and_i';
-          // F&I sees apps where Sales/Admin provided feedback.
-          // Sales/Admin see apps F&I flagged as Attention Needed (with legacy aliases).
-          const targetSet = isFAndI
-            ? new Set(['feedback_provided', 'feedback_received', 'resolved_ready_for_f_and_i'])
-            : new Set(['attention_needed', 'give_attention', 'attention_given', 'new_lead']);
+          // Each role sees a "standard" alert (escalation loop) and a "general"
+          // green ping (passive note from the other side).
+          const standardKey = isFAndI ? 'info_updated' : 'updates_needed';
+          const greenKey = isFAndI ? 'note_to_f_and_i' : 'note_to_sales';
+          const targetSet = new Set([standardKey, greenKey]);
           const feed = applications.filter((a: any) => {
             if (a.is_archived) return false;
-            const raw = String(a.internal_status || '').trim();
-            if (!targetSet.has(raw)) return false;
+            const norm = normalizeInternalStatus(a.internal_status);
+            if (!norm || !targetSet.has(norm)) return false;
             const ts = a.attention_updated_at || a.updated_at || a.created_at;
             if (!ts) return true;
             return businessHoursBetween(ts) <= 30;
           });
           if (feed.length === 0) return null;
           const headerLabel = isFAndI ? 'F&I Action Feed' : 'Sales Action Feed';
-          const subLabel = isFAndI ? 'Notes Updated · Ready for Review' : 'Flagged · Needs Attention';
           return (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
@@ -424,26 +419,38 @@ const AdminFinance = () => {
                 </span>
               </div>
               <div className="flex flex-col gap-1.5 mt-1">
-                {feed.map((app: any) => (
-                  <button
-                    key={app.id}
-                    onClick={() => focusApplicationRow(app)}
-                    className="group flex items-center justify-between gap-3 px-3 py-2 rounded-md bg-zinc-900/60 hover:bg-amber-300/10 border border-zinc-800 hover:border-amber-300/40 text-left transition-colors"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-300 animate-pulse shrink-0" />
-                      <span className="text-sm text-zinc-200 group-hover:text-amber-200 truncate">
-                        {app.first_name} {app.last_name}
+                {feed.map((app: any) => {
+                  const norm = normalizeInternalStatus(app.internal_status);
+                  const isGreen = norm === greenKey;
+                  const subLabel = isGreen
+                    ? (isFAndI ? 'General Note · For F&I' : 'General Note · For Sales')
+                    : (isFAndI ? 'Info Updated · Ready for Review' : 'Updates Needed · Action Required');
+                  const dotClass = isGreen ? 'bg-emerald-400' : 'bg-amber-300';
+                  const containerClass = isGreen
+                    ? 'border-emerald-500/40 hover:border-emerald-400 hover:bg-emerald-400/10'
+                    : 'border-zinc-800 hover:border-amber-300/40 hover:bg-amber-300/10';
+                  const textHover = isGreen ? 'group-hover:text-emerald-200' : 'group-hover:text-amber-200';
+                  return (
+                    <button
+                      key={app.id}
+                      onClick={() => focusApplicationRow(app)}
+                      className={`group flex items-center justify-between gap-3 px-3 py-2 rounded-md bg-zinc-900/60 border text-left transition-colors ${containerClass}`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className={`w-1.5 h-1.5 rounded-full ${dotClass} animate-pulse shrink-0`} />
+                        <span className={`text-sm text-zinc-200 truncate ${textHover}`}>
+                          {app.first_name} {app.last_name}
+                        </span>
+                        <span className="text-[11px] text-zinc-500 truncate">
+                          {subLabel}
+                        </span>
+                      </div>
+                      <span className="text-[10px] uppercase tracking-wider text-zinc-500 shrink-0">
+                        {ADMIN_STATUS_LABELS[app.status] || app.status} →
                       </span>
-                      <span className="text-[11px] text-zinc-500 truncate">
-                        {subLabel}
-                      </span>
-                    </div>
-                    <span className="text-[10px] uppercase tracking-wider text-zinc-500 group-hover:text-amber-300/70 shrink-0">
-                      {ADMIN_STATUS_LABELS[app.status] || app.status} →
-                    </span>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
             </motion.div>
           );
@@ -721,7 +728,7 @@ const AdminFinance = () => {
                                  // (Task 4 — Feed Clearance / state reset).
                                  status: newStatus,
                                  is_archived: archiveOnTerminal,
-                                 ...(clearInternal ? { internal_status: null } : {}),
+                                 ...(clearInternal ? { internal_status: 'no_notes' } : {}),
                                },
                             });
                             // Task 3 — Auto audit note when sent_to_banks.
@@ -788,7 +795,7 @@ const AdminFinance = () => {
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       {(() => {
                         const safeStatusKey = getDisplayStatus(app);
-                        const statusConfig = INTERNAL_STATUSES[safeStatusKey as keyof typeof INTERNAL_STATUSES] || INTERNAL_STATUSES.attention_needed;
+                        const statusConfig = INTERNAL_STATUSES[safeStatusKey as keyof typeof INTERNAL_STATUSES] || INTERNAL_STATUSES.no_notes;
                         return (
                           <Select 
                             value={safeStatusKey} 
@@ -946,6 +953,37 @@ const AdminFinance = () => {
                 )}
               </DialogTitle>
             </DialogHeader>
+            {(() => {
+              const norm = normalizeInternalStatus((pendingApp as any)?.internal_status);
+              if (norm !== 'note_to_f_and_i' && norm !== 'note_to_sales') return null;
+              return (
+                <div className="pt-1 pb-2">
+                  <Button
+                    onClick={async () => {
+                      if (!pendingApp) return;
+                      try {
+                        const { error } = await supabase
+                          .from('finance_applications')
+                          .update({ internal_status: 'no_notes', attention_updated_at: new Date().toISOString() })
+                          .eq('id', pendingApp.id);
+                        if (error) throw error;
+                        toast({ title: 'Marked as attended' });
+                        setStatusModalOpen(false);
+                        setPendingApp(null);
+                        setPendingStatus('');
+                        setStatusNote('');
+                        refetch();
+                      } catch (e: any) {
+                        toast({ title: 'Failed to clear note', variant: 'destructive' });
+                      }
+                    }}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    ✓ Mark as Attended (Clear Note)
+                  </Button>
+                </div>
+              );
+            })()}
             <div className="space-y-4 py-2">
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wider">Add a comment for the sales team</Label>
