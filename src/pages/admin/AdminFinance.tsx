@@ -22,7 +22,7 @@ import { useFinanceApplications, useUpdateFinanceApplication, useDeleteFinanceAp
 import { formatPrice } from '@/hooks/useVehicles';
 import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, STATUS_STEP_ORDER, getWhatsAppMessage, canShowDealActions } from '@/lib/statusConfig';
 import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
-import { INTERNAL_STATUSES, type InternalStatus } from '@/lib/internalStatusConfig';
+import { INTERNAL_STATUSES, type InternalStatus, normalizeInternalStatus } from '@/lib/internalStatusConfig';
 import { businessHoursBetween } from '@/lib/businessHours';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -109,7 +109,7 @@ const AdminFinance = () => {
     window.setTimeout(() => setHighlightedAppId(prev => (prev === app.id ? null : prev)), 2000);
     // Auto-open the CRM notes modal so F&I immediately sees what was resolved.
     setPendingApp(app);
-    setPendingStatus((app as any).internal_status || 'attention_given');
+    setPendingStatus(normalizeInternalStatus((app as any).internal_status) || 'attention_needed');
     setStatusNote('');
     setStatusModalOpen(true);
   };
@@ -152,13 +152,11 @@ const AdminFinance = () => {
   };
 
   const getDisplayStatus = (app: any): InternalStatus => {
+    const normalized = normalizeInternalStatus(app.internal_status);
     if (!app.attention_updated_at || !isToday(new Date(app.attention_updated_at))) {
-      return 'give_attention';
+      return normalized || 'attention_needed';
     }
-    if (!INTERNAL_STATUSES[app.internal_status as keyof typeof INTERNAL_STATUSES]) {
-      return 'give_attention';
-    }
-    return app.internal_status as InternalStatus;
+    return normalized || 'attention_needed';
   };
 
   const filteredApplications = applications.filter(app => {
@@ -368,18 +366,25 @@ const AdminFinance = () => {
           </div>
         </motion.div>
 
-        {/* F&I Action Feed — alerts for apps flagged as ready for F&I review */}
+        {/* Action Feed — role-aware mirrored notification banner */}
         {(() => {
-          const actionFeedStatuses = new Set(['resolved_ready_for_f_and_i', 'feedback_received']);
+          const isFAndI = role === 'f_and_i';
+          // F&I sees apps marked Feedback Received OR legacy Resolved.
+          // Sales/Admin see apps flagged Attention Needed (with legacy aliases).
+          const targetSet = isFAndI
+            ? new Set(['feedback_received', 'resolved_ready_for_f_and_i'])
+            : new Set(['attention_needed', 'give_attention', 'attention_given']);
           const feed = applications.filter((a: any) => {
             if (a.is_archived) return false;
-            if (!actionFeedStatuses.has(String(a.internal_status || '').trim())) return false;
-            // Auto-expire from feed after 30 business hours (Mon-Fri).
+            const raw = String(a.internal_status || '').trim();
+            if (!targetSet.has(raw)) return false;
             const ts = a.attention_updated_at || a.updated_at || a.created_at;
             if (!ts) return true;
             return businessHoursBetween(ts) <= 30;
           });
           if (feed.length === 0) return null;
+          const headerLabel = isFAndI ? 'F&I Action Feed' : 'Sales Action Feed';
+          const subLabel = isFAndI ? 'Notes Updated · Ready for Review' : 'Flagged · Needs Attention';
           return (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
@@ -389,7 +394,7 @@ const AdminFinance = () => {
               <div className="flex items-center justify-between">
                 <p className="text-xs uppercase tracking-[0.2em] text-amber-300/80 font-medium flex items-center gap-2">
                   <MailWarning className="w-3.5 h-3.5" />
-                  F&amp;I Action Feed
+                  {headerLabel}
                 </p>
                 <span className="text-[10px] text-zinc-500">
                   {feed.length} ready for review
@@ -408,7 +413,7 @@ const AdminFinance = () => {
                         {app.first_name} {app.last_name}
                       </span>
                       <span className="text-[11px] text-zinc-500 truncate">
-                        Notes Updated · Ready for Review
+                        {subLabel}
                       </span>
                     </div>
                     <span className="text-[10px] uppercase tracking-wider text-zinc-500 group-hover:text-amber-300/70 shrink-0">
@@ -682,16 +687,45 @@ const AdminFinance = () => {
                             return;
                           }
                           const archiveOnTerminal = ['declined', 'blacklisted', 'lost'].includes(newStatus);
+                          const clearInternal = newStatus === 'sent_to_banks';
                           try {
                             await updateApplication.mutateAsync({
                               id: app.id,
                               updates: {
                                  // ISOLATED: only patch the finance pipeline column.
-                                 // Never write into internal_status from this dropdown.
+                                 // Never write into internal_status from this dropdown,
+                                 // EXCEPT to clear it when advancing to sent_to_banks
+                                 // (Task 4 — Feed Clearance / state reset).
                                  status: newStatus,
                                  is_archived: archiveOnTerminal,
+                                 ...(clearInternal ? { internal_status: null } : {}),
                                },
                             });
+                            // Task 3 — Auto audit note when sent_to_banks.
+                            if (clearInternal) {
+                              try {
+                                const { data: { user: actingUser } } = await supabase.auth.getUser();
+                                let actingName = 'Admin Staff';
+                                if (actingUser?.id) {
+                                  const { data: prof } = await supabase
+                                    .from('profiles')
+                                    .select('full_name, email')
+                                    .eq('user_id', actingUser.id)
+                                    .maybeSingle();
+                                  actingName = (prof as any)?.full_name || (prof as any)?.email || actingUser.email || actingName;
+                                }
+                                await supabase.from('client_audit_logs').insert([{
+                                  client_email: app.email || null,
+                                  client_phone: app.phone || null,
+                                  note: 'Updated and sent to bank.',
+                                  author_id: actingUser?.id || null,
+                                  author_name: actingName,
+                                  action_type: 'Sent to Bank',
+                                }]);
+                              } catch (auditErr) {
+                                console.error('[sent_to_banks audit] failed:', auditErr);
+                              }
+                            }
                           } catch (err) {
                             // Toast handled by hook on error
                           }
@@ -716,7 +750,7 @@ const AdminFinance = () => {
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       {(() => {
                         const safeStatusKey = getDisplayStatus(app);
-                        const statusConfig = INTERNAL_STATUSES[safeStatusKey as keyof typeof INTERNAL_STATUSES] || INTERNAL_STATUSES.give_attention;
+                        const statusConfig = INTERNAL_STATUSES[safeStatusKey as keyof typeof INTERNAL_STATUSES] || INTERNAL_STATUSES.attention_needed;
                         return (
                           <Select 
                             value={safeStatusKey} 
