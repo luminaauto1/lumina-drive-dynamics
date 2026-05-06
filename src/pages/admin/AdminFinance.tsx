@@ -561,15 +561,20 @@ const AdminFinance = () => {
                             <span>{app.first_name} {app.last_name}</span>
                           </p>
                           <p className="text-xs text-muted-foreground">{app.email}</p>
-                          {(app as any).creator?.full_name || (app as any).creator?.email ? (
-                            <p className="text-[10px] text-zinc-500 mt-0.5 flex items-center gap-1">
-                              <User className="w-2.5 h-2.5" />
-                              <span className="font-medium">Rep:</span>{' '}
-                              <span className="text-zinc-400">
-                                {(app as any).creator.full_name || (app as any).creator.email}
-                              </span>
-                            </p>
-                          ) : null}
+                          {(() => {
+                            const creator = (app as any).creator;
+                            if (!creator?.full_name && !creator?.email) return null;
+                            const firstName = creator.full_name
+                              ? String(creator.full_name).trim().split(/\s+/)[0]
+                              : String(creator.email).split('@')[0];
+                            return (
+                              <p className="text-[10px] text-zinc-500 mt-0.5 flex items-center gap-1">
+                                <User className="w-2.5 h-2.5" />
+                                <span className="font-medium">Rep:</span>{' '}
+                                <span className="text-zinc-400">{firstName}</span>
+                              </p>
+                            );
+                          })()}
                         </button>
                         {isNew && (
                           <span className="px-1.5 py-0.5 text-[10px] uppercase font-bold rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse">
