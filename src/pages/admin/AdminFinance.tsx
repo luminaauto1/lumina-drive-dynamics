@@ -152,13 +152,11 @@ const AdminFinance = () => {
   };
 
   const getDisplayStatus = (app: any): InternalStatus => {
+    const normalized = normalizeInternalStatus(app.internal_status);
     if (!app.attention_updated_at || !isToday(new Date(app.attention_updated_at))) {
-      return 'give_attention';
+      return normalized || 'attention_needed';
     }
-    if (!INTERNAL_STATUSES[app.internal_status as keyof typeof INTERNAL_STATUSES]) {
-      return 'give_attention';
-    }
-    return app.internal_status as InternalStatus;
+    return normalized || 'attention_needed';
   };
 
   const filteredApplications = applications.filter(app => {
