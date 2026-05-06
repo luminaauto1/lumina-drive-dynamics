@@ -4,6 +4,7 @@
 export const STATUS_OPTIONS = [
   { value: 'pending', label: 'Pending' },
   { value: 'application_submitted', label: 'Application Submitted' },
+  { value: 'sent_to_banks', label: 'Sent to banks' },
   { value: 'pre_approved', label: 'Pre-Approved (Docs Req)' },
   { value: 'documents_received', label: 'Docs Received' },
   { value: 'validations_pending', label: 'Validations Submitted' },
@@ -25,6 +26,7 @@ export const STATUS_OPTIONS = [
 export const STATUS_STEP_ORDER: Record<string, number> = {
   pending: 0,
   application_submitted: 1,
+  sent_to_banks: 2,
   pre_approved: 2,
   documents_received: 3,
   validations_pending: 4,
@@ -46,6 +48,7 @@ export const STATUS_STEP_ORDER: Record<string, number> = {
 export const USER_STATUS_LABELS: Record<string, string> = {
   pending: 'Application Received - Analyzing Profile',
   application_submitted: 'Application Submitted - Under Review',
+  sent_to_banks: 'Sent to Banks - Awaiting Response',
   pre_approved: 'Pre-Approved - Docs Required',
   documents_received: 'Documents Received - Verifying',
   validations_pending: 'Submitted to Bank - Awaiting Response',
@@ -92,6 +95,7 @@ export const STATUS_STYLES: Record<string, string> = {
 export const ADMIN_STATUS_LABELS: Record<string, string> = {
   pending: 'Pending',
   application_submitted: 'App Submitted',
+  sent_to_banks: 'Sent to banks',
   pre_approved: 'Pre-Approved - Docs Required',
   documents_received: 'Docs Received',
   validations_pending: 'Validations Submitted',

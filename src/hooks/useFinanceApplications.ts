@@ -78,6 +78,7 @@ export const useUpdateFinanceApplication = () => {
       const EMAIL_ELIGIBLE_STATUSES = new Set<string>([
         'pending',
         'application_submitted',
+        'sent_to_banks',
         'pre_approved',
         'documents_received',
         'validations_pending',
