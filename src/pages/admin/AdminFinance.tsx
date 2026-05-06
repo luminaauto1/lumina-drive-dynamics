@@ -796,6 +796,12 @@ const AdminFinance = () => {
                          const safeStatusKey = getDisplayStatus(app);
                          const statusConfig = INTERNAL_STATUSES[safeStatusKey as keyof typeof INTERNAL_STATUSES] || INTERNAL_STATUSES.no_notes;
                          const hasNotes = !!(app.notes && String(app.notes).trim().length > 0);
+                         const normInt = normalizeInternalStatus((app as any).internal_status);
+                         const isFAndIRow = role === 'f_and_i';
+                         const alertSet = isFAndIRow
+                           ? new Set(['info_updated', 'note_to_f_and_i'])
+                           : new Set(['updates_needed', 'note_to_sales']);
+                         const showDot = !!normInt && normInt !== 'no_notes' && alertSet.has(normInt);
                          return (
                            <div className="flex items-center gap-2">
                              <Select 
