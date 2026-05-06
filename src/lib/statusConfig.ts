@@ -72,6 +72,7 @@ export const USER_STATUS_LABELS: Record<string, string> = {
 export const STATUS_STYLES: Record<string, string> = {
   pending: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
   application_submitted: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  sent_to_banks: 'bg-yellow-400/30 text-yellow-300 border-yellow-400/50',
   pre_approved: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30 animate-pulse',
   documents_received: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
   validations_pending: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
