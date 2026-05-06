@@ -202,17 +202,34 @@ const AdminFinance = () => {
       return;
     }
     try {
+      // Resolve acting user/role first so we can stamp the note with author + role.
+      const { data: { user: actingUser } } = await supabase.auth.getUser();
+      let actingName = 'Staff';
+      if (actingUser?.id) {
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('full_name, email')
+          .eq('user_id', actingUser.id)
+          .maybeSingle();
+        actingName = (prof as any)?.full_name?.trim().split(/\s+/)[0]
+          || (prof as any)?.email?.split('@')[0]
+          || actingUser.email?.split('@')[0]
+          || actingName;
+      }
+      const roleTag = role === 'super_admin' ? 'ADMIN'
+        : role === 'sales_agent' ? 'SALES'
+        : role === 'f_and_i' ? 'FNI'
+        : 'STAFF';
+
       let updatedNotes = pendingApp.notes || '';
       if (statusNote.trim()) {
         const timestamp = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
         const statusLabel = INTERNAL_STATUSES[pendingStatus as keyof typeof INTERNAL_STATUSES]?.label || pendingStatus;
-        const newEntry = `[${timestamp}] ${statusLabel}: ${statusNote}`;
+        // Sentinel «ROLE» lets the renderer color-code reliably.
+        const newEntry = `[${timestamp}] «${roleTag}» ${actingName} — ${statusLabel}: ${statusNote}`;
         updatedNotes = updatedNotes ? `${newEntry}\n\n${updatedNotes}` : newEntry;
       }
 
-      // ISOLATED PAYLOAD: only patch internal_status + CRM metadata.
-      // Do NOT include `status` or `is_archived` here — those belong to the
-      // separate Finance Status dropdown and would otherwise corrupt the pipeline.
       const updatePayload: any = {
         internal_status: pendingStatus,
         attention_updated_at: new Date().toISOString(),
@@ -224,21 +241,11 @@ const AdminFinance = () => {
         .eq('id', pendingApp.id);
       if (error) throw error;
 
-      // Dual-sync: Push to Global Universal Timeline (with current staff author)
-      const { data: { user: actingUser } } = await supabase.auth.getUser();
-      let actingName = 'Admin Staff';
-      if (actingUser?.id) {
-        const { data: prof } = await supabase
-          .from('profiles')
-          .select('full_name, email')
-          .eq('user_id', actingUser.id)
-          .maybeSingle();
-        actingName = (prof as any)?.full_name || (prof as any)?.email || actingUser.email || actingName;
-      }
+      // Dual-sync to Universal Timeline
       await supabase.from('client_audit_logs').insert([{
         client_email: pendingApp.email || null,
         client_phone: pendingApp.phone || null,
-        note: `[Internal Status → ${INTERNAL_STATUSES[pendingStatus as keyof typeof INTERNAL_STATUSES]?.label || pendingStatus}] ${statusNote || 'No comment'}`,
+        note: `«${roleTag}» ${actingName} — [Internal Status → ${INTERNAL_STATUSES[pendingStatus as keyof typeof INTERNAL_STATUSES]?.label || pendingStatus}] ${statusNote || 'No comment'}`,
         author_id: actingUser?.id || null,
         author_name: actingName,
         action_type: 'Internal Status Update'
