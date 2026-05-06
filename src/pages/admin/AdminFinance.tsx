@@ -68,7 +68,7 @@ Please also send clear photos/PDFs of:
 const AdminFinance = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, role } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'active' | 'archived'>('active');
@@ -619,7 +619,7 @@ const AdminFinance = () => {
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          {STATUS_OPTIONS.map((opt) => (
+                          {filterStatusOptionsForRole(STATUS_OPTIONS, role, app.status).map((opt) => (
                             <SelectItem key={opt.value} value={opt.value} className="text-xs">
                               {ADMIN_STATUS_LABELS[opt.value] || opt.label}
                             </SelectItem>
