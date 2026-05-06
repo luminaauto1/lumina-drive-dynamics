@@ -222,11 +222,12 @@ const AdminFinance = () => {
         : 'STAFF';
 
       let updatedNotes = pendingApp.notes || '';
-      if (statusNote.trim()) {
+      {
         const timestamp = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
         const statusLabel = INTERNAL_STATUSES[pendingStatus as keyof typeof INTERNAL_STATUSES]?.label || pendingStatus;
+        const body = statusNote.trim() || '(no comment)';
         // Sentinel «ROLE» lets the renderer color-code reliably.
-        const newEntry = `[${timestamp}] «${roleTag}» ${actingName} — ${statusLabel}: ${statusNote}`;
+        const newEntry = `[${timestamp}] «${roleTag}» ${actingName} — ${statusLabel}: ${body}`;
         updatedNotes = updatedNotes ? `${newEntry}\n\n${updatedNotes}` : newEntry;
       }
 
