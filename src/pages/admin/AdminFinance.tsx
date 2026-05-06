@@ -371,9 +371,14 @@ const AdminFinance = () => {
         {/* F&I Action Feed — alerts for apps flagged as ready for F&I review */}
         {(() => {
           const actionFeedStatuses = new Set(['resolved_ready_for_f_and_i', 'feedback_received']);
-          const feed = applications.filter(
-            (a: any) => actionFeedStatuses.has(String(a.internal_status || '').trim()) && !a.is_archived,
-          );
+          const feed = applications.filter((a: any) => {
+            if (a.is_archived) return false;
+            if (!actionFeedStatuses.has(String(a.internal_status || '').trim())) return false;
+            // Auto-expire from feed after 30 business hours (Mon-Fri).
+            const ts = a.attention_updated_at || a.updated_at || a.created_at;
+            if (!ts) return true;
+            return businessHoursBetween(ts) <= 30;
+          });
           if (feed.length === 0) return null;
           return (
             <motion.div
