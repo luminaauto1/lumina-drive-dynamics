@@ -1,5 +1,6 @@
 // Status keys an F&I user is allowed to set
 export const F_AND_I_ALLOWED_STATUSES = [
+  'sent_to_banks',
   'pre_approved',
   'validations_pending',
   'validations_complete',
