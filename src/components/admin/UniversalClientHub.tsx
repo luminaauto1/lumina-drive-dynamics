@@ -132,6 +132,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
       }));
       setActiveApps(fData.filter(app => {
         const s = app.status?.toLowerCase()?.trim() || '';
+        if ((app as any).is_archived === true) return false;
         return !['finalized', 'delivered', 'declined', 'lost'].includes(s);
       }));
     } else {

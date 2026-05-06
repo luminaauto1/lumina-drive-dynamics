@@ -56,7 +56,7 @@ const Dashboard = () => {
   
   // Get the main active application for stepper
   const activeApplication = applications.find(app => 
-    !['draft', 'archived', 'declined'].includes(app.status)
+    !(app as any).is_archived && !['draft', 'archived', 'declined'].includes(app.status)
   );
 
   // Check for draft applications
