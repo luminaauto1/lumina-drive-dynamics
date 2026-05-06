@@ -39,9 +39,10 @@ const TeamManagementTab = () => {
     setLoading(true);
     const { data: roleRows } = await supabase
       .from('user_roles')
-      .select('user_id')
-      .eq('role', 'sales_agent' as any);
-    const ids = (roleRows || []).map((r: any) => r.user_id);
+      .select('user_id, role')
+      .in('role', ['sales_agent', 'f_and_i'] as any);
+    const rows = (roleRows || []) as Array<{ user_id: string; role: StaffRoleKind }>;
+    const ids = rows.map(r => r.user_id);
     if (ids.length === 0) {
       setAgents([]);
       setLoading(false);
@@ -51,7 +52,17 @@ const TeamManagementTab = () => {
       .from('profiles')
       .select('user_id, email, full_name, created_at')
       .in('user_id', ids);
-    setAgents((profs || []) as any);
+    const merged: AgentRow[] = rows.map(r => {
+      const p = (profs || []).find((x: any) => x.user_id === r.user_id) as any;
+      return {
+        user_id: r.user_id,
+        role: r.role,
+        email: p?.email ?? null,
+        full_name: p?.full_name ?? null,
+        created_at: p?.created_at ?? null,
+      };
+    });
+    setAgents(merged);
     setLoading(false);
   };
 
@@ -65,7 +76,7 @@ const TeamManagementTab = () => {
     setInviting(true);
     setLastCreds(null);
     try {
-      const body: Record<string, any> = { email: email.trim(), mode };
+      const body: Record<string, any> = { email: email.trim(), mode, role };
       if (mode === 'manual') {
         if (password && password.length < 8) {
           toast.error('Password must be at least 8 characters');
