@@ -161,13 +161,13 @@ const TeamManagementTab = () => {
     }
   };
 
-  const handleRevoke = async (userId: string, label: string) => {
-    if (!confirm(`Revoke sales_agent access for ${label}?`)) return;
+  const handleRevoke = async (userId: string, label: string, roleKind: StaffRoleKind) => {
+    if (!confirm(`Revoke ${ROLE_LABELS[roleKind]} access for ${label}?`)) return;
     const { error } = await supabase
       .from('user_roles')
       .delete()
       .eq('user_id', userId)
-      .eq('role', 'sales_agent' as any);
+      .eq('role', roleKind as any);
     if (error) {
       toast.error(error.message);
       return;
