@@ -712,19 +712,34 @@ const AdminFinance = () => {
                             if (clearInternal) {
                               try {
                                 const { data: { user: actingUser } } = await supabase.auth.getUser();
-                                let actingName = 'Admin Staff';
+                                let actingName = 'Staff';
                                 if (actingUser?.id) {
                                   const { data: prof } = await supabase
                                     .from('profiles')
                                     .select('full_name, email')
                                     .eq('user_id', actingUser.id)
                                     .maybeSingle();
-                                  actingName = (prof as any)?.full_name || (prof as any)?.email || actingUser.email || actingName;
+                                  actingName = (prof as any)?.full_name?.trim().split(/\s+/)[0]
+                                    || (prof as any)?.email?.split('@')[0]
+                                    || actingUser.email?.split('@')[0]
+                                    || actingName;
                                 }
+                                const roleTag = role === 'super_admin' ? 'ADMIN'
+                                  : role === 'sales_agent' ? 'SALES'
+                                  : role === 'f_and_i' ? 'FNI'
+                                  : 'STAFF';
+                                const timestamp = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+                                const autoEntry = `[${timestamp}] «${roleTag}» ${actingName} — Sent to Banks: Updated and sent to bank.`;
+                                const existingNotes = (app as any).notes || '';
+                                const merged = existingNotes ? `${autoEntry}\n\n${existingNotes}` : autoEntry;
+                                await supabase
+                                  .from('finance_applications')
+                                  .update({ notes: merged })
+                                  .eq('id', app.id);
                                 await supabase.from('client_audit_logs').insert([{
                                   client_email: app.email || null,
                                   client_phone: app.phone || null,
-                                  note: 'Updated and sent to bank.',
+                                  note: `«${roleTag}» ${actingName} — Updated and sent to bank.`,
                                   author_id: actingUser?.id || null,
                                   author_name: actingName,
                                   action_type: 'Sent to Bank',
