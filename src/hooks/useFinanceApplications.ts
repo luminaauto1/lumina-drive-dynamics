@@ -29,24 +29,21 @@ export const useFinanceApplications = () => {
       if (error) throw error;
 
       // Attach creator profiles in batch (no FK; manual join on profiles.user_id).
-      // Fallback: if `created_by` is null (typical for client-submitted apps),
-      // use the applicant's own `user_id` so "Rep:" always renders.
+      // Only resolve when `created_by` is set — i.e. an admin/sales agent
+      // submitted on behalf of the client. Self-submitted website applications
+      // intentionally show no "Rep:" line.
       const apps = (data || []) as FinanceApplication[];
-      const lookupIds = Array.from(
-        new Set(
-          apps
-            .map(a => ((a as any).created_by as string | null) || ((a as any).user_id as string | null))
-            .filter(Boolean) as string[]
-        )
+      const creatorIds = Array.from(
+        new Set(apps.map(a => (a as any).created_by).filter(Boolean) as string[])
       );
-      if (lookupIds.length) {
+      if (creatorIds.length) {
         const { data: profs } = await supabase
           .from('profiles')
           .select('user_id, full_name, email')
-          .in('user_id', lookupIds);
+          .in('user_id', creatorIds);
         const byId = new Map((profs || []).map((p: any) => [p.user_id, p]));
         apps.forEach(a => {
-          const cid = (a as any).created_by || (a as any).user_id;
+          const cid = (a as any).created_by;
           a.creator = cid ? (byId.get(cid) as any) || null : null;
         });
       }
