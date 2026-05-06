@@ -159,7 +159,20 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
       logQuery = logQuery.eq('client_phone', clientPhone);
     }
     const { data: logData } = await logQuery;
-    setLogs(logData || []);
+    const rawLogs = (logData || []) as any[];
+    const authorIds = Array.from(new Set(rawLogs.map(l => l.author_id).filter(Boolean) as string[]));
+    if (authorIds.length) {
+      const { data: profs } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, email')
+        .in('user_id', authorIds);
+      const byId = new Map((profs || []).map((p: any) => [p.user_id, p]));
+      rawLogs.forEach(l => {
+        const p = l.author_id ? byId.get(l.author_id) : null;
+        if (p) l.author_name = (p as any).full_name || (p as any).email || l.author_name;
+      });
+    }
+    setLogs(rawLogs);
   }, [clientEmail, clientPhone]);
 
   useEffect(() => {
@@ -169,11 +182,24 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
   const handleAddNote = async () => {
     if (!newNote.trim() || (!clientEmail && !clientPhone)) return;
 
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    let authorName = 'Admin Staff';
+    if (authUser?.id) {
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('user_id', authUser.id)
+        .maybeSingle();
+      authorName = (prof as any)?.full_name || (prof as any)?.email || authUser.email || authorName;
+    }
+
     const { error } = await supabase.from('client_audit_logs').insert([{
       client_email: clientEmail || null,
       client_phone: clientPhone || null,
       note: newNote,
       action_type: 'Manual Note',
+      author_id: authUser?.id || null,
+      author_name: authorName,
     }]);
 
     if (error) {
