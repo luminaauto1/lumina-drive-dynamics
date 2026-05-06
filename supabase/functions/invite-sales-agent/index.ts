@@ -76,9 +76,8 @@ Deno.serve(async (req) => {
       });
 
       if (createErr) {
-        // Likely already exists — look up and (optionally) reset password
-        const { data: list } = await admin.auth.admin.listUsers();
-        const existing = list?.users?.find((u: any) => (u.email || "").toLowerCase() === email);
+        // Likely already exists — look up across all pages and (optionally) reset password
+        const existing = await findUserByEmail(admin, email);
         if (!existing) {
           return new Response(JSON.stringify({ error: createErr.message }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
@@ -97,8 +96,7 @@ Deno.serve(async (req) => {
       userId = invite?.user?.id;
 
       if (inviteErr) {
-        const { data: list } = await admin.auth.admin.listUsers();
-        const existing = list?.users?.find((u: any) => (u.email || "").toLowerCase() === email);
+        const existing = await findUserByEmail(admin, email);
         if (!existing) {
           return new Response(JSON.stringify({ error: inviteErr.message }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
@@ -139,4 +137,18 @@ function generateStrongPassword(len = 14): string {
   out += symbols[bytes[3] % symbols.length];
   for (let i = 4; i < len; i++) out += all[bytes[i] % all.length];
   return out.split("").sort(() => 0.5 - Math.random()).join("");
+}
+
+async function findUserByEmail(admin: any, email: string) {
+  const target = email.toLowerCase();
+  const perPage = 1000;
+  for (let page = 1; page <= 20; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
+    if (error) return null;
+    const users = data?.users || [];
+    const match = users.find((u: any) => (u.email || "").toLowerCase() === target);
+    if (match) return match;
+    if (users.length < perPage) return null;
+  }
+  return null;
 }
