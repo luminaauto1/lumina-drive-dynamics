@@ -41,6 +41,7 @@ const getStatusColor = (status: string) => {
   if (['validations_pending', 'validations_complete', 'contract_sent', 'contract_signed'].includes(s)) return 'border-blue-500 bg-blue-500/10 text-blue-400';
   if (['finalized', 'delivered', 'vehicle_delivered', 'converted', 'qualified'].includes(s)) return 'border-emerald-500 bg-emerald-500/10 text-emerald-400';
   if (['lost', 'declined', 'archived'].includes(s)) return 'border-red-500 bg-red-500/10 text-red-400';
+  if (s === 'declined_conditional') return 'border-gray-500 bg-gray-500/10 text-gray-300';
   return 'border-zinc-600 bg-zinc-500/10 text-zinc-300';
 };
 
@@ -54,6 +55,7 @@ const getRowBorderColor = (status: string) => {
   if (['validations_pending', 'validations_complete', 'contract_sent', 'contract_signed'].includes(s)) return 'border-l-blue-500';
   if (['finalized', 'delivered', 'vehicle_delivered', 'converted', 'qualified'].includes(s)) return 'border-l-emerald-500';
   if (['lost', 'declined', 'archived'].includes(s)) return 'border-l-red-500';
+  if (s === 'declined_conditional') return 'border-l-gray-500';
   return 'border-l-zinc-600';
 };
 
@@ -131,7 +133,7 @@ const CRMSheet = () => {
     switch (activeTab) {
       case 'leads':
         return leads
-          .filter(l => !['lost', 'converted', 'declined', 'finalized', 'delivered', 'vehicle_delivered', 'archived'].includes(safeStatus(l.status)))
+          .filter(l => !['lost', 'converted', 'declined', 'declined_conditional', 'finalized', 'delivered', 'vehicle_delivered', 'archived'].includes(safeStatus(l.status)))
           .map(mapLead);
       case 'apps_received':
         return apps
@@ -153,7 +155,7 @@ const CRMSheet = () => {
       case 'declined':
         return [
           ...leads.filter(l => ['lost', 'archived'].includes(safeStatus(l.status))).map(mapLead),
-          ...apps.filter(a => ['declined', 'archived'].includes(safeStatus(a.status))).map(mapApp)
+          ...apps.filter(a => ['declined', 'declined_conditional', 'archived'].includes(safeStatus(a.status))).map(mapApp)
         ];
       default:
         return [];
@@ -175,7 +177,7 @@ const CRMSheet = () => {
     }
 
     // Auto-Archive Logic: Declined/Lost deals are immediately moved to archive
-    const finalStatus = (newStatus === 'declined' || newStatus === 'lost') ? 'archived' : newStatus;
+    const finalStatus = (newStatus === 'declined' || newStatus === 'declined_conditional' || newStatus === 'lost') ? 'archived' : newStatus;
 
     if (type === 'lead') {
       await updateLead.mutateAsync({ id, updates: { status: finalStatus } as any });
@@ -183,7 +185,7 @@ const CRMSheet = () => {
       await updateApp.mutateAsync({ id, updates: { status: finalStatus } });
     }
 
-    if (finalStatus === 'archived' && (newStatus === 'declined' || newStatus === 'lost')) {
+    if (finalStatus === 'archived' && (newStatus === 'declined' || newStatus === 'declined_conditional' || newStatus === 'lost')) {
       toast.success(`Marked as ${newStatus} and moved to Archive.`);
     }
   };

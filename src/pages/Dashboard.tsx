@@ -56,7 +56,7 @@ const Dashboard = () => {
   
   // Get the main active application for stepper
   const activeApplication = applications.find(app => 
-    !['draft', 'archived', 'declined'].includes(app.status)
+    !['draft', 'archived', 'declined', 'declined_conditional'].includes(app.status)
   );
 
   // Check for draft applications
@@ -659,7 +659,7 @@ const Dashboard = () => {
                       )}
                       
                       {/* Show declined reason if application was declined */}
-                      {app.status === 'declined' && (
+                      {(app.status === 'declined' || app.status === 'declined_conditional') && (
                         <>
                           {app.declined_reason && (
                             <Alert variant="destructive" className="mt-4 bg-red-500/10 border-red-500/30">
