@@ -54,6 +54,7 @@ export const USER_STATUS_LABELS: Record<string, string> = {
   contract_signed: 'Contract Signed - Preparing Delivery',
   vehicle_delivered: '🎉 Vehicle Delivered - Congratulations!',
   declined: 'Application Unsuccessful',
+  declined_conditional: 'Conditional Approval - Larger Deposit Required',
   blacklisted: 'Application Unsuccessful',
   vehicle_selected: 'Vehicle Reserved - Preparing Contract',
   approved: 'Approved - Select Vehicle',
@@ -76,6 +77,7 @@ export const STATUS_STYLES: Record<string, string> = {
   contract_signed: 'bg-emerald-600/20 text-emerald-500 border-emerald-600/30',
   vehicle_delivered: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
   declined: 'bg-red-500/20 text-red-400 border-red-500/30',
+  declined_conditional: 'bg-gray-500/20 text-gray-300 border-gray-500/30',
   blacklisted: 'bg-red-500/20 text-red-400 border-red-500/30',
   vehicle_selected: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
   approved: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
@@ -98,6 +100,7 @@ export const ADMIN_STATUS_LABELS: Record<string, string> = {
   contract_signed: 'Contract Signed',
   vehicle_delivered: '🎉 Delivered',
   declined: 'Declined',
+  declined_conditional: 'Conditionally Declined (Larger Deposit)',
   blacklisted: 'Blacklisted / Bad Credit / Judgements',
   vehicle_selected: 'Vehicle Selected',
   approved: 'Approved - Select Vehicle',
@@ -150,6 +153,8 @@ export const getWhatsAppMessage = (
       return `Congratulations ${name}! 🎉🚗 Your vehicle has been delivered! Thank you for choosing Lumina Auto. We hope you enjoy your new car!`;
     case 'declined':
       return `Hi ${name}, unfortunately we were unable to approve your finance application at this time. Please feel free to contact us to discuss alternative options or reapply in the future.`;
+    case 'declined_conditional':
+      return `Hi ${name}, your finance application can be approved on condition — typically a larger deposit or additional security. Our F&I team will reach out shortly to discuss your options.`;
     case 'vehicle_selected':
       return `Hi ${name}, great choice! Your vehicle has been reserved. We are now preparing the contract and will be in touch shortly.`;
     case 'approved':
