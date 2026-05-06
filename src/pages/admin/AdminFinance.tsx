@@ -187,12 +187,14 @@ const AdminFinance = () => {
         updatedNotes = updatedNotes ? `${newEntry}\n\n${updatedNotes}` : newEntry;
       }
       const updatePayload: any = {
-        internal_status: finalStatus,
+        internal_status: pendingStatus, // preserve real semantic state (e.g. 'declined')
         attention_updated_at: new Date().toISOString(),
         notes: updatedNotes,
       };
       if (isTerminal) {
         updatePayload.status = 'archived';
+      } else {
+        updatePayload.status = pendingStatus;
       }
       const { error } = await supabase
         .from('finance_applications')
@@ -273,6 +275,22 @@ const AdminFinance = () => {
             });
           } catch (waEx) {
             console.error('[notify-blacklisted] failed to invoke:', waEx);
+          }
+        }
+
+        if (pendingStatus === 'declined' && pendingApp.phone) {
+          try {
+            const { publicApiHeaders } = await import('@/lib/publicApi');
+            const clientName = pendingApp.first_name || pendingApp.full_name || 'Valued Client';
+            supabase.functions.invoke('notify-declined', {
+              body: { phone_number: pendingApp.phone, client_name: clientName },
+              headers: publicApiHeaders(),
+            }).then(({ error: waErr }) => {
+              if (waErr) console.error('[notify-declined] error:', waErr);
+              else console.log('[notify-declined] dispatched for', pendingApp.phone);
+            });
+          } catch (waEx) {
+            console.error('[notify-declined] failed to invoke:', waEx);
           }
         }
       }
