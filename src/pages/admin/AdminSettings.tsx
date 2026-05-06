@@ -31,26 +31,60 @@ const SalesRepsTab = ({ settings, updateSettings }: { settings: SiteSettings | u
   const [reps, setReps] = useState<SalesRep[]>([]);
   const [newRepName, setNewRepName] = useState('');
   const [newRepCommission, setNewRepCommission] = useState(5);
+  const [loadingReps, setLoadingReps] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  // Load sales_reps DIRECTLY from site_settings (the public view used by useSiteSettings
+  // strips out sales_reps, which is why the list appeared to vanish after save).
+  const loadReps = async () => {
+    setLoadingReps(true);
+    const { data, error } = await supabase
+      .from('site_settings')
+      .select('sales_reps')
+      .limit(1)
+      .maybeSingle();
+    if (error) {
+      console.error('Failed to load sales reps:', error);
+      toast.error(`Failed to load sales reps: ${error.message}`);
+    } else {
+      setReps(((data as any)?.sales_reps as SalesRep[]) || []);
+    }
+    setLoadingReps(false);
+  };
 
   useEffect(() => {
-    if (settings && (settings as any).sales_reps) {
-      setReps((settings as any).sales_reps || []);
+    loadReps();
+  }, []);
+
+  const persistReps = async (updatedReps: SalesRep[], previous: SalesRep[]) => {
+    setSaving(true);
+    setReps(updatedReps); // optimistic
+    try {
+      await updateSettings.mutateAsync({ sales_reps: updatedReps } as any);
+      // Re-read from the source of truth to confirm persistence
+      await loadReps();
+    } catch (err: any) {
+      console.error('Sales reps save failed:', err);
+      toast.error(err?.message || 'Failed to save sales reps');
+      setReps(previous); // rollback
+    } finally {
+      setSaving(false);
     }
-  }, [settings]);
+  };
 
   const addRep = () => {
     if (!newRepName.trim()) return;
     const updatedReps = [...reps, { name: newRepName.trim(), commission: newRepCommission }];
-    setReps(updatedReps);
-    updateSettings.mutate({ sales_reps: updatedReps } as any);
+    const previous = reps;
     setNewRepName('');
     setNewRepCommission(5);
+    persistReps(updatedReps, previous);
   };
 
   const removeRep = (index: number) => {
+    const previous = reps;
     const updatedReps = reps.filter((_, i) => i !== index);
-    setReps(updatedReps);
-    updateSettings.mutate({ sales_reps: updatedReps } as any);
+    persistReps(updatedReps, previous);
   };
 
   return (
