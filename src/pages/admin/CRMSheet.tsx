@@ -84,6 +84,8 @@ const CRMSheet = () => {
   const [hubOpen, setHubOpen] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<string | undefined>();
   const [selectedPhone, setSelectedPhone] = useState<string | undefined>();
+  const [bankRefModalOpen, setBankRefModalOpen] = useState(false);
+  const [bankRefAppId, setBankRefAppId] = useState<string | null>(null);
 
   const openClientHub = (email?: string, phone?: string) => {
     setSelectedEmail(email || undefined);
