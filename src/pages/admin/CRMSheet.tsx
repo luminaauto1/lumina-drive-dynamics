@@ -158,8 +158,16 @@ const CRMSheet = () => {
   }, [activeTab, leads, apps]);
 
   const handleStatusChange = async (id: string, type: string, newStatus: string, currentStatus: string) => {
+    if (newStatus === currentStatus) return;
     if (newStatus === 'finalized' && currentStatus !== 'archived') {
       toast.error("Action Blocked: You must use the Deal Room / Podium to finalize active deals to ensure all delivery data is captured.");
+      return;
+    }
+
+    // Intercept Application Submitted to capture Bank Reference Code
+    if (type === 'finance' && newStatus === 'application_submitted') {
+      setBankRefAppId(id);
+      setBankRefModalOpen(true);
       return;
     }
 
