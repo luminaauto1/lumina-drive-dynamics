@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import BankReferenceModal from '@/components/admin/BankReferenceModal';
 import { useLeads, useUpdateLead, useCreateLead } from '@/hooks/useLeads';
 import { useFinanceApplications, useUpdateFinanceApplication } from '@/hooks/useFinanceApplications';
 import { STATUS_OPTIONS as FINANCE_STATUS_OPTIONS } from '@/lib/statusConfig';
@@ -83,6 +84,8 @@ const CRMSheet = () => {
   const [hubOpen, setHubOpen] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<string | undefined>();
   const [selectedPhone, setSelectedPhone] = useState<string | undefined>();
+  const [bankRefModalOpen, setBankRefModalOpen] = useState(false);
+  const [bankRefAppId, setBankRefAppId] = useState<string | null>(null);
 
   const openClientHub = (email?: string, phone?: string) => {
     setSelectedEmail(email || undefined);
@@ -155,8 +158,16 @@ const CRMSheet = () => {
   }, [activeTab, leads, apps]);
 
   const handleStatusChange = async (id: string, type: string, newStatus: string, currentStatus: string) => {
+    if (newStatus === currentStatus) return;
     if (newStatus === 'finalized' && currentStatus !== 'archived') {
       toast.error("Action Blocked: You must use the Deal Room / Podium to finalize active deals to ensure all delivery data is captured.");
+      return;
+    }
+
+    // Intercept Application Submitted to capture Bank Reference Code
+    if (type === 'finance' && newStatus === 'application_submitted') {
+      setBankRefAppId(id);
+      setBankRefModalOpen(true);
       return;
     }
 
@@ -363,6 +374,22 @@ const CRMSheet = () => {
         onOpenChange={setHubOpen}
         clientEmail={selectedEmail}
         clientPhone={selectedPhone}
+      />
+
+      <BankReferenceModal
+        open={bankRefModalOpen}
+        onOpenChange={(o) => { setBankRefModalOpen(o); if (!o) setBankRefAppId(null); }}
+        onConfirm={async (reference) => {
+          if (!bankRefAppId) return;
+          try {
+            await updateApp.mutateAsync({
+              id: bankRefAppId,
+              updates: { status: 'application_submitted', bank_reference: reference },
+            });
+          } catch {
+            // toast handled by hook
+          }
+        }}
       />
     </AdminLayout>
   );
