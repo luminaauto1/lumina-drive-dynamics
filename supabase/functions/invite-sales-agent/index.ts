@@ -50,6 +50,8 @@ Deno.serve(async (req) => {
     const mode = String(body.mode || "invite"); // "invite" | "manual"
     const providedPassword = body.password ? String(body.password) : "";
     const fullName = body.full_name ? String(body.full_name) : undefined;
+    const requestedRole = String(body.role || "sales_agent");
+    const role = requestedRole === "f_and_i" ? "f_and_i" : "sales_agent";
 
     if (!email || !email.includes("@")) {
       return new Response(JSON.stringify({ error: "Valid email required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -109,11 +111,11 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Could not resolve user id" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Assign sales_agent role (idempotent)
-    await admin.from("user_roles").upsert({ user_id: userId, role: "sales_agent" }, { onConflict: "user_id,role" });
+    // Assign requested role (idempotent)
+    await admin.from("user_roles").upsert({ user_id: userId, role }, { onConflict: "user_id,role" });
 
     return new Response(
-      JSON.stringify({ ok: true, user_id: userId, mode, email, temp_password: tempPassword, email_delivery: emailDelivery }),
+      JSON.stringify({ ok: true, user_id: userId, mode, email, role, temp_password: tempPassword, email_delivery: emailDelivery }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e: any) {

@@ -31,6 +31,8 @@ import { useUpdateFinanceApplication, FinanceApplication } from '@/hooks/useFina
 import { useApplicationMatches, useAddApplicationMatch, useRemoveApplicationMatch } from '@/hooks/useApplicationMatches';
 import { useCreateAftersalesRecord } from '@/hooks/useAftersales';
 import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, getWhatsAppMessage, canShowDealActions } from '@/lib/statusConfig';
+import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
+import { useAuth } from '@/contexts/AuthContext';
 import { generateFinancePDF } from '@/lib/generateFinancePDF';
 import { toast } from 'sonner';
 import { sendStatusNotification } from '@/hooks/useStatusNotification';
@@ -39,6 +41,7 @@ const AdminDealRoom = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { role } = useAuth();
   
   const [application, setApplication] = useState<FinanceApplication | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -1071,7 +1074,7 @@ const AdminDealRoom = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {STATUS_OPTIONS.map(opt => (
+                  {filterStatusOptionsForRole(STATUS_OPTIONS, role, application.status).map(opt => (
                     <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                   ))}
                 </SelectContent>

@@ -5,14 +5,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+type StaffRoleKind = 'sales_agent' | 'f_and_i';
+const ROLE_LABELS: Record<StaffRoleKind, string> = {
+  sales_agent: 'Salesperson',
+  f_and_i: 'F&I',
+};
 
 interface AgentRow {
   user_id: string;
   email: string | null;
   full_name: string | null;
   created_at?: string | null;
+  role: StaffRoleKind;
 }
 
 const TeamManagementTab = () => {
@@ -20,6 +28,7 @@ const TeamManagementTab = () => {
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState<StaffRoleKind>('sales_agent');
   const [inviting, setInviting] = useState(false);
   const [agents, setAgents] = useState<AgentRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,9 +39,10 @@ const TeamManagementTab = () => {
     setLoading(true);
     const { data: roleRows } = await supabase
       .from('user_roles')
-      .select('user_id')
-      .eq('role', 'sales_agent' as any);
-    const ids = (roleRows || []).map((r: any) => r.user_id);
+      .select('user_id, role')
+      .in('role', ['sales_agent', 'f_and_i'] as any);
+    const rows = (roleRows || []) as Array<{ user_id: string; role: StaffRoleKind }>;
+    const ids = rows.map(r => r.user_id);
     if (ids.length === 0) {
       setAgents([]);
       setLoading(false);
@@ -42,7 +52,17 @@ const TeamManagementTab = () => {
       .from('profiles')
       .select('user_id, email, full_name, created_at')
       .in('user_id', ids);
-    setAgents((profs || []) as any);
+    const merged: AgentRow[] = rows.map(r => {
+      const p = (profs || []).find((x: any) => x.user_id === r.user_id) as any;
+      return {
+        user_id: r.user_id,
+        role: r.role,
+        email: p?.email ?? null,
+        full_name: p?.full_name ?? null,
+        created_at: p?.created_at ?? null,
+      };
+    });
+    setAgents(merged);
     setLoading(false);
   };
 
@@ -56,7 +76,7 @@ const TeamManagementTab = () => {
     setInviting(true);
     setLastCreds(null);
     try {
-      const body: Record<string, any> = { email: email.trim(), mode };
+      const body: Record<string, any> = { email: email.trim(), mode, role };
       if (mode === 'manual') {
         if (password && password.length < 8) {
           toast.error('Password must be at least 8 characters');
@@ -141,13 +161,13 @@ const TeamManagementTab = () => {
     }
   };
 
-  const handleRevoke = async (userId: string, label: string) => {
-    if (!confirm(`Revoke sales_agent access for ${label}?`)) return;
+  const handleRevoke = async (userId: string, label: string, roleKind: StaffRoleKind) => {
+    if (!confirm(`Revoke ${ROLE_LABELS[roleKind]} access for ${label}?`)) return;
     const { error } = await supabase
       .from('user_roles')
       .delete()
       .eq('user_id', userId)
-      .eq('role', 'sales_agent' as any);
+      .eq('role', roleKind as any);
     if (error) {
       toast.error(error.message);
       return;
@@ -235,6 +255,22 @@ const TeamManagementTab = () => {
           </TabsContent>
         </Tabs>
 
+        <div className="space-y-2 max-w-md">
+          <Label>Role</Label>
+          <Select value={role} onValueChange={(v) => setRole(v as StaffRoleKind)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="sales_agent">Salesperson</SelectItem>
+              <SelectItem value="f_and_i">F&I (Finance & Insurance)</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            F&I users can only move applications between Pre-Approved → Contract Signed.
+          </p>
+        </div>
+
         <div className="flex justify-end">
           <Button type="button" onClick={handleSubmit} disabled={inviting || !email.trim()} className="gap-2">
             {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
@@ -262,7 +298,7 @@ const TeamManagementTab = () => {
       </div>
 
       <div className="space-y-2">
-        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Active Sales Agents ({agents.length})</h3>
+        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Active Team Members ({agents.length})</h3>
         {loading ? (
           <div className="text-center py-6 text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin inline" /></div>
         ) : agents.length === 0 ? (
@@ -276,7 +312,12 @@ const TeamManagementTab = () => {
                     <Mail className="w-4 h-4 text-primary" />
                   </div>
                   <div>
-                    <p className="font-medium text-sm">{a.full_name || a.email || 'Unnamed agent'}</p>
+                    <p className="font-medium text-sm flex items-center gap-2">
+                      {a.full_name || a.email || 'Unnamed user'}
+                      <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-primary/30 bg-primary/10 text-primary">
+                        {ROLE_LABELS[a.role]}
+                      </span>
+                    </p>
                     {a.full_name && a.email && (
                       <p className="text-xs text-muted-foreground">{a.email}</p>
                     )}
@@ -286,7 +327,7 @@ const TeamManagementTab = () => {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  onClick={() => handleRevoke(a.user_id, a.email || 'this agent')}
+                  onClick={() => handleRevoke(a.user_id, a.email || 'this user', a.role)}
                   className="text-destructive hover:text-destructive"
                 >
                   <Trash2 className="w-4 h-4" />
