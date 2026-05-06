@@ -366,18 +366,25 @@ const AdminFinance = () => {
           </div>
         </motion.div>
 
-        {/* F&I Action Feed — alerts for apps flagged as ready for F&I review */}
+        {/* Action Feed — role-aware mirrored notification banner */}
         {(() => {
-          const actionFeedStatuses = new Set(['resolved_ready_for_f_and_i', 'feedback_received']);
+          const isFAndI = role === 'f_and_i';
+          // F&I sees apps marked Feedback Received OR legacy Resolved.
+          // Sales/Admin see apps flagged Attention Needed (with legacy aliases).
+          const targetSet = isFAndI
+            ? new Set(['feedback_received', 'resolved_ready_for_f_and_i'])
+            : new Set(['attention_needed', 'give_attention', 'attention_given']);
           const feed = applications.filter((a: any) => {
             if (a.is_archived) return false;
-            if (!actionFeedStatuses.has(String(a.internal_status || '').trim())) return false;
-            // Auto-expire from feed after 30 business hours (Mon-Fri).
+            const raw = String(a.internal_status || '').trim();
+            if (!targetSet.has(raw)) return false;
             const ts = a.attention_updated_at || a.updated_at || a.created_at;
             if (!ts) return true;
             return businessHoursBetween(ts) <= 30;
           });
           if (feed.length === 0) return null;
+          const headerLabel = isFAndI ? 'F&I Action Feed' : 'Sales Action Feed';
+          const subLabel = isFAndI ? 'Notes Updated · Ready for Review' : 'Flagged · Needs Attention';
           return (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
@@ -387,7 +394,7 @@ const AdminFinance = () => {
               <div className="flex items-center justify-between">
                 <p className="text-xs uppercase tracking-[0.2em] text-amber-300/80 font-medium flex items-center gap-2">
                   <MailWarning className="w-3.5 h-3.5" />
-                  F&amp;I Action Feed
+                  {headerLabel}
                 </p>
                 <span className="text-[10px] text-zinc-500">
                   {feed.length} ready for review
@@ -406,7 +413,7 @@ const AdminFinance = () => {
                         {app.first_name} {app.last_name}
                       </span>
                       <span className="text-[11px] text-zinc-500 truncate">
-                        Notes Updated · Ready for Review
+                        {subLabel}
                       </span>
                     </div>
                     <span className="text-[10px] uppercase tracking-wider text-zinc-500 group-hover:text-amber-300/70 shrink-0">
