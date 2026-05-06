@@ -593,6 +593,11 @@ const AdminFinance = () => {
                         value={app.status}
                         onValueChange={async (newStatus) => {
                           if (newStatus === app.status) return;
+                          if (newStatus === 'application_submitted') {
+                            setBankRefApp(app);
+                            setBankRefModalOpen(true);
+                            return;
+                          }
                           try {
                             await updateApplication.mutateAsync({ id: app.id, updates: { status: newStatus } });
                           } catch (err) {
