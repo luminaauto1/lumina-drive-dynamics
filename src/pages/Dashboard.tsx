@@ -659,7 +659,7 @@ const Dashboard = () => {
                       )}
                       
                       {/* Show declined reason if application was declined */}
-                      {app.status === 'declined' && (
+                      {(app.status === 'declined' || app.status === 'declined_conditional') && (
                         <>
                           {app.declined_reason && (
                             <Alert variant="destructive" className="mt-4 bg-red-500/10 border-red-500/30">
