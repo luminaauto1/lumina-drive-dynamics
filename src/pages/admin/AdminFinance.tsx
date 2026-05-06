@@ -228,18 +228,17 @@ const AdminFinance = () => {
         updatedNotes = updatedNotes ? `${newEntry}\n\n${updatedNotes}` : newEntry;
       }
 
-      // Task 3 — Escalation Automation: if Sales/Admin saves a note while the
-      // app is currently "Updates Needed", auto-advance to "Info Updated" so it
-      // moves off the Sales feed and into the F&I feed.
+      // Auto-advance escalation loop based on role + current state.
+      // Sales/Admin replies to "Updates Needed" → flip to "Info Updated" (ping F&I).
+      // F&I replies to "Info Updated" → flip back to "Updates Needed" (ping Sales).
       const currentInternal = normalizeInternalStatus(pendingApp.internal_status);
       const isSalesOrAdmin = role === 'sales_agent' || role === 'super_admin';
+      const isFAndI = role === 'f_and_i';
       let effectiveStatus = pendingStatus;
-      if (
-        isSalesOrAdmin &&
-        currentInternal === 'updates_needed' &&
-        pendingStatus === 'updates_needed'
-      ) {
+      if (isSalesOrAdmin && currentInternal === 'updates_needed' && pendingStatus !== 'no_notes') {
         effectiveStatus = 'info_updated';
+      } else if (isFAndI && currentInternal === 'info_updated' && pendingStatus !== 'no_notes') {
+        effectiveStatus = 'updates_needed';
       }
 
       const updatePayload: any = {
