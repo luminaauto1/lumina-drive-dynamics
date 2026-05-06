@@ -20,13 +20,6 @@ interface AgentRow {
   email: string | null;
   full_name: string | null;
   created_at?: string | null;
-}
-
-interface AgentRow {
-  user_id: string;
-  email: string | null;
-  full_name: string | null;
-  created_at?: string | null;
   role: StaffRoleKind;
 }
 
