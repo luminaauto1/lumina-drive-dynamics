@@ -117,7 +117,13 @@ const AdminDealRoom = () => {
       setContractSentModalOpen(true);
       return;
     }
-    
+
+    // Intercept application_submitted to capture Bank Reference first
+    if (newStatus === 'application_submitted') {
+      setBankRefModalOpen(true);
+      return;
+    }
+
     try {
       await updateApplication.mutateAsync({ id: application.id, updates: { status: newStatus } });
       setApplication(prev => prev ? { ...prev, status: newStatus } : null);
