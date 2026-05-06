@@ -196,6 +196,28 @@ export const useUpdateFinanceApplication = () => {
         }
       }
 
+      // WhatsApp "Declined" notification — fires only on hard `declined`,
+      // never on `declined_conditional`.
+      if (
+        statusActuallyChanged &&
+        newStatus === 'declined' &&
+        currentApp?.phone
+      ) {
+        try {
+          const { publicApiHeaders } = await import('@/lib/publicApi');
+          const clientName = currentApp.first_name || currentApp.full_name || 'Valued Client';
+          supabase.functions.invoke('notify-declined', {
+            body: { phone_number: currentApp.phone, client_name: clientName },
+            headers: publicApiHeaders(),
+          }).then(({ error: waErr }) => {
+            if (waErr) console.error('[notify-declined] error:', waErr);
+            else console.log('[notify-declined] dispatched for', currentApp.phone);
+          });
+        } catch (waEx) {
+          console.error('[notify-declined] failed to invoke:', waEx);
+        }
+      }
+
       // WhatsApp "Blacklisted / Bad Credit" notification — same dispatch
       // pattern as application_submitted, routed to notify-blacklisted.
       if (
