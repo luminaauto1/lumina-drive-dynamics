@@ -9,6 +9,8 @@ import { Helmet } from 'react-helmet-async';
 import { isToday } from 'date-fns';
 import { Search, MessageCircle, ExternalLink, Trash2, Archive, UserPlus, Copy, Link, ClipboardList, Banknote, Calculator, MailWarning, MessageSquare } from 'lucide-react';
 import WhatsAppParserModal from '@/components/admin/WhatsAppParserModal';
+import BankReferenceModal from '@/components/admin/BankReferenceModal';
+import BankReferenceBadge from '@/components/admin/BankReferenceBadge';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -90,6 +92,10 @@ const AdminFinance = () => {
   const [pendingApp, setPendingApp] = useState<any>(null);
   const [pendingStatus, setPendingStatus] = useState('');
   const [statusNote, setStatusNote] = useState('');
+
+  // Bank Reference capture (when admin moves an app to "Application Submitted")
+  const [bankRefModalOpen, setBankRefModalOpen] = useState(false);
+  const [bankRefApp, setBankRefApp] = useState<FinanceApplication | null>(null);
 
   const { data: applications = [], isLoading, refetch } = useFinanceApplications();
   const updateApplication = useUpdateFinanceApplication();
@@ -525,7 +531,12 @@ const AdminFinance = () => {
                           onClick={(e) => { e.preventDefault(); openClientHub(app.email, app.phone); }}
                           className="hover:text-emerald-400 hover:underline cursor-pointer text-left focus:outline-none"
                         >
-                          <p className="font-medium">{app.first_name} {app.last_name}</p>
+                          <p className="font-medium flex items-center gap-2">
+                            {(app as any).bank_reference && (
+                              <BankReferenceBadge reference={(app as any).bank_reference} />
+                            )}
+                            <span>{app.first_name} {app.last_name}</span>
+                          </p>
                           <p className="text-xs text-muted-foreground">{app.email}</p>
                         </button>
                         {isNew && (
@@ -587,6 +598,11 @@ const AdminFinance = () => {
                         value={app.status}
                         onValueChange={async (newStatus) => {
                           if (newStatus === app.status) return;
+                          if (newStatus === 'application_submitted') {
+                            setBankRefApp(app);
+                            setBankRefModalOpen(true);
+                            return;
+                          }
                           try {
                             await updateApplication.mutateAsync({ id: app.id, updates: { status: newStatus } });
                           } catch (err) {
@@ -800,6 +816,23 @@ const AdminFinance = () => {
         clientPhone={selectedPhone}
       />
       <WhatsAppParserModal open={waModalOpen} onOpenChange={setWaModalOpen} />
+
+      <BankReferenceModal
+        open={bankRefModalOpen}
+        onOpenChange={(o) => { setBankRefModalOpen(o); if (!o) setBankRefApp(null); }}
+        defaultValue={(bankRefApp as any)?.bank_reference || ''}
+        onConfirm={async (reference) => {
+          if (!bankRefApp) return;
+          try {
+            await updateApplication.mutateAsync({
+              id: bankRefApp.id,
+              updates: { status: 'application_submitted', bank_reference: reference },
+            });
+          } catch (err) {
+            // error toast handled by hook
+          }
+        }}
+      />
     </AdminLayout>
   );
 };

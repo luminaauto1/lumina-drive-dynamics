@@ -14,6 +14,8 @@ import FinalizeDealModal from '@/components/admin/FinalizeDealModal';
 import OTPModal from '@/components/admin/OTPModal';
 import ClientDocumentViewer from '@/components/admin/ClientDocumentViewer';
 import ContractSentModal from '@/components/admin/ContractSentModal';
+import BankReferenceModal from '@/components/admin/BankReferenceModal';
+import BankReferenceBadge from '@/components/admin/BankReferenceBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -51,6 +53,7 @@ const AdminDealRoom = () => {
   const [finalizeDealModalOpen, setFinalizeDealModalOpen] = useState(false);
   const [otpModalOpen, setOtpModalOpen] = useState(false);
   const [contractSentModalOpen, setContractSentModalOpen] = useState(false);
+  const [bankRefModalOpen, setBankRefModalOpen] = useState(false);
 
   const { data: vehicles = [], refetch: refetchVehicles } = useVehicles();
   const { data: matches = [], isLoading: matchesLoading, refetch: refetchMatches } = useApplicationMatches(id || '');
@@ -114,7 +117,13 @@ const AdminDealRoom = () => {
       setContractSentModalOpen(true);
       return;
     }
-    
+
+    // Intercept application_submitted to capture Bank Reference first
+    if (newStatus === 'application_submitted') {
+      setBankRefModalOpen(true);
+      return;
+    }
+
     try {
       await updateApplication.mutateAsync({ id: application.id, updates: { status: newStatus } });
       setApplication(prev => prev ? { ...prev, status: newStatus } : null);
@@ -1044,7 +1053,10 @@ const AdminDealRoom = () => {
             <div className="glass-card rounded-xl p-6">
               <h3 className="font-semibold mb-4">Status Controller</h3>
               
-              <div className="mb-4">
+              <div className="mb-4 flex items-center gap-2 flex-wrap">
+                {(application as any).bank_reference && (
+                  <BankReferenceBadge reference={(application as any).bank_reference} />
+                )}
                 <span className={`px-3 py-1.5 text-sm uppercase tracking-wider rounded border ${STATUS_STYLES[application.status] || STATUS_STYLES.pending}`}>
                   {ADMIN_STATUS_LABELS[application.status] || application.status}
                 </span>
@@ -1471,6 +1483,37 @@ const AdminDealRoom = () => {
         applicationId={application.id}
         clientName={`${application.first_name || ''} ${application.last_name || ''}`.trim() || application.full_name}
         onSuccess={handleContractSentSuccess}
+      />
+
+      {/* Bank Reference capture for Application Submitted */}
+      <BankReferenceModal
+        open={bankRefModalOpen}
+        onOpenChange={setBankRefModalOpen}
+        defaultValue={(application as any)?.bank_reference || ''}
+        onConfirm={async (reference) => {
+          if (!application) return;
+          try {
+            await updateApplication.mutateAsync({
+              id: application.id,
+              updates: { status: 'application_submitted', bank_reference: reference },
+            });
+            setApplication(prev => prev ? ({ ...prev, status: 'application_submitted', bank_reference: reference } as any) : null);
+            const vehicleName = activeVehicle
+              ? `${activeVehicle.year} ${activeVehicle.make} ${activeVehicle.model}`
+              : undefined;
+            sendStatusNotification({
+              clientEmail: application.email,
+              clientName: application.first_name || application.full_name?.split(' ')[0] || 'Client',
+              newStatus: 'application_submitted',
+              applicationId: application.id,
+              accessToken: (application as any).access_token,
+              vehicleName,
+            });
+            toast.success('Application submitted to bank');
+          } catch (err) {
+            console.error('Bank ref submission failed:', err);
+          }
+        }}
       />
     </AdminLayout>
   );
