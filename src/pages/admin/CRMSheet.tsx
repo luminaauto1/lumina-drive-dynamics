@@ -15,6 +15,8 @@ import BankReferenceModal from '@/components/admin/BankReferenceModal';
 import { useLeads, useUpdateLead, useCreateLead } from '@/hooks/useLeads';
 import { useFinanceApplications, useUpdateFinanceApplication } from '@/hooks/useFinanceApplications';
 import { STATUS_OPTIONS as FINANCE_STATUS_OPTIONS } from '@/lib/statusConfig';
+import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { format, differenceInDays } from 'date-fns';
 
@@ -77,6 +79,7 @@ interface GridRow {
 
 const CRMSheet = () => {
   const navigate = useNavigate();
+  const { role } = useAuth();
   const [activeTab, setActiveTab] = useState('leads');
   const [addLeadOpen, setAddLeadOpen] = useState(false);
   const [newLeadName, setNewLeadName] = useState('');
@@ -290,7 +293,10 @@ const CRMSheet = () => {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {row.options.map((opt) => (
+                            {(row.type === 'finance'
+                              ? filterStatusOptionsForRole(row.options, role, row.status)
+                              : row.options
+                            ).map((opt) => (
                               <SelectItem key={opt.value} value={opt.value} className="text-xs">
                                 {opt.label}
                               </SelectItem>
