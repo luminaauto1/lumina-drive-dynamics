@@ -953,6 +953,37 @@ const AdminFinance = () => {
                 )}
               </DialogTitle>
             </DialogHeader>
+            {(() => {
+              const norm = normalizeInternalStatus((pendingApp as any)?.internal_status);
+              if (norm !== 'note_to_f_and_i' && norm !== 'note_to_sales') return null;
+              return (
+                <div className="pt-1 pb-2">
+                  <Button
+                    onClick={async () => {
+                      if (!pendingApp) return;
+                      try {
+                        const { error } = await supabase
+                          .from('finance_applications')
+                          .update({ internal_status: 'no_notes', attention_updated_at: new Date().toISOString() })
+                          .eq('id', pendingApp.id);
+                        if (error) throw error;
+                        toast({ title: 'Marked as attended' });
+                        setStatusModalOpen(false);
+                        setPendingApp(null);
+                        setPendingStatus('');
+                        setStatusNote('');
+                        refetch();
+                      } catch (e: any) {
+                        toast({ title: 'Failed to clear note', variant: 'destructive' });
+                      }
+                    }}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    ✓ Mark as Attended (Clear Note)
+                  </Button>
+                </div>
+              );
+            })()}
             <div className="space-y-4 py-2">
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wider">Add a comment for the sales team</Label>
