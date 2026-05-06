@@ -378,11 +378,11 @@ const AdminFinance = () => {
         {/* Action Feed — role-aware mirrored notification banner */}
         {(() => {
           const isFAndI = role === 'f_and_i';
-          // F&I sees apps marked Feedback Received OR legacy Resolved.
-          // Sales/Admin see apps flagged Attention Needed (with legacy aliases).
+          // F&I sees apps where Sales/Admin provided feedback.
+          // Sales/Admin see apps F&I flagged as Attention Needed (with legacy aliases).
           const targetSet = isFAndI
-            ? new Set(['feedback_received', 'resolved_ready_for_f_and_i'])
-            : new Set(['attention_needed', 'give_attention', 'attention_given']);
+            ? new Set(['feedback_provided', 'feedback_received', 'resolved_ready_for_f_and_i'])
+            : new Set(['attention_needed', 'give_attention', 'attention_given', 'new_lead']);
           const feed = applications.filter((a: any) => {
             if (a.is_archived) return false;
             const raw = String(a.internal_status || '').trim();
