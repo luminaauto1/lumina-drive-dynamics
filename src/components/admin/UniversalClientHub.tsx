@@ -348,13 +348,13 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
                     </div>
                     <div className="p-2.5 rounded-md bg-muted/20 border border-border hover:border-emerald-500/20 transition-colors">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] font-semibold text-emerald-500">{log.author_name}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[9px] text-muted-foreground font-mono">{format(new Date(log.created_at), 'dd MMM HH:mm')}</span>
-                          <button onClick={() => handleDeleteNote(log.id)} className="text-zinc-600 hover:text-red-500 transition-colors" title="Delete Note">
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
+                        <span className="text-[10px] text-zinc-400 font-medium">
+                          {log.author_name || 'Unknown'} <span className="text-zinc-600">•</span>{' '}
+                          <span className="text-zinc-500 font-mono">{format(new Date(log.created_at), 'dd MMM HH:mm')}</span>
+                        </span>
+                        <button onClick={() => handleDeleteNote(log.id)} className="text-zinc-600 hover:text-red-500 transition-colors" title="Delete Note">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
                       </div>
                       <p className="text-[11px] text-foreground/80 leading-relaxed whitespace-pre-wrap">{log.note}</p>
                     </div>
