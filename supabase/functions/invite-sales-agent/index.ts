@@ -96,8 +96,7 @@ Deno.serve(async (req) => {
       userId = invite?.user?.id;
 
       if (inviteErr) {
-        const { data: list } = await admin.auth.admin.listUsers();
-        const existing = list?.users?.find((u: any) => (u.email || "").toLowerCase() === email);
+        const existing = await findUserByEmail(admin, email);
         if (!existing) {
           return new Response(JSON.stringify({ error: inviteErr.message }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
