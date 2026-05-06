@@ -531,9 +531,13 @@ const AdminFinance = () => {
                           onClick={(e) => { e.preventDefault(); openClientHub(app.email, app.phone); }}
                           className="hover:text-emerald-400 hover:underline cursor-pointer text-left focus:outline-none"
                         >
-                          <p className="font-medium">{app.first_name} {app.last_name}</p>
+                          <p className="font-medium flex items-center gap-2">
+                            {(app as any).bank_reference && (
+                              <BankReferenceBadge reference={(app as any).bank_reference} />
+                            )}
+                            <span>{app.first_name} {app.last_name}</span>
+                          </p>
                           <p className="text-xs text-muted-foreground">{app.email}</p>
-                        </button>
                         {isNew && (
                           <span className="px-1.5 py-0.5 text-[10px] uppercase font-bold rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse">
                             🔥 NEW
