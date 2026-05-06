@@ -157,6 +157,7 @@ export type Database = {
       client_audit_logs: {
         Row: {
           action_type: string | null
+          author_id: string | null
           author_name: string | null
           client_email: string | null
           client_phone: string | null
@@ -166,6 +167,7 @@ export type Database = {
         }
         Insert: {
           action_type?: string | null
+          author_id?: string | null
           author_name?: string | null
           client_email?: string | null
           client_phone?: string | null
@@ -175,6 +177,7 @@ export type Database = {
         }
         Update: {
           action_type?: string | null
+          author_id?: string | null
           author_name?: string | null
           client_email?: string | null
           client_phone?: string | null
@@ -499,6 +502,7 @@ export type Database = {
           contract_bank_name: string | null
           contract_url: string | null
           created_at: string
+          created_by: string | null
           credit_score_status: string | null
           deal_type: string | null
           declined_reason: string | null
@@ -561,6 +565,7 @@ export type Database = {
           contract_bank_name?: string | null
           contract_url?: string | null
           created_at?: string
+          created_by?: string | null
           credit_score_status?: string | null
           deal_type?: string | null
           declined_reason?: string | null
@@ -623,6 +628,7 @@ export type Database = {
           contract_bank_name?: string | null
           contract_url?: string | null
           created_at?: string
+          created_by?: string | null
           credit_score_status?: string | null
           deal_type?: string | null
           declined_reason?: string | null
