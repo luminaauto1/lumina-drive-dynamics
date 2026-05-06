@@ -20,7 +20,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useFinanceApplications, useUpdateFinanceApplication, useDeleteFinanceApplication, FinanceApplication } from '@/hooks/useFinanceApplications';
 import { formatPrice } from '@/hooks/useVehicles';
-import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, getWhatsAppMessage, canShowDealActions } from '@/lib/statusConfig';
+import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, STATUS_STEP_ORDER, getWhatsAppMessage, canShowDealActions } from '@/lib/statusConfig';
 import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
 import { INTERNAL_STATUSES, type InternalStatus } from '@/lib/internalStatusConfig';
 import { supabase } from '@/integrations/supabase/client';
@@ -97,6 +97,21 @@ const AdminFinance = () => {
   // Bank Reference capture (when admin moves an app to "Application Submitted")
   const [bankRefModalOpen, setBankRefModalOpen] = useState(false);
   const [bankRefApp, setBankRefApp] = useState<FinanceApplication | null>(null);
+
+  // Action Feed → row scroll/highlight
+  const [highlightedAppId, setHighlightedAppId] = useState<string | null>(null);
+
+  const focusApplicationRow = (app: FinanceApplication) => {
+    const el = document.getElementById(`app-row-${app.id}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setHighlightedAppId(app.id);
+    window.setTimeout(() => setHighlightedAppId(prev => (prev === app.id ? null : prev)), 2000);
+    // Auto-open the CRM notes modal so F&I immediately sees what was resolved.
+    setPendingApp(app);
+    setPendingStatus((app as any).internal_status || 'attention_given');
+    setStatusNote('');
+    setStatusModalOpen(true);
+  };
 
   const { data: applications = [], isLoading, refetch } = useFinanceApplications();
   const updateApplication = useUpdateFinanceApplication();
@@ -481,14 +496,21 @@ const AdminFinance = () => {
                     ? 'Risk: No License'
                     : null;
 
-                  // Freshness & stagnation
-                  const isNew = (Date.now() - new Date(app.created_at).getTime()) < (24 * 60 * 60 * 1000);
+                  // Freshness & stagnation.
+                  // "NEW" disappears once the app has progressed past application_submitted
+                  // (sent_to_banks step or further) OR once any CRM notes exist.
+                  const stepIdx = STATUS_STEP_ORDER[app.status] ?? 0;
+                  const hasNotes = !!(app.notes && String(app.notes).trim().length > 0);
+                  const ageMs = Date.now() - new Date(app.created_at).getTime();
+                  const isNew = ageMs < (24 * 60 * 60 * 1000) && stepIdx < 2 && !hasNotes;
                   const isStagnant = (Date.now() - new Date(app.updated_at || app.created_at).getTime()) > (72 * 60 * 60 * 1000);
-                  
+                  const isHighlighted = highlightedAppId === app.id;
+
                   return (
-                  <TableRow 
-                    key={app.id} 
-                    className={`border-white/10 hover:bg-white/5 cursor-pointer ${isNew ? 'bg-emerald-500/5' : ''} ${isStagnant ? 'bg-orange-500/5' : ''}`}
+                  <TableRow
+                    key={app.id}
+                    id={`app-row-${app.id}`}
+                    className={`border-white/10 hover:bg-white/5 cursor-pointer transition-colors ${isNew ? 'bg-emerald-500/5' : ''} ${isStagnant ? 'bg-orange-500/5' : ''} ${isHighlighted ? 'ring-2 ring-amber-300/70 bg-amber-300/10 animate-pulse' : ''}`}
                     onClick={() => navigate(`/admin/finance/${app.id}`)}
                   >
                     <TableCell onClick={(e) => e.stopPropagation()}>
