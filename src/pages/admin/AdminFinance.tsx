@@ -793,27 +793,47 @@ const AdminFinance = () => {
                       </Select>
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                      {(() => {
-                        const safeStatusKey = getDisplayStatus(app);
-                        const statusConfig = INTERNAL_STATUSES[safeStatusKey as keyof typeof INTERNAL_STATUSES] || INTERNAL_STATUSES.no_notes;
-                        return (
-                          <Select 
-                            value={safeStatusKey} 
-                            onValueChange={(value) => handleStatusDropdownChange(app, value)}
-                          >
-                            <SelectTrigger className={`w-[200px] h-7 text-xs border ${statusConfig.color}`}>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(Object.entries(INTERNAL_STATUSES) as [InternalStatus, typeof INTERNAL_STATUSES[InternalStatus]][]).map(([key, val]) => (
-                                <SelectItem key={key} value={key} className="text-xs">
-                                  {val.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        );
-                      })()}
+                       {(() => {
+                         const safeStatusKey = getDisplayStatus(app);
+                         const statusConfig = INTERNAL_STATUSES[safeStatusKey as keyof typeof INTERNAL_STATUSES] || INTERNAL_STATUSES.no_notes;
+                         const hasNotes = !!(app.notes && String(app.notes).trim().length > 0);
+                         return (
+                           <div className="flex items-center gap-2">
+                             <Select 
+                               value={safeStatusKey} 
+                               onValueChange={(value) => handleStatusDropdownChange(app, value)}
+                             >
+                               <SelectTrigger className={`w-[200px] h-7 text-xs border ${statusConfig.color}`}>
+                                 <SelectValue />
+                               </SelectTrigger>
+                               <SelectContent>
+                                 {(Object.entries(INTERNAL_STATUSES) as [InternalStatus, typeof INTERNAL_STATUSES[InternalStatus]][]).map(([key, val]) => (
+                                   <SelectItem key={key} value={key} className="text-xs">
+                                     {val.label}
+                                   </SelectItem>
+                                 ))}
+                               </SelectContent>
+                             </Select>
+                             <button
+                               type="button"
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 setPendingApp(app);
+                                 setPendingStatus(normalizeInternalStatus((app as any).internal_status) || 'no_notes');
+                                 setStatusNote('');
+                                 setStatusModalOpen(true);
+                               }}
+                               className="relative flex h-7 w-7 items-center justify-center rounded border border-zinc-800 bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors"
+                               title={hasNotes ? "View Notes" : "Add Note"}
+                             >
+                               <span className="text-xs leading-none">📝</span>
+                               {hasNotes && (
+                                 <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-zinc-950" />
+                               )}
+                             </button>
+                           </div>
+                         );
+                       })()}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {new Date(app.created_at).toLocaleDateString()}
