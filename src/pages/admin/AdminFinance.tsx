@@ -200,12 +200,23 @@ const AdminFinance = () => {
         .eq('id', pendingApp.id);
       if (error) throw error;
 
-      // Dual-sync: Push to Global Universal Timeline
+      // Dual-sync: Push to Global Universal Timeline (with current staff author)
+      const { data: { user: actingUser } } = await supabase.auth.getUser();
+      let actingName = 'Admin Staff';
+      if (actingUser?.id) {
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('full_name, email')
+          .eq('user_id', actingUser.id)
+          .maybeSingle();
+        actingName = (prof as any)?.full_name || (prof as any)?.email || actingUser.email || actingName;
+      }
       await supabase.from('client_audit_logs').insert([{
         client_email: pendingApp.email || null,
         client_phone: pendingApp.phone || null,
         note: `[Finance Stage Updated to ${INTERNAL_STATUSES[pendingStatus as keyof typeof INTERNAL_STATUSES]?.label || pendingStatus}] ${statusNote || 'No comment'}`,
-        author_name: 'F&I Admin',
+        author_id: actingUser?.id || null,
+        author_name: actingName,
         action_type: 'Status Update'
       }]);
 
