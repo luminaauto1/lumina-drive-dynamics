@@ -14,6 +14,8 @@ import FinalizeDealModal from '@/components/admin/FinalizeDealModal';
 import OTPModal from '@/components/admin/OTPModal';
 import ClientDocumentViewer from '@/components/admin/ClientDocumentViewer';
 import ContractSentModal from '@/components/admin/ContractSentModal';
+import BankReferenceModal from '@/components/admin/BankReferenceModal';
+import BankReferenceBadge from '@/components/admin/BankReferenceBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
