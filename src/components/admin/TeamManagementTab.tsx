@@ -5,8 +5,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+type StaffRoleKind = 'sales_agent' | 'f_and_i';
+const ROLE_LABELS: Record<StaffRoleKind, string> = {
+  sales_agent: 'Salesperson',
+  f_and_i: 'F&I',
+};
 
 interface AgentRow {
   user_id: string;
