@@ -91,9 +91,19 @@ export const useUpdateFinanceApplication = () => {
         'approved',
       ]);
 
-      const newStatus = updates.status as string | undefined;
+      // Effective status: when admins archive a terminal state (declined/blacklisted/lost),
+      // AdminFinance sets status='archived' and the real state in internal_status. We must
+      // detect the real semantic transition (e.g. 'declined') for notifications/emails.
+      const rawNewStatus = updates.status as string | undefined;
+      const internalNewStatus = updates.internal_status as string | undefined;
+      const newStatus =
+        rawNewStatus === 'archived' && internalNewStatus
+          ? internalNewStatus
+          : rawNewStatus;
+      const previousEffective =
+        (currentApp as any)?.internal_status || currentApp?.status;
       const statusActuallyChanged =
-        !!newStatus && !!currentApp && newStatus !== currentApp.status;
+        !!newStatus && !!currentApp && newStatus !== previousEffective;
 
       if (
         statusActuallyChanged &&
