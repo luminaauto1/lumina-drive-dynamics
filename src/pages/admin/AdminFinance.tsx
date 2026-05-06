@@ -69,7 +69,7 @@ Please also send clear photos/PDFs of:
 const AdminFinance = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { isSuperAdmin, role } = useAuth();
+  const { isSuperAdmin, role, user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'active' | 'archived'>('active');
@@ -1001,6 +1001,68 @@ const AdminFinance = () => {
                   >
                     ✓ Mark as Attended (Clear Note)
                   </Button>
+                </div>
+              );
+            })()}
+            {(() => {
+              const norm = normalizeInternalStatus((pendingApp as any)?.internal_status);
+              const eligible = role === 'f_and_i' && (norm === 'info_updated' || norm === 'no_notes' || !norm);
+              const notAlreadySent = pendingApp?.status !== 'sent_to_banks';
+              if (!eligible || !notAlreadySent) return null;
+              return (
+                <div className="pt-1 pb-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!pendingApp) return;
+                      try {
+                        const { error } = await supabase
+                          .from('finance_applications')
+                          .update({
+                            status: 'sent_to_banks',
+                            internal_status: 'no_notes',
+                            attention_updated_at: new Date().toISOString(),
+                          })
+                          .eq('id', pendingApp.id);
+                        if (error) throw error;
+
+                        // Append audit note to application
+                        const stamp = new Date().toLocaleString('en-ZA', { hour12: false });
+                        const autoEntry = `[${stamp}] «FNI» Updated and sent to bank.`;
+                        const existingNotes = (pendingApp as any).notes || '';
+                        const merged = existingNotes ? `${autoEntry}\n\n${existingNotes}` : autoEntry;
+                        await supabase
+                          .from('finance_applications')
+                          .update({ notes: merged })
+                          .eq('id', pendingApp.id);
+
+                        // Audit log
+                        if (user?.id) {
+                          await supabase.from('client_audit_logs').insert({
+                            note: 'Updated and sent to bank.',
+                            action_type: 'status_change',
+                            author_id: user.id,
+                            author_name: 'F&I',
+                            client_email: pendingApp.email || null,
+                            client_phone: pendingApp.phone || null,
+                          });
+                        }
+
+                        toast({ title: 'Sent to Banks', description: 'Status updated & notification cleared.' });
+                        setStatusModalOpen(false);
+                        setPendingApp(null);
+                        setPendingStatus('');
+                        setStatusNote('');
+                        refetch();
+                      } catch (e: any) {
+                        console.error('[Send to Banks] failed:', e);
+                        toast({ title: 'Failed to send to banks', description: e.message, variant: 'destructive' });
+                      }
+                    }}
+                    className="w-full bg-yellow-500 text-black font-semibold px-4 py-2 rounded hover:bg-yellow-400 transition-colors"
+                  >
+                    🏦 Finalize: Send to Banks
+                  </button>
                 </div>
               );
             })()}
