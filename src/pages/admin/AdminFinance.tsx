@@ -177,9 +177,10 @@ const AdminFinance = () => {
   const confirmStatusUpdate = async () => {
     if (!pendingApp || !pendingStatus) return;
     try {
-      // Auto-Archive Logic: Declined/Lost are immediately archived
-      const isTerminal = pendingStatus === 'declined' || pendingStatus === 'lost' || pendingStatus === 'blacklisted';
-      const finalStatus = isTerminal ? 'archived' : pendingStatus;
+      // DECOUPLED ARCHIVE LOGIC: never overwrite the status text with "archived".
+      // Declined / Blacklisted / Lost keep their real status AND set is_archived=true
+      // so they leave the active pipeline while preserving status history.
+      const archiveOnTerminal = ['declined', 'blacklisted', 'lost'].includes(pendingStatus);
 
       let updatedNotes = pendingApp.notes || '';
       if (statusNote.trim()) {
@@ -188,13 +189,33 @@ const AdminFinance = () => {
         const newEntry = `[${timestamp}] ${statusLabel}: ${statusNote}`;
         updatedNotes = updatedNotes ? `${newEntry}\n\n${updatedNotes}` : newEntry;
       }
+
+      // STEP 1 — Fire the WhatsApp dispatch FIRST (before any UI unmounting / refetch),
+      // so a "declined" transition is never aborted by status remap or component unmount.
+      if (pendingStatus === 'declined' && pendingApp.phone) {
+        try {
+          const { publicApiHeaders } = await import('@/lib/publicApi');
+          const clientName = pendingApp.first_name || pendingApp.full_name || 'Valued Client';
+          supabase.functions.invoke('notify-declined', {
+            body: { phone_number: pendingApp.phone, client_name: clientName },
+            headers: publicApiHeaders(),
+          }).then(({ error: waErr }) => {
+            if (waErr) console.error('[notify-declined] error:', waErr);
+            else console.log('[notify-declined] dispatched for', pendingApp.phone);
+          });
+        } catch (waEx) {
+          console.error('[notify-declined] failed to invoke:', waEx);
+        }
+      }
+
       const updatePayload: any = {
-        internal_status: finalStatus,
+        status: pendingStatus, // preserve real status (declined / blacklisted / etc.)
+        internal_status: pendingStatus,
         attention_updated_at: new Date().toISOString(),
         notes: updatedNotes,
       };
-      if (isTerminal) {
-        updatePayload.status = 'archived';
+      if (archiveOnTerminal) {
+        updatePayload.is_archived = true;
       }
       const { error } = await supabase
         .from('finance_applications')
