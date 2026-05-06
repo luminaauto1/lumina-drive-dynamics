@@ -133,7 +133,7 @@ const CRMSheet = () => {
     switch (activeTab) {
       case 'leads':
         return leads
-          .filter(l => !['lost', 'converted', 'declined', 'declined_conditional', 'finalized', 'delivered', 'vehicle_delivered', 'archived'].includes(safeStatus(l.status)))
+          .filter(l => !['lost', 'converted', 'declined', 'finalized', 'delivered', 'vehicle_delivered', 'archived'].includes(safeStatus(l.status)))
           .map(mapLead);
       case 'apps_received':
         return apps
@@ -177,7 +177,7 @@ const CRMSheet = () => {
     }
 
     // Auto-Archive Logic: Declined/Lost deals are immediately moved to archive
-    const finalStatus = (newStatus === 'declined' || newStatus === 'declined_conditional' || newStatus === 'lost') ? 'archived' : newStatus;
+    const finalStatus = (newStatus === 'declined' || newStatus === 'lost') ? 'archived' : newStatus;
 
     if (type === 'lead') {
       await updateLead.mutateAsync({ id, updates: { status: finalStatus } as any });
@@ -185,7 +185,7 @@ const CRMSheet = () => {
       await updateApp.mutateAsync({ id, updates: { status: finalStatus } });
     }
 
-    if (finalStatus === 'archived' && (newStatus === 'declined' || newStatus === 'declined_conditional' || newStatus === 'lost')) {
+    if (finalStatus === 'archived' && (newStatus === 'declined' || newStatus === 'lost')) {
       toast.success(`Marked as ${newStatus} and moved to Archive.`);
     }
   };

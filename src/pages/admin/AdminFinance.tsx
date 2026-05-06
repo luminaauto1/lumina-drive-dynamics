@@ -159,7 +159,7 @@ const AdminFinance = () => {
     
     // Filter by active/archived — terminal states auto-hide from active view
     const s = (app.status || '').toLowerCase().trim();
-    const isTerminal = ['finalized', 'delivered', 'vehicle_delivered', 'archived', 'declined', 'declined_conditional', 'blacklisted'].includes(s);
+    const isTerminal = ['finalized', 'delivered', 'vehicle_delivered', 'archived', 'declined', 'blacklisted'].includes(s);
     const matchesViewMode = viewMode === 'archived' ? isTerminal : !isTerminal;
 
     return matchesSearch && matchesStatus && matchesViewMode;
@@ -176,7 +176,7 @@ const AdminFinance = () => {
     if (!pendingApp || !pendingStatus) return;
     try {
       // Auto-Archive Logic: Declined/Lost are immediately archived
-      const isTerminal = pendingStatus === 'declined' || pendingStatus === 'declined_conditional' || pendingStatus === 'lost' || pendingStatus === 'blacklisted';
+      const isTerminal = pendingStatus === 'declined' || pendingStatus === 'lost' || pendingStatus === 'blacklisted';
       const finalStatus = isTerminal ? 'archived' : pendingStatus;
 
       let updatedNotes = pendingApp.notes || '';
@@ -355,7 +355,7 @@ const AdminFinance = () => {
   };
 
   // Stats for active applications only
-  const activeApps = applications.filter(a => !['finalized', 'delivered', 'vehicle_delivered', 'archived', 'declined', 'declined_conditional', 'blacklisted'].includes((a.status || '').toLowerCase().trim()));
+  const activeApps = applications.filter(a => !['finalized', 'delivered', 'vehicle_delivered', 'archived', 'declined', 'blacklisted'].includes((a.status || '').toLowerCase().trim()));
 
   return (
     <AdminLayout>
@@ -626,7 +626,7 @@ const AdminFinance = () => {
                             return;
                           }
                           // Auto-archive terminal statuses
-                          const isTerminal = ['declined', 'declined_conditional', 'blacklisted', 'lost'].includes(newStatus);
+                          const isTerminal = ['declined', 'blacklisted', 'lost'].includes(newStatus);
                           const finalStatus = isTerminal ? 'archived' : newStatus;
                           try {
                             await updateApplication.mutateAsync({

@@ -132,7 +132,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
       }));
       setActiveApps(fData.filter(app => {
         const s = app.status?.toLowerCase()?.trim() || '';
-        return !['finalized', 'delivered', 'declined', 'declined_conditional', 'lost'].includes(s);
+        return !['finalized', 'delivered', 'declined', 'lost'].includes(s);
       }));
     } else {
       setPastDeals([]);
