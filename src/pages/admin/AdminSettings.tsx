@@ -122,8 +122,8 @@ const SalesRepsTab = ({ settings, updateSettings }: { settings: SiteSettings | u
             step={0.5}
           />
         </div>
-        <Button onClick={addRep} className="gap-2">
-          <Plus className="w-4 h-4" />
+        <Button onClick={addRep} disabled={saving || !newRepName.trim()} className="gap-2">
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
           Add
         </Button>
       </div>
