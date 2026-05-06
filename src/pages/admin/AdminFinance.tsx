@@ -643,15 +643,17 @@ const AdminFinance = () => {
                             setBankRefModalOpen(true);
                             return;
                           }
-                          // Auto-archive terminal statuses
-                          const isTerminal = ['declined', 'blacklisted', 'lost'].includes(newStatus);
-                          const finalStatus = isTerminal ? 'archived' : newStatus;
+                          // Hard Declined must keep status='declined'. It moves to the
+                          // Archived tab via the terminal-status filters, not by rewriting
+                          // the status to 'archived' — this preserves notification triggers.
+                          const isArchivedTerminal = ['blacklisted', 'lost'].includes(newStatus);
+                          const finalStatus = isArchivedTerminal ? 'archived' : newStatus;
                           try {
                             await updateApplication.mutateAsync({
                               id: app.id,
                               updates: {
                                 status: finalStatus,
-                                ...(isTerminal ? { internal_status: newStatus } : {}),
+                                ...(isArchivedTerminal ? { internal_status: newStatus } : {}),
                               },
                             });
                           } catch (err) {

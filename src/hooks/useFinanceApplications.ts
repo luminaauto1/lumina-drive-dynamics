@@ -101,7 +101,9 @@ export const useUpdateFinanceApplication = () => {
           ? internalNewStatus
           : rawNewStatus;
       const previousEffective =
-        (currentApp as any)?.internal_status || currentApp?.status;
+        currentApp?.status === 'archived' && (currentApp as any)?.internal_status
+          ? (currentApp as any).internal_status
+          : currentApp?.status;
       const statusActuallyChanged =
         !!newStatus && !!currentApp && newStatus !== previousEffective;
 
