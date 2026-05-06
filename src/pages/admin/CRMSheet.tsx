@@ -138,15 +138,15 @@ const CRMSheet = () => {
           .map(mapLead);
       case 'apps_received':
         return apps
-          .filter(a => ['pending', 'application_submitted', 'under_review', 'needs_revision', 'revision_submitted'].includes(safeStatus(a.status)))
+          .filter(a => !(a as any).is_archived && ['pending', 'application_submitted', 'under_review', 'needs_revision', 'revision_submitted'].includes(safeStatus(a.status)))
           .map(mapApp);
       case 'pre_approved':
         return apps
-          .filter(a => ['pre_approved', 'vehicle_selected', 'documents_received', 'approved'].includes(safeStatus(a.status)))
+          .filter(a => !(a as any).is_archived && ['pre_approved', 'vehicle_selected', 'documents_received', 'approved'].includes(safeStatus(a.status)))
           .map(mapApp);
       case 'validated':
         return apps
-          .filter(a => ['validations_pending', 'validations_complete', 'contract_sent', 'contract_signed'].includes(safeStatus(a.status)))
+          .filter(a => !(a as any).is_archived && ['validations_pending', 'validations_complete', 'contract_sent', 'contract_signed'].includes(safeStatus(a.status)))
           .map(mapApp);
       case 'finalized':
         return [
@@ -156,7 +156,7 @@ const CRMSheet = () => {
       case 'declined':
         return [
           ...leads.filter(l => ['lost', 'archived'].includes(safeStatus(l.status))).map(mapLead),
-          ...apps.filter(a => ['declined', 'declined_conditional', 'archived'].includes(safeStatus(a.status))).map(mapApp)
+          ...apps.filter(a => (a as any).is_archived === true || ['declined', 'declined_conditional', 'archived', 'blacklisted'].includes(safeStatus(a.status))).map(mapApp)
         ];
       default:
         return [];
