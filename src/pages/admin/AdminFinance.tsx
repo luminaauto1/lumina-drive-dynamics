@@ -236,7 +236,7 @@ const AdminFinance = () => {
       // automatically transition it to "Feedback Provided" so it disappears from
       // their feed and appears in the F&I feed — without manual toggling.
       const currentInternal = normalizeInternalStatus(pendingApp.internal_status);
-      const isSalesOrAdmin = role === 'sales_agent' || role === 'admin' || role === 'super_admin';
+      const isSalesOrAdmin = role === 'sales_agent' || role === 'super_admin';
       let effectiveStatus = pendingStatus;
       if (
         isSalesOrAdmin &&
