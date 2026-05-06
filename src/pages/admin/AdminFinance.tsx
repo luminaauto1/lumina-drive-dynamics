@@ -157,10 +157,12 @@ const AdminFinance = () => {
     
     const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
     
-    // Filter by active/archived — terminal states auto-hide from active view
+    // Filter by active/archived — uses dedicated is_archived flag PLUS legacy
+    // terminal statuses (finalized/delivered) which still auto-hide from active.
     const s = (app.status || '').toLowerCase().trim();
-    const isTerminal = ['finalized', 'delivered', 'vehicle_delivered', 'archived', 'declined', 'blacklisted'].includes(s);
-    const matchesViewMode = viewMode === 'archived' ? isTerminal : !isTerminal;
+    const legacyTerminal = ['finalized', 'delivered', 'vehicle_delivered', 'archived'].includes(s);
+    const isArchived = (app as any).is_archived === true || legacyTerminal;
+    const matchesViewMode = viewMode === 'archived' ? isArchived : !isArchived;
 
     return matchesSearch && matchesStatus && matchesViewMode;
   });
