@@ -1484,6 +1484,37 @@ const AdminDealRoom = () => {
         clientName={`${application.first_name || ''} ${application.last_name || ''}`.trim() || application.full_name}
         onSuccess={handleContractSentSuccess}
       />
+
+      {/* Bank Reference capture for Application Submitted */}
+      <BankReferenceModal
+        open={bankRefModalOpen}
+        onOpenChange={setBankRefModalOpen}
+        defaultValue={(application as any)?.bank_reference || ''}
+        onConfirm={async (reference) => {
+          if (!application) return;
+          try {
+            await updateApplication.mutateAsync({
+              id: application.id,
+              updates: { status: 'application_submitted', bank_reference: reference },
+            });
+            setApplication(prev => prev ? ({ ...prev, status: 'application_submitted', bank_reference: reference } as any) : null);
+            const vehicleName = activeVehicle
+              ? `${activeVehicle.year} ${activeVehicle.make} ${activeVehicle.model}`
+              : undefined;
+            sendStatusNotification({
+              clientEmail: application.email,
+              clientName: application.first_name || application.full_name?.split(' ')[0] || 'Client',
+              newStatus: 'application_submitted',
+              applicationId: application.id,
+              accessToken: (application as any).access_token,
+              vehicleName,
+            });
+            toast.success('Application submitted to bank');
+          } catch (err) {
+            console.error('Bank ref submission failed:', err);
+          }
+        }}
+      />
     </AdminLayout>
   );
 };
