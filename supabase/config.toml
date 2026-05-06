@@ -57,3 +57,6 @@ verify_jwt = false
 [functions.notify-blacklisted]
 verify_jwt = false
 
+[functions.notify-declined]
+verify_jwt = false
+
