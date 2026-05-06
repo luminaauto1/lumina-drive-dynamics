@@ -946,18 +946,38 @@ const AdminFinance = () => {
                   <div className="bg-muted/30 border border-border rounded-md max-h-[180px] overflow-auto p-2 space-y-1.5">
                     {String(pendingApp.notes)
                       .split(/\n\n+/)
-                      .map((entry: string, idx: number) => (
-                        <div
-                          key={idx}
-                          className={
-                            idx === 0
-                              ? 'border-l-4 border-yellow-500 bg-yellow-500/10 text-yellow-100 p-2.5 rounded-sm font-mono text-xs whitespace-pre-wrap'
-                              : 'border-l-2 border-border/60 p-2 rounded-sm font-mono text-xs whitespace-pre-wrap text-muted-foreground'
-                          }
-                        >
-                          {entry}
-                        </div>
-                      ))}
+                      .map((entry: string, idx: number) => {
+                        // Detect author role sentinel «ADMIN» / «SALES» / «FNI».
+                        const m = entry.match(/«(ADMIN|SALES|FNI|STAFF)»/);
+                        const tag = m?.[1] || null;
+                        const roleStyle =
+                          tag === 'ADMIN'
+                            ? { border: 'border-[#ff2d55]', text: 'text-[#ff5c7a]', shadow: 'shadow-[0_0_8px_rgba(255,45,85,0.45)]', label: 'Admin' }
+                          : tag === 'SALES'
+                            ? { border: 'border-[#38bdf8]', text: 'text-[#7dd3fc]', shadow: 'shadow-[0_0_8px_rgba(56,189,248,0.45)]', label: 'Sales' }
+                          : tag === 'FNI'
+                            ? { border: 'border-[#ff2bd6]', text: 'text-[#ff7ae6]', shadow: 'shadow-[0_0_8px_rgba(255,43,214,0.45)]', label: 'F&I' }
+                            : null;
+                        const cleaned = entry.replace(/«(ADMIN|SALES|FNI|STAFF)»\s?/, '');
+                        const isNewest = idx === 0;
+                        return (
+                          <div
+                            key={idx}
+                            className={[
+                              'p-2.5 rounded-sm font-mono text-xs whitespace-pre-wrap border-l-4',
+                              roleStyle ? `${roleStyle.border} ${roleStyle.shadow}` : 'border-border/60',
+                              isNewest ? 'bg-yellow-500/10 text-yellow-100' : 'text-muted-foreground bg-background/40',
+                            ].join(' ')}
+                          >
+                            {roleStyle && (
+                              <span className={`inline-block mr-2 px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold border ${roleStyle.border} ${roleStyle.text} bg-black/40`}>
+                                {roleStyle.label}
+                              </span>
+                            )}
+                            {cleaned}
+                          </div>
+                        );
+                      })}
                   </div>
                 </div>
               )}
