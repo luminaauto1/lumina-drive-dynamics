@@ -15,7 +15,7 @@ export const LEGACY_INTERNAL_STATUS_MAP: Record<string, InternalStatus> = {
   feedback_provided: 'info_updated',
   give_attention: 'updates_needed',
   attention_given: 'no_notes',
-  new_lead: 'updates_needed',
+  new_lead: 'no_notes',
   feedback_received: 'info_updated',
   resolved_ready_for_f_and_i: 'info_updated',
 };
