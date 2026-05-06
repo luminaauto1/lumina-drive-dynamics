@@ -93,6 +93,10 @@ const AdminFinance = () => {
   const [pendingStatus, setPendingStatus] = useState('');
   const [statusNote, setStatusNote] = useState('');
 
+  // Bank Reference capture (when admin moves an app to "Application Submitted")
+  const [bankRefModalOpen, setBankRefModalOpen] = useState(false);
+  const [bankRefApp, setBankRefApp] = useState<FinanceApplication | null>(null);
+
   const { data: applications = [], isLoading, refetch } = useFinanceApplications();
   const updateApplication = useUpdateFinanceApplication();
   const deleteApplication = useDeleteFinanceApplication();
