@@ -201,12 +201,17 @@ const AdminCreateApplication = () => {
       // Use existing user_id if found, otherwise use shadow ID for admin-created applications
       const userId = existingProfile?.user_id || '00000000-0000-0000-0000-000000000000';
 
+      // Capture the staff member who created this application (admin/sales/F&I)
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const createdBy = authUser?.id || null;
+
       // Sanitize and prepare the application data
       const sanitizedGrossSalary = sanitizeNumeric(formData.gross_salary);
       const sanitizedNetSalary = sanitizeNumeric(formData.net_salary);
 
       const applicationData = {
         user_id: userId,
+        created_by: createdBy,
         full_name: `${formData.first_name.trim()} ${formData.last_name.trim()}`,
         first_name: formData.first_name.trim(),
         last_name: formData.last_name.trim(),
