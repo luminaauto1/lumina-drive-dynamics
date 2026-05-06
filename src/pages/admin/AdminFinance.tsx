@@ -625,8 +625,17 @@ const AdminFinance = () => {
                             setBankRefModalOpen(true);
                             return;
                           }
+                          // Auto-archive terminal statuses
+                          const isTerminal = ['declined', 'declined_conditional', 'blacklisted', 'lost'].includes(newStatus);
+                          const finalStatus = isTerminal ? 'archived' : newStatus;
                           try {
-                            await updateApplication.mutateAsync({ id: app.id, updates: { status: newStatus } });
+                            await updateApplication.mutateAsync({
+                              id: app.id,
+                              updates: {
+                                status: finalStatus,
+                                ...(isTerminal ? { internal_status: newStatus } : {}),
+                              },
+                            });
                           } catch (err) {
                             // Toast handled by hook on error
                           }

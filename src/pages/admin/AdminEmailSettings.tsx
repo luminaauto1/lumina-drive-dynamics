@@ -27,7 +27,7 @@ const STATUS_LABELS: Record<string, string> = {
   pre_approved: 'Pre-Approved / Deal Structuring',
   approved: 'Approved',
   declined: 'Declined',
-  declined_conditional: 'Conditionally Declined (Larger Deposit)',
+  declined_conditional: 'Conditionally Declined',
   validations_pending: 'Validations Pending',
   validations_complete: 'Validations Complete',
   delivered: 'Delivered',
