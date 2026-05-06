@@ -12,6 +12,7 @@ export const STATUS_OPTIONS = [
   { value: 'contract_signed', label: 'Contract Signed' },
   { value: 'vehicle_delivered', label: 'Vehicle Delivered' },
   { value: 'declined', label: 'Declined' },
+  { value: 'declined_conditional', label: 'Conditionally Declined (Larger Deposit Req)' },
   { value: 'blacklisted', label: 'Blacklisted / Bad Credit / Judgements' },
   { value: 'vehicle_selected', label: 'Vehicle Selected' },
   { value: 'needs_revision', label: 'Needs Revision' },
@@ -32,6 +33,7 @@ export const STATUS_STEP_ORDER: Record<string, number> = {
   contract_signed: 7,
   vehicle_delivered: 8,
   declined: -1, // Exception state
+  declined_conditional: -1, // Exception state — soft decline (deposit/condition required)
   blacklisted: -1, // Exception state — mirrors declined
   vehicle_selected: 3, // Parallel to documents_received
   approved: 2, // Legacy - maps to pre_approved
