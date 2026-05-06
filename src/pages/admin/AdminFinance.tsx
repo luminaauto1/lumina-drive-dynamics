@@ -867,7 +867,12 @@ const AdminFinance = () => {
         <Dialog open={statusModalOpen} onOpenChange={setStatusModalOpen}>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle>Update Status & CRM Note</DialogTitle>
+              <DialogTitle className="flex items-center justify-between gap-3 pr-6">
+                <span>Update Status &amp; CRM Note</span>
+                {(pendingApp as any)?.bank_reference && (
+                  <BankReferenceBadge reference={(pendingApp as any).bank_reference} />
+                )}
+              </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-2">
               <div className="space-y-2">
@@ -882,8 +887,21 @@ const AdminFinance = () => {
               {pendingApp?.notes && (
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground uppercase tracking-wider">Previous CRM History</Label>
-                  <div className="text-xs bg-muted/50 border border-border p-3 rounded-md max-h-[120px] overflow-auto whitespace-pre-wrap text-muted-foreground font-mono">
-                    {pendingApp.notes}
+                  <div className="bg-muted/30 border border-border rounded-md max-h-[180px] overflow-auto p-2 space-y-1.5">
+                    {String(pendingApp.notes)
+                      .split(/\n\n+/)
+                      .map((entry: string, idx: number) => (
+                        <div
+                          key={idx}
+                          className={
+                            idx === 0
+                              ? 'border-l-4 border-yellow-500 bg-yellow-500/10 text-yellow-100 p-2.5 rounded-sm font-mono text-xs whitespace-pre-wrap'
+                              : 'border-l-2 border-border/60 p-2 rounded-sm font-mono text-xs whitespace-pre-wrap text-muted-foreground'
+                          }
+                        >
+                          {entry}
+                        </div>
+                      ))}
                   </div>
                 </div>
               )}
