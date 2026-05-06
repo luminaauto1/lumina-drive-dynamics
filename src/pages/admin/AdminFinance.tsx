@@ -23,6 +23,7 @@ import { formatPrice } from '@/hooks/useVehicles';
 import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, STATUS_STEP_ORDER, getWhatsAppMessage, canShowDealActions } from '@/lib/statusConfig';
 import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
 import { INTERNAL_STATUSES, type InternalStatus } from '@/lib/internalStatusConfig';
+import { businessHoursBetween } from '@/lib/businessHours';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { getUploadLink } from '@/lib/appConfig';
@@ -370,9 +371,14 @@ const AdminFinance = () => {
         {/* F&I Action Feed — alerts for apps flagged as ready for F&I review */}
         {(() => {
           const actionFeedStatuses = new Set(['resolved_ready_for_f_and_i', 'feedback_received']);
-          const feed = applications.filter(
-            (a: any) => actionFeedStatuses.has(String(a.internal_status || '').trim()) && !a.is_archived,
-          );
+          const feed = applications.filter((a: any) => {
+            if (a.is_archived) return false;
+            if (!actionFeedStatuses.has(String(a.internal_status || '').trim())) return false;
+            // Auto-expire from feed after 30 business hours (Mon-Fri).
+            const ts = a.attention_updated_at || a.updated_at || a.created_at;
+            if (!ts) return true;
+            return businessHoursBetween(ts) <= 30;
+          });
           if (feed.length === 0) return null;
           return (
             <motion.div
@@ -861,7 +867,12 @@ const AdminFinance = () => {
         <Dialog open={statusModalOpen} onOpenChange={setStatusModalOpen}>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle>Update Status & CRM Note</DialogTitle>
+              <DialogTitle className="flex items-center justify-between gap-3 pr-6">
+                <span>Update Status &amp; CRM Note</span>
+                {(pendingApp as any)?.bank_reference && (
+                  <BankReferenceBadge reference={(pendingApp as any).bank_reference} />
+                )}
+              </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-2">
               <div className="space-y-2">
@@ -876,8 +887,21 @@ const AdminFinance = () => {
               {pendingApp?.notes && (
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground uppercase tracking-wider">Previous CRM History</Label>
-                  <div className="text-xs bg-muted/50 border border-border p-3 rounded-md max-h-[120px] overflow-auto whitespace-pre-wrap text-muted-foreground font-mono">
-                    {pendingApp.notes}
+                  <div className="bg-muted/30 border border-border rounded-md max-h-[180px] overflow-auto p-2 space-y-1.5">
+                    {String(pendingApp.notes)
+                      .split(/\n\n+/)
+                      .map((entry: string, idx: number) => (
+                        <div
+                          key={idx}
+                          className={
+                            idx === 0
+                              ? 'border-l-4 border-yellow-500 bg-yellow-500/10 text-yellow-100 p-2.5 rounded-sm font-mono text-xs whitespace-pre-wrap'
+                              : 'border-l-2 border-border/60 p-2 rounded-sm font-mono text-xs whitespace-pre-wrap text-muted-foreground'
+                          }
+                        >
+                          {entry}
+                        </div>
+                      ))}
                   </div>
                 </div>
               )}
