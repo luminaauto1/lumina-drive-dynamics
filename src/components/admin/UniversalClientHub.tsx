@@ -24,7 +24,7 @@ interface UniversalClientHubProps {
 
 const getCardBorderClass = (status: string) => {
   const green = ['approved', 'delivered', 'finalized', 'qualified', 'converted'];
-  const red = ['declined', 'lost'];
+  const red = ['declined', 'declined_conditional', 'lost'];
   const blue = ['pre_approved', 'vehicle_selected', 'validations_pending'];
   if (green.includes(status)) return 'border-emerald-500/30';
   if (red.includes(status)) return 'border-red-500/30';
@@ -132,7 +132,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
       }));
       setActiveApps(fData.filter(app => {
         const s = app.status?.toLowerCase()?.trim() || '';
-        return !['finalized', 'delivered', 'declined', 'lost'].includes(s);
+        return !['finalized', 'delivered', 'declined', 'declined_conditional', 'lost'].includes(s);
       }));
     } else {
       setPastDeals([]);
