@@ -159,7 +159,20 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
       logQuery = logQuery.eq('client_phone', clientPhone);
     }
     const { data: logData } = await logQuery;
-    setLogs(logData || []);
+    const rawLogs = (logData || []) as any[];
+    const authorIds = Array.from(new Set(rawLogs.map(l => l.author_id).filter(Boolean) as string[]));
+    if (authorIds.length) {
+      const { data: profs } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, email')
+        .in('user_id', authorIds);
+      const byId = new Map((profs || []).map((p: any) => [p.user_id, p]));
+      rawLogs.forEach(l => {
+        const p = l.author_id ? byId.get(l.author_id) : null;
+        if (p) l.author_name = (p as any).full_name || (p as any).email || l.author_name;
+      });
+    }
+    setLogs(rawLogs);
   }, [clientEmail, clientPhone]);
 
   useEffect(() => {
@@ -169,11 +182,24 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
   const handleAddNote = async () => {
     if (!newNote.trim() || (!clientEmail && !clientPhone)) return;
 
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    let authorName = 'Admin Staff';
+    if (authUser?.id) {
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('user_id', authUser.id)
+        .maybeSingle();
+      authorName = (prof as any)?.full_name || (prof as any)?.email || authUser.email || authorName;
+    }
+
     const { error } = await supabase.from('client_audit_logs').insert([{
       client_email: clientEmail || null,
       client_phone: clientPhone || null,
       note: newNote,
       action_type: 'Manual Note',
+      author_id: authUser?.id || null,
+      author_name: authorName,
     }]);
 
     if (error) {
@@ -322,13 +348,13 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
                     </div>
                     <div className="p-2.5 rounded-md bg-muted/20 border border-border hover:border-emerald-500/20 transition-colors">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] font-semibold text-emerald-500">{log.author_name}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[9px] text-muted-foreground font-mono">{format(new Date(log.created_at), 'dd MMM HH:mm')}</span>
-                          <button onClick={() => handleDeleteNote(log.id)} className="text-zinc-600 hover:text-red-500 transition-colors" title="Delete Note">
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
+                        <span className="text-[10px] text-zinc-400 font-medium">
+                          {log.author_name || 'Unknown'} <span className="text-zinc-600">•</span>{' '}
+                          <span className="text-zinc-500 font-mono">{format(new Date(log.created_at), 'dd MMM HH:mm')}</span>
+                        </span>
+                        <button onClick={() => handleDeleteNote(log.id)} className="text-zinc-600 hover:text-red-500 transition-colors" title="Delete Note">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
                       </div>
                       <p className="text-[11px] text-foreground/80 leading-relaxed whitespace-pre-wrap">{log.note}</p>
                     </div>

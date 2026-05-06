@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import { isToday } from 'date-fns';
-import { Search, MessageCircle, ExternalLink, Trash2, Archive, UserPlus, Copy, Link, ClipboardList, Banknote, Calculator, MailWarning, MessageSquare } from 'lucide-react';
+import { Search, MessageCircle, ExternalLink, Trash2, Archive, UserPlus, User, Copy, Link, ClipboardList, Banknote, Calculator, MailWarning, MessageSquare } from 'lucide-react';
 import WhatsAppParserModal from '@/components/admin/WhatsAppParserModal';
 import BankReferenceModal from '@/components/admin/BankReferenceModal';
 import BankReferenceBadge from '@/components/admin/BankReferenceBadge';
@@ -200,12 +200,23 @@ const AdminFinance = () => {
         .eq('id', pendingApp.id);
       if (error) throw error;
 
-      // Dual-sync: Push to Global Universal Timeline
+      // Dual-sync: Push to Global Universal Timeline (with current staff author)
+      const { data: { user: actingUser } } = await supabase.auth.getUser();
+      let actingName = 'Admin Staff';
+      if (actingUser?.id) {
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('full_name, email')
+          .eq('user_id', actingUser.id)
+          .maybeSingle();
+        actingName = (prof as any)?.full_name || (prof as any)?.email || actingUser.email || actingName;
+      }
       await supabase.from('client_audit_logs').insert([{
         client_email: pendingApp.email || null,
         client_phone: pendingApp.phone || null,
         note: `[Finance Stage Updated to ${INTERNAL_STATUSES[pendingStatus as keyof typeof INTERNAL_STATUSES]?.label || pendingStatus}] ${statusNote || 'No comment'}`,
-        author_name: 'F&I Admin',
+        author_id: actingUser?.id || null,
+        author_name: actingName,
         action_type: 'Status Update'
       }]);
 
@@ -539,6 +550,15 @@ const AdminFinance = () => {
                             <span>{app.first_name} {app.last_name}</span>
                           </p>
                           <p className="text-xs text-muted-foreground">{app.email}</p>
+                          {(app as any).creator?.full_name || (app as any).creator?.email ? (
+                            <p className="text-[10px] text-zinc-500 mt-0.5 flex items-center gap-1">
+                              <User className="w-2.5 h-2.5" />
+                              <span className="font-medium">Rep:</span>{' '}
+                              <span className="text-zinc-400">
+                                {(app as any).creator.full_name || (app as any).creator.email}
+                              </span>
+                            </p>
+                          ) : null}
                         </button>
                         {isNew && (
                           <span className="px-1.5 py-0.5 text-[10px] uppercase font-bold rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse">
