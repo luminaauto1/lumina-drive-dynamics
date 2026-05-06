@@ -175,8 +175,9 @@ const AdminFinance = () => {
   const confirmStatusUpdate = async () => {
     if (!pendingApp || !pendingStatus) return;
     try {
-      // Auto-Archive Logic: Declined/Lost are immediately archived
-      const isTerminal = pendingStatus === 'declined' || pendingStatus === 'lost' || pendingStatus === 'blacklisted';
+      // Archive bucket is driven by terminal-status filters. Hard declined must
+      // keep status='declined' so notifications and history remain semantic.
+      const isTerminal = pendingStatus === 'lost' || pendingStatus === 'blacklisted';
       const finalStatus = isTerminal ? 'archived' : pendingStatus;
 
       let updatedNotes = pendingApp.notes || '';
@@ -213,7 +214,7 @@ const AdminFinance = () => {
           .maybeSingle();
         actingName = (prof as any)?.full_name || (prof as any)?.email || actingUser.email || actingName;
       }
-      await supabase.from('client_audit_logs').insert([{
+      const { error: auditError } = await supabase.from('client_audit_logs').insert([{
         client_email: pendingApp.email || null,
         client_phone: pendingApp.phone || null,
         note: `[Finance Stage Updated to ${INTERNAL_STATUSES[pendingStatus as keyof typeof INTERNAL_STATUSES]?.label || pendingStatus}] ${statusNote || 'No comment'}`,
@@ -221,6 +222,7 @@ const AdminFinance = () => {
         author_name: actingName,
         action_type: 'Status Update'
       }]);
+      if (auditError) console.error('client_audit_logs insert failed:', auditError);
 
       // Blacklisted mirrors Declined: dispatch the declined client email AND
       // fire the dedicated blacklisted WhatsApp notification.
@@ -282,13 +284,12 @@ const AdminFinance = () => {
           try {
             const { publicApiHeaders } = await import('@/lib/publicApi');
             const clientName = pendingApp.first_name || pendingApp.full_name || 'Valued Client';
-            supabase.functions.invoke('notify-declined', {
+            const { error: waErr } = await supabase.functions.invoke('notify-declined', {
               body: { phone_number: pendingApp.phone, client_name: clientName },
               headers: publicApiHeaders(),
-            }).then(({ error: waErr }) => {
-              if (waErr) console.error('[notify-declined] error:', waErr);
-              else console.log('[notify-declined] dispatched for', pendingApp.phone);
             });
+            if (waErr) console.error('[notify-declined] error:', waErr);
+            else console.log('[notify-declined] dispatched for', pendingApp.phone);
           } catch (waEx) {
             console.error('[notify-declined] failed to invoke:', waEx);
           }
