@@ -213,10 +213,9 @@ const AdminFinance = () => {
         internal_status: pendingStatus,
         attention_updated_at: new Date().toISOString(),
         notes: updatedNotes,
+        // Dynamic archive boolean: terminal statuses archive, active statuses un-archive.
+        is_archived: archiveOnTerminal,
       };
-      if (archiveOnTerminal) {
-        updatePayload.is_archived = true;
-      }
       const { error } = await supabase
         .from('finance_applications')
         .update(updatePayload)
@@ -670,10 +669,10 @@ const AdminFinance = () => {
                             await updateApplication.mutateAsync({
                               id: app.id,
                               updates: {
-                                status: newStatus,
-                                internal_status: newStatus,
-                                ...(archiveOnTerminal ? { is_archived: true } : {}),
-                              },
+                                 status: newStatus,
+                                 internal_status: newStatus,
+                                 is_archived: archiveOnTerminal,
+                               },
                             });
                           } catch (err) {
                             // Toast handled by hook on error

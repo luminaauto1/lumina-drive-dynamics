@@ -179,7 +179,7 @@ const CRMSheet = () => {
 
     // DECOUPLED archive logic: keep real status; flip is_archived for finance apps.
     // For leads we still use status='archived' since leads have no is_archived column.
-    const archiveOnTerminal = newStatus === 'declined' || newStatus === 'lost';
+    const archiveOnTerminal = ['declined', 'blacklisted', 'lost'].includes(newStatus);
 
     if (type === 'lead') {
       const finalStatus = archiveOnTerminal ? 'archived' : newStatus;
@@ -204,8 +204,8 @@ const CRMSheet = () => {
           }
         }
       }
-      const updates: any = { status: newStatus };
-      if (archiveOnTerminal) updates.is_archived = true;
+      // Dynamic archive boolean: terminal archives, active un-archives.
+      const updates: any = { status: newStatus, is_archived: archiveOnTerminal };
       await updateApp.mutateAsync({ id, updates });
     }
 
