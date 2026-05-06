@@ -157,10 +157,12 @@ const AdminFinance = () => {
     
     const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
     
-    // Filter by active/archived — terminal states auto-hide from active view
+    // Filter by active/archived — uses dedicated is_archived flag PLUS legacy
+    // terminal statuses (finalized/delivered) which still auto-hide from active.
     const s = (app.status || '').toLowerCase().trim();
-    const isTerminal = ['finalized', 'delivered', 'vehicle_delivered', 'archived', 'declined', 'blacklisted'].includes(s);
-    const matchesViewMode = viewMode === 'archived' ? isTerminal : !isTerminal;
+    const legacyTerminal = ['finalized', 'delivered', 'vehicle_delivered', 'archived'].includes(s);
+    const isArchived = (app as any).is_archived === true || legacyTerminal;
+    const matchesViewMode = viewMode === 'archived' ? isArchived : !isArchived;
 
     return matchesSearch && matchesStatus && matchesViewMode;
   });
@@ -175,9 +177,10 @@ const AdminFinance = () => {
   const confirmStatusUpdate = async () => {
     if (!pendingApp || !pendingStatus) return;
     try {
-      // Auto-Archive Logic: Declined/Lost are immediately archived
-      const isTerminal = pendingStatus === 'declined' || pendingStatus === 'lost' || pendingStatus === 'blacklisted';
-      const finalStatus = isTerminal ? 'archived' : pendingStatus;
+      // DECOUPLED ARCHIVE LOGIC: never overwrite the status text with "archived".
+      // Declined / Blacklisted / Lost keep their real status AND set is_archived=true
+      // so they leave the active pipeline while preserving status history.
+      const archiveOnTerminal = ['declined', 'blacklisted', 'lost'].includes(pendingStatus);
 
       let updatedNotes = pendingApp.notes || '';
       if (statusNote.trim()) {
@@ -186,13 +189,33 @@ const AdminFinance = () => {
         const newEntry = `[${timestamp}] ${statusLabel}: ${statusNote}`;
         updatedNotes = updatedNotes ? `${newEntry}\n\n${updatedNotes}` : newEntry;
       }
+
+      // STEP 1 — Fire the WhatsApp dispatch FIRST (before any UI unmounting / refetch),
+      // so a "declined" transition is never aborted by status remap or component unmount.
+      if (pendingStatus === 'declined' && pendingApp.phone) {
+        try {
+          const { publicApiHeaders } = await import('@/lib/publicApi');
+          const clientName = pendingApp.first_name || pendingApp.full_name || 'Valued Client';
+          supabase.functions.invoke('notify-declined', {
+            body: { phone_number: pendingApp.phone, client_name: clientName },
+            headers: publicApiHeaders(),
+          }).then(({ error: waErr }) => {
+            if (waErr) console.error('[notify-declined] error:', waErr);
+            else console.log('[notify-declined] dispatched for', pendingApp.phone);
+          });
+        } catch (waEx) {
+          console.error('[notify-declined] failed to invoke:', waEx);
+        }
+      }
+
       const updatePayload: any = {
-        internal_status: finalStatus,
+        status: pendingStatus, // preserve real status (declined / blacklisted / etc.)
+        internal_status: pendingStatus,
         attention_updated_at: new Date().toISOString(),
         notes: updatedNotes,
       };
-      if (isTerminal) {
-        updatePayload.status = 'archived';
+      if (archiveOnTerminal) {
+        updatePayload.is_archived = true;
       }
       const { error } = await supabase
         .from('finance_applications')
@@ -305,7 +328,7 @@ const AdminFinance = () => {
 
   const handleArchive = async (app: FinanceApplication, e: React.MouseEvent) => {
     e.stopPropagation();
-    await updateApplication.mutateAsync({ id: app.id, updates: { status: 'archived' } });
+    await updateApplication.mutateAsync({ id: app.id, updates: { is_archived: true } as any });
   };
 
   const handleDelete = async (appId: string) => {
@@ -355,7 +378,7 @@ const AdminFinance = () => {
   };
 
   // Stats for active applications only
-  const activeApps = applications.filter(a => !['finalized', 'delivered', 'vehicle_delivered', 'archived', 'declined', 'blacklisted'].includes((a.status || '').toLowerCase().trim()));
+  const activeApps = applications.filter(a => !((a as any).is_archived === true) && !['finalized', 'delivered', 'vehicle_delivered', 'archived'].includes((a.status || '').toLowerCase().trim()));
 
   return (
     <AdminLayout>
@@ -625,15 +648,31 @@ const AdminFinance = () => {
                             setBankRefModalOpen(true);
                             return;
                           }
-                          // Auto-archive terminal statuses
-                          const isTerminal = ['declined', 'blacklisted', 'lost'].includes(newStatus);
-                          const finalStatus = isTerminal ? 'archived' : newStatus;
+                          // DECOUPLED: keep real status; archive via flag only.
+                          // Fire WhatsApp BEFORE the DB write so unmount/remap can't abort it.
+                          if (newStatus === 'declined' && app.phone) {
+                            try {
+                              const { publicApiHeaders } = await import('@/lib/publicApi');
+                              const clientName = app.first_name || app.full_name || 'Valued Client';
+                              supabase.functions.invoke('notify-declined', {
+                                body: { phone_number: app.phone, client_name: clientName },
+                                headers: publicApiHeaders(),
+                              }).then(({ error: waErr }) => {
+                                if (waErr) console.error('[notify-declined] error:', waErr);
+                                else console.log('[notify-declined] dispatched for', app.phone);
+                              });
+                            } catch (waEx) {
+                              console.error('[notify-declined] failed to invoke:', waEx);
+                            }
+                          }
+                          const archiveOnTerminal = ['declined', 'blacklisted', 'lost'].includes(newStatus);
                           try {
                             await updateApplication.mutateAsync({
                               id: app.id,
                               updates: {
-                                status: finalStatus,
-                                ...(isTerminal ? { internal_status: newStatus } : {}),
+                                status: newStatus,
+                                internal_status: newStatus,
+                                ...(archiveOnTerminal ? { is_archived: true } : {}),
                               },
                             });
                           } catch (err) {
@@ -738,7 +777,7 @@ const AdminFinance = () => {
                         >
                           <ExternalLink className="w-4 h-4" />
                         </Button>
-                        {app.status !== 'archived' && (
+                        {!((app as any).is_archived) && app.status !== 'archived' && (
                           <Button
                             variant="ghost"
                             size="icon"

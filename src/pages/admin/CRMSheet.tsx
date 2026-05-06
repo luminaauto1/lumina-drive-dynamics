@@ -18,6 +18,7 @@ import { STATUS_OPTIONS as FINANCE_STATUS_OPTIONS } from '@/lib/statusConfig';
 import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import { format, differenceInDays } from 'date-fns';
 
 const LEAD_STATUS_OPTIONS = [
@@ -137,15 +138,15 @@ const CRMSheet = () => {
           .map(mapLead);
       case 'apps_received':
         return apps
-          .filter(a => ['pending', 'application_submitted', 'under_review', 'needs_revision', 'revision_submitted'].includes(safeStatus(a.status)))
+          .filter(a => !(a as any).is_archived && ['pending', 'application_submitted', 'under_review', 'needs_revision', 'revision_submitted'].includes(safeStatus(a.status)))
           .map(mapApp);
       case 'pre_approved':
         return apps
-          .filter(a => ['pre_approved', 'vehicle_selected', 'documents_received', 'approved'].includes(safeStatus(a.status)))
+          .filter(a => !(a as any).is_archived && ['pre_approved', 'vehicle_selected', 'documents_received', 'approved'].includes(safeStatus(a.status)))
           .map(mapApp);
       case 'validated':
         return apps
-          .filter(a => ['validations_pending', 'validations_complete', 'contract_sent', 'contract_signed'].includes(safeStatus(a.status)))
+          .filter(a => !(a as any).is_archived && ['validations_pending', 'validations_complete', 'contract_sent', 'contract_signed'].includes(safeStatus(a.status)))
           .map(mapApp);
       case 'finalized':
         return [
@@ -155,7 +156,7 @@ const CRMSheet = () => {
       case 'declined':
         return [
           ...leads.filter(l => ['lost', 'archived'].includes(safeStatus(l.status))).map(mapLead),
-          ...apps.filter(a => ['declined', 'declined_conditional', 'archived'].includes(safeStatus(a.status))).map(mapApp)
+          ...apps.filter(a => (a as any).is_archived === true || ['declined', 'declined_conditional', 'archived', 'blacklisted'].includes(safeStatus(a.status))).map(mapApp)
         ];
       default:
         return [];
@@ -176,16 +177,39 @@ const CRMSheet = () => {
       return;
     }
 
-    // Auto-Archive Logic: Declined/Lost deals are immediately moved to archive
-    const finalStatus = (newStatus === 'declined' || newStatus === 'lost') ? 'archived' : newStatus;
+    // DECOUPLED archive logic: keep real status; flip is_archived for finance apps.
+    // For leads we still use status='archived' since leads have no is_archived column.
+    const archiveOnTerminal = newStatus === 'declined' || newStatus === 'lost';
 
     if (type === 'lead') {
+      const finalStatus = archiveOnTerminal ? 'archived' : newStatus;
       await updateLead.mutateAsync({ id, updates: { status: finalStatus } as any });
     } else {
-      await updateApp.mutateAsync({ id, updates: { status: finalStatus } });
+      // Fire WhatsApp BEFORE the DB write for declined transitions
+      if (newStatus === 'declined') {
+        const app = apps.find(a => a.id === id);
+        if (app?.phone) {
+          try {
+            const { publicApiHeaders } = await import('@/lib/publicApi');
+            const clientName = app.first_name || app.full_name || 'Valued Client';
+            supabase.functions.invoke('notify-declined', {
+              body: { phone_number: app.phone, client_name: clientName },
+              headers: publicApiHeaders(),
+            }).then(({ error: waErr }) => {
+              if (waErr) console.error('[notify-declined] error:', waErr);
+              else console.log('[notify-declined] dispatched for', app.phone);
+            });
+          } catch (waEx) {
+            console.error('[notify-declined] failed to invoke:', waEx);
+          }
+        }
+      }
+      const updates: any = { status: newStatus };
+      if (archiveOnTerminal) updates.is_archived = true;
+      await updateApp.mutateAsync({ id, updates });
     }
 
-    if (finalStatus === 'archived' && (newStatus === 'declined' || newStatus === 'lost')) {
+    if (archiveOnTerminal) {
       toast.success(`Marked as ${newStatus} and moved to Archive.`);
     }
   };
