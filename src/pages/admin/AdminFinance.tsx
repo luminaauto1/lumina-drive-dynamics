@@ -687,16 +687,45 @@ const AdminFinance = () => {
                             return;
                           }
                           const archiveOnTerminal = ['declined', 'blacklisted', 'lost'].includes(newStatus);
+                          const clearInternal = newStatus === 'sent_to_banks';
                           try {
                             await updateApplication.mutateAsync({
                               id: app.id,
                               updates: {
                                  // ISOLATED: only patch the finance pipeline column.
-                                 // Never write into internal_status from this dropdown.
+                                 // Never write into internal_status from this dropdown,
+                                 // EXCEPT to clear it when advancing to sent_to_banks
+                                 // (Task 4 — Feed Clearance / state reset).
                                  status: newStatus,
                                  is_archived: archiveOnTerminal,
+                                 ...(clearInternal ? { internal_status: null } : {}),
                                },
                             });
+                            // Task 3 — Auto audit note when sent_to_banks.
+                            if (clearInternal) {
+                              try {
+                                const { data: { user: actingUser } } = await supabase.auth.getUser();
+                                let actingName = 'Admin Staff';
+                                if (actingUser?.id) {
+                                  const { data: prof } = await supabase
+                                    .from('profiles')
+                                    .select('full_name, email')
+                                    .eq('user_id', actingUser.id)
+                                    .maybeSingle();
+                                  actingName = (prof as any)?.full_name || (prof as any)?.email || actingUser.email || actingName;
+                                }
+                                await supabase.from('client_audit_logs').insert([{
+                                  client_email: app.email || null,
+                                  client_phone: app.phone || null,
+                                  note: 'Updated and sent to bank.',
+                                  author_id: actingUser?.id || null,
+                                  author_name: actingName,
+                                  action_type: 'Sent to Bank',
+                                }]);
+                              } catch (auditErr) {
+                                console.error('[sent_to_banks audit] failed:', auditErr);
+                              }
+                            }
                           } catch (err) {
                             // Toast handled by hook on error
                           }
