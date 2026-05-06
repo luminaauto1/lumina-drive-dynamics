@@ -176,12 +176,18 @@ const AdminFinance = () => {
 
   const confirmStatusUpdate = async () => {
     if (!pendingApp || !pendingStatus) return;
+    // GUARDRAIL: This handler ONLY updates the internal CRM status column.
+    // It must NEVER touch the finance application `status` column. Reject any
+    // value that is not a valid INTERNAL_STATUSES key.
+    if (!INTERNAL_STATUSES[pendingStatus as keyof typeof INTERNAL_STATUSES]) {
+      toast({ title: "Invalid internal status", variant: "destructive" });
+      setStatusModalOpen(false);
+      setPendingApp(null);
+      setPendingStatus('');
+      setStatusNote('');
+      return;
+    }
     try {
-      // DECOUPLED ARCHIVE LOGIC: never overwrite the status text with "archived".
-      // Declined / Blacklisted / Lost keep their real status AND set is_archived=true
-      // so they leave the active pipeline while preserving status history.
-      const archiveOnTerminal = ['declined', 'blacklisted', 'lost'].includes(pendingStatus);
-
       let updatedNotes = pendingApp.notes || '';
       if (statusNote.trim()) {
         const timestamp = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -190,31 +196,13 @@ const AdminFinance = () => {
         updatedNotes = updatedNotes ? `${newEntry}\n\n${updatedNotes}` : newEntry;
       }
 
-      // STEP 1 — Fire the WhatsApp dispatch FIRST (before any UI unmounting / refetch),
-      // so a "declined" transition is never aborted by status remap or component unmount.
-      if (pendingStatus === 'declined' && pendingApp.phone) {
-        try {
-          const { publicApiHeaders } = await import('@/lib/publicApi');
-          const clientName = pendingApp.first_name || pendingApp.full_name || 'Valued Client';
-          supabase.functions.invoke('notify-declined', {
-            body: { phone_number: pendingApp.phone, client_name: clientName },
-            headers: publicApiHeaders(),
-          }).then(({ error: waErr }) => {
-            if (waErr) console.error('[notify-declined] error:', waErr);
-            else console.log('[notify-declined] dispatched for', pendingApp.phone);
-          });
-        } catch (waEx) {
-          console.error('[notify-declined] failed to invoke:', waEx);
-        }
-      }
-
+      // ISOLATED PAYLOAD: only patch internal_status + CRM metadata.
+      // Do NOT include `status` or `is_archived` here — those belong to the
+      // separate Finance Status dropdown and would otherwise corrupt the pipeline.
       const updatePayload: any = {
-        status: pendingStatus, // preserve real status (declined / blacklisted / etc.)
         internal_status: pendingStatus,
         attention_updated_at: new Date().toISOString(),
         notes: updatedNotes,
-        // Dynamic archive boolean: terminal statuses archive, active statuses un-archive.
-        is_archived: archiveOnTerminal,
       };
       const { error } = await supabase
         .from('finance_applications')
