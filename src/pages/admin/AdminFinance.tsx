@@ -228,18 +228,18 @@ const AdminFinance = () => {
         updatedNotes = updatedNotes ? `${newEntry}\n\n${updatedNotes}` : newEntry;
       }
 
-      // Auto-flip ping-pong: if Sales/Admin acts on an "Attention Needed" app,
-      // automatically transition it to "Feedback Provided" so it disappears from
-      // their feed and appears in the F&I feed — without manual toggling.
+      // Task 3 — Escalation Automation: if Sales/Admin saves a note while the
+      // app is currently "Updates Needed", auto-advance to "Info Updated" so it
+      // moves off the Sales feed and into the F&I feed.
       const currentInternal = normalizeInternalStatus(pendingApp.internal_status);
       const isSalesOrAdmin = role === 'sales_agent' || role === 'super_admin';
       let effectiveStatus = pendingStatus;
       if (
         isSalesOrAdmin &&
-        currentInternal === 'attention_needed' &&
-        pendingStatus === 'attention_needed'
+        currentInternal === 'updates_needed' &&
+        pendingStatus === 'updates_needed'
       ) {
-        effectiveStatus = 'feedback_provided';
+        effectiveStatus = 'info_updated';
       }
 
       const updatePayload: any = {
