@@ -22,11 +22,20 @@ interface AgentRow {
   created_at?: string | null;
 }
 
+interface AgentRow {
+  user_id: string;
+  email: string | null;
+  full_name: string | null;
+  created_at?: string | null;
+  role: StaffRoleKind;
+}
+
 const TeamManagementTab = () => {
   const [mode, setMode] = useState<'invite' | 'manual'>('invite');
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState<StaffRoleKind>('sales_agent');
   const [inviting, setInviting] = useState(false);
   const [agents, setAgents] = useState<AgentRow[]>([]);
   const [loading, setLoading] = useState(true);
