@@ -1053,7 +1053,6 @@ const AdminFinance = () => {
                         setPendingApp(null);
                         setPendingStatus('');
                         setStatusNote('');
-                        queryClient.invalidateQueries({ queryKey: ['finance-applications'] });
                         refetch();
                       } catch (e: any) {
                         console.error('[Send to Banks] failed:', e);
