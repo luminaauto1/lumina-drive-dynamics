@@ -176,16 +176,39 @@ const CRMSheet = () => {
       return;
     }
 
-    // Auto-Archive Logic: Declined/Lost deals are immediately moved to archive
-    const finalStatus = (newStatus === 'declined' || newStatus === 'lost') ? 'archived' : newStatus;
+    // DECOUPLED archive logic: keep real status; flip is_archived for finance apps.
+    // For leads we still use status='archived' since leads have no is_archived column.
+    const archiveOnTerminal = newStatus === 'declined' || newStatus === 'lost';
 
     if (type === 'lead') {
+      const finalStatus = archiveOnTerminal ? 'archived' : newStatus;
       await updateLead.mutateAsync({ id, updates: { status: finalStatus } as any });
     } else {
-      await updateApp.mutateAsync({ id, updates: { status: finalStatus } });
+      // Fire WhatsApp BEFORE the DB write for declined transitions
+      if (newStatus === 'declined') {
+        const app = apps.find(a => a.id === id);
+        if (app?.phone) {
+          try {
+            const { publicApiHeaders } = await import('@/lib/publicApi');
+            const clientName = app.first_name || app.full_name || 'Valued Client';
+            supabase.functions.invoke('notify-declined', {
+              body: { phone_number: app.phone, client_name: clientName },
+              headers: publicApiHeaders(),
+            }).then(({ error: waErr }) => {
+              if (waErr) console.error('[notify-declined] error:', waErr);
+              else console.log('[notify-declined] dispatched for', app.phone);
+            });
+          } catch (waEx) {
+            console.error('[notify-declined] failed to invoke:', waEx);
+          }
+        }
+      }
+      const updates: any = { status: newStatus };
+      if (archiveOnTerminal) updates.is_archived = true;
+      await updateApp.mutateAsync({ id, updates });
     }
 
-    if (finalStatus === 'archived' && (newStatus === 'declined' || newStatus === 'lost')) {
+    if (archiveOnTerminal) {
       toast.success(`Marked as ${newStatus} and moved to Archive.`);
     }
   };
