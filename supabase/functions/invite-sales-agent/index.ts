@@ -111,8 +111,8 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Could not resolve user id" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Assign sales_agent role (idempotent)
-    await admin.from("user_roles").upsert({ user_id: userId, role: "sales_agent" }, { onConflict: "user_id,role" });
+    // Assign requested role (idempotent)
+    await admin.from("user_roles").upsert({ user_id: userId, role }, { onConflict: "user_id,role" });
 
     return new Response(
       JSON.stringify({ ok: true, user_id: userId, mode, email, temp_password: tempPassword, email_delivery: emailDelivery }),
