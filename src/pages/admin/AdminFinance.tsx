@@ -202,17 +202,34 @@ const AdminFinance = () => {
       return;
     }
     try {
+      // Resolve acting user/role first so we can stamp the note with author + role.
+      const { data: { user: actingUser } } = await supabase.auth.getUser();
+      let actingName = 'Staff';
+      if (actingUser?.id) {
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('full_name, email')
+          .eq('user_id', actingUser.id)
+          .maybeSingle();
+        actingName = (prof as any)?.full_name?.trim().split(/\s+/)[0]
+          || (prof as any)?.email?.split('@')[0]
+          || actingUser.email?.split('@')[0]
+          || actingName;
+      }
+      const roleTag = role === 'super_admin' ? 'ADMIN'
+        : role === 'sales_agent' ? 'SALES'
+        : role === 'f_and_i' ? 'FNI'
+        : 'STAFF';
+
       let updatedNotes = pendingApp.notes || '';
       if (statusNote.trim()) {
         const timestamp = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
         const statusLabel = INTERNAL_STATUSES[pendingStatus as keyof typeof INTERNAL_STATUSES]?.label || pendingStatus;
-        const newEntry = `[${timestamp}] ${statusLabel}: ${statusNote}`;
+        // Sentinel «ROLE» lets the renderer color-code reliably.
+        const newEntry = `[${timestamp}] «${roleTag}» ${actingName} — ${statusLabel}: ${statusNote}`;
         updatedNotes = updatedNotes ? `${newEntry}\n\n${updatedNotes}` : newEntry;
       }
 
-      // ISOLATED PAYLOAD: only patch internal_status + CRM metadata.
-      // Do NOT include `status` or `is_archived` here — those belong to the
-      // separate Finance Status dropdown and would otherwise corrupt the pipeline.
       const updatePayload: any = {
         internal_status: pendingStatus,
         attention_updated_at: new Date().toISOString(),
@@ -224,21 +241,11 @@ const AdminFinance = () => {
         .eq('id', pendingApp.id);
       if (error) throw error;
 
-      // Dual-sync: Push to Global Universal Timeline (with current staff author)
-      const { data: { user: actingUser } } = await supabase.auth.getUser();
-      let actingName = 'Admin Staff';
-      if (actingUser?.id) {
-        const { data: prof } = await supabase
-          .from('profiles')
-          .select('full_name, email')
-          .eq('user_id', actingUser.id)
-          .maybeSingle();
-        actingName = (prof as any)?.full_name || (prof as any)?.email || actingUser.email || actingName;
-      }
+      // Dual-sync to Universal Timeline
       await supabase.from('client_audit_logs').insert([{
         client_email: pendingApp.email || null,
         client_phone: pendingApp.phone || null,
-        note: `[Internal Status → ${INTERNAL_STATUSES[pendingStatus as keyof typeof INTERNAL_STATUSES]?.label || pendingStatus}] ${statusNote || 'No comment'}`,
+        note: `«${roleTag}» ${actingName} — [Internal Status → ${INTERNAL_STATUSES[pendingStatus as keyof typeof INTERNAL_STATUSES]?.label || pendingStatus}] ${statusNote || 'No comment'}`,
         author_id: actingUser?.id || null,
         author_name: actingName,
         action_type: 'Internal Status Update'
@@ -705,19 +712,34 @@ const AdminFinance = () => {
                             if (clearInternal) {
                               try {
                                 const { data: { user: actingUser } } = await supabase.auth.getUser();
-                                let actingName = 'Admin Staff';
+                                let actingName = 'Staff';
                                 if (actingUser?.id) {
                                   const { data: prof } = await supabase
                                     .from('profiles')
                                     .select('full_name, email')
                                     .eq('user_id', actingUser.id)
                                     .maybeSingle();
-                                  actingName = (prof as any)?.full_name || (prof as any)?.email || actingUser.email || actingName;
+                                  actingName = (prof as any)?.full_name?.trim().split(/\s+/)[0]
+                                    || (prof as any)?.email?.split('@')[0]
+                                    || actingUser.email?.split('@')[0]
+                                    || actingName;
                                 }
+                                const roleTag = role === 'super_admin' ? 'ADMIN'
+                                  : role === 'sales_agent' ? 'SALES'
+                                  : role === 'f_and_i' ? 'FNI'
+                                  : 'STAFF';
+                                const timestamp = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+                                const autoEntry = `[${timestamp}] «${roleTag}» ${actingName} — Sent to Banks: Updated and sent to bank.`;
+                                const existingNotes = (app as any).notes || '';
+                                const merged = existingNotes ? `${autoEntry}\n\n${existingNotes}` : autoEntry;
+                                await supabase
+                                  .from('finance_applications')
+                                  .update({ notes: merged })
+                                  .eq('id', app.id);
                                 await supabase.from('client_audit_logs').insert([{
                                   client_email: app.email || null,
                                   client_phone: app.phone || null,
-                                  note: 'Updated and sent to bank.',
+                                  note: `«${roleTag}» ${actingName} — Updated and sent to bank.`,
                                   author_id: actingUser?.id || null,
                                   author_name: actingName,
                                   action_type: 'Sent to Bank',
@@ -924,18 +946,38 @@ const AdminFinance = () => {
                   <div className="bg-muted/30 border border-border rounded-md max-h-[180px] overflow-auto p-2 space-y-1.5">
                     {String(pendingApp.notes)
                       .split(/\n\n+/)
-                      .map((entry: string, idx: number) => (
-                        <div
-                          key={idx}
-                          className={
-                            idx === 0
-                              ? 'border-l-4 border-yellow-500 bg-yellow-500/10 text-yellow-100 p-2.5 rounded-sm font-mono text-xs whitespace-pre-wrap'
-                              : 'border-l-2 border-border/60 p-2 rounded-sm font-mono text-xs whitespace-pre-wrap text-muted-foreground'
-                          }
-                        >
-                          {entry}
-                        </div>
-                      ))}
+                      .map((entry: string, idx: number) => {
+                        // Detect author role sentinel «ADMIN» / «SALES» / «FNI».
+                        const m = entry.match(/«(ADMIN|SALES|FNI|STAFF)»/);
+                        const tag = m?.[1] || null;
+                        const roleStyle =
+                          tag === 'ADMIN'
+                            ? { border: 'border-[#ff2d55]', text: 'text-[#ff5c7a]', shadow: 'shadow-[0_0_8px_rgba(255,45,85,0.45)]', label: 'Admin' }
+                          : tag === 'SALES'
+                            ? { border: 'border-[#38bdf8]', text: 'text-[#7dd3fc]', shadow: 'shadow-[0_0_8px_rgba(56,189,248,0.45)]', label: 'Sales' }
+                          : tag === 'FNI'
+                            ? { border: 'border-[#ff2bd6]', text: 'text-[#ff7ae6]', shadow: 'shadow-[0_0_8px_rgba(255,43,214,0.45)]', label: 'F&I' }
+                            : null;
+                        const cleaned = entry.replace(/«(ADMIN|SALES|FNI|STAFF)»\s?/, '');
+                        const isNewest = idx === 0;
+                        return (
+                          <div
+                            key={idx}
+                            className={[
+                              'p-2.5 rounded-sm font-mono text-xs whitespace-pre-wrap border-l-4',
+                              roleStyle ? `${roleStyle.border} ${roleStyle.shadow}` : 'border-border/60',
+                              isNewest ? 'bg-yellow-500/10 text-yellow-100' : 'text-muted-foreground bg-background/40',
+                            ].join(' ')}
+                          >
+                            {roleStyle && (
+                              <span className={`inline-block mr-2 px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold border ${roleStyle.border} ${roleStyle.text} bg-black/40`}>
+                                {roleStyle.label}
+                              </span>
+                            )}
+                            {cleaned}
+                          </div>
+                        );
+                      })}
                   </div>
                 </div>
               )}
