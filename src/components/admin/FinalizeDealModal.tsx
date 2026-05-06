@@ -253,8 +253,8 @@ const FinalizeDealModal = ({
   // Aftersales Expenses
   const [expenses, setExpenses] = useState<AftersalesExpense[]>([]);
   
-  // Get sales reps from settings
-  const salesReps: SalesRep[] = (settings as any)?.sales_reps || [];
+  // Get sales reps: prefer direct DB read (admin sees full sales_reps); fallback to public view
+  const salesReps: SalesRep[] = salesRepsFromDb.length > 0 ? salesRepsFromDb : ((settings as any)?.sales_reps || []);
   
   // Reset form initialization when modal closes
   useEffect(() => {
