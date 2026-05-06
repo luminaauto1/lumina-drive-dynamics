@@ -494,6 +494,7 @@ export type Database = {
           area_code: string | null
           attention_updated_at: string | null
           bank_name: string | null
+          bank_reference: string | null
           buyer_type: string | null
           contract_bank_name: string | null
           contract_url: string | null
@@ -555,6 +556,7 @@ export type Database = {
           area_code?: string | null
           attention_updated_at?: string | null
           bank_name?: string | null
+          bank_reference?: string | null
           buyer_type?: string | null
           contract_bank_name?: string | null
           contract_url?: string | null
@@ -616,6 +618,7 @@ export type Database = {
           area_code?: string | null
           attention_updated_at?: string | null
           bank_name?: string | null
+          bank_reference?: string | null
           buyer_type?: string | null
           contract_bank_name?: string | null
           contract_url?: string | null
