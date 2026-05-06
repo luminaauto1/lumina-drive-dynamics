@@ -388,22 +388,21 @@ const AdminFinance = () => {
         {/* Action Feed — role-aware mirrored notification banner */}
         {(() => {
           const isFAndI = role === 'f_and_i';
-          // F&I sees apps where Sales/Admin provided feedback.
-          // Sales/Admin see apps F&I flagged as Attention Needed (with legacy aliases).
-          const targetSet = isFAndI
-            ? new Set(['feedback_provided', 'feedback_received', 'resolved_ready_for_f_and_i'])
-            : new Set(['attention_needed', 'give_attention', 'attention_given', 'new_lead']);
+          // Each role sees a "standard" alert (escalation loop) and a "general"
+          // green ping (passive note from the other side).
+          const standardKey = isFAndI ? 'info_updated' : 'updates_needed';
+          const greenKey = isFAndI ? 'note_to_f_and_i' : 'note_to_sales';
+          const targetSet = new Set([standardKey, greenKey]);
           const feed = applications.filter((a: any) => {
             if (a.is_archived) return false;
-            const raw = String(a.internal_status || '').trim();
-            if (!targetSet.has(raw)) return false;
+            const norm = normalizeInternalStatus(a.internal_status);
+            if (!norm || !targetSet.has(norm)) return false;
             const ts = a.attention_updated_at || a.updated_at || a.created_at;
             if (!ts) return true;
             return businessHoursBetween(ts) <= 30;
           });
           if (feed.length === 0) return null;
           const headerLabel = isFAndI ? 'F&I Action Feed' : 'Sales Action Feed';
-          const subLabel = isFAndI ? 'Notes Updated · Ready for Review' : 'Flagged · Needs Attention';
           return (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
@@ -420,26 +419,38 @@ const AdminFinance = () => {
                 </span>
               </div>
               <div className="flex flex-col gap-1.5 mt-1">
-                {feed.map((app: any) => (
-                  <button
-                    key={app.id}
-                    onClick={() => focusApplicationRow(app)}
-                    className="group flex items-center justify-between gap-3 px-3 py-2 rounded-md bg-zinc-900/60 hover:bg-amber-300/10 border border-zinc-800 hover:border-amber-300/40 text-left transition-colors"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-300 animate-pulse shrink-0" />
-                      <span className="text-sm text-zinc-200 group-hover:text-amber-200 truncate">
-                        {app.first_name} {app.last_name}
+                {feed.map((app: any) => {
+                  const norm = normalizeInternalStatus(app.internal_status);
+                  const isGreen = norm === greenKey;
+                  const subLabel = isGreen
+                    ? (isFAndI ? 'General Note · For F&I' : 'General Note · For Sales')
+                    : (isFAndI ? 'Info Updated · Ready for Review' : 'Updates Needed · Action Required');
+                  const dotClass = isGreen ? 'bg-emerald-400' : 'bg-amber-300';
+                  const containerClass = isGreen
+                    ? 'border-emerald-500/40 hover:border-emerald-400 hover:bg-emerald-400/10'
+                    : 'border-zinc-800 hover:border-amber-300/40 hover:bg-amber-300/10';
+                  const textHover = isGreen ? 'group-hover:text-emerald-200' : 'group-hover:text-amber-200';
+                  return (
+                    <button
+                      key={app.id}
+                      onClick={() => focusApplicationRow(app)}
+                      className={`group flex items-center justify-between gap-3 px-3 py-2 rounded-md bg-zinc-900/60 border text-left transition-colors ${containerClass}`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className={`w-1.5 h-1.5 rounded-full ${dotClass} animate-pulse shrink-0`} />
+                        <span className={`text-sm text-zinc-200 truncate ${textHover}`}>
+                          {app.first_name} {app.last_name}
+                        </span>
+                        <span className="text-[11px] text-zinc-500 truncate">
+                          {subLabel}
+                        </span>
+                      </div>
+                      <span className="text-[10px] uppercase tracking-wider text-zinc-500 shrink-0">
+                        {ADMIN_STATUS_LABELS[app.status] || app.status} →
                       </span>
-                      <span className="text-[11px] text-zinc-500 truncate">
-                        {subLabel}
-                      </span>
-                    </div>
-                    <span className="text-[10px] uppercase tracking-wider text-zinc-500 group-hover:text-amber-300/70 shrink-0">
-                      {ADMIN_STATUS_LABELS[app.status] || app.status} →
-                    </span>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
             </motion.div>
           );
