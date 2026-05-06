@@ -669,10 +669,10 @@ const AdminFinance = () => {
                             await updateApplication.mutateAsync({
                               id: app.id,
                               updates: {
-                                status: newStatus,
-                                internal_status: newStatus,
-                                ...(archiveOnTerminal ? { is_archived: true } : {}),
-                              },
+                                 status: newStatus,
+                                 internal_status: newStatus,
+                                 is_archived: archiveOnTerminal,
+                               },
                             });
                           } catch (err) {
                             // Toast handled by hook on error
