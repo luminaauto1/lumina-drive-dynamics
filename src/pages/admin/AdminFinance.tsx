@@ -832,7 +832,7 @@ const AdminFinance = () => {
                                title={hasNotes ? "View Notes" : "Add Note"}
                              >
                                <span className="text-xs leading-none">📝</span>
-                               {hasNotes && (
+                               {showDot && (
                                  <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-zinc-950" />
                                )}
                              </button>
