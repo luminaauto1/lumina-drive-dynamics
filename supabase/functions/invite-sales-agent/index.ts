@@ -76,9 +76,8 @@ Deno.serve(async (req) => {
       });
 
       if (createErr) {
-        // Likely already exists — look up and (optionally) reset password
-        const { data: list } = await admin.auth.admin.listUsers();
-        const existing = list?.users?.find((u: any) => (u.email || "").toLowerCase() === email);
+        // Likely already exists — look up across all pages and (optionally) reset password
+        const existing = await findUserByEmail(admin, email);
         if (!existing) {
           return new Response(JSON.stringify({ error: createErr.message }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
