@@ -375,6 +375,22 @@ const CRMSheet = () => {
         clientEmail={selectedEmail}
         clientPhone={selectedPhone}
       />
+
+      <BankReferenceModal
+        open={bankRefModalOpen}
+        onOpenChange={(o) => { setBankRefModalOpen(o); if (!o) setBankRefAppId(null); }}
+        onConfirm={async (reference) => {
+          if (!bankRefAppId) return;
+          try {
+            await updateApp.mutateAsync({
+              id: bankRefAppId,
+              updates: { status: 'application_submitted', bank_reference: reference },
+            });
+          } catch {
+            // toast handled by hook
+          }
+        }}
+      />
     </AdminLayout>
   );
 };
