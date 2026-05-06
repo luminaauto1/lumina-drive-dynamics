@@ -167,7 +167,8 @@ const AdminFinance = () => {
       app.last_name?.toLowerCase().includes(searchLower) ||
       app.email?.toLowerCase().includes(searchLower) ||
       app.id_number?.includes(searchQuery) ||
-      app.phone?.includes(searchQuery);
+      app.phone?.includes(searchQuery) ||
+      (app as any).bank_reference?.toLowerCase().includes(searchLower);
     
     const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
     
