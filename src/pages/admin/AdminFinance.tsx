@@ -187,12 +187,14 @@ const AdminFinance = () => {
         updatedNotes = updatedNotes ? `${newEntry}\n\n${updatedNotes}` : newEntry;
       }
       const updatePayload: any = {
-        internal_status: finalStatus,
+        internal_status: pendingStatus, // preserve real semantic state (e.g. 'declined')
         attention_updated_at: new Date().toISOString(),
         notes: updatedNotes,
       };
       if (isTerminal) {
         updatePayload.status = 'archived';
+      } else {
+        updatePayload.status = pendingStatus;
       }
       const { error } = await supabase
         .from('finance_applications')
