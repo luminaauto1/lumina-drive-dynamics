@@ -213,10 +213,9 @@ const AdminFinance = () => {
         internal_status: pendingStatus,
         attention_updated_at: new Date().toISOString(),
         notes: updatedNotes,
+        // Dynamic archive boolean: terminal statuses archive, active statuses un-archive.
+        is_archived: archiveOnTerminal,
       };
-      if (archiveOnTerminal) {
-        updatePayload.is_archived = true;
-      }
       const { error } = await supabase
         .from('finance_applications')
         .update(updatePayload)
