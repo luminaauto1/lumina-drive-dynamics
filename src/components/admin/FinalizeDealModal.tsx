@@ -118,6 +118,20 @@ const FinalizeDealModal = ({
   isCashDeal = false,
 }: FinalizeDealModalProps) => {
   const { data: settings } = useSiteSettings();
+  const [salesRepsFromDb, setSalesRepsFromDb] = useState<SalesRep[]>([]);
+  useEffect(() => {
+    if (!isOpen) return;
+    (async () => {
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('sales_reps')
+        .limit(1)
+        .maybeSingle();
+      if (!error && data?.sales_reps) {
+        setSalesRepsFromDb(data.sales_reps as any);
+      }
+    })();
+  }, [isOpen]);
   const createDealRecord = useCreateDealRecord();
   const updateDealRecord = useUpdateDealRecord();
   
@@ -239,8 +253,8 @@ const FinalizeDealModal = ({
   // Aftersales Expenses
   const [expenses, setExpenses] = useState<AftersalesExpense[]>([]);
   
-  // Get sales reps from settings
-  const salesReps: SalesRep[] = (settings as any)?.sales_reps || [];
+  // Get sales reps: prefer direct DB read (admin sees full sales_reps); fallback to public view
+  const salesReps: SalesRep[] = salesRepsFromDb.length > 0 ? salesRepsFromDb : ((settings as any)?.sales_reps || []);
   
   // Reset form initialization when modal closes
   useEffect(() => {
