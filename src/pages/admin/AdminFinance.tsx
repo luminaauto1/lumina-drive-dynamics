@@ -714,7 +714,7 @@ const AdminFinance = () => {
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       {(() => {
                         const safeStatusKey = getDisplayStatus(app);
-                        const statusConfig = INTERNAL_STATUSES[safeStatusKey as keyof typeof INTERNAL_STATUSES] || INTERNAL_STATUSES.give_attention;
+                        const statusConfig = INTERNAL_STATUSES[safeStatusKey as keyof typeof INTERNAL_STATUSES] || INTERNAL_STATUSES.attention_needed;
                         return (
                           <Select 
                             value={safeStatusKey} 
