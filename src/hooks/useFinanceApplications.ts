@@ -12,6 +12,8 @@ export type FinanceApplication = Tables<'finance_applications'> & {
   internal_status?: string | null;
   created_by?: string | null;
   creator?: { full_name: string | null; email: string | null } | null;
+  assigned_f_and_i?: string | null;
+  fni_owner?: { full_name: string | null; email: string | null } | null;
 };
 
 export const useFinanceApplications = () => {
