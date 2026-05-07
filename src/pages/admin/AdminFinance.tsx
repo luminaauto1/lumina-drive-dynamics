@@ -410,23 +410,46 @@ const AdminFinance = () => {
           </div>
         </motion.div>
 
-        {/* Internal-Status Counter Strip — visible to F&I, Admin, Sales */}
+        {/* Status Counter Strip — F&I sees finance pipeline; Admin/Sales see internal-note overview */}
         {(() => {
-          const counts: Record<string, number> = {
-            no_notes: 0,
-            updates_needed: 0,
-            info_updated: 0,
-            note_to_f_and_i: 0,
-            note_to_sales: 0,
-          };
+          const isFAndIRole = role === 'f_and_i';
+
+          // F&I-relevant pipeline statuses (workflow stages F&I owns)
+          const FNI_PIPELINE: { key: string; label: string; color: string }[] = [
+            { key: 'application_submitted', label: 'App Submitted', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+            { key: 'sent_to_banks', label: 'Sent to Banks', color: 'bg-sky-500/10 text-sky-400 border-sky-500/20' },
+            { key: 'pre_approved', label: 'Pre-Approved', color: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' },
+            { key: 'validations_pending', label: 'Validations Pending', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
+            { key: 'validations_complete', label: 'Validations Complete', color: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' },
+            { key: 'contract_sent', label: 'Contract Sent', color: 'bg-violet-500/10 text-violet-400 border-violet-500/20' },
+            { key: 'contract_signed', label: 'Contract Signed', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
+            { key: 'declined_conditional', label: 'Declined (Cond.)', color: 'bg-orange-500/10 text-orange-400 border-orange-500/20' },
+            { key: 'declined', label: 'Declined', color: 'bg-red-500/10 text-red-400 border-red-500/20' },
+            { key: 'blacklisted', label: 'Blacklisted', color: 'bg-rose-500/10 text-rose-400 border-rose-500/20' },
+          ];
+
           let total = 0;
-          for (const a of applications as any[]) {
-            if (a.is_archived) continue;
-            const norm = normalizeInternalStatus(a.internal_status) || 'no_notes';
-            if (counts[norm] !== undefined) counts[norm] += 1;
-            total += 1;
+          const counts: Record<string, number> = {};
+          if (isFAndIRole) {
+            FNI_PIPELINE.forEach(s => { counts[s.key] = 0; });
+            for (const a of applications as any[]) {
+              if (a.is_archived) continue;
+              total += 1;
+              if (counts[a.status] !== undefined) counts[a.status] += 1;
+            }
+          } else {
+            ['no_notes','updates_needed','info_updated','note_to_f_and_i','note_to_sales'].forEach(k => { counts[k] = 0; });
+            for (const a of applications as any[]) {
+              if (a.is_archived) continue;
+              const norm = normalizeInternalStatus(a.internal_status) || 'no_notes';
+              if (counts[norm] !== undefined) counts[norm] += 1;
+              total += 1;
+            }
           }
-          const order: InternalStatus[] = ['updates_needed', 'info_updated', 'note_to_f_and_i', 'note_to_sales', 'no_notes'];
+
+          const internalOrder: InternalStatus[] = ['updates_needed', 'info_updated', 'note_to_f_and_i', 'note_to_sales', 'no_notes'];
+          const headerLabel = isFAndIRole ? 'F&I Pipeline Overview' : 'Internal Status Overview';
+
           return (
             <motion.div
               initial={{ opacity: 0, y: -6 }}
@@ -435,23 +458,33 @@ const AdminFinance = () => {
             >
               <div className="flex items-center justify-between mb-2">
                 <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-500 font-medium">
-                  Internal Status Overview
+                  {headerLabel}
                 </p>
                 <span className="text-[10px] text-zinc-500">{total} active app{total === 1 ? '' : 's'}</span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-                {order.map((key) => {
-                  const cfg = INTERNAL_STATUSES[key];
-                  return (
-                    <div
-                      key={key}
-                      className={`flex items-center justify-between px-3 py-2 rounded-md border ${cfg.color}`}
-                    >
-                      <span className="text-[11px] uppercase tracking-wider truncate">{cfg.label}</span>
-                      <span className="text-lg font-semibold tabular-nums ml-2">{counts[key]}</span>
-                    </div>
-                  );
-                })}
+              <div className={`grid grid-cols-2 sm:grid-cols-3 ${isFAndIRole ? 'lg:grid-cols-5 xl:grid-cols-10' : 'lg:grid-cols-5'} gap-2`}>
+                {isFAndIRole
+                  ? FNI_PIPELINE.map((s) => (
+                      <div
+                        key={s.key}
+                        className={`flex items-center justify-between px-3 py-2 rounded-md border ${s.color}`}
+                      >
+                        <span className="text-[11px] uppercase tracking-wider truncate">{s.label}</span>
+                        <span className="text-lg font-semibold tabular-nums ml-2">{counts[s.key]}</span>
+                      </div>
+                    ))
+                  : internalOrder.map((key) => {
+                      const cfg = INTERNAL_STATUSES[key];
+                      return (
+                        <div
+                          key={key}
+                          className={`flex items-center justify-between px-3 py-2 rounded-md border ${cfg.color}`}
+                        >
+                          <span className="text-[11px] uppercase tracking-wider truncate">{cfg.label}</span>
+                          <span className="text-lg font-semibold tabular-nums ml-2">{counts[key]}</span>
+                        </div>
+                      );
+                    })}
               </div>
             </motion.div>
           );
