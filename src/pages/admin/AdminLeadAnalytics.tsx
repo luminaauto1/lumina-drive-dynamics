@@ -221,19 +221,54 @@ const AdminLeadAnalytics = () => {
     ? Math.min(100, (submittedLeadCount / totalLeads) * 100)
     : 0;
 
-  // Drop-off funnel: by deepest step reached among non-submitted leads
+  // Pipeline funnel: top-of-funnel leads → submitted apps → bank stages.
+  // Each stage's volume includes all stages below it (true funnel shape).
   const funnelData = useMemo(() => {
-    const buckets: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    enrichedLeads.forEach((l) => {
-      if (l._submitted) return;
-      const s = l.last_step_reached || 1;
-      if (buckets[s] !== undefined) buckets[s] += 1;
+    const statusOf = (a: AppRow) => String(a.status || '').toLowerCase().trim();
+
+    const SENT_TO_BANKS = new Set([
+      'sent_to_banks',
+      'pre_approved', 'approved',
+      'documents_received',
+      'validations_pending',
+      'validations_complete',
+      'contract_sent', 'contract_signed',
+      'vehicle_delivered', 'finalized',
+      'declined', 'declined_conditional', 'blacklisted',
+    ]);
+    const APPROVALS_VALS = new Set([
+      'pre_approved', 'approved',
+      'validations_pending',
+      'validations_complete',
+      'contract_sent', 'contract_signed',
+      'vehicle_delivered', 'finalized',
+    ]);
+    const VALS_DONE = new Set([
+      'validations_complete',
+      'contract_sent', 'contract_signed',
+      'vehicle_delivered', 'finalized',
+    ]);
+
+    const sentToBanks = apps.filter((a) => SENT_TO_BANKS.has(statusOf(a))).length;
+    const approvalsVals = apps.filter((a) => APPROVALS_VALS.has(statusOf(a))).length;
+    const valsDone = apps.filter((a) => VALS_DONE.has(statusOf(a))).length;
+
+    const stages = [
+      { stage: 'Raw Leads', value: totalLeads, fill: VIBRANT.electricBlue },
+      { stage: 'Apps Received', value: totalApps, fill: VIBRANT.violet },
+      { stage: 'Sent to Banks', value: sentToBanks, fill: VIBRANT.cyan },
+      { stage: 'Approvals & Vals', value: approvalsVals, fill: VIBRANT.amber },
+      { stage: 'Vals Done', value: valsDone, fill: VIBRANT.neonGreen },
+    ];
+
+    return stages.map((s, i) => {
+      const prev = i === 0 ? null : stages[i - 1].value;
+      const conv = prev && prev > 0 ? (s.value / prev) * 100 : i === 0 ? 100 : 0;
+      return { ...s, conversion: conv };
     });
-    return Object.entries(STEPS).map(([k, name]) => ({
-      step: name,
-      Abandoned: buckets[Number(k)] || 0,
-    }));
-  }, [enrichedLeads]);
+  }, [apps, totalLeads, totalApps]);
+
+  const funnelHasData = funnelData.some((s) => s.value > 0);
 
   // Time analysis (avg minutes) — outliers > 24h excluded to prevent forgotten test sessions skewing averages
   // - Abandonment: lead.created_at -> lead.updated_at (last progressive step save)
@@ -657,20 +692,44 @@ const AdminLeadAnalytics = () => {
               )}
             </ChartCard>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <ChartCard icon={TrendingUp} title="Drop-off Funnel" subtitle="Where applicants abandon">
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={funnelData} margin={{ top: 10, right: 16, left: -8, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
-                    <XAxis dataKey="step" stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                    <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
-                    <Bar dataKey="Abandoned" radius={[6, 6, 0, 0]}>
-                      {funnelData.map((_, i) => (
-                        <Cell key={i} fill={VIBRANT_PALETTE[i % VIBRANT_PALETTE.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+              <ChartCard icon={TrendingUp} title="Pipeline Funnel" subtitle="Leads → Apps → Bank stages">
+                {!funnelHasData ? (
+                  <div className="h-[280px] flex items-center justify-center text-sm text-muted-foreground">
+                    No data available for this date range.
+                  </div>
+                ) : (
+                  <div className="space-y-2 pt-2">
+                    {funnelData.map((row, i) => {
+                      const max = funnelData[0].value || 1;
+                      const widthPct = Math.max(8, (row.value / max) * 100);
+                      return (
+                        <div key={row.stage} className="space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-foreground/90 font-medium">{row.stage}</span>
+                            <span className="text-muted-foreground tabular-nums">
+                              {row.value}
+                              {i > 0 && (
+                                <span className="ml-2 text-[10px] text-muted-foreground/70">
+                                  {row.conversion.toFixed(1)}%
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                          <div className="h-7 w-full rounded-md bg-muted/30 overflow-hidden border border-border/50">
+                            <div
+                              className="h-full rounded-md transition-all"
+                              style={{
+                                width: `${widthPct}%`,
+                                background: `linear-gradient(90deg, ${row.fill}33, ${row.fill})`,
+                                boxShadow: `0 0 12px ${row.fill}40`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </ChartCard>
 
               <ChartCard icon={Activity} title="Lead Velocity" subtitle={`Volume over ${RANGE_LABELS[range].toLowerCase()}`}>
