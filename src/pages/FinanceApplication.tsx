@@ -90,6 +90,36 @@ const FinanceApplication = () => {
     5: 'Step 5: Review & Submit',
   };
 
+  // Silent session id used only for application abandonment tracking.
+  // Generated once on mount; no PII stored.
+  const draftSessionRef = useRef<string>(
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `s_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+  );
+
+  const trackDraftStep = (stepNumber: number) => {
+    try {
+      const stepName = STEP_NAMES[stepNumber] || `Step ${stepNumber}`;
+      // Fire and forget — never block UI.
+      supabase
+        .from('application_drafts' as any)
+        .upsert(
+          {
+            session_id: draftSessionRef.current,
+            last_completed_step: stepName,
+            step_number: stepNumber,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'session_id' }
+        )
+        .then(() => {})
+        .then(undefined, () => {});
+    } catch {
+      /* swallow — tracking must never break the form */
+    }
+  };
+
   // Use centralized attribution from useUTMTracking (sessionStorage-backed)
   const getAttribution = () => getStoredAttribution();
   const [formData, setFormData] = useState({
