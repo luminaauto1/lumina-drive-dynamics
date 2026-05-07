@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-  LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area,
+  LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area, LabelList,
 } from 'recharts';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
