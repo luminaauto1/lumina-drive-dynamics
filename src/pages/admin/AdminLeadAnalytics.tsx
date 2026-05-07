@@ -160,7 +160,7 @@ const AdminLeadAnalytics = () => {
       let msgCountQ = supabase.from('whatsapp_messages')
         .select('id', { count: 'exact', head: true });
       let msgRowsQ = supabase.from('whatsapp_messages')
-        .select('created_at, platform_source')
+        .select('created_at, platform_source, phone_number')
         .order('created_at', { ascending: false }).limit(10000);
       if (cutoff) {
         leadsQ = leadsQ.gte('created_at', cutoff.toISOString());
