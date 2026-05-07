@@ -147,6 +147,7 @@ const SellYourCar = () => {
 
     try {
       const { data, error } = await supabase.functions.invoke('create-sell-request', {
+        headers: publicApiHeaders(),
         body: {
           client_name: formData.name,
           client_contact: formData.phone,
