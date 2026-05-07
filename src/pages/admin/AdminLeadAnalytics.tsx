@@ -149,13 +149,14 @@ const AdminLeadAnalytics = () => {
       setLoading(true);
       const cutoff = rangeToCutoff(range);
 
+      // NOTE: do NOT use .neq() for blocklisting — PostgREST treats NULL as
+      // not-matching, which would silently drop every lead with no email.
+      // Filter the blocklist client-side instead (see cleanLeads below).
       let leadsQ = supabase.from('leads')
         .select('id, created_at, updated_at, last_step_reached, last_step_name, utm_source, utm_medium, utm_campaign, source, status, client_email, client_phone, traffic_source, bot_outcome, platform, origin')
-        .neq('client_email', 'albertprinsloo051@gmail.com')
         .order('created_at', { ascending: false }).limit(5000);
       let appsQ = supabase.from('finance_applications')
         .select('id, created_at, updated_at, status, credit_score_status, email, phone, utm_source')
-        .neq('email', 'albertprinsloo051@gmail.com')
         .order('created_at', { ascending: false }).limit(5000);
       let msgCountQ = supabase.from('whatsapp_messages')
         .select('id', { count: 'exact', head: true });
