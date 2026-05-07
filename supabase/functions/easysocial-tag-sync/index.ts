@@ -1,8 +1,14 @@
-// EasySocial Tag Sync — pushes CRM status updates back to EasySocial as tag mutations.
-// Strictly isolated from notify-* functions. Safe to call from frontend after a status update.
+// EasySocial Tag Sync — dynamic tag state machine.
+// Resolves tag IDs from EasySocial at runtime (no hardcoded IDs), enforces a
+// safe-list of permanent tags, and steps the lead through a hierarchical
+// add/remove flow based on the new CRM status.
 //
-// Request body: { phone_number: string; new_status: string; old_status?: string }
-// Response:     { ok: boolean; intended: { remove: number[]; add: number[] }; upstream?: any }
+// Request body: {
+//   phone_number: string;
+//   new_status: string;
+//   old_status?: string;
+//   flags?: string[]; // optional: 'low_income' | 'bad_credit' | 'no_licence'
+// }
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,64 +16,150 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-// EasySocial Tag IDs (provided by admin)
-const TAG_IDS = {
-  NEW_LEAD: 1346,
-  APP_SUBMITTED: 1332,
-  BLACKLISTED: 1316,
-  DECLINED: 1334,
+const ES_BASE = 'https://client-api.e-so.in';
+const ES_TAGS_ENDPOINT = `${ES_BASE}/engage/v1/tags`;
+const ES_LEAD_UPDATE = (phone: string) => `${ES_BASE}/api/v1/leads/${phone}/update`;
+
+// Permanent tags that must NEVER be removed (traffic sources, ops markers).
+const SAFE_TAG_NAMES = ['TikTok Ads Lead', 'Dev Test', 'Operational'] as const;
+
+// Phase tag names used by the state machine. Names must match EasySocial exactly.
+const PHASE = {
+  NEW_LEAD: 'New Lead',
+  APP_RECEIVED: 'Application Received',
+  APP_SUBMITTED: 'App Submitted',
+  VALIDATIONS_PENDING: 'Validations Pending',
+  APPROVED_NEED_DOCS: 'Approved - Need Docs',
+  DECLINED: 'Application Declined',
+  BLACKLISTED: 'Blacklisted',
 } as const;
 
-// Map a CRM status -> EasySocial Tag ID to add. New Lead is always removed.
-const STATUS_TO_TAG_ID: Record<string, number> = {
-  pending: TAG_IDS.APP_SUBMITTED,
-  application_submitted: TAG_IDS.APP_SUBMITTED,
-  sent_to_banks: TAG_IDS.APP_SUBMITTED,
-  validations_pending: TAG_IDS.APP_SUBMITTED,
-  revision_submitted: TAG_IDS.APP_SUBMITTED,
-  declined: TAG_IDS.DECLINED,
-  declined_conditional: TAG_IDS.DECLINED,
-  blacklisted: TAG_IDS.BLACKLISTED,
+// Flag → tag name map (sub-classification tags).
+const FLAG_TO_TAG: Record<string, string> = {
+  low_income: 'Low Income',
+  bad_credit: 'Bad Credit',
+  no_licence: 'No Licence',
+  no_license: 'No Licence',
 };
-
-const ES_ENDPOINT = (phone: string) => `https://client-api.e-so.in/api/v1/leads/${phone}/update`;
 
 interface SyncBody {
   phone_number?: string;
   new_status?: string;
   old_status?: string;
+  flags?: string[];
 }
 
-/**
- * Validate and clean phone number to EasySocial international format.
- * - Strip whitespace and non-numeric chars.
- * - If starts with 0, replace leading 0 with 27 (South Africa).
- * Returns null if the result isn't a plausible international number.
- */
-const validateAndCleanPhoneNumber = (raw: unknown): string | null => {
+interface PlanStep { add: string[]; remove: string[]; }
+
+/** Sanitize phone to international digits. SA leading 0 → 27. */
+const cleanPhone = (raw: unknown): string | null => {
   if (raw === null || raw === undefined) return null;
-  let digits = String(raw).replace(/\D/g, '');
-  if (!digits) return null;
-  if (digits.startsWith('0')) digits = `27${digits.slice(1)}`;
-  // Reject obvious garbage; SA mobile numbers in international form are 11 digits.
-  if (digits.length < 10 || digits.length > 15) return null;
-  return digits;
+  let d = String(raw).replace(/\D/g, '');
+  if (!d) return null;
+  if (d.startsWith('0')) d = `27${d.slice(1)}`;
+  if (d.length < 10 || d.length > 15) return null;
+  return d;
+};
+
+/** Build the add/remove plan (by tag NAME) for a given CRM status. */
+const planForStatus = (status: string): PlanStep => {
+  const s = status.toLowerCase().trim();
+  switch (s) {
+    case 'pending':
+      return {
+        add: [PHASE.APP_RECEIVED],
+        remove: [PHASE.NEW_LEAD],
+      };
+    case 'application_submitted':
+    case 'sent_to_banks':
+    case 'revision_submitted':
+      return {
+        add: [PHASE.APP_SUBMITTED],
+        remove: [PHASE.NEW_LEAD, PHASE.APP_RECEIVED],
+      };
+    case 'validations_pending':
+      return {
+        add: [PHASE.VALIDATIONS_PENDING],
+        remove: [PHASE.NEW_LEAD, PHASE.APP_RECEIVED],
+      };
+    case 'pre_approved':
+    case 'approved':
+    case 'documents_received':
+    case 'validations_complete':
+    case 'vehicle_selected':
+    case 'contract_sent':
+    case 'contract_signed':
+    case 'vehicle_delivered':
+    case 'finalized':
+      return {
+        add: [PHASE.APPROVED_NEED_DOCS],
+        remove: [PHASE.NEW_LEAD, PHASE.APP_RECEIVED, PHASE.APP_SUBMITTED, PHASE.VALIDATIONS_PENDING],
+      };
+    case 'declined':
+    case 'declined_conditional':
+      return {
+        add: [PHASE.DECLINED],
+        remove: [PHASE.NEW_LEAD, PHASE.APP_RECEIVED, PHASE.APP_SUBMITTED, PHASE.VALIDATIONS_PENDING],
+      };
+    case 'blacklisted':
+      return {
+        add: [PHASE.BLACKLISTED],
+        remove: [PHASE.NEW_LEAD, PHASE.APP_RECEIVED, PHASE.APP_SUBMITTED],
+      };
+    default:
+      return { add: [], remove: [] };
+  }
+};
+
+/** Fetch all tags from EasySocial and build a {name: id} dictionary. */
+const fetchTagDictionary = async (apiKey: string): Promise<Record<string, number>> => {
+  const res = await fetch(ES_TAGS_ENDPOINT, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      Accept: 'application/json',
+    },
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`tag list fetch failed: ${res.status} ${text.slice(0, 300)}`);
+  }
+  let parsed: any;
+  try { parsed = JSON.parse(text); } catch {
+    throw new Error('tag list response was not JSON');
+  }
+  // Be permissive about response shape: array, {data:[]}, {tags:[]}.
+  const list: any[] = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray(parsed?.data) ? parsed.data
+    : Array.isArray(parsed?.tags) ? parsed.tags
+    : [];
+
+  const dict: Record<string, number> = {};
+  for (const t of list) {
+    const name = t?.name ?? t?.tag_name ?? t?.title;
+    const id = t?.id ?? t?.tag_id;
+    if (typeof name === 'string' && (typeof id === 'number' || /^\d+$/.test(String(id)))) {
+      dict[name] = Number(id);
+    }
+  }
+  return dict;
 };
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'method_not_allowed' }), {
-      status: 405,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
   let body: SyncBody = {};
-  try { body = await req.json(); } catch { /* ignore */ }
+  try { body = await req.json(); } catch { /* noop */ }
 
-  const phone = validateAndCleanPhoneNumber(body.phone_number);
+  const phone = cleanPhone(body.phone_number);
   const newStatus = String(body.new_status || '').toLowerCase().trim();
+  const flags = Array.isArray(body.flags) ? body.flags.map((f) => String(f).toLowerCase()) : [];
 
   if (!phone || !newStatus) {
     return new Response(JSON.stringify({ error: 'missing or invalid phone_number / new_status' }), {
@@ -75,38 +167,75 @@ Deno.serve(async (req) => {
     });
   }
 
-  const targetTagId = STATUS_TO_TAG_ID[newStatus];
-  if (!targetTagId) {
-    console.log('[tag-sync] no mapping for status, skipping', { phone, newStatus });
-    return new Response(JSON.stringify({ ok: true, skipped: 'no_tag_mapping', status: newStatus }), {
+  const apiKey = Deno.env.get('EASYSOCIAL_API_KEY');
+  if (!apiKey) {
+    return new Response(JSON.stringify({ ok: false, error: 'EASYSOCIAL_API_KEY not set' }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
-  const intended = { remove: [TAG_IDS.NEW_LEAD], add: [targetTagId] };
-  const esKey = Deno.env.get('EASYSOCIAL_API_KEY');
+  // Build the plan (by name) from the state machine + flags.
+  const plan = planForStatus(newStatus);
+  for (const f of flags) {
+    const tagName = FLAG_TO_TAG[f];
+    if (tagName) {
+      plan.add.push(tagName);
+      // flag-only addition: just remove New Lead per spec
+      if (!plan.remove.includes(PHASE.NEW_LEAD)) plan.remove.push(PHASE.NEW_LEAD);
+    }
+  }
 
-  if (!esKey) {
-    console.warn('[tag-sync] EASYSOCIAL_API_KEY not configured');
-    return new Response(JSON.stringify({ ok: false, intended, error: 'EASYSOCIAL_API_KEY not set' }), {
+  if (plan.add.length === 0 && plan.remove.length === 0) {
+    console.log('[tag-sync] no plan for status, skipping', { phone, newStatus });
+    return new Response(JSON.stringify({ ok: true, skipped: 'no_plan', status: newStatus }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
-  const url = ES_ENDPOINT(phone);
+  // Resolve tag NAMES → IDs from EasySocial dynamically.
+  let tagDict: Record<string, number>;
+  try {
+    tagDict = await fetchTagDictionary(apiKey);
+  } catch (e) {
+    console.error('[tag-sync] tag dictionary fetch failed', String((e as Error).message ?? e));
+    return new Response(JSON.stringify({ ok: false, error: 'tag_dictionary_fetch_failed', detail: String((e as Error).message ?? e) }), {
+      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const safeIds = new Set(
+    SAFE_TAG_NAMES.map((n) => tagDict[n]).filter((v): v is number => typeof v === 'number'),
+  );
+
+  const resolveIds = (names: string[]) => {
+    const ids: number[] = [];
+    const missing: string[] = [];
+    for (const n of names) {
+      const id = tagDict[n];
+      if (typeof id === 'number') ids.push(id);
+      else missing.push(n);
+    }
+    return { ids: Array.from(new Set(ids)), missing };
+  };
+
+  const addResolved = resolveIds(plan.add);
+  const removeResolved = resolveIds(plan.remove);
+
+  // Enforce SAFE LIST: never remove protected tags, even if mapped accidentally.
+  const removeIds = removeResolved.ids.filter((id) => !safeIds.has(id));
+
   const payload = {
-    remove_tags: intended.remove,
-    add_tags: intended.add,
-    tags: intended.add, // include both per common REST conventions
+    remove_tags: removeIds,
+    add_tags: addResolved.ids,
   };
 
   let upstreamStatus = 0;
   let upstreamBody: any = null;
   try {
-    const res = await fetch(url, {
+    const res = await fetch(ES_LEAD_UPDATE(phone), {
       method: 'PUT',
       headers: {
-        Authorization: `Bearer ${esKey}`,
+        Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
@@ -117,24 +246,24 @@ Deno.serve(async (req) => {
     try { upstreamBody = JSON.parse(text); } catch { upstreamBody = text; }
 
     if (res.ok) {
-      console.log('[tag-sync] SUCCESS', { phone, newStatus, intended, upstreamStatus, upstreamBody });
+      console.log('[tag-sync] SUCCESS', { phone, newStatus, plan, payload, upstreamStatus, upstreamBody });
     } else {
-      console.error('[tag-sync] UPSTREAM ERROR', { phone, newStatus, intended, upstreamStatus, upstreamBody });
+      console.error('[tag-sync] UPSTREAM ERROR', { phone, newStatus, plan, payload, upstreamStatus, upstreamBody });
     }
   } catch (e) {
     console.error('[tag-sync] fetch failed', { phone, error: String((e as Error).message ?? e) });
-    return new Response(JSON.stringify({ ok: false, intended, error: String((e as Error).message ?? e) }), {
+    return new Response(JSON.stringify({ ok: false, plan, payload, error: String((e as Error).message ?? e) }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
-  return new Response(
-    JSON.stringify({
-      ok: upstreamStatus >= 200 && upstreamStatus < 300,
-      phone,
-      intended,
-      upstream: { status: upstreamStatus, body: upstreamBody },
-    }),
-    { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-  );
+  return new Response(JSON.stringify({
+    ok: upstreamStatus >= 200 && upstreamStatus < 300,
+    phone,
+    plan,
+    payload,
+    missing_tags: { add: addResolved.missing, remove: removeResolved.missing },
+    safe_list_ids: Array.from(safeIds),
+    upstream: { status: upstreamStatus, body: upstreamBody },
+  }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 });
