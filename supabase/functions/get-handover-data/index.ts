@@ -77,6 +77,14 @@ serve(async (req: Request) => {
       }
     }
 
+    // Fetch only public-safe review/social links so anonymous handover visitors
+    // do not need direct database permissions to render CTA buttons.
+    const { data: siteSettings } = await supabaseAdmin
+      .from("site_settings")
+      .select("google_review_url, trustpilot_url, facebook_url, hellopeter_url, instagram_url")
+      .limit(1)
+      .maybeSingle();
+
     // Convert stored photo entries (paths or legacy public URLs) into fresh signed URLs.
     const rawPhotos: string[] = Array.isArray(deal.delivery_photos) ? deal.delivery_photos : [];
     const signedPhotos: string[] = [];
@@ -103,6 +111,7 @@ serve(async (req: Request) => {
         delivery_photos: signedPhotos,
         client_first_name: clientFirstName,
         vehicle: vehicleInfo,
+        site_settings: siteSettings || null,
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
