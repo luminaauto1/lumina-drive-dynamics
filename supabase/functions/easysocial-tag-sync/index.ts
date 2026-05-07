@@ -92,42 +92,64 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Best-effort: try to push the change. Endpoint URL is a placeholder until
-  // EasySocial confirms the exact "Update Contact Tags" route.
-  const upstream: { remove?: any; add?: any; error?: string } = {};
+  // Resolve EasySocial lead id from our leads table by phone.
+  let easysocialId: string | null = null;
   try {
-    // Placeholder endpoint shape — wrapped in try/catch as per spec.
-    const url = `${ES_BASE}/contacts/${encodeURIComponent(phone)}/tags`;
-
-    const removeRes = await fetch(url, {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${esKey}`,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({ tags: intended.remove }),
-    }).catch((e) => ({ ok: false, status: 0, _err: String(e) } as any));
-    upstream.remove = { status: (removeRes as any).status ?? null };
-
-    const addRes = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${esKey}`,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({ tags: intended.add }),
-    }).catch((e) => ({ ok: false, status: 0, _err: String(e) } as any));
-    upstream.add = { status: (addRes as any).status ?? null };
-
-    console.log('[tag-sync] pushed', { phone, intended, upstream });
+    const sb = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    );
+    const { data } = await sb
+      .from('leads')
+      .select('easysocial_id')
+      .eq('phone_number', phone)
+      .maybeSingle();
+    easysocialId = (data as any)?.easysocial_id ?? null;
   } catch (e) {
-    upstream.error = String((e as Error).message ?? e);
-    console.error('[tag-sync] upstream error', upstream.error);
+    console.warn('[tag-sync] easysocial_id lookup failed', e);
   }
 
-  return new Response(JSON.stringify({ ok: true, intended, upstream }), {
+  // Best-effort outbound push. Endpoint URL is a placeholder until EasySocial
+  // confirms the exact "Update Lead Tags" route. Wrapped in try/catch so our
+  // CRM never blocks on upstream failures.
+  const upstream: { remove?: any; add?: any; error?: string; intent_only?: boolean } = {};
+  if (!easysocialId) {
+    upstream.intent_only = true;
+    console.log('[tag-sync] INTENT (no easysocial_id mapped)', { phone, intended });
+  } else {
+    try {
+      const url = `${ES_BASE}/leads/${encodeURIComponent(easysocialId)}/tags`;
+
+      const removeRes = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${esKey}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ tags: intended.remove }),
+      }).catch((e) => ({ ok: false, status: 0, _err: String(e) } as any));
+      upstream.remove = { status: (removeRes as any).status ?? null };
+
+      const addRes = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${esKey}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ tags: intended.add }),
+      }).catch((e) => ({ ok: false, status: 0, _err: String(e) } as any));
+      upstream.add = { status: (addRes as any).status ?? null };
+
+      console.log('[tag-sync] pushed', { phone, easysocialId, intended, upstream });
+    } catch (e) {
+      upstream.error = String((e as Error).message ?? e);
+      console.error('[tag-sync] upstream error', upstream.error);
+    }
+  }
+
+  return new Response(JSON.stringify({ ok: true, easysocial_id: easysocialId, intended, upstream }), {
     status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 });
