@@ -279,6 +279,7 @@ const AdminSettings = () => {
       physical_address: '',
       show_finance_tab: true,
       monthly_sales_target: 10,
+      require_application_signature: true,
     },
   });
 
