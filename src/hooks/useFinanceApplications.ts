@@ -282,6 +282,25 @@ export const useUpdateFinanceApplication = () => {
         }
       }
 
+      // EasySocial 2-way tag sync — isolated microservice, runs in addition
+      // to (and never instead of) the notify-* WhatsApp dispatches above.
+      if (statusActuallyChanged && newStatus && currentApp?.phone) {
+        try {
+          supabase.functions.invoke('easysocial-tag-sync', {
+            body: {
+              phone_number: currentApp.phone,
+              new_status: newStatus,
+              old_status: currentApp.status,
+            },
+          }).then(({ error: tagErr }) => {
+            if (tagErr) console.error('[easysocial-tag-sync] error:', tagErr);
+            else console.log('[easysocial-tag-sync] dispatched for', currentApp.phone);
+          });
+        } catch (tagEx) {
+          console.error('[easysocial-tag-sync] failed to invoke:', tagEx);
+        }
+      }
+
       return data;
     },
     onSuccess: () => {
