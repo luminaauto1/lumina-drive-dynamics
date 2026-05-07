@@ -49,6 +49,22 @@ export const useFinanceApplications = () => {
           a.creator = cid ? (byId.get(cid) as any) || null : null;
         });
       }
+
+      // Attach F&I owner profiles in batch (manual join on profiles.user_id).
+      const fniIds = Array.from(
+        new Set(apps.map(a => (a as any).assigned_f_and_i).filter(Boolean) as string[])
+      );
+      if (fniIds.length) {
+        const { data: fniProfs } = await supabase
+          .from('profiles')
+          .select('user_id, full_name, email')
+          .in('user_id', fniIds);
+        const byId = new Map((fniProfs || []).map((p: any) => [p.user_id, p]));
+        apps.forEach(a => {
+          const fid = (a as any).assigned_f_and_i;
+          a.fni_owner = fid ? (byId.get(fid) as any) || null : null;
+        });
+      }
       return apps;
     },
   });
