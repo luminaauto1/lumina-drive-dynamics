@@ -246,6 +246,9 @@ const AdminFinance = () => {
         attention_updated_at: new Date().toISOString(),
         notes: updatedNotes,
       };
+      if (role === 'f_and_i' && actingUser?.id) {
+        updatePayload.assigned_f_and_i = actingUser.id;
+      }
       const { error } = await supabase
         .from('finance_applications')
         .update(updatePayload)
@@ -606,11 +609,23 @@ const AdminFinance = () => {
                           onClick={(e) => { e.preventDefault(); openClientHub(app.email, app.phone); }}
                           className="hover:text-emerald-400 hover:underline cursor-pointer text-left focus:outline-none"
                         >
-                          <p className="font-medium flex items-center gap-2">
+                          <p className="font-medium flex items-center gap-2 flex-wrap">
                             {(app as any).bank_reference && (
                               <BankReferenceBadge reference={(app as any).bank_reference} />
                             )}
                             <span>{app.first_name} {app.last_name}</span>
+                            {(() => {
+                              const fni = (app as any).fni_owner;
+                              if (!fni?.full_name && !fni?.email) return null;
+                              const fniFirst = fni.full_name
+                                ? String(fni.full_name).trim().split(/\s+/)[0]
+                                : String(fni.email).split('@')[0];
+                              return (
+                                <span className="ml-1 text-[10px] uppercase tracking-wider text-pink-400 font-medium border border-pink-500/30 bg-pink-500/10 px-1.5 py-0.5 rounded">
+                                  F&amp;I: {fniFirst}
+                                </span>
+                              );
+                            })()}
                           </p>
                           <p className="text-xs text-muted-foreground">{app.email}</p>
                           {(() => {
@@ -756,7 +771,10 @@ const AdminFinance = () => {
                                 const merged = existingNotes ? `${autoEntry}\n\n${existingNotes}` : autoEntry;
                                 await supabase
                                   .from('finance_applications')
-                                  .update({ notes: merged })
+                                  .update({
+                                    notes: merged,
+                                    ...(role === 'f_and_i' && actingUser?.id ? { assigned_f_and_i: actingUser.id } : {}),
+                                  })
                                   .eq('id', app.id);
                                 await supabase.from('client_audit_logs').insert([{
                                   client_email: app.email || null,
@@ -989,7 +1007,11 @@ const AdminFinance = () => {
                       try {
                         const { error } = await supabase
                           .from('finance_applications')
-                          .update({ internal_status: 'no_notes', attention_updated_at: new Date().toISOString() })
+                          .update({
+                            internal_status: 'no_notes',
+                            attention_updated_at: new Date().toISOString(),
+                            ...(role === 'f_and_i' && user?.id ? { assigned_f_and_i: user.id } : {}),
+                          })
                           .eq('id', pendingApp.id);
                         if (error) throw error;
                         toast({ title: 'Marked as attended' });
@@ -1027,6 +1049,7 @@ const AdminFinance = () => {
                             status: 'sent_to_banks',
                             internal_status: 'no_notes',
                             attention_updated_at: new Date().toISOString(),
+                            ...(user?.id ? { assigned_f_and_i: user.id } : {}),
                           })
                           .eq('id', pendingApp.id);
                         if (error) throw error;

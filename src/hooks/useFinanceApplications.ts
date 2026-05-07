@@ -12,6 +12,8 @@ export type FinanceApplication = Tables<'finance_applications'> & {
   internal_status?: string | null;
   created_by?: string | null;
   creator?: { full_name: string | null; email: string | null } | null;
+  assigned_f_and_i?: string | null;
+  fni_owner?: { full_name: string | null; email: string | null } | null;
 };
 
 export const useFinanceApplications = () => {
@@ -47,6 +49,22 @@ export const useFinanceApplications = () => {
           a.creator = cid ? (byId.get(cid) as any) || null : null;
         });
       }
+
+      // Attach F&I owner profiles in batch (manual join on profiles.user_id).
+      const fniIds = Array.from(
+        new Set(apps.map(a => (a as any).assigned_f_and_i).filter(Boolean) as string[])
+      );
+      if (fniIds.length) {
+        const { data: fniProfs } = await supabase
+          .from('profiles')
+          .select('user_id, full_name, email')
+          .in('user_id', fniIds);
+        const byId = new Map((fniProfs || []).map((p: any) => [p.user_id, p]));
+        apps.forEach(a => {
+          const fid = (a as any).assigned_f_and_i;
+          a.fni_owner = fid ? (byId.get(fid) as any) || null : null;
+        });
+      }
       return apps;
     },
   });
@@ -62,7 +80,23 @@ export const useUpdateFinanceApplication = () => {
         .from('finance_applications')
         .select('*')
         .eq('id', id)
-        .single();
+        .maybeSingle();
+
+      // F&I auto-claim: any update by an F&I user stamps ownership.
+      try {
+        const { data: { user: actor } } = await supabase.auth.getUser();
+        if (actor?.id && updates.assigned_f_and_i === undefined) {
+          const { data: roleRow } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', actor.id)
+            .eq('role', 'f_and_i')
+            .maybeSingle();
+          if (roleRow) {
+            updates = { ...updates, assigned_f_and_i: actor.id };
+          }
+        }
+      } catch (_) { /* non-fatal */ }
 
       // 2. Perform the database update
       const { data, error } = await supabase
@@ -70,7 +104,7 @@ export const useUpdateFinanceApplication = () => {
         .update(updates)
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
 

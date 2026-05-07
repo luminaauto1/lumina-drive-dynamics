@@ -495,6 +495,7 @@ export type Database = {
           additional_income: number | null
           approved_budget: number | null
           area_code: string | null
+          assigned_f_and_i: string | null
           attention_updated_at: string | null
           bank_name: string | null
           bank_reference: string | null
@@ -566,6 +567,7 @@ export type Database = {
           additional_income?: number | null
           approved_budget?: number | null
           area_code?: string | null
+          assigned_f_and_i?: string | null
           attention_updated_at?: string | null
           bank_name?: string | null
           bank_reference?: string | null
@@ -637,6 +639,7 @@ export type Database = {
           additional_income?: number | null
           approved_budget?: number | null
           area_code?: string | null
+          assigned_f_and_i?: string | null
           attention_updated_at?: string | null
           bank_name?: string | null
           bank_reference?: string | null
