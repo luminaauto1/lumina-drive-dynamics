@@ -471,7 +471,50 @@ const FinanceApplication = () => {
       return false;
     }
   };
-  
+
+  // TASK 4: Silent background Google Places search based on employer_name.
+  // Non-destructive: never overwrites the user's manual employer_address;
+  // only sets business_address_auto and (if blank) workplace_cell_no.
+  useEffect(() => {
+    const name = formData.employer_name?.trim();
+    if (!name || name.length < 3) return;
+    const handle = setTimeout(() => {
+      try {
+        const g = (window as any).google;
+        if (!g?.maps?.places) return;
+        const service = new g.maps.places.PlacesService(document.createElement('div'));
+        service.findPlaceFromQuery(
+          {
+            query: name,
+            fields: ['formatted_address', 'place_id', 'name'],
+          },
+          (results: any[], status: string) => {
+            if (status !== 'OK' || !results?.[0]?.place_id) return;
+            service.getDetails(
+              { placeId: results[0].place_id, fields: ['formatted_address', 'formatted_phone_number', 'international_phone_number'] },
+              (place: any, st: string) => {
+                if (st !== 'OK' || !place) return;
+                setFormData((prev) => {
+                  const next = { ...prev };
+                  if (place.formatted_address) next.business_address_auto = place.formatted_address;
+                  const phone = place.international_phone_number || place.formatted_phone_number;
+                  if (phone && !prev.workplace_cell_no?.trim()) {
+                    next.workplace_cell_no = phone;
+                  }
+                  return next;
+                });
+              }
+            );
+          }
+        );
+      } catch (err) {
+        // Silent — never block the form
+        console.debug('Silent Places lookup skipped', err);
+      }
+    }, 800);
+    return () => clearTimeout(handle);
+  }, [formData.employer_name]);
+
   // Helper to get error class for inputs
   const getErrorClass = (fieldName: string) => {
     return fieldErrors[fieldName] ? 'border-destructive ring-1 ring-destructive' : '';
