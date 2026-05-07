@@ -52,6 +52,7 @@ export const useSellCarRequests = () => {
   const createRequest = useMutation({
     mutationFn: async (request: CreateSellCarRequestData) => {
       const { data, error } = await supabase.functions.invoke('create-sell-request', {
+        headers: publicApiHeaders(),
         body: request,
       });
 
