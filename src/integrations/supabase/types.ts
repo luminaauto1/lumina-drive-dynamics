@@ -500,6 +500,7 @@ export type Database = {
           attention_updated_at: string | null
           bank_name: string | null
           bank_reference: string | null
+          business_address_auto: string | null
           buyer_type: string | null
           contract_bank_name: string | null
           contract_url: string | null
@@ -515,12 +516,14 @@ export type Database = {
           employer_postal_code: string | null
           employment_period: string | null
           employment_status: string | null
+          employment_type: string | null
           expenses_summary: string | null
           first_name: string | null
           full_name: string
           gender: string | null
           gross_salary: number | null
           handover_name: string | null
+          has_6_months_statements: boolean | null
           has_drivers_license: boolean | null
           id: string
           id_number: string | null
@@ -560,6 +563,7 @@ export type Database = {
           utm_medium: string | null
           utm_source: string | null
           vehicle_id: string | null
+          workplace_cell_no: string | null
         }
         Insert: {
           access_token?: string | null
@@ -573,6 +577,7 @@ export type Database = {
           attention_updated_at?: string | null
           bank_name?: string | null
           bank_reference?: string | null
+          business_address_auto?: string | null
           buyer_type?: string | null
           contract_bank_name?: string | null
           contract_url?: string | null
@@ -588,12 +593,14 @@ export type Database = {
           employer_postal_code?: string | null
           employment_period?: string | null
           employment_status?: string | null
+          employment_type?: string | null
           expenses_summary?: string | null
           first_name?: string | null
           full_name: string
           gender?: string | null
           gross_salary?: number | null
           handover_name?: string | null
+          has_6_months_statements?: boolean | null
           has_drivers_license?: boolean | null
           id?: string
           id_number?: string | null
@@ -633,6 +640,7 @@ export type Database = {
           utm_medium?: string | null
           utm_source?: string | null
           vehicle_id?: string | null
+          workplace_cell_no?: string | null
         }
         Update: {
           access_token?: string | null
@@ -646,6 +654,7 @@ export type Database = {
           attention_updated_at?: string | null
           bank_name?: string | null
           bank_reference?: string | null
+          business_address_auto?: string | null
           buyer_type?: string | null
           contract_bank_name?: string | null
           contract_url?: string | null
@@ -661,12 +670,14 @@ export type Database = {
           employer_postal_code?: string | null
           employment_period?: string | null
           employment_status?: string | null
+          employment_type?: string | null
           expenses_summary?: string | null
           first_name?: string | null
           full_name?: string
           gender?: string | null
           gross_salary?: number | null
           handover_name?: string | null
+          has_6_months_statements?: boolean | null
           has_drivers_license?: boolean | null
           id?: string
           id_number?: string | null
@@ -706,6 +717,7 @@ export type Database = {
           utm_medium?: string | null
           utm_source?: string | null
           vehicle_id?: string | null
+          workplace_cell_no?: string | null
         }
         Relationships: [
           {
