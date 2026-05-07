@@ -308,17 +308,30 @@ const AdminLeadAnalytics = () => {
   }, [apps]);
 
   // Traffic source: submitted vs abandoned by source.
-  // Prefer EasySocial bot-provided traffic_source, then UTM, then internal source.
+  // Prefer EasySocial CRM platform/origin, then traffic_source tag, UTM, then internal source.
   const trafficSourceData = useMemo(() => {
     const map = new Map<string, { source: string; Submitted: number; Abandoned: number }>();
     enrichedLeads.forEach((l: any) => {
-      const src = String(l.traffic_source || l.utm_source || l.source || 'direct').toLowerCase();
+      const composed = [l.platform, l.origin].filter(Boolean).join(' / ');
+      const src = String(composed || l.traffic_source || l.utm_source || l.source || 'direct').toLowerCase();
       const row = map.get(src) || { source: src, Submitted: 0, Abandoned: 0 };
       if (l._submitted) row.Submitted += 1;
       else row.Abandoned += 1;
       map.set(src, row);
     });
     return Array.from(map.values()).sort((a, b) => (b.Submitted + b.Abandoned) - (a.Submitted + a.Abandoned)).slice(0, 8);
+  }, [enrichedLeads]);
+
+  // Lead Quality by Platform: submitted vs abandoned, driven by EasySocial CRM `platform` column.
+  const leadsByPlatform = useMemo(() => {
+    const map = new Map<string, { platform: string; Submitted: number; Abandoned: number }>();
+    enrichedLeads.forEach((l: any) => {
+      const p = String(l.platform || 'Unknown');
+      const row = map.get(p) || { platform: p, Submitted: 0, Abandoned: 0 };
+      if (l._submitted) row.Submitted += 1; else row.Abandoned += 1;
+      map.set(p, row);
+    });
+    return Array.from(map.values()).sort((a, b) => (b.Submitted + b.Abandoned) - (a.Submitted + a.Abandoned));
   }, [enrichedLeads]);
 
   // Lead Quality by Platform: bot_outcome breakdown grouped by traffic_source (EasySocial)
