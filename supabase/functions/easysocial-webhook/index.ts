@@ -530,7 +530,9 @@ Deno.serve(async (req) => {
             .filter(Boolean);
           if (matched.length) tagString = Array.from(new Set(matched)).join(', ');
         } else {
-          console.warn('[easysocial-webhook] tags endpoint non-OK', tagsRes.status);
+          let body = '';
+          try { body = (await tagsRes.text()).slice(0, 300); } catch { /* ignore */ }
+          console.warn('[easysocial-webhook] tags endpoint non-OK', tagsRes.status, body);
         }
       } catch (e) {
         console.error('[easysocial-webhook] tag fetch error', e);
