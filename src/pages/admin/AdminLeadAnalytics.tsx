@@ -487,13 +487,22 @@ const AdminLeadAnalytics = () => {
           </div>
         ) : (
           <>
-            {/* KPI Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            {/* Headline KPI strip — high-contrast, premium minimal */}
+            <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
               <KpiCard icon={MessageCircle} label="Messages Received" value={messageCount.toLocaleString()} accent />
-              <KpiCard icon={Users} label="Total Leads Received" value={totalLeads.toLocaleString()} />
-              <KpiCard icon={FileCheck2} label="Applications Submitted" value={totalApps.toLocaleString()} />
-              <KpiCard icon={AlertTriangle} label="Abandoned / Drop-offs" value={totalAbandoned.toLocaleString()} />
-              <KpiCard icon={Percent} label="Conversion Rate" value={`${conversion.toFixed(1)}%`} />
+              <KpiCard icon={Users} label="Total New Leads" value={totalLeads.toLocaleString()} />
+              <KpiCard icon={FileCheck2} label="Total Applications" value={totalApps.toLocaleString()} />
+              <KpiCard icon={Percent} label="Lead → App Conversion" value={`${conversion.toFixed(1)}%`} />
+              <KpiCard
+                icon={TrendingUp}
+                label="Approval Rate"
+                value={`${(apps.length > 0 ? (apps.filter(a => ['approved','vehicle_selected'].includes(String(a.status))).length / apps.length) * 100 : 0).toFixed(1)}%`}
+              />
+              <KpiCard
+                icon={ShieldAlert}
+                label="Decline Rate"
+                value={`${(apps.length > 0 ? (apps.filter(a => String(a.status) === 'declined').length / apps.length) * 100 : 0).toFixed(1)}%`}
+              />
             </div>
 
             {/* Funnel + Velocity */}
