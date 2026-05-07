@@ -33,6 +33,7 @@ export interface SiteSettings {
   min_deposit_percent: number | null;
   sales_reps: { name: string; commission: number }[] | null;
   monthly_sales_target: number | null;
+  require_application_signature: boolean;
 }
 
 interface SiteSettingsLegacy {
