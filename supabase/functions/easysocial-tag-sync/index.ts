@@ -100,34 +100,39 @@ const planForStatus = (status: string): PlanStep => {
         add: [PHASE.APP_SUBMITTED],
         remove: [PHASE.NEW_LEAD, PHASE.APP_RECEIVED],
       };
-    case 'validations_pending':
-      return {
-        add: [PHASE.VALIDATIONS_PENDING],
-        remove: [PHASE.NEW_LEAD, PHASE.APP_RECEIVED],
-      };
     case 'pre_approved':
     case 'approved':
     case 'documents_received':
+      return {
+        add: [PHASE.APPROVED_NEED_DOCS],
+        remove: [PHASE.NEW_LEAD, PHASE.APP_RECEIVED, PHASE.APP_SUBMITTED],
+      };
+    case 'validations_pending':
+      return {
+        add: [PHASE.VALIDATIONS_PENDING],
+        remove: [PHASE.APPROVED_NEED_DOCS, PHASE.APP_SUBMITTED, PHASE.APP_RECEIVED, PHASE.NEW_LEAD],
+      };
     case 'validations_complete':
     case 'vehicle_selected':
     case 'contract_sent':
     case 'contract_signed':
     case 'vehicle_delivered':
     case 'finalized':
+      // Vals Done — Master Wipe of every pipeline tag, then add Vals Done.
       return {
-        add: [PHASE.APPROVED_NEED_DOCS],
-        remove: [PHASE.NEW_LEAD, PHASE.APP_RECEIVED, PHASE.APP_SUBMITTED, PHASE.VALIDATIONS_PENDING],
+        add: [PHASE.VALS_DONE],
+        remove: [...MASTER_PIPELINE_TAGS],
       };
     case 'declined':
     case 'declined_conditional':
       return {
         add: [PHASE.DECLINED],
-        remove: [PHASE.NEW_LEAD, PHASE.APP_RECEIVED, PHASE.APP_SUBMITTED, PHASE.VALIDATIONS_PENDING],
+        remove: [...MASTER_PIPELINE_TAGS],
       };
     case 'blacklisted':
       return {
         add: [PHASE.BLACKLISTED],
-        remove: [PHASE.NEW_LEAD, PHASE.APP_RECEIVED, PHASE.APP_SUBMITTED],
+        remove: [...MASTER_PIPELINE_TAGS],
       };
     default:
       return { add: [], remove: [] };
