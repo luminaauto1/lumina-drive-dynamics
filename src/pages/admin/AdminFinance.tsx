@@ -248,6 +248,7 @@ const AdminFinance = () => {
       };
       if (role === 'f_and_i' && actingUser?.id) {
         updatePayload.assigned_f_and_i = actingUser.id;
+        updatePayload.assigned_f_and_i_at = new Date().toISOString();
       }
       const { error } = await supabase
         .from('finance_applications')
@@ -773,7 +774,10 @@ const AdminFinance = () => {
                                   .from('finance_applications')
                                   .update({
                                     notes: merged,
-                                    ...(role === 'f_and_i' && actingUser?.id ? { assigned_f_and_i: actingUser.id } : {}),
+                                    ...(role === 'f_and_i' && actingUser?.id ? {
+                                      assigned_f_and_i: actingUser.id,
+                                      assigned_f_and_i_at: new Date().toISOString(),
+                                    } : {}),
                                   })
                                   .eq('id', app.id);
                                 await supabase.from('client_audit_logs').insert([{
@@ -1010,7 +1014,10 @@ const AdminFinance = () => {
                           .update({
                             internal_status: 'no_notes',
                             attention_updated_at: new Date().toISOString(),
-                            ...(role === 'f_and_i' && user?.id ? { assigned_f_and_i: user.id } : {}),
+                            ...(role === 'f_and_i' && user?.id ? {
+                              assigned_f_and_i: user.id,
+                              assigned_f_and_i_at: new Date().toISOString(),
+                            } : {}),
                           })
                           .eq('id', pendingApp.id);
                         if (error) throw error;
@@ -1049,7 +1056,10 @@ const AdminFinance = () => {
                             status: 'sent_to_banks',
                             internal_status: 'no_notes',
                             attention_updated_at: new Date().toISOString(),
-                            ...(user?.id ? { assigned_f_and_i: user.id } : {}),
+                            ...(user?.id ? {
+                              assigned_f_and_i: user.id,
+                              assigned_f_and_i_at: new Date().toISOString(),
+                            } : {}),
                           })
                           .eq('id', pendingApp.id);
                         if (error) throw error;
