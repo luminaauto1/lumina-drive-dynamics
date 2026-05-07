@@ -292,12 +292,18 @@ const AdminLeadAnalytics = () => {
       const n = d.step_number ?? 0;
       if (n >= 1 && n <= 5) counts[n] += 1;
     });
-    return [1, 2, 3, 4, 5].map((n) => ({
-      step: STEP_LABELS[n],
-      shortStep: `Step ${n}`,
-      abandoned: counts[n],
-      fill: VIBRANT_PALETTE[(n - 1) % VIBRANT_PALETTE.length],
-    }));
+    const totalAbandoned = Object.values(counts).reduce((a, b) => a + b, 0);
+    return [1, 2, 3, 4, 5].map((n) => {
+      const abandoned = counts[n];
+      const rate = totalAbandoned > 0 ? (abandoned / totalAbandoned) * 100 : 0;
+      return {
+        step: STEP_LABELS[n],
+        shortStep: `Step ${n}`,
+        abandoned,
+        rate: Math.round(rate * 10) / 10,
+        fill: VIBRANT_PALETTE[(n - 1) % VIBRANT_PALETTE.length],
+      };
+    });
   }, [drafts]);
   const abandonmentHasData = abandonmentData.some((d) => d.abandoned > 0);
 
