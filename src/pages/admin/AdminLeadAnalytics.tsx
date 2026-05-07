@@ -810,13 +810,22 @@ const AdminLeadAnalytics = () => {
                       itemStyle={tooltipItemStyle}
                       labelStyle={tooltipLabelStyle}
                       cursor={{ fill: 'hsl(var(--muted) / 0.2)' }}
-                      formatter={(v: any) => [v, 'Abandoned']}
+                      formatter={(v: any, _n: any, props: any) => {
+                        const rate = props?.payload?.rate ?? 0;
+                        return [`${v} (${rate}% of total)`, 'Abandoned'];
+                      }}
                       labelFormatter={(_l, payload: any) => payload?.[0]?.payload?.step ?? _l}
                     />
                     <Bar dataKey="abandoned" radius={[6, 6, 0, 0]}>
                       {abandonmentData.map((row, i) => (
                         <Cell key={i} fill={row.fill} />
                       ))}
+                      <LabelList
+                        dataKey="rate"
+                        position="top"
+                        formatter={(v: any) => `${v}%`}
+                        style={{ fill: MUTED, fontSize: 11, fontWeight: 600 }}
+                      />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
