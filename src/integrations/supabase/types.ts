@@ -1548,6 +1548,24 @@ export type Database = {
           },
         ]
       }
+      webhook_events: {
+        Row: {
+          event_id: string
+          seen_at: string
+          source: string
+        }
+        Insert: {
+          event_id: string
+          seen_at?: string
+          source?: string
+        }
+        Update: {
+          event_id?: string
+          seen_at?: string
+          source?: string
+        }
+        Relationships: []
+      }
       whatsapp_messages: {
         Row: {
           created_at: string
