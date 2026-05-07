@@ -706,7 +706,9 @@ const FinanceApplication = () => {
           return;
         }
       }
+      const completedStep = currentStep;
       setCurrentStep((prev) => Math.min(prev + 1, 5));
+      trackDraftStep(completedStep);
     }
   };
 
