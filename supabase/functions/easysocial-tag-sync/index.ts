@@ -263,8 +263,11 @@ Deno.serve(async (req) => {
   const addResolved = resolveIds(plan.add);
   const removeResolved = resolveIds(plan.remove);
 
-  // Enforce SAFE LIST: never remove protected tags, even if mapped accidentally.
-  const removeIds = removeResolved.ids.filter((id) => !safeIds.has(id));
+  const addIdSet = new Set(addResolved.ids);
+  // STEP 1 — Intersection filter: never remove a tag we are actively adding.
+  const intersectionFiltered = removeResolved.ids.filter((id) => !addIdSet.has(id));
+  // STEP 2 — Safe-list filter: never remove protected traffic-source/ops tags.
+  const removeIds = intersectionFiltered.filter((id) => !safeIds.has(id));
 
   const payload = {
     remove_tags: removeIds,
