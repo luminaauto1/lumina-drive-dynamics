@@ -571,8 +571,15 @@ const AdminLeadAnalytics = () => {
         ) : (
           <>
             {/* Headline KPI strip — high-contrast, premium minimal */}
-            <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
-              <KpiCard icon={MessageCircle} label="Messages Received" value={messageCount.toLocaleString()} accent />
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <KpiCard icon={MessageCircle} label="Total Messages" value={messageCount.toLocaleString()} accent />
+              <KpiCard icon={Users} label="Unique Contacts (Messaged)" value={uniqueContactCount.toLocaleString()} accent />
+              <KpiCard
+                icon={Activity}
+                label="Avg Msgs / Lead Before App"
+                value={messagesPerLeadStats.avg.toFixed(1)}
+              />
+              <KpiCard icon={Users} label="Total New Leads" value={totalLeads.toLocaleString()} />
               <KpiCard icon={Users} label="Total New Leads" value={totalLeads.toLocaleString()} />
               <KpiCard icon={FileCheck2} label="Total Applications" value={totalApps.toLocaleString()} />
               <KpiCard icon={Percent} label="Lead → App Conversion" value={`${conversion.toFixed(1)}%`} />
