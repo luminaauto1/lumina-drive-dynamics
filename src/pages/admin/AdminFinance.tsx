@@ -1021,9 +1021,23 @@ const AdminFinance = () => {
                     Client: {pendingApp?.first_name} {pendingApp?.last_name}
                   </h2>
                   {pendingLeadName && (
-                    <p className="text-xs text-blue-400 mt-0.5 font-medium">
-                      CRM Lead: {pendingLeadName}
-                    </p>
+                    <button
+                      type="button"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        try {
+                          await navigator.clipboard.writeText(pendingLeadName);
+                          toast({ title: 'CRM Lead name copied' });
+                        } catch {
+                          toast({ title: 'Copy failed', variant: 'destructive' });
+                        }
+                      }}
+                      title="Click to copy"
+                      className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 font-medium w-fit transition-colors"
+                    >
+                      <span>CRM Lead: {pendingLeadName}</span>
+                      <Copy className="w-3 h-3 opacity-60" />
+                    </button>
                   )}
                   <p className="text-sm text-zinc-400 mt-1">Update Status &amp; CRM Note</p>
                 </div>
