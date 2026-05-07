@@ -412,6 +412,7 @@ Deno.serve(async (req) => {
         // Real organic text reply with no ad referral → label cleanly, do not noise the trap.
         platformSource = 'Organic/Direct';
       }
+      derivedPlatform = platformSource;
 
       // ── The "Unknown" Trap: only dump payloads we genuinely could not classify
       // (skip clean organic text and audio cases — those are expected).
