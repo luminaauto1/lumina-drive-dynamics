@@ -333,6 +333,9 @@ Deno.serve(async (req) => {
     } catch (e) {
       console.error('[easysocial-webhook] extraction error', e);
     }
+    // Carries the referral-derived classification (TikTok/Facebook/Instagram/Organic)
+    // out of the message-logging block so we can use it as a tag fallback below.
+    let derivedPlatform: string | null = null;
 
     // Identify the change type so we can skip non-actionable events cleanly
     const changeField = payload?.entry?.[0]?.changes?.[0]?.field;
