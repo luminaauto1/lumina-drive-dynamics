@@ -1037,6 +1037,7 @@ const AdminFinance = () => {
                             status: 'sent_to_banks',
                             internal_status: 'no_notes',
                             attention_updated_at: new Date().toISOString(),
+                            ...(user?.id ? { assigned_f_and_i: user.id } : {}),
                           })
                           .eq('id', pendingApp.id);
                         if (error) throw error;
