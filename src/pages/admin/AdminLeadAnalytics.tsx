@@ -632,7 +632,24 @@ const AdminLeadAnalytics = () => {
               )}
             </ChartCard>
 
-            {/* Lead Quality by Platform removed — depended on EasySocial inbound tag data that is not currently flowing. */}
+            {/* Lead Quality by Platform — driven by EasySocial CRM lead_create events */}
+            <ChartCard icon={Tag} title="Lead Quality by Platform" subtitle="Submitted vs abandoned per EasySocial platform">
+              {leadsByPlatform.length === 0 ? (
+                <EmptyState />
+              ) : (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={leadsByPlatform} margin={{ top: 10, right: 16, left: -8, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis dataKey="platform" stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
+                    <Legend wrapperStyle={{ fontSize: 11, color: MUTED }} />
+                    <Bar dataKey="Submitted" stackId="a" fill={VIBRANT.neonGreen} />
+                    <Bar dataKey="Abandoned" stackId="a" fill={VIBRANT.crimson} radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </ChartCard>
 
             {/* Message Time-Matrix + Origins Pie */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
