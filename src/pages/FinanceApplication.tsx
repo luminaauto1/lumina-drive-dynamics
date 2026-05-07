@@ -1547,6 +1547,35 @@ const FinanceApplication = () => {
                   <div className="border-t border-border pt-6">
                     <h3 className="font-medium mb-4">Employment Details</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor="employment_type">Employment Type *</Label>
+                        <Select value={formData.employment_type} onValueChange={(v) => handleInputChange("employment_type", v)}>
+                          <SelectTrigger className={getErrorClass("employment_type")}>
+                            <SelectValue placeholder="Select employment type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="permanently_employed">Permanently Employed</SelectItem>
+                            <SelectItem value="self_employed">Self Employed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FieldError field="employment_type" />
+                      </div>
+                      {formData.employment_type === "self_employed" && (
+                        <div className="md:col-span-2 flex items-start gap-2 p-3 rounded-md border border-border bg-muted/30">
+                          <Checkbox
+                            id="has_6_months_statements"
+                            checked={formData.has_6_months_statements}
+                            onCheckedChange={(c) => handleInputChange("has_6_months_statements", Boolean(c))}
+                            className={fieldErrors.has_6_months_statements ? 'border-destructive' : ''}
+                          />
+                          <div className="space-y-1">
+                            <Label htmlFor="has_6_months_statements" className="cursor-pointer">
+                              I have 6 months bank statements reflecting income. *
+                            </Label>
+                            <FieldError field="has_6_months_statements" />
+                          </div>
+                        </div>
+                      )}
                       <div className="space-y-2">
                         <Label htmlFor="employer_name">Workplace/Employer Name *</Label>
                         <Input
