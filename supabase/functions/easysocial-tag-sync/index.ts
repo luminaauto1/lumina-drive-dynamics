@@ -162,19 +162,28 @@ Deno.serve(async (req) => {
   let body: SyncBody = {};
   try { body = await req.json(); } catch { /* noop */ }
 
+  console.log('[tag-sync] incoming payload', { phone_number: body.phone_number, new_status: body.new_status, old_status: body.old_status, flags: body.flags });
+
   const phone = cleanPhone(body.phone_number);
   const newStatus = String(body.new_status || '').toLowerCase().trim();
   const flags = Array.isArray(body.flags) ? body.flags.map((f) => String(f).toLowerCase()) : [];
 
+  console.log('[tag-sync] sanitized', { phone, newStatus, flags });
+
   if (!phone || !newStatus) {
+    console.warn('[tag-sync] rejecting: missing phone or status');
     return new Response(JSON.stringify({ error: 'missing or invalid phone_number / new_status' }), {
       status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
-  const apiKey = Deno.env.get('EASYSOCIAL_API_KEY');
+  // Prefer the dedicated Bearer API token (eSt2dc...) when available; fall back
+  // to the legacy EASYSOCIAL_API_KEY (which historically held the WhatsApp
+  // template token and returns 401 on /engage endpoints).
+  const apiKey = (Deno.env.get('EASYSOCIAL_BEARER_TOKEN') ?? Deno.env.get('EASYSOCIAL_API_KEY') ?? '').trim();
   if (!apiKey) {
-    return new Response(JSON.stringify({ ok: false, error: 'EASYSOCIAL_API_KEY not set' }), {
+    console.error('[tag-sync] no API key configured');
+    return new Response(JSON.stringify({ ok: false, error: 'EASYSOCIAL_BEARER_TOKEN not set' }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
