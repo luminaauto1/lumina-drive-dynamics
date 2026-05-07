@@ -477,8 +477,35 @@ const FinanceApplication = () => {
         toast.error("Please enter a valid cell number.");
         return;
       }
-      if (!formData.id_number || formData.id_number.trim().length < 6) {
-        toast.error("ID or Passport number is required.");
+      // Conditional ID/Passport validation
+      const condErrors: Record<string, string> = {};
+      const idVal = (formData.id_number || "").trim();
+      if (!idVal) {
+        condErrors.id_number = "ID or Passport number is required.";
+      } else if (formData.id_type === "ID") {
+        if (!/^\d{13}$/.test(idVal)) condErrors.id_number = "SA ID must be exactly 13 digits.";
+      } else if (formData.id_type === "Passport") {
+        if (!/^[A-Za-z0-9]{4,}$/.test(idVal)) condErrors.id_number = "Enter a valid passport number.";
+        if (!formData.nationality || formData.nationality.trim().length < 2) {
+          condErrors.nationality = "Nationality is required for passport holders.";
+        }
+      }
+      // Conditional marital validation
+      if (formData.marital_status === "married") {
+        if (!formData.marriage_type) {
+          condErrors.marriage_type = "Please select your marriage type.";
+        } else if (formData.marriage_type === "in_community") {
+          if (!formData.spouse_first_name?.trim()) condErrors.spouse_first_name = "Spouse first name is required.";
+          if (!formData.spouse_surname?.trim()) condErrors.spouse_surname = "Spouse surname is required.";
+          if (!formData.spouse_id?.trim()) condErrors.spouse_id = "Spouse ID is required.";
+          if (!formData.spouse_contact?.trim() || formData.spouse_contact.trim().length < 9) {
+            condErrors.spouse_contact = "Valid spouse contact is required.";
+          }
+        }
+      }
+      if (Object.keys(condErrors).length > 0) {
+        setFieldErrors((prev) => ({ ...prev, ...condErrors }));
+        toast.error("Please complete the highlighted fields before proceeding.");
         return;
       }
     }
