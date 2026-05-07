@@ -340,6 +340,7 @@ const AdminSettings = () => {
   const showPhysicalLocation = watch('show_physical_location');
   const showFinanceTab = watch('show_finance_tab');
   const showTradeIn = watch('show_trade_in' as any) ?? true;
+  const requireSignature = watch('require_application_signature' as any) ?? true;
 
   if (isLoading) {
     return (
