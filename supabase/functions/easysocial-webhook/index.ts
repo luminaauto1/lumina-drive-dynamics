@@ -207,7 +207,11 @@ Deno.serve(async (req) => {
             signal: ctrl.signal,
           });
           clearTimeout(timer);
-          tagsApi = { reachable: r.ok, status: r.status, latency_ms: Date.now() - t0 };
+          let upstreamError: string | undefined;
+          if (!r.ok) {
+            try { upstreamError = (await r.text()).slice(0, 300); } catch { /* ignore */ }
+          }
+          tagsApi = { reachable: r.ok, status: r.status, latency_ms: Date.now() - t0, ...(upstreamError ? { error: upstreamError } : {}) };
         } catch (e) {
           tagsApi = { reachable: false, status: null, latency_ms: Date.now() - t0, error: String((e as Error).message ?? e) };
         }
