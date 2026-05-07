@@ -314,6 +314,7 @@ const AdminSettings = () => {
         physical_address: settings.physical_address || '',
         show_finance_tab: settings.show_finance_tab ?? true,
         monthly_sales_target: settings.monthly_sales_target || 10,
+        require_application_signature: (settings as any).require_application_signature ?? true,
       });
     }
   }, [settings, reset]);
