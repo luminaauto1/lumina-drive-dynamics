@@ -164,14 +164,18 @@ const AdminLeadAnalytics = () => {
       let msgRowsQ = supabase.from('whatsapp_messages')
         .select('created_at, platform_source, phone_number')
         .order('created_at', { ascending: false }).limit(10000);
+      let draftsQ = (supabase.from as any)('application_drafts')
+        .select('last_completed_step, step_number, submitted, updated_at')
+        .order('updated_at', { ascending: false }).limit(10000);
       if (cutoff) {
         leadsQ = leadsQ.gte('created_at', cutoff.toISOString());
         appsQ = appsQ.gte('created_at', cutoff.toISOString());
         msgCountQ = msgCountQ.gte('created_at', cutoff.toISOString());
         msgRowsQ = msgRowsQ.gte('created_at', cutoff.toISOString());
+        draftsQ = draftsQ.gte('updated_at', cutoff.toISOString());
       }
-      const [{ data: leadsData }, { data: appsData }, { count: msgCount }, { data: msgRows }] =
-        await Promise.all([leadsQ, appsQ, msgCountQ, msgRowsQ]);
+      const [{ data: leadsData }, { data: appsData }, { count: msgCount }, { data: msgRows }, { data: draftRows }] =
+        await Promise.all([leadsQ, appsQ, msgCountQ, msgRowsQ, draftsQ]);
       if (cancelled) return;
       // Defense-in-depth: also strip blocklisted emails client-side
       const cleanLeads = (leadsData || []).filter((l: any) =>
@@ -184,6 +188,7 @@ const AdminLeadAnalytics = () => {
       setApps(cleanApps as any);
       setMessageCount(msgCount ?? 0);
       setMessages((msgRows as any) || []);
+      setDrafts(((draftRows as any) || []));
       setLoading(false);
     };
     load();
