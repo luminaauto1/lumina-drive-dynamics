@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import UniversalClientHub from '@/components/admin/UniversalClientHub';
 import { Textarea } from '@/components/ui/textarea';
@@ -94,6 +94,28 @@ const AdminFinance = () => {
   const [pendingApp, setPendingApp] = useState<any>(null);
   const [pendingStatus, setPendingStatus] = useState('');
   const [statusNote, setStatusNote] = useState('');
+  const [pendingLeadName, setPendingLeadName] = useState<string | null>(null);
+
+  // Fetch matching CRM lead headline/name when modal opens for a given app
+  useEffect(() => {
+    let cancelled = false;
+    const fetchLead = async () => {
+      if (!statusModalOpen || !pendingApp) { setPendingLeadName(null); return; }
+      const email = pendingApp.email;
+      const phone = pendingApp.phone;
+      if (!email && !phone) { setPendingLeadName(null); return; }
+      let q = supabase.from('leads').select('client_name, deal_headline').limit(1);
+      if (email && phone) q = q.or(`client_email.eq.${email},client_phone.eq.${phone}`);
+      else if (email) q = q.eq('client_email', email);
+      else if (phone) q = q.eq('client_phone', phone);
+      const { data } = await q.maybeSingle();
+      if (cancelled) return;
+      const name = (data as any)?.deal_headline || (data as any)?.client_name || null;
+      setPendingLeadName(name);
+    };
+    fetchLead();
+    return () => { cancelled = true; };
+  }, [statusModalOpen, pendingApp]);
 
   // Bank Reference capture (when admin moves an app to "Application Submitted")
   const [bankRefModalOpen, setBankRefModalOpen] = useState(false);
@@ -998,6 +1020,11 @@ const AdminFinance = () => {
                   <h2 className="text-xl font-semibold text-white tracking-wide">
                     Client: {pendingApp?.first_name} {pendingApp?.last_name}
                   </h2>
+                  {pendingLeadName && (
+                    <p className="text-xs text-blue-400 mt-0.5 font-medium">
+                      CRM Lead: {pendingLeadName}
+                    </p>
+                  )}
                   <p className="text-sm text-zinc-400 mt-1">Update Status &amp; CRM Note</p>
                 </div>
                 {(pendingApp as any)?.bank_reference && (
