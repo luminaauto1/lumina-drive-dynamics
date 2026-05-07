@@ -548,7 +548,60 @@ const AdminLeadAnalytics = () => {
               />
             </div>
 
-            {/* Funnel + Velocity */}
+            {/* Application Outcome Breakdown — Submitted vs Pre-Approved vs Declined/Blacklisted */}
+            <ChartCard
+              icon={FileCheck2}
+              title="Application Outcomes"
+              subtitle="Submitted vs Pre-Approved vs Declined / Blacklisted"
+            >
+              {appOutcomeStats.total === 0 ? (
+                <EmptyState />
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-center">
+                  <div className="lg:col-span-2 space-y-3">
+                    {appOutcomeStats.data.map((row) => {
+                      const pct = appOutcomeStats.total > 0 ? (row.value / appOutcomeStats.total) * 100 : 0;
+                      return (
+                        <div key={row.name} className="space-y-1.5">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="flex items-center gap-2 text-muted-foreground">
+                              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: row.fill }} />
+                              {row.name}
+                            </span>
+                            <span className="font-mono font-semibold" style={{ color: row.fill }}>
+                              {row.value.toLocaleString()}
+                              <span className="ml-2 text-[10px] text-muted-foreground">{pct.toFixed(1)}%</span>
+                            </span>
+                          </div>
+                          <div className="h-2 rounded-full bg-muted/40 overflow-hidden">
+                            <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: row.fill }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div className="pt-2 mt-2 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Total tracked</span>
+                      <span className="font-mono text-foreground">{appOutcomeStats.total.toLocaleString()}</span>
+                    </div>
+                  </div>
+                  <div className="lg:col-span-3">
+                    <ResponsiveContainer width="100%" height={260}>
+                      <BarChart data={appOutcomeStats.data} margin={{ top: 10, right: 16, left: -8, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
+                        <XAxis dataKey="name" stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} />
+                        <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                        <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
+                        <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                          {appOutcomeStats.data.map((row, i) => (
+                            <Cell key={i} fill={row.fill} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+            </ChartCard>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <ChartCard icon={TrendingUp} title="Drop-off Funnel" subtitle="Where applicants abandon">
                 <ResponsiveContainer width="100%" height={280}>
