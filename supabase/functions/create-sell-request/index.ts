@@ -16,9 +16,13 @@ function validateName(name: string): boolean {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = buildCorsHeaders(req.headers.get("origin"));
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const guard = checkInternalKey(req);
+  if (guard) return guard;
 
   try {
     const body = await req.json();
