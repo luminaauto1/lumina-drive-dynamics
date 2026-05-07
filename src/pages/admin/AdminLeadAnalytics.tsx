@@ -85,6 +85,8 @@ interface LeadRow {
   client_phone?: string | null;
   traffic_source?: string | null;
   bot_outcome?: string | null;
+  platform?: string | null;
+  origin?: string | null;
 }
 
 interface AppRow {
@@ -148,7 +150,7 @@ const AdminLeadAnalytics = () => {
       const cutoff = rangeToCutoff(range);
 
       let leadsQ = supabase.from('leads')
-        .select('id, created_at, updated_at, last_step_reached, last_step_name, utm_source, utm_medium, utm_campaign, source, status, client_email, client_phone, traffic_source, bot_outcome')
+        .select('id, created_at, updated_at, last_step_reached, last_step_name, utm_source, utm_medium, utm_campaign, source, status, client_email, client_phone, traffic_source, bot_outcome, platform, origin')
         .neq('client_email', 'albertprinsloo051@gmail.com')
         .order('created_at', { ascending: false }).limit(5000);
       let appsQ = supabase.from('finance_applications')
@@ -306,17 +308,30 @@ const AdminLeadAnalytics = () => {
   }, [apps]);
 
   // Traffic source: submitted vs abandoned by source.
-  // Prefer EasySocial bot-provided traffic_source, then UTM, then internal source.
+  // Prefer EasySocial CRM platform/origin, then traffic_source tag, UTM, then internal source.
   const trafficSourceData = useMemo(() => {
     const map = new Map<string, { source: string; Submitted: number; Abandoned: number }>();
     enrichedLeads.forEach((l: any) => {
-      const src = String(l.traffic_source || l.utm_source || l.source || 'direct').toLowerCase();
+      const composed = [l.platform, l.origin].filter(Boolean).join(' / ');
+      const src = String(composed || l.traffic_source || l.utm_source || l.source || 'direct').toLowerCase();
       const row = map.get(src) || { source: src, Submitted: 0, Abandoned: 0 };
       if (l._submitted) row.Submitted += 1;
       else row.Abandoned += 1;
       map.set(src, row);
     });
     return Array.from(map.values()).sort((a, b) => (b.Submitted + b.Abandoned) - (a.Submitted + a.Abandoned)).slice(0, 8);
+  }, [enrichedLeads]);
+
+  // Lead Quality by Platform: submitted vs abandoned, driven by EasySocial CRM `platform` column.
+  const leadsByPlatform = useMemo(() => {
+    const map = new Map<string, { platform: string; Submitted: number; Abandoned: number }>();
+    enrichedLeads.forEach((l: any) => {
+      const p = String(l.platform || 'Unknown');
+      const row = map.get(p) || { platform: p, Submitted: 0, Abandoned: 0 };
+      if (l._submitted) row.Submitted += 1; else row.Abandoned += 1;
+      map.set(p, row);
+    });
+    return Array.from(map.values()).sort((a, b) => (b.Submitted + b.Abandoned) - (a.Submitted + a.Abandoned));
   }, [enrichedLeads]);
 
   // Lead Quality by Platform: bot_outcome breakdown grouped by traffic_source (EasySocial)
@@ -617,7 +632,24 @@ const AdminLeadAnalytics = () => {
               )}
             </ChartCard>
 
-            {/* Lead Quality by Platform removed — depended on EasySocial inbound tag data that is not currently flowing. */}
+            {/* Lead Quality by Platform — driven by EasySocial CRM lead_create events */}
+            <ChartCard icon={Tag} title="Lead Quality by Platform" subtitle="Submitted vs abandoned per EasySocial platform">
+              {leadsByPlatform.length === 0 ? (
+                <EmptyState />
+              ) : (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={leadsByPlatform} margin={{ top: 10, right: 16, left: -8, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis dataKey="platform" stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
+                    <Legend wrapperStyle={{ fontSize: 11, color: MUTED }} />
+                    <Bar dataKey="Submitted" stackId="a" fill={VIBRANT.neonGreen} />
+                    <Bar dataKey="Abandoned" stackId="a" fill={VIBRANT.crimson} radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </ChartCard>
 
             {/* Message Time-Matrix + Origins Pie */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

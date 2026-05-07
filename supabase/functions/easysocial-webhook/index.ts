@@ -327,6 +327,105 @@ Deno.serve(async (req) => {
     }
 
 
+    // Identify the change type so we can skip non-actionable events cleanly
+    const changeField = payload?.entry?.[0]?.changes?.[0]?.field;
+    const innerValue = payload?.entry?.[0]?.changes?.[0]?.value;
+
+    // ─── EasySocial CRM events: lead_create / lead_update ──────────────────
+    // New CRM webhook structure supersedes raw WhatsApp message ingestion.
+    if (changeField === 'lead_create' || changeField === 'lead_update') {
+      try {
+        const sb = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+        );
+        const v = innerValue ?? {};
+        const easysocialId = v.id != null ? String(v.id) : null;
+        const phoneRaw =
+          v['contact-easysocial-whatsapp-api-support_number'] ??
+          v.contact?.['easysocial-whatsapp-api-support_number'] ??
+          v.phone ?? v.phone_number ?? v.contact?.phone ?? null;
+        const phone = normalizePhone(phoneRaw);
+        const platform = v.platform ? String(v.platform) : null;
+        const origin = v.origin ? String(v.origin) : null;
+        const leadData = v.lead_data ?? {};
+        const clientName =
+          leadData?.name ?? leadData?.full_name ?? v.name ?? v.contact?.name ?? null;
+        const clientEmail =
+          leadData?.email ?? v.email ?? v.contact?.email ?? null;
+
+        if (changeField === 'lead_create') {
+          if (!phone && !easysocialId) {
+            console.warn('[easysocial-webhook] lead_create missing phone & id', v);
+            return new Response(JSON.stringify({ ok: true, skipped: 'missing_identifiers' }), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          // Compose source tag from platform + origin for analytics.
+          const sourceTag = [platform, origin].filter(Boolean).join(' / ') || 'easysocial';
+          const upsertPayload: Record<string, any> = {
+            easysocial_id: easysocialId,
+            phone_number: phone,
+            client_phone: phone,
+            client_name: clientName ? String(clientName) : null,
+            client_email: clientEmail ? String(clientEmail) : null,
+            platform,
+            origin,
+            traffic_source: sourceTag,
+            source: sourceTag,
+            updated_at: new Date().toISOString(),
+          };
+          // Prefer easysocial_id as conflict key (unique partial index); fall back to phone.
+          const conflictTarget = easysocialId ? 'easysocial_id' : 'phone_number';
+          const { error } = await sb
+            .from('leads')
+            .upsert(upsertPayload, { onConflict: conflictTarget });
+          if (error) {
+            console.error('[easysocial-webhook] lead_create upsert error', error);
+          } else {
+            console.log('[easysocial-webhook] lead_create upserted', { easysocialId, phone, platform, origin });
+          }
+        } else {
+          // lead_update
+          if (!easysocialId) {
+            console.warn('[easysocial-webhook] lead_update missing id', v);
+            return new Response(JSON.stringify({ ok: true, skipped: 'missing_id' }), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          const updates: Record<string, any> = {
+            updated_at: new Date().toISOString(),
+          };
+          if (phone) { updates.phone_number = phone; updates.client_phone = phone; }
+          if (clientName) updates.client_name = String(clientName);
+          if (clientEmail) updates.client_email = String(clientEmail);
+          if (platform) updates.platform = platform;
+          if (origin) updates.origin = origin;
+          if (leadData?.status) updates.status = String(leadData.status);
+          if (leadData?.bot_outcome) updates.bot_outcome = String(leadData.bot_outcome);
+          if (leadData?.tags) {
+            updates.traffic_source = Array.isArray(leadData.tags)
+              ? leadData.tags.join(', ')
+              : String(leadData.tags);
+          }
+          const { error } = await sb
+            .from('leads')
+            .update(updates)
+            .eq('easysocial_id', easysocialId);
+          if (error) {
+            console.error('[easysocial-webhook] lead_update error', error);
+          } else {
+            console.log('[easysocial-webhook] lead_update applied', { easysocialId, updates });
+          }
+        }
+      } catch (e) {
+        console.error('[easysocial-webhook] CRM event exception', e);
+      }
+      return new Response(JSON.stringify({ ok: true, handled: changeField }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     let lead: ExtractedLead | null = null;
     try {
       lead = extractFromWhatsAppPayload(payload);
@@ -336,10 +435,6 @@ Deno.serve(async (req) => {
     // Carries the referral-derived classification (TikTok/Facebook/Instagram/Organic)
     // out of the message-logging block so we can use it as a tag fallback below.
     let derivedPlatform: string | null = null;
-
-    // Identify the change type so we can skip non-actionable events cleanly
-    const changeField = payload?.entry?.[0]?.changes?.[0]?.field;
-    const innerValue = payload?.entry?.[0]?.changes?.[0]?.value;
 
     // ── Gracefully ignore message_status receipts AND revoked/deleted messages ──
     // These carry no actionable lead data; ack 200 immediately.

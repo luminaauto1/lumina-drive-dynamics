@@ -884,6 +884,7 @@ export type Database = {
           deal_headline: string | null
           desired_deposit: number | null
           desired_term: number | null
+          easysocial_id: string | null
           id: string
           id_number: string | null
           is_archived: boolean | null
@@ -896,8 +897,10 @@ export type Database = {
           next_action_note: string | null
           next_follow_up: string | null
           notes: string | null
+          origin: string | null
           phone_number: string | null
           pipeline_stage: string | null
+          platform: string | null
           referrer: string | null
           source: string
           status: string
@@ -924,6 +927,7 @@ export type Database = {
           deal_headline?: string | null
           desired_deposit?: number | null
           desired_term?: number | null
+          easysocial_id?: string | null
           id?: string
           id_number?: string | null
           is_archived?: boolean | null
@@ -936,8 +940,10 @@ export type Database = {
           next_action_note?: string | null
           next_follow_up?: string | null
           notes?: string | null
+          origin?: string | null
           phone_number?: string | null
           pipeline_stage?: string | null
+          platform?: string | null
           referrer?: string | null
           source?: string
           status?: string
@@ -964,6 +970,7 @@ export type Database = {
           deal_headline?: string | null
           desired_deposit?: number | null
           desired_term?: number | null
+          easysocial_id?: string | null
           id?: string
           id_number?: string | null
           is_archived?: boolean | null
@@ -976,8 +983,10 @@ export type Database = {
           next_action_note?: string | null
           next_follow_up?: string | null
           notes?: string | null
+          origin?: string | null
           phone_number?: string | null
           pipeline_stage?: string | null
+          platform?: string | null
           referrer?: string | null
           source?: string
           status?: string
