@@ -110,6 +110,10 @@ const FinanceApplication = () => {
     job_title: "",
     employment_years: "",
     employment_months: "",
+    employment_type: "",
+    has_6_months_statements: false,
+    workplace_cell_no: "",
+    business_address_auto: "",
     // Next of Kin
     kin_name: "",
     kin_contact: "",
