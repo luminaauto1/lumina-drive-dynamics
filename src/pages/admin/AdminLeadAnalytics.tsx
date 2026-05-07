@@ -382,6 +382,68 @@ const AdminLeadAnalytics = () => {
       .map(([name, value]) => ({ name, value }));
   }, [messages]);
 
+  // ── Tag analytics: split comma-separated EasySocial tags from leads.traffic_source ──
+  const splitTags = (raw: string | null | undefined): string[] => {
+    if (!raw) return [];
+    return String(raw)
+      .split(/[,;|]/)
+      .map((t) => t.trim().toLowerCase())
+      .filter((t) => t && t !== 'easysocial' && t !== 'direct' && t !== 'unknown');
+  };
+
+  const TOP_N_TAGS = 6;
+  const topTags = useMemo(() => {
+    const counts = new Map<string, number>();
+    enrichedLeads.forEach((l: any) => {
+      splitTags(l.traffic_source).forEach((t) => counts.set(t, (counts.get(t) || 0) + 1));
+    });
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, TOP_N_TAGS)
+      .map(([name]) => name);
+  }, [enrichedLeads]);
+
+  const tagsOverTime = useMemo(() => {
+    if (topTags.length === 0) return [];
+    const useHourly = range === '1h' || range === '24h';
+    const fmt = (d: Date) => useHourly
+      ? `${d.getHours().toString().padStart(2, '0')}:00`
+      : `${d.getMonth() + 1}/${d.getDate()}`;
+    const buckets = new Map<string, Record<string, number>>();
+    enrichedLeads.forEach((l: any) => {
+      const tags = splitTags(l.traffic_source).filter((t) => topTags.includes(t));
+      if (tags.length === 0) return;
+      const d = new Date(l.created_at);
+      if (useHourly) d.setMinutes(0, 0, 0); else d.setHours(0, 0, 0, 0);
+      const key = fmt(d);
+      const row = buckets.get(key) || {};
+      tags.forEach((t) => { row[t] = (row[t] || 0) + 1; });
+      buckets.set(key, row);
+    });
+    return Array.from(buckets.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([label, row]) => {
+        const filled: Record<string, any> = { label };
+        topTags.forEach((t) => { filled[t] = row[t] || 0; });
+        return filled;
+      });
+  }, [enrichedLeads, topTags, range]);
+
+  const tagConversion = useMemo(() => {
+    const stats = new Map<string, { tag: string; leads: number; submitted: number }>();
+    enrichedLeads.forEach((l: any) => {
+      splitTags(l.traffic_source).forEach((t) => {
+        const row = stats.get(t) || { tag: t, leads: 0, submitted: 0 };
+        row.leads += 1;
+        if (l._submitted) row.submitted += 1;
+        stats.set(t, row);
+      });
+    });
+    return Array.from(stats.values())
+      .map((r) => ({ ...r, conversion: r.leads > 0 ? (r.submitted / r.leads) * 100 : 0 }))
+      .sort((a, b) => b.leads - a.leads)
+      .slice(0, 10);
+  }, [enrichedLeads]);
 
   // Force light text on dark background — Recharts default tooltip text inherits
   // OS color and renders unreadable against the dark admin theme.
