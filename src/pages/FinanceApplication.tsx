@@ -120,6 +120,14 @@ const FinanceApplication = () => {
     }
   };
 
+  // Track every step the user reaches (including step 1) so true drop-offs
+  // are captured even if they never advance past the first page.
+  useEffect(() => {
+    if (isSubmitted) return;
+    trackDraftStep(currentStep);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep, isSubmitted]);
+
   // Use centralized attribution from useUTMTracking (sessionStorage-backed)
   const getAttribution = () => getStoredAttribution();
   const [formData, setFormData] = useState({
