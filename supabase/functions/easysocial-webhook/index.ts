@@ -339,6 +339,55 @@ Deno.serve(async (req) => {
     let tagString: string | null = null;
     if (esKey) {
       try {
+        // Build a robust set of identifier candidates from the payload so we
+        // match regardless of whether EasySocial stores the contact by full
+        // E.164, local digits, or a name. Always compared as digit-only.
+        const innerVal = payload?.entry?.[0]?.changes?.[0]?.value;
+        const firstMsg = innerVal?.messages?.[0];
+        const rawCandidates: (string | null | undefined)[] = [
+          lead.phone_number,
+          lead.client_phone,
+          innerVal?.contacts?.[0]?.wa_id,
+          innerVal?.contacts?.[0]?.profile?.phone,
+          firstMsg?.from,
+          innerVal?.statuses?.[0]?.recipient_id,
+          payload?.contact?.wa_id,
+          payload?.contact?.phone,
+          payload?.from,
+          payload?.phone,
+        ];
+        const idSet = new Set<string>();
+        for (const c of rawCandidates) {
+          const n = normalizePhone(c);
+          if (!n) continue;
+          idSet.add(n);
+          // Last-9 fallback (covers ZA local 0XXXXXXXXX vs +27XXXXXXXXX mismatch)
+          if (n.length >= 9) idSet.add(n.slice(-9));
+        }
+        const nameKey = lead.client_name ? lead.client_name.toLowerCase().trim() : null;
+
+        const matchesContact = (c: any): boolean => {
+          if (c === null || c === undefined) return false;
+          if (typeof c === 'string') {
+            const n = normalizePhone(c);
+            if (n && (idSet.has(n) || (n.length >= 9 && idSet.has(n.slice(-9))))) return true;
+            return nameKey ? c.toLowerCase().trim() === nameKey : false;
+          }
+          if (typeof c !== 'object') return false;
+          const phoneFields = [c.wa_id, c.phone, c.phone_number, c.mobile, c.msisdn, c.number, c.id, c.contact_id];
+          for (const p of phoneFields) {
+            const n = normalizePhone(p);
+            if (n && (idSet.has(n) || (n.length >= 9 && idSet.has(n.slice(-9))))) return true;
+          }
+          if (nameKey) {
+            const nameFields = [c.name, c.full_name, c.display_name, c.profile_name];
+            for (const nm of nameFields) {
+              if (nm && String(nm).toLowerCase().trim() === nameKey) return true;
+            }
+          }
+          return false;
+        };
+
         const tagsRes = await fetch('https://api.easysocial.in/api/v1/tags', {
           headers: { Authorization: `Bearer ${esKey}`, Accept: 'application/json' },
         });
@@ -346,20 +395,20 @@ Deno.serve(async (req) => {
           const tagsJson: any = await tagsRes.json();
           const tagList: any[] = Array.isArray(tagsJson)
             ? tagsJson
-            : (tagsJson?.data ?? tagsJson?.tags ?? []);
-          // Match incoming wa_id against tag.contacts[].wa_id when provided.
+            : (tagsJson?.data ?? tagsJson?.tags ?? tagsJson?.results ?? []);
           const matched = tagList
             .filter((t: any) => {
-              const contacts = t?.contacts ?? t?.wa_ids ?? [];
+              const contacts =
+                t?.contacts ?? t?.wa_ids ?? t?.subscribers ??
+                t?.members ?? t?.users ?? [];
               if (!Array.isArray(contacts) || contacts.length === 0) return false;
-              return contacts.some((c: any) => {
-                const id = typeof c === 'string' ? c : (c?.wa_id ?? c?.phone);
-                return normalizePhone(id) === lead.phone_number;
-              });
+              return contacts.some(matchesContact);
             })
-            .map((t: any) => String(t?.name ?? t?.label ?? t?.id))
+            .map((t: any) => String(t?.name ?? t?.label ?? t?.title ?? t?.id))
             .filter(Boolean);
-          if (matched.length) tagString = matched.join(', ');
+          if (matched.length) tagString = Array.from(new Set(matched)).join(', ');
+        } else {
+          console.warn('[easysocial-webhook] tags endpoint non-OK', tagsRes.status);
         }
       } catch (e) {
         console.error('[easysocial-webhook] tag fetch error', e);
