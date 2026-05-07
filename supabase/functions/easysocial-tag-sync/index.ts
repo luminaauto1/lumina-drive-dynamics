@@ -21,7 +21,15 @@ const ES_TAGS_ENDPOINT = `${ES_BASE}/engage/v1/tags`;
 const ES_LEAD_UPDATE = (phone: string) => `${ES_BASE}/api/v1/leads/${phone}/update`;
 
 // Permanent tags that must NEVER be removed (traffic sources, ops markers).
-const SAFE_TAG_NAMES = ['TikTok Ads Lead', 'Dev Test', 'Operational'] as const;
+const SAFE_TAG_NAMES = [
+  'TikTok Ads Lead',
+  'Facebook',
+  'Instagram',
+  'IG',
+  'FB',
+  'Dev Test',
+  'Operational',
+] as const;
 
 // Phase tag names used by the state machine. Names must match EasySocial exactly.
 const PHASE = {
@@ -30,9 +38,24 @@ const PHASE = {
   APP_SUBMITTED: 'App Submitted',
   VALIDATIONS_PENDING: 'Validations Pending',
   APPROVED_NEED_DOCS: 'Approved - Need Docs',
+  VALS_DONE: 'Vals Done',
   DECLINED: 'Application Declined',
   BLACKLISTED: 'Blacklisted',
 } as const;
+
+// Master Wipe: every operational/pipeline tag — used by terminal states to
+// give the lead a clean slate (Safe List tags are still protected downstream).
+const MASTER_PIPELINE_TAGS = [
+  'New Lead',
+  'Application Received',
+  'App Submitted',
+  'Approved - Need Docs',
+  'Validations Pending',
+  'Vals Done',
+  'Bad Credit',
+  'Low Income',
+  'No Licence',
+];
 
 // Flag → tag name map (sub-classification tags).
 const FLAG_TO_TAG: Record<string, string> = {
