@@ -410,6 +410,53 @@ const AdminFinance = () => {
           </div>
         </motion.div>
 
+        {/* Internal-Status Counter Strip — visible to F&I, Admin, Sales */}
+        {(() => {
+          const counts: Record<string, number> = {
+            no_notes: 0,
+            updates_needed: 0,
+            info_updated: 0,
+            note_to_f_and_i: 0,
+            note_to_sales: 0,
+          };
+          let total = 0;
+          for (const a of applications as any[]) {
+            if (a.is_archived) continue;
+            const norm = normalizeInternalStatus(a.internal_status) || 'no_notes';
+            if (counts[norm] !== undefined) counts[norm] += 1;
+            total += 1;
+          }
+          const order: InternalStatus[] = ['updates_needed', 'info_updated', 'note_to_f_and_i', 'note_to_sales', 'no_notes'];
+          return (
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full bg-[#1A1A1A] border border-zinc-800 rounded-lg p-3 mb-4"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-500 font-medium">
+                  Internal Status Overview
+                </p>
+                <span className="text-[10px] text-zinc-500">{total} active app{total === 1 ? '' : 's'}</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                {order.map((key) => {
+                  const cfg = INTERNAL_STATUSES[key];
+                  return (
+                    <div
+                      key={key}
+                      className={`flex items-center justify-between px-3 py-2 rounded-md border ${cfg.color}`}
+                    >
+                      <span className="text-[11px] uppercase tracking-wider truncate">{cfg.label}</span>
+                      <span className="text-lg font-semibold tabular-nums ml-2">{counts[key]}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          );
+        })()}
+
         {/* Action Feed — role-aware mirrored notification banner */}
         {(() => {
           const isFAndI = role === 'f_and_i';
