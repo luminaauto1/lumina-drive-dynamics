@@ -246,6 +246,9 @@ const AdminFinance = () => {
         attention_updated_at: new Date().toISOString(),
         notes: updatedNotes,
       };
+      if (role === 'f_and_i' && actingUser?.id) {
+        updatePayload.assigned_f_and_i = actingUser.id;
+      }
       const { error } = await supabase
         .from('finance_applications')
         .update(updatePayload)
