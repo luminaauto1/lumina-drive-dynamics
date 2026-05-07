@@ -58,8 +58,14 @@ const STEPS = [
 
 const FinanceApplication = () => {
   const { user, loading } = useAuth();
-  const { data: siteSettings } = useSiteSettings();
-  const requireSignature = (siteSettings as any)?.require_application_signature ?? true;
+  const { data: siteSettings, isLoading: settingsLoading } = useSiteSettings();
+  // Only treat signature as required once settings have actually loaded from DB.
+  // Previously fell back to `true` while data was undefined, which caused the
+  // signature pad to reappear after submit/remount before the cached value
+  // resolved. Wait for the database truth before deciding.
+  const requireSignature = settingsLoading
+    ? false
+    : ((siteSettings as any)?.require_application_signature ?? false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const vehicleId = searchParams.get("vehicle");
