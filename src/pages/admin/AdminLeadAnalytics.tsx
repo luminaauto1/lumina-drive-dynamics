@@ -221,19 +221,54 @@ const AdminLeadAnalytics = () => {
     ? Math.min(100, (submittedLeadCount / totalLeads) * 100)
     : 0;
 
-  // Drop-off funnel: by deepest step reached among non-submitted leads
+  // Pipeline funnel: top-of-funnel leads → submitted apps → bank stages.
+  // Each stage's volume includes all stages below it (true funnel shape).
   const funnelData = useMemo(() => {
-    const buckets: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    enrichedLeads.forEach((l) => {
-      if (l._submitted) return;
-      const s = l.last_step_reached || 1;
-      if (buckets[s] !== undefined) buckets[s] += 1;
+    const statusOf = (a: AppRow) => String(a.status || '').toLowerCase().trim();
+
+    const SENT_TO_BANKS = new Set([
+      'sent_to_banks',
+      'pre_approved', 'approved',
+      'documents_received',
+      'validations_pending',
+      'validations_complete',
+      'contract_sent', 'contract_signed',
+      'vehicle_delivered', 'finalized',
+      'declined', 'declined_conditional', 'blacklisted',
+    ]);
+    const APPROVALS_VALS = new Set([
+      'pre_approved', 'approved',
+      'validations_pending',
+      'validations_complete',
+      'contract_sent', 'contract_signed',
+      'vehicle_delivered', 'finalized',
+    ]);
+    const VALS_DONE = new Set([
+      'validations_complete',
+      'contract_sent', 'contract_signed',
+      'vehicle_delivered', 'finalized',
+    ]);
+
+    const sentToBanks = apps.filter((a) => SENT_TO_BANKS.has(statusOf(a))).length;
+    const approvalsVals = apps.filter((a) => APPROVALS_VALS.has(statusOf(a))).length;
+    const valsDone = apps.filter((a) => VALS_DONE.has(statusOf(a))).length;
+
+    const stages = [
+      { stage: 'Raw Leads', value: totalLeads, fill: VIBRANT.electricBlue },
+      { stage: 'Apps Received', value: totalApps, fill: VIBRANT.violet },
+      { stage: 'Sent to Banks', value: sentToBanks, fill: VIBRANT.cyan },
+      { stage: 'Approvals & Vals', value: approvalsVals, fill: VIBRANT.amber },
+      { stage: 'Vals Done', value: valsDone, fill: VIBRANT.neonGreen },
+    ];
+
+    return stages.map((s, i) => {
+      const prev = i === 0 ? null : stages[i - 1].value;
+      const conv = prev && prev > 0 ? (s.value / prev) * 100 : i === 0 ? 100 : 0;
+      return { ...s, conversion: conv };
     });
-    return Object.entries(STEPS).map(([k, name]) => ({
-      step: name,
-      Abandoned: buckets[Number(k)] || 0,
-    }));
-  }, [enrichedLeads]);
+  }, [apps, totalLeads, totalApps]);
+
+  const funnelHasData = funnelData.some((s) => s.value > 0);
 
   // Time analysis (avg minutes) — outliers > 24h excluded to prevent forgotten test sessions skewing averages
   // - Abandonment: lead.created_at -> lead.updated_at (last progressive step save)
