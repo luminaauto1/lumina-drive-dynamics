@@ -21,7 +21,15 @@ const ES_TAGS_ENDPOINT = `${ES_BASE}/engage/v1/tags`;
 const ES_LEAD_UPDATE = (phone: string) => `${ES_BASE}/api/v1/leads/${phone}/update`;
 
 // Permanent tags that must NEVER be removed (traffic sources, ops markers).
-const SAFE_TAG_NAMES = ['TikTok Ads Lead', 'Dev Test', 'Operational'] as const;
+const SAFE_TAG_NAMES = [
+  'TikTok Ads Lead',
+  'Facebook',
+  'Instagram',
+  'IG',
+  'FB',
+  'Dev Test',
+  'Operational',
+] as const;
 
 // Phase tag names used by the state machine. Names must match EasySocial exactly.
 const PHASE = {
@@ -30,9 +38,24 @@ const PHASE = {
   APP_SUBMITTED: 'App Submitted',
   VALIDATIONS_PENDING: 'Validations Pending',
   APPROVED_NEED_DOCS: 'Approved - Need Docs',
+  VALS_DONE: 'Vals Done',
   DECLINED: 'Application Declined',
   BLACKLISTED: 'Blacklisted',
 } as const;
+
+// Master Wipe: every operational/pipeline tag — used by terminal states to
+// give the lead a clean slate (Safe List tags are still protected downstream).
+const MASTER_PIPELINE_TAGS = [
+  'New Lead',
+  'Application Received',
+  'App Submitted',
+  'Approved - Need Docs',
+  'Validations Pending',
+  'Vals Done',
+  'Bad Credit',
+  'Low Income',
+  'No Licence',
+];
 
 // Flag → tag name map (sub-classification tags).
 const FLAG_TO_TAG: Record<string, string> = {
@@ -77,34 +100,39 @@ const planForStatus = (status: string): PlanStep => {
         add: [PHASE.APP_SUBMITTED],
         remove: [PHASE.NEW_LEAD, PHASE.APP_RECEIVED],
       };
-    case 'validations_pending':
-      return {
-        add: [PHASE.VALIDATIONS_PENDING],
-        remove: [PHASE.NEW_LEAD, PHASE.APP_RECEIVED],
-      };
     case 'pre_approved':
     case 'approved':
     case 'documents_received':
+      return {
+        add: [PHASE.APPROVED_NEED_DOCS],
+        remove: [PHASE.NEW_LEAD, PHASE.APP_RECEIVED, PHASE.APP_SUBMITTED],
+      };
+    case 'validations_pending':
+      return {
+        add: [PHASE.VALIDATIONS_PENDING],
+        remove: [PHASE.APPROVED_NEED_DOCS, PHASE.APP_SUBMITTED, PHASE.APP_RECEIVED, PHASE.NEW_LEAD],
+      };
     case 'validations_complete':
     case 'vehicle_selected':
     case 'contract_sent':
     case 'contract_signed':
     case 'vehicle_delivered':
     case 'finalized':
+      // Vals Done — Master Wipe of every pipeline tag, then add Vals Done.
       return {
-        add: [PHASE.APPROVED_NEED_DOCS],
-        remove: [PHASE.NEW_LEAD, PHASE.APP_RECEIVED, PHASE.APP_SUBMITTED, PHASE.VALIDATIONS_PENDING],
+        add: [PHASE.VALS_DONE],
+        remove: [...MASTER_PIPELINE_TAGS],
       };
     case 'declined':
     case 'declined_conditional':
       return {
         add: [PHASE.DECLINED],
-        remove: [PHASE.NEW_LEAD, PHASE.APP_RECEIVED, PHASE.APP_SUBMITTED, PHASE.VALIDATIONS_PENDING],
+        remove: [...MASTER_PIPELINE_TAGS],
       };
     case 'blacklisted':
       return {
         add: [PHASE.BLACKLISTED],
-        remove: [PHASE.NEW_LEAD, PHASE.APP_RECEIVED, PHASE.APP_SUBMITTED],
+        remove: [...MASTER_PIPELINE_TAGS],
       };
     default:
       return { add: [], remove: [] };
