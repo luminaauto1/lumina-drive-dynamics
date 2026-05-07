@@ -1,0 +1,1 @@
+GRANT SELECT ON public.public_site_settings TO anon, authenticated;
