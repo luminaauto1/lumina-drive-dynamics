@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-  LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area,
+  LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area, LabelList,
 } from 'recharts';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -292,12 +292,18 @@ const AdminLeadAnalytics = () => {
       const n = d.step_number ?? 0;
       if (n >= 1 && n <= 5) counts[n] += 1;
     });
-    return [1, 2, 3, 4, 5].map((n) => ({
-      step: STEP_LABELS[n],
-      shortStep: `Step ${n}`,
-      abandoned: counts[n],
-      fill: VIBRANT_PALETTE[(n - 1) % VIBRANT_PALETTE.length],
-    }));
+    const totalAbandoned = Object.values(counts).reduce((a, b) => a + b, 0);
+    return [1, 2, 3, 4, 5].map((n) => {
+      const abandoned = counts[n];
+      const rate = totalAbandoned > 0 ? (abandoned / totalAbandoned) * 100 : 0;
+      return {
+        step: STEP_LABELS[n],
+        shortStep: `Step ${n}`,
+        abandoned,
+        rate: Math.round(rate * 10) / 10,
+        fill: VIBRANT_PALETTE[(n - 1) % VIBRANT_PALETTE.length],
+      };
+    });
   }, [drafts]);
   const abandonmentHasData = abandonmentData.some((d) => d.abandoned > 0);
 
@@ -804,13 +810,22 @@ const AdminLeadAnalytics = () => {
                       itemStyle={tooltipItemStyle}
                       labelStyle={tooltipLabelStyle}
                       cursor={{ fill: 'hsl(var(--muted) / 0.2)' }}
-                      formatter={(v: any) => [v, 'Abandoned']}
+                      formatter={(v: any, _n: any, props: any) => {
+                        const rate = props?.payload?.rate ?? 0;
+                        return [`${v} (${rate}% of total)`, 'Abandoned'];
+                      }}
                       labelFormatter={(_l, payload: any) => payload?.[0]?.payload?.step ?? _l}
                     />
                     <Bar dataKey="abandoned" radius={[6, 6, 0, 0]}>
                       {abandonmentData.map((row, i) => (
                         <Cell key={i} fill={row.fill} />
                       ))}
+                      <LabelList
+                        dataKey="rate"
+                        position="top"
+                        formatter={(v: any) => `${v}%`}
+                        style={{ fill: MUTED, fontSize: 11, fontWeight: 600 }}
+                      />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
