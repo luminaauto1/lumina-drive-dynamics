@@ -1606,6 +1606,21 @@ const FinanceApplication = () => {
                         {formData.employer_postal_code && (
                           <p className="text-xs text-muted-foreground mt-1">Postal Code: {formData.employer_postal_code}</p>
                         )}
+                        {formData.business_address_auto && formData.business_address_auto !== formData.employer_address && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            <span className="font-medium">Verified (system):</span> {formData.business_address_auto}
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor="workplace_cell_no">Workplace Contact Number (optional)</Label>
+                        <Input
+                          id="workplace_cell_no"
+                          type="tel"
+                          value={formData.workplace_cell_no}
+                          onChange={(e) => handleInputChange("workplace_cell_no", e.target.value)}
+                          placeholder="Auto-filled if found, or enter manually"
+                        />
                       </div>
                       <div className="space-y-2 md:col-span-2">
                         <Label>Time at Employer</Label>
