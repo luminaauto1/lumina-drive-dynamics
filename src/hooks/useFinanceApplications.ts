@@ -80,7 +80,23 @@ export const useUpdateFinanceApplication = () => {
         .from('finance_applications')
         .select('*')
         .eq('id', id)
-        .single();
+        .maybeSingle();
+
+      // F&I auto-claim: any update by an F&I user stamps ownership.
+      try {
+        const { data: { user: actor } } = await supabase.auth.getUser();
+        if (actor?.id && updates.assigned_f_and_i === undefined) {
+          const { data: roleRow } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', actor.id)
+            .eq('role', 'f_and_i')
+            .maybeSingle();
+          if (roleRow) {
+            updates = { ...updates, assigned_f_and_i: actor.id };
+          }
+        }
+      } catch (_) { /* non-fatal */ }
 
       // 2. Perform the database update
       const { data, error } = await supabase
@@ -88,7 +104,7 @@ export const useUpdateFinanceApplication = () => {
         .update(updates)
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
 
