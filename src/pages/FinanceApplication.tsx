@@ -1917,14 +1917,21 @@ const FinanceApplication = () => {
                       </Label>
                     </div>
                     
-                    {/* Signature Pad */}
-                    {formData.popia_consent && (
+                    {/* Signature Pad — only when admin requires it */}
+                    {formData.popia_consent && requireSignature && (
                       <div className="pt-4 border-t border-border">
                         <Label className="text-sm font-medium mb-3 block">Digital Signature</Label>
                         <SignaturePad 
                           onSave={(dataUrl) => handleInputChange("signature_url", dataUrl)}
                           existingSignature={formData.signature_url}
                         />
+                      </div>
+                    )}
+                    {formData.popia_consent && !requireSignature && (
+                      <div className="pt-4 border-t border-border">
+                        <p className="text-xs text-muted-foreground italic">
+                          Signature waived by administration.
+                        </p>
                       </div>
                     )}
                   </div>
