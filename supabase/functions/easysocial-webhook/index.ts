@@ -6,9 +6,42 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-hub-signature-256',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
+
+// ── In-memory rate limiter (per warm instance — best-effort, not global) ──
+// Caps per-IP POSTs in a sliding window. Cold starts reset the bucket.
+const RATE_LIMIT_WINDOW_MS = 10_000;
+const RATE_LIMIT_MAX = 60;
+const rateBuckets = new Map<string, number[]>();
+const isRateLimited = (ip: string): boolean => {
+  const now = Date.now();
+  const arr = (rateBuckets.get(ip) ?? []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+  arr.push(now);
+  rateBuckets.set(ip, arr);
+  // Opportunistic cleanup
+  if (rateBuckets.size > 1000) {
+    for (const [k, v] of rateBuckets) {
+      if (v.length === 0 || now - v[v.length - 1] > RATE_LIMIT_WINDOW_MS) rateBuckets.delete(k);
+    }
+  }
+  return arr.length > RATE_LIMIT_MAX;
+};
+
+// ── Replay protection: extract a stable event id from the WA payload ──
+const extractEventId = (payload: any, sigHeader: string | null): string | null => {
+  const value = payload?.entry?.[0]?.changes?.[0]?.value;
+  const msgId =
+    value?.messages?.[0]?.id ??
+    value?.statuses?.[0]?.id ??
+    payload?.id ??
+    payload?.event_id;
+  if (msgId) return String(msgId);
+  // Last-resort: signature itself (Meta sends the same sig on retries of same body)
+  return sigHeader ? sigHeader.trim() : null;
+};
+
 
 // Default placeholder verify token. Override by setting EASYSOCIAL_VERIFY_TOKEN secret.
 const DEFAULT_VERIFY_TOKEN = 'LuminaAuto2026';
@@ -176,6 +209,19 @@ Deno.serve(async (req) => {
 
   // ─── POST: data ingestion ─────────────────────────────────────────────────
   if (req.method === 'POST') {
+    // ── Rate limit (per-IP, per warm instance) ──────────────────────────────
+    const clientIp =
+      req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+      req.headers.get('cf-connecting-ip') ||
+      'unknown';
+    if (isRateLimited(clientIp)) {
+      console.warn('[easysocial-webhook] rate-limited', clientIp);
+      return new Response(JSON.stringify({ error: 'rate_limited' }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': '10' },
+      });
+    }
+
     // Read raw body once — needed for HMAC verification AND JSON parsing.
     const rawBody = await req.text();
 
@@ -204,6 +250,33 @@ Deno.serve(async (req) => {
 
     let payload: any = {};
     try { payload = JSON.parse(rawBody); } catch { payload = {}; }
+
+    // ── Replay protection: dedupe by event id via webhook_events table ──────
+    const eventId = extractEventId(payload, sigHeader);
+    if (eventId) {
+      try {
+        const sb = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+        );
+        const { error: dupErr } = await sb
+          .from('webhook_events')
+          .insert({ event_id: eventId, source: 'easysocial' });
+        if (dupErr) {
+          // 23505 unique_violation = already processed → ack 200, do nothing
+          if ((dupErr as any).code === '23505') {
+            console.log('[easysocial-webhook] duplicate event ignored', eventId);
+            return new Response(JSON.stringify({ ok: true, skipped: 'duplicate', event_id: eventId }), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          console.error('[easysocial-webhook] dedupe insert error', dupErr);
+        }
+      } catch (e) {
+        console.error('[easysocial-webhook] dedupe exception', e);
+      }
+    }
+
 
     let lead: ExtractedLead | null = null;
     try {
