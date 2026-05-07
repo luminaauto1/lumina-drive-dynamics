@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
+import { publicApiHeaders } from '@/lib/publicApi';
 import { toast } from 'sonner';
 import KineticText from '@/components/KineticText';
 
