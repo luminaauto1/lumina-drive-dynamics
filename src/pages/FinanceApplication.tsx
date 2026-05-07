@@ -967,6 +967,18 @@ const FinanceApplication = () => {
           }).then(({ error }) => {
             if (error) console.error("WhatsApp Edge Function error:", error);
           });
+
+          // Parallel: strip 'New Lead' tag via EasySocial state machine.
+          // Passing 'application_submitted' triggers removal of New Lead + App Received
+          // and adds 'App Submitted' per the tag-sync hierarchy.
+          supabase.functions.invoke('easysocial-tag-sync', {
+            body: {
+              phone_number: formData.phone,
+              new_status: 'application_submitted',
+            },
+          }).then(({ error }) => {
+            if (error) console.error("EasySocial tag-sync error:", error);
+          });
         }
       } catch (err) {
         console.error("Failed to trigger WhatsApp notification flow", err);
