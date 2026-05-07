@@ -209,6 +209,19 @@ Deno.serve(async (req) => {
 
   // ─── POST: data ingestion ─────────────────────────────────────────────────
   if (req.method === 'POST') {
+    // ── Rate limit (per-IP, per warm instance) ──────────────────────────────
+    const clientIp =
+      req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+      req.headers.get('cf-connecting-ip') ||
+      'unknown';
+    if (isRateLimited(clientIp)) {
+      console.warn('[easysocial-webhook] rate-limited', clientIp);
+      return new Response(JSON.stringify({ error: 'rate_limited' }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': '10' },
+      });
+    }
+
     // Read raw body once — needed for HMAC verification AND JSON parsing.
     const rawBody = await req.text();
 
@@ -237,6 +250,33 @@ Deno.serve(async (req) => {
 
     let payload: any = {};
     try { payload = JSON.parse(rawBody); } catch { payload = {}; }
+
+    // ── Replay protection: dedupe by event id via webhook_events table ──────
+    const eventId = extractEventId(payload, sigHeader);
+    if (eventId) {
+      try {
+        const sb = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+        );
+        const { error: dupErr } = await sb
+          .from('webhook_events')
+          .insert({ event_id: eventId, source: 'easysocial' });
+        if (dupErr) {
+          // 23505 unique_violation = already processed → ack 200, do nothing
+          if ((dupErr as any).code === '23505') {
+            console.log('[easysocial-webhook] duplicate event ignored', eventId);
+            return new Response(JSON.stringify({ ok: true, skipped: 'duplicate', event_id: eventId }), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          console.error('[easysocial-webhook] dedupe insert error', dupErr);
+        }
+      } catch (e) {
+        console.error('[easysocial-webhook] dedupe exception', e);
+      }
+    }
+
 
     let lead: ExtractedLead | null = null;
     try {
