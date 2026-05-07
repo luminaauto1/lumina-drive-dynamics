@@ -176,15 +176,34 @@ Deno.serve(async (req) => {
 
   // ─── POST: data ingestion ─────────────────────────────────────────────────
   if (req.method === 'POST') {
-    let payload: any = {};
-    try {
-      payload = await req.json();
-    } catch {
+    // Read raw body once — needed for HMAC verification AND JSON parsing.
+    const rawBody = await req.text();
+
+    // ── HMAC x-hub-signature-256 verification (skipped if no key configured) ──
+    const appSecret = Deno.env.get('EASYSOCIAL_APP_SECRET') ?? Deno.env.get('EASYSOCIAL_API_KEY');
+    const sigHeader = req.headers.get('x-hub-signature-256');
+    if (appSecret && sigHeader) {
       try {
-        const txt = await req.text();
-        payload = JSON.parse(txt);
-      } catch { payload = {}; }
+        const enc = new TextEncoder();
+        const key = await crypto.subtle.importKey(
+          'raw', enc.encode(appSecret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+        );
+        const sigBuf = await crypto.subtle.sign('HMAC', key, enc.encode(rawBody));
+        const expected = 'sha256=' + Array.from(new Uint8Array(sigBuf))
+          .map((b) => b.toString(16).padStart(2, '0')).join('');
+        if (expected !== sigHeader.trim()) {
+          console.warn('[easysocial-webhook] HMAC mismatch — rejecting');
+          return new Response(JSON.stringify({ error: 'invalid signature' }), {
+            status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      } catch (e) {
+        console.error('[easysocial-webhook] HMAC verification error', e);
+      }
     }
+
+    let payload: any = {};
+    try { payload = JSON.parse(rawBody); } catch { payload = {}; }
 
     let lead: ExtractedLead | null = null;
     try {
