@@ -93,7 +93,11 @@ export const useUpdateFinanceApplication = () => {
             .eq('role', 'f_and_i')
             .maybeSingle();
           if (roleRow) {
-            updates = { ...updates, assigned_f_and_i: actor.id };
+            updates = {
+              ...updates,
+              assigned_f_and_i: actor.id,
+              assigned_f_and_i_at: new Date().toISOString(),
+            };
           }
         }
       } catch (_) { /* non-fatal */ }
