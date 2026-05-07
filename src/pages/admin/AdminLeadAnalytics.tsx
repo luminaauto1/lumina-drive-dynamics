@@ -709,6 +709,87 @@ const AdminLeadAnalytics = () => {
                 )}
               </ChartCard>
             </div>
+
+            {/* Top tags over time + per-tag conversion */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="lg:col-span-2">
+                <ChartCard
+                  icon={Tag}
+                  title="Top Tags Over Time"
+                  subtitle={`Top ${TOP_N_TAGS} EasySocial tags — ${range === '1h' || range === '24h' ? 'hourly' : 'daily'} buckets`}
+                >
+                  {topTags.length === 0 || tagsOverTime.length === 0 ? (
+                    <EmptyState />
+                  ) : (
+                    <ResponsiveContainer width="100%" height={320}>
+                      <AreaChart data={tagsOverTime} margin={{ top: 10, right: 16, left: -8, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
+                        <XAxis dataKey="label" stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} minTickGap={20} />
+                        <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                        <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} />
+                        <Legend content={renderInteractiveLegend} />
+                        {topTags.map((t, i) => {
+                          const color = VIBRANT_PALETTE[i % VIBRANT_PALETTE.length];
+                          return (
+                            <Area
+                              key={t}
+                              type="monotone"
+                              dataKey={t}
+                              stackId="tags"
+                              stroke={color}
+                              fill={color}
+                              fillOpacity={0.35}
+                              strokeWidth={2}
+                              hide={hiddenSeries[t]}
+                            />
+                          );
+                        })}
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  )}
+                </ChartCard>
+              </div>
+
+              <ChartCard
+                icon={Percent}
+                title="Lead → Application by Tag"
+                subtitle="Conversion rate per EasySocial tag (top 10 by volume)"
+              >
+                {tagConversion.length === 0 ? (
+                  <EmptyState />
+                ) : (
+                  <div className="space-y-3 pt-1 max-h-[320px] overflow-y-auto pr-1">
+                    {tagConversion.map((row) => {
+                      const color =
+                        row.conversion >= 25 ? VIBRANT.neonGreen :
+                        row.conversion >= 10 ? VIBRANT.amber :
+                        VIBRANT.crimson;
+                      return (
+                        <div key={row.tag} className="space-y-1.5">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-medium truncate max-w-[60%]" title={row.tag}>
+                              {row.tag}
+                            </span>
+                            <span className="font-mono" style={{ color }}>
+                              {row.conversion.toFixed(1)}%
+                              <span className="ml-2 text-[10px] text-muted-foreground">
+                                {row.submitted}/{row.leads}
+                              </span>
+                            </span>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-muted/40 overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all"
+                              style={{ width: `${Math.min(100, row.conversion)}%`, backgroundColor: color }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </ChartCard>
+            </div>
           </>
         )}
       </div>
