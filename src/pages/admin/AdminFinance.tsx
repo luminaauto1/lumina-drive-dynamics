@@ -609,11 +609,15 @@ const AdminFinance = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6"
+          className="grid grid-cols-2 md:grid-cols-7 gap-4 mb-6"
         >
           <div className="glass-card rounded-lg p-4">
             <p className="text-2xl font-bold text-amber-400">{activeApps.filter(a => a.status === 'pending').length}</p>
             <p className="text-sm text-muted-foreground">Pending</p>
+          </div>
+          <div className="glass-card rounded-lg p-4">
+            <p className="text-2xl font-bold text-indigo-400">{activeApps.filter(a => a.status === 'application_submitted').length}</p>
+            <p className="text-sm text-muted-foreground">Apps Submitted</p>
           </div>
           <div className="glass-card rounded-lg p-4">
             <p className="text-2xl font-bold text-blue-400">{activeApps.filter(a => a.status === 'validations_pending').length}</p>
