@@ -993,8 +993,13 @@ const AdminFinance = () => {
         <Dialog open={statusModalOpen} onOpenChange={setStatusModalOpen}>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle className="flex items-center justify-between gap-3 pr-6">
-                <span>Update Status &amp; CRM Note</span>
+              <DialogTitle className="flex items-start justify-between gap-3 pr-6">
+                <div className="flex flex-col">
+                  <h2 className="text-xl font-semibold text-white tracking-wide">
+                    Client: {pendingApp?.first_name} {pendingApp?.last_name}
+                  </h2>
+                  <p className="text-sm text-zinc-400 mt-1">Update Status &amp; CRM Note</p>
+                </div>
                 {(pendingApp as any)?.bank_reference && (
                   <BankReferenceBadge reference={(pendingApp as any).bank_reference} />
                 )}
