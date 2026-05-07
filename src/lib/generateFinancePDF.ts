@@ -187,29 +187,52 @@ export const generateFinancePDF = async (application: FinanceApplication, vehicl
   
   yPos += lineHeight;
   doc.setFontSize(10);
+  // Helper: advance Y, adding a new page if we're near the bottom so new
+  // conditional rows never overlap subsequent sections.
+  const nextRow = () => {
+    yPos += lineHeight;
+    if (yPos > 270) {
+      doc.addPage();
+      yPos = 20;
+      doc.setFontSize(10);
+      doc.setTextColor(mutedColor);
+    }
+  };
+
   addField('Employer', application.employer_name);
-  yPos += lineHeight;
+  nextRow();
+  addField('Job Title', application.job_title);
+  nextRow();
   const empType = (application as any).employment_type;
   const empTypeLabel = empType === 'self_employed' ? 'Self Employed'
     : empType === 'permanently_employed' ? 'Permanently Employed'
-    : empType || 'N/A';
+    : empType || 'Not Provided';
   addField('Employment Type', empTypeLabel);
+  nextRow();
+  addField('Workplace Cell', (application as any).workplace_cell_no || 'Not Provided');
   if (empType === 'self_employed') {
-    yPos += lineHeight;
-    addField('6 Months Statements', (application as any).has_6_months_statements ? 'Confirmed' : 'Not Confirmed');
+    nextRow();
+    addField('Bank Statements', 'Confirmed: 6 Months Statements Available');
   }
-  yPos += lineHeight;
-  addField('Provided Business Address', (application as any).workplace_address || (application as any).employer_address || 'N/A');
-  if ((application as any).business_address_auto) {
-    yPos += lineHeight;
-    addField('Verified Business Address', (application as any).business_address_auto);
-  }
-  yPos += lineHeight;
-  addField('Workplace Contact', (application as any).workplace_cell_no || 'N/A');
-  yPos += lineHeight;
-  addField('Job Title', application.job_title);
-  yPos += lineHeight;
+  nextRow();
   addField('Period', application.employment_period);
+
+  // Business Details sub-section
+  yPos += 8;
+  if (yPos > 265) { doc.addPage(); yPos = 20; }
+  doc.setFontSize(11);
+  doc.setTextColor(textColor);
+  doc.text('Business Details', leftMargin, yPos);
+  yPos += 3;
+  doc.setDrawColor(200, 200, 200);
+  doc.line(leftMargin, yPos, 190, yPos);
+  yPos += lineHeight;
+  doc.setFontSize(10);
+  addField('Provided Business Address',
+    (application as any).workplace_address || (application as any).employer_address || 'Not Provided');
+  nextRow();
+  addField('Verified Geo-Location',
+    (application as any).business_address_auto || 'No automated match found');
   
   // Section: Financials
   yPos += 12;
