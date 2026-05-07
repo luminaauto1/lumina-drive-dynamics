@@ -186,8 +186,53 @@ Deno.serve(async (req) => {
 
   const url = new URL(req.url);
 
-  // ─── GET: verification handshake ──────────────────────────────────────────
+  // ─── GET: health check OR verification handshake ─────────────────────────
   if (req.method === 'GET') {
+    // Health probe: /...?health=1 — reports config + upstream tag API status.
+    if (url.searchParams.get('health') === '1') {
+      const appSecret = Deno.env.get('EASYSOCIAL_APP_SECRET') ?? Deno.env.get('EASYSOCIAL_API_KEY');
+      const esKey = Deno.env.get('EASYSOCIAL_API_KEY');
+      const verifyToken = Deno.env.get('EASYSOCIAL_VERIFY_TOKEN');
+
+      let tagsApi: { reachable: boolean; status: number | null; latency_ms: number | null; error?: string } = {
+        reachable: false, status: null, latency_ms: null,
+      };
+      if (esKey) {
+        const t0 = Date.now();
+        try {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 4000);
+          const r = await fetch('https://api.easysocial.in/api/v1/tags', {
+            headers: { Authorization: `Bearer ${esKey}`, Accept: 'application/json' },
+            signal: ctrl.signal,
+          });
+          clearTimeout(timer);
+          tagsApi = { reachable: r.ok, status: r.status, latency_ms: Date.now() - t0 };
+        } catch (e) {
+          tagsApi = { reachable: false, status: null, latency_ms: Date.now() - t0, error: String((e as Error).message ?? e) };
+        }
+      } else {
+        tagsApi.error = 'EASYSOCIAL_API_KEY not configured';
+      }
+
+      const body = {
+        ok: true,
+        function: 'easysocial-webhook',
+        timestamp: new Date().toISOString(),
+        signature_verification: {
+          enabled: !!appSecret,
+          algorithm: 'HMAC-SHA256',
+          header: 'x-hub-signature-256',
+        },
+        verify_token_configured: !!verifyToken,
+        tags_api: tagsApi,
+      };
+      return new Response(JSON.stringify(body, null, 2), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const mode = url.searchParams.get('hub.mode');
     const token = url.searchParams.get('hub.verify_token');
     const challenge = url.searchParams.get('hub.challenge');
