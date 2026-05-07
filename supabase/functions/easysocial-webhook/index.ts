@@ -333,6 +333,39 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── Optional: enrich with EasySocial tags (source attribution) ──────────
+    // Single unified key serves both HMAC and Bearer (per admin directive).
+    const esKey = Deno.env.get('EASYSOCIAL_API_KEY');
+    let tagString: string | null = null;
+    if (esKey) {
+      try {
+        const tagsRes = await fetch('https://api.easysocial.in/api/v1/tags', {
+          headers: { Authorization: `Bearer ${esKey}`, Accept: 'application/json' },
+        });
+        if (tagsRes.ok) {
+          const tagsJson: any = await tagsRes.json();
+          const tagList: any[] = Array.isArray(tagsJson)
+            ? tagsJson
+            : (tagsJson?.data ?? tagsJson?.tags ?? []);
+          // Match incoming wa_id against tag.contacts[].wa_id when provided.
+          const matched = tagList
+            .filter((t: any) => {
+              const contacts = t?.contacts ?? t?.wa_ids ?? [];
+              if (!Array.isArray(contacts) || contacts.length === 0) return false;
+              return contacts.some((c: any) => {
+                const id = typeof c === 'string' ? c : (c?.wa_id ?? c?.phone);
+                return normalizePhone(id) === lead.phone_number;
+              });
+            })
+            .map((t: any) => String(t?.name ?? t?.label ?? t?.id))
+            .filter(Boolean);
+          if (matched.length) tagString = matched.join(', ');
+        }
+      } catch (e) {
+        console.error('[easysocial-webhook] tag fetch error', e);
+      }
+    }
+
     // Only upsert when we have a real phone number
     try {
       const supabase = createClient(
@@ -345,12 +378,12 @@ Deno.serve(async (req) => {
         .upsert(
           {
             phone_number: lead.phone_number,
-            traffic_source: lead.traffic_source,
+            traffic_source: tagString ?? lead.traffic_source,
             bot_outcome: lead.bot_outcome,
             client_phone: lead.client_phone ?? lead.phone_number,
             client_name: lead.client_name,
             client_email: lead.client_email,
-            source: lead.traffic_source ?? 'easysocial',
+            source: tagString ?? lead.traffic_source ?? 'easysocial',
             updated_at: new Date().toISOString(),
           },
           { onConflict: 'phone_number' }
