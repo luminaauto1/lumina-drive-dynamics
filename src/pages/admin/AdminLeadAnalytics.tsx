@@ -783,6 +783,40 @@ const AdminLeadAnalytics = () => {
               </ChartCard>
             </div>
 
+            {/* Application Form Abandonment */}
+            <ChartCard
+              icon={AlertTriangle}
+              title="Application Form Abandonment"
+              subtitle="Where applicants give up in the multi-step form (submitted sessions excluded)"
+            >
+              {!abandonmentHasData ? (
+                <div className="h-[280px] flex items-center justify-center text-sm text-muted-foreground">
+                  No abandonment data available for this date range.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={abandonmentData} margin={{ top: 10, right: 16, left: -8, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis dataKey="shortStep" stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <Tooltip
+                      contentStyle={tooltipStyle}
+                      itemStyle={tooltipItemStyle}
+                      labelStyle={tooltipLabelStyle}
+                      cursor={{ fill: 'hsl(var(--muted) / 0.2)' }}
+                      formatter={(v: any) => [v, 'Abandoned']}
+                      labelFormatter={(_l, payload: any) => payload?.[0]?.payload?.step ?? _l}
+                    />
+                    <Bar dataKey="abandoned" radius={[6, 6, 0, 0]}>
+                      {abandonmentData.map((row, i) => (
+                        <Cell key={i} fill={row.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </ChartCard>
+
             {/* Time analysis + Credit risk */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <ChartCard icon={Clock} title="Time Analysis" subtitle="Average minutes spent in form (sessions > 24h excluded)">
