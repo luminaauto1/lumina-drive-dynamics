@@ -333,6 +333,9 @@ Deno.serve(async (req) => {
     } catch (e) {
       console.error('[easysocial-webhook] extraction error', e);
     }
+    // Carries the referral-derived classification (TikTok/Facebook/Instagram/Organic)
+    // out of the message-logging block so we can use it as a tag fallback below.
+    let derivedPlatform: string | null = null;
 
     // Identify the change type so we can skip non-actionable events cleanly
     const changeField = payload?.entry?.[0]?.changes?.[0]?.field;
@@ -397,6 +400,8 @@ Deno.serve(async (req) => {
             .join(' ')
             .toLowerCase();
 
+      // Expose to the lead-upsert block below
+      // (set after classification finishes — see assignment after the if/else chain)
       if (attributionBlob.includes('tiktok')) {
         platformSource = 'TikTok';
       } else if (attributionBlob.includes('facebook') || /\bfb\b/.test(attributionBlob)) {
@@ -407,6 +412,7 @@ Deno.serve(async (req) => {
         // Real organic text reply with no ad referral → label cleanly, do not noise the trap.
         platformSource = 'Organic/Direct';
       }
+      derivedPlatform = platformSource;
 
       // ── The "Unknown" Trap: only dump payloads we genuinely could not classify
       // (skip clean organic text and audio cases — those are expected).
@@ -546,17 +552,24 @@ Deno.serve(async (req) => {
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       );
 
+      // Tag precedence: EasySocial Tags API → referral-derived platform → existing source.
+      const resolvedSource =
+        tagString ??
+        (derivedPlatform && derivedPlatform !== 'Direct/Unknown' ? derivedPlatform : null) ??
+        lead.traffic_source ??
+        null;
+
       const { error } = await supabase
         .from('leads')
         .upsert(
           {
             phone_number: lead.phone_number,
-            traffic_source: tagString ?? lead.traffic_source,
+            traffic_source: resolvedSource,
             bot_outcome: lead.bot_outcome,
             client_phone: lead.client_phone ?? lead.phone_number,
             client_name: lead.client_name,
             client_email: lead.client_email,
-            source: tagString ?? lead.traffic_source ?? 'easysocial',
+            source: resolvedSource ?? 'easysocial',
             updated_at: new Date().toISOString(),
           },
           { onConflict: 'phone_number' }
