@@ -276,6 +276,31 @@ const AdminLeadAnalytics = () => {
 
   const funnelHasData = funnelData.some((s) => s.value > 0);
 
+  // Application Form Abandonment: aggregate `application_drafts` by step,
+  // excluding any sessions that ultimately submitted the application.
+  const abandonmentData = useMemo(() => {
+    const STEP_LABELS: Record<number, string> = {
+      1: 'Step 1: Personal Details',
+      2: 'Step 2: Employment',
+      3: 'Step 3: Financials',
+      4: 'Step 4: Vehicle Preference',
+      5: 'Step 5: Review & Submit',
+    };
+    const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    drafts.forEach((d) => {
+      if (d.submitted) return;
+      const n = d.step_number ?? 0;
+      if (n >= 1 && n <= 5) counts[n] += 1;
+    });
+    return [1, 2, 3, 4, 5].map((n) => ({
+      step: STEP_LABELS[n],
+      shortStep: `Step ${n}`,
+      abandoned: counts[n],
+      fill: VIBRANT_PALETTE[(n - 1) % VIBRANT_PALETTE.length],
+    }));
+  }, [drafts]);
+  const abandonmentHasData = abandonmentData.some((d) => d.abandoned > 0);
+
   // Time analysis (avg minutes) — outliers > 24h excluded to prevent forgotten test sessions skewing averages
   // - Abandonment: lead.created_at -> lead.updated_at (last progressive step save)
   // - Submission: lead.created_at -> matched finance_application.created_at
