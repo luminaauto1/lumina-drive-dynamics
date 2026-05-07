@@ -110,6 +110,10 @@ const FinanceApplication = () => {
     job_title: "",
     employment_years: "",
     employment_months: "",
+    employment_type: "",
+    has_6_months_statements: false,
+    workplace_cell_no: "",
+    business_address_auto: "",
     // Next of Kin
     kin_name: "",
     kin_contact: "",
@@ -224,6 +228,10 @@ const FinanceApplication = () => {
       job_title: data.job_title || "",
       employment_years: empYears,
       employment_months: empMonths,
+      employment_type: (data as any).employment_type || "",
+      has_6_months_statements: (data as any).has_6_months_statements || false,
+      workplace_cell_no: (data as any).workplace_cell_no || "",
+      business_address_auto: (data as any).business_address_auto || "",
       kin_name: data.kin_name || "",
       kin_contact: data.kin_contact || "",
       bank_name: data.bank_name || "",
@@ -314,6 +322,10 @@ const FinanceApplication = () => {
       job_title: data.job_title || "",
       employment_years: empYears,
       employment_months: empMonths,
+      employment_type: (data as any).employment_type || "",
+      has_6_months_statements: (data as any).has_6_months_statements || false,
+      workplace_cell_no: (data as any).workplace_cell_no || "",
+      business_address_auto: (data as any).business_address_auto || "",
       kin_name: data.kin_name || "",
       kin_contact: data.kin_contact || "",
       bank_name: data.bank_name || "",
@@ -391,12 +403,30 @@ const FinanceApplication = () => {
             job_title: formData.job_title,
             employment_period: getEmploymentPeriod(),
           });
+          if (!formData.employment_type) {
+            setFieldErrors({ employment_type: "Please select your employment type." });
+            toast.error("Please select your employment type before proceeding.");
+            return false;
+          }
+          if (formData.employment_type === "self_employed" && !formData.has_6_months_statements) {
+            setFieldErrors({ has_6_months_statements: "You must confirm you have 6 months of bank statements." });
+            toast.error("Self-employed applicants must confirm 6 months of bank statements.");
+            return false;
+          }
           break;
         case 3:
           financeApplicationStep3Schema.parse({
             kin_name: formData.kin_name,
             kin_contact: formData.kin_contact,
           });
+          {
+            const norm = (s: string) => (s || "").replace(/\D/g, "").replace(/^27/, "0");
+            if (norm(formData.kin_contact) && norm(formData.kin_contact) === norm(formData.phone)) {
+              setFieldErrors({ kin_contact: "Next of Kin number cannot match applicant number." });
+              toast.error("Next of Kin number cannot match applicant number.");
+              return false;
+            }
+          }
           break;
         case 4:
           const totalGross = formData.income_sources.reduce((sum, src) => 
@@ -441,7 +471,50 @@ const FinanceApplication = () => {
       return false;
     }
   };
-  
+
+  // TASK 4: Silent background Google Places search based on employer_name.
+  // Non-destructive: never overwrites the user's manual employer_address;
+  // only sets business_address_auto and (if blank) workplace_cell_no.
+  useEffect(() => {
+    const name = formData.employer_name?.trim();
+    if (!name || name.length < 3) return;
+    const handle = setTimeout(() => {
+      try {
+        const g = (window as any).google;
+        if (!g?.maps?.places) return;
+        const service = new g.maps.places.PlacesService(document.createElement('div'));
+        service.findPlaceFromQuery(
+          {
+            query: name,
+            fields: ['formatted_address', 'place_id', 'name'],
+          },
+          (results: any[], status: string) => {
+            if (status !== 'OK' || !results?.[0]?.place_id) return;
+            service.getDetails(
+              { placeId: results[0].place_id, fields: ['formatted_address', 'formatted_phone_number', 'international_phone_number'] },
+              (place: any, st: string) => {
+                if (st !== 'OK' || !place) return;
+                setFormData((prev) => {
+                  const next = { ...prev };
+                  if (place.formatted_address) next.business_address_auto = place.formatted_address;
+                  const phone = place.international_phone_number || place.formatted_phone_number;
+                  if (phone && !prev.workplace_cell_no?.trim()) {
+                    next.workplace_cell_no = phone;
+                  }
+                  return next;
+                });
+              }
+            );
+          }
+        );
+      } catch (err) {
+        // Silent — never block the form
+        console.debug('Silent Places lookup skipped', err);
+      }
+    }, 800);
+    return () => clearTimeout(handle);
+  }, [formData.employer_name]);
+
   // Helper to get error class for inputs
   const getErrorClass = (fieldName: string) => {
     return fieldErrors[fieldName] ? 'border-destructive ring-1 ring-destructive' : '';
@@ -680,6 +753,10 @@ const FinanceApplication = () => {
       employer_name: formData.employer_name.trim() || incomeSourceNames || null,
       employer_address: formData.employer_address?.trim() || null,
       employer_postal_code: formData.employer_postal_code?.trim() || null,
+      employment_type: formData.employment_type || null,
+      has_6_months_statements: formData.employment_type === "self_employed" ? formData.has_6_months_statements : null,
+      workplace_cell_no: formData.workplace_cell_no?.trim() || null,
+      business_address_auto: formData.business_address_auto?.trim() || null,
       job_title: formData.job_title?.trim() || null,
       employment_period: getEmploymentPeriod() || null,
       kin_name: formData.kin_name.trim(),
@@ -936,6 +1013,10 @@ const FinanceApplication = () => {
       employer_name: formData.employer_name.trim() || null,
       employer_address: formData.employer_address?.trim() || null,
       employer_postal_code: formData.employer_postal_code?.trim() || null,
+      employment_type: formData.employment_type || null,
+      has_6_months_statements: formData.employment_type === "self_employed" ? formData.has_6_months_statements : null,
+      workplace_cell_no: formData.workplace_cell_no?.trim() || null,
+      business_address_auto: formData.business_address_auto?.trim() || null,
       job_title: formData.job_title?.trim() || null,
       employment_period: getEmploymentPeriod() || null,
       kin_name: formData.kin_name.trim() || null,
@@ -1474,6 +1555,35 @@ const FinanceApplication = () => {
                   <div className="border-t border-border pt-6">
                     <h3 className="font-medium mb-4">Employment Details</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor="employment_type">Employment Type *</Label>
+                        <Select value={formData.employment_type} onValueChange={(v) => handleInputChange("employment_type", v)}>
+                          <SelectTrigger className={getErrorClass("employment_type")}>
+                            <SelectValue placeholder="Select employment type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="permanently_employed">Permanently Employed</SelectItem>
+                            <SelectItem value="self_employed">Self Employed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FieldError field="employment_type" />
+                      </div>
+                      {formData.employment_type === "self_employed" && (
+                        <div className="md:col-span-2 flex items-start gap-2 p-3 rounded-md border border-border bg-muted/30">
+                          <Checkbox
+                            id="has_6_months_statements"
+                            checked={formData.has_6_months_statements}
+                            onCheckedChange={(c) => handleInputChange("has_6_months_statements", Boolean(c))}
+                            className={fieldErrors.has_6_months_statements ? 'border-destructive' : ''}
+                          />
+                          <div className="space-y-1">
+                            <Label htmlFor="has_6_months_statements" className="cursor-pointer">
+                              I have 6 months bank statements reflecting income. *
+                            </Label>
+                            <FieldError field="has_6_months_statements" />
+                          </div>
+                        </div>
+                      )}
                       <div className="space-y-2">
                         <Label htmlFor="employer_name">Workplace/Employer Name *</Label>
                         <Input
@@ -1504,6 +1614,21 @@ const FinanceApplication = () => {
                         {formData.employer_postal_code && (
                           <p className="text-xs text-muted-foreground mt-1">Postal Code: {formData.employer_postal_code}</p>
                         )}
+                        {formData.business_address_auto && formData.business_address_auto !== formData.employer_address && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            <span className="font-medium">Verified (system):</span> {formData.business_address_auto}
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor="workplace_cell_no">Workplace Contact Number (optional)</Label>
+                        <Input
+                          id="workplace_cell_no"
+                          type="tel"
+                          value={formData.workplace_cell_no}
+                          onChange={(e) => handleInputChange("workplace_cell_no", e.target.value)}
+                          placeholder="Auto-filled if found, or enter manually"
+                        />
                       </div>
                       <div className="space-y-2 md:col-span-2">
                         <Label>Time at Employer</Label>

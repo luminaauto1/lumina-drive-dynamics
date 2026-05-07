@@ -189,7 +189,23 @@ export const generateFinancePDF = async (application: FinanceApplication, vehicl
   doc.setFontSize(10);
   addField('Employer', application.employer_name);
   yPos += lineHeight;
-  addField('Employer Address', (application as any).workplace_address || (application as any).employer_address || 'N/A');
+  const empType = (application as any).employment_type;
+  const empTypeLabel = empType === 'self_employed' ? 'Self Employed'
+    : empType === 'permanently_employed' ? 'Permanently Employed'
+    : empType || 'N/A';
+  addField('Employment Type', empTypeLabel);
+  if (empType === 'self_employed') {
+    yPos += lineHeight;
+    addField('6 Months Statements', (application as any).has_6_months_statements ? 'Confirmed' : 'Not Confirmed');
+  }
+  yPos += lineHeight;
+  addField('Provided Business Address', (application as any).workplace_address || (application as any).employer_address || 'N/A');
+  if ((application as any).business_address_auto) {
+    yPos += lineHeight;
+    addField('Verified Business Address', (application as any).business_address_auto);
+  }
+  yPos += lineHeight;
+  addField('Workplace Contact', (application as any).workplace_cell_no || 'N/A');
   yPos += lineHeight;
   addField('Job Title', application.job_title);
   yPos += lineHeight;
