@@ -6,9 +6,42 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-hub-signature-256',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
+
+// ── In-memory rate limiter (per warm instance — best-effort, not global) ──
+// Caps per-IP POSTs in a sliding window. Cold starts reset the bucket.
+const RATE_LIMIT_WINDOW_MS = 10_000;
+const RATE_LIMIT_MAX = 60;
+const rateBuckets = new Map<string, number[]>();
+const isRateLimited = (ip: string): boolean => {
+  const now = Date.now();
+  const arr = (rateBuckets.get(ip) ?? []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+  arr.push(now);
+  rateBuckets.set(ip, arr);
+  // Opportunistic cleanup
+  if (rateBuckets.size > 1000) {
+    for (const [k, v] of rateBuckets) {
+      if (v.length === 0 || now - v[v.length - 1] > RATE_LIMIT_WINDOW_MS) rateBuckets.delete(k);
+    }
+  }
+  return arr.length > RATE_LIMIT_MAX;
+};
+
+// ── Replay protection: extract a stable event id from the WA payload ──
+const extractEventId = (payload: any, sigHeader: string | null): string | null => {
+  const value = payload?.entry?.[0]?.changes?.[0]?.value;
+  const msgId =
+    value?.messages?.[0]?.id ??
+    value?.statuses?.[0]?.id ??
+    payload?.id ??
+    payload?.event_id;
+  if (msgId) return String(msgId);
+  // Last-resort: signature itself (Meta sends the same sig on retries of same body)
+  return sigHeader ? sigHeader.trim() : null;
+};
+
 
 // Default placeholder verify token. Override by setting EASYSOCIAL_VERIFY_TOKEN secret.
 const DEFAULT_VERIFY_TOKEN = 'LuminaAuto2026';
