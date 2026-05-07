@@ -3,11 +3,11 @@ import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import {
   TrendingUp, Users, FileCheck2, AlertTriangle, Percent,
-  Clock, Activity, ShieldAlert, Globe, Loader2, MessageCircle,
+  Clock, Activity, ShieldAlert, Globe, Loader2, MessageCircle, Tag,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-  LineChart, Line, PieChart, Pie, Cell, Legend,
+  LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area,
 } from 'recharts';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
