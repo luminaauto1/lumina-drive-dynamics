@@ -397,6 +397,46 @@ const AdminLeadAnalytics = () => {
       .map(([name, value]) => ({ name, value }));
   }, [messages]);
 
+  // Unique contacts who sent messages (dedupe by phone)
+  const uniqueContactCount = useMemo(() => {
+    const set = new Set<string>();
+    messages.forEach((m) => {
+      const p = (m.phone_number || '').replace(/\D/g, '');
+      if (p) set.add(p);
+    });
+    return set.size;
+  }, [messages]);
+
+  // Average messages per contact before they submitted an application.
+  // For each unique phone, count messages sent BEFORE the matching application's created_at (if any).
+  const messagesPerLeadStats = useMemo(() => {
+    // Build phone -> earliest app created_at
+    const phoneToAppDate = new Map<string, number>();
+    apps.forEach((a: any) => {
+      const p = (a.phone || '').replace(/\D/g, '');
+      if (!p) return;
+      const t = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const prev = phoneToAppDate.get(p);
+      if (!prev || t < prev) phoneToAppDate.set(p, t);
+    });
+    // Count messages-before-app per phone
+    const perPhone = new Map<string, number>();
+    messages.forEach((m) => {
+      const p = (m.phone_number || '').replace(/\D/g, '');
+      if (!p) return;
+      const appT = phoneToAppDate.get(p);
+      if (!appT) return; // only count contacts who eventually submitted
+      const mt = m.created_at ? new Date(m.created_at).getTime() : 0;
+      if (mt && mt <= appT) perPhone.set(p, (perPhone.get(p) || 0) + 1);
+    });
+    const counts = Array.from(perPhone.values());
+    const totalConverted = counts.length;
+    const totalMsgs = counts.reduce((s, n) => s + n, 0);
+    const avg = totalConverted > 0 ? totalMsgs / totalConverted : 0;
+    return { avg, totalConverted, totalMsgs };
+  }, [messages, apps]);
+
+
   // ── Tag analytics: split comma-separated EasySocial tags from leads.traffic_source ──
   const splitTags = (raw: string | null | undefined): string[] => {
     if (!raw) return [];
