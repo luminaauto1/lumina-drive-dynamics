@@ -400,6 +400,8 @@ Deno.serve(async (req) => {
             .join(' ')
             .toLowerCase();
 
+      // Expose to the lead-upsert block below
+      // (set after classification finishes — see assignment after the if/else chain)
       if (attributionBlob.includes('tiktok')) {
         platformSource = 'TikTok';
       } else if (attributionBlob.includes('facebook') || /\bfb\b/.test(attributionBlob)) {
