@@ -106,7 +106,7 @@ const AdminLeadAnalytics = () => {
   const [leads, setLeads] = useState<LeadRow[]>([]);
   const [apps, setApps] = useState<AppRow[]>([]);
   const [messageCount, setMessageCount] = useState(0);
-  const [messages, setMessages] = useState<{ created_at: string; platform_source: string | null }[]>([]);
+  const [messages, setMessages] = useState<{ created_at: string; platform_source: string | null; phone_number: string | null }[]>([]);
   const [hiddenSeries, setHiddenSeries] = useState<Record<string, boolean>>({});
 
   const toggleSeries = (key: string) => {
