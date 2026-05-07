@@ -580,7 +580,6 @@ const AdminLeadAnalytics = () => {
                 value={messagesPerLeadStats.avg.toFixed(1)}
               />
               <KpiCard icon={Users} label="Total New Leads" value={totalLeads.toLocaleString()} />
-              <KpiCard icon={Users} label="Total New Leads" value={totalLeads.toLocaleString()} />
               <KpiCard icon={FileCheck2} label="Total Applications" value={totalApps.toLocaleString()} />
               <KpiCard icon={Percent} label="Lead → App Conversion" value={`${conversion.toFixed(1)}%`} />
               <KpiCard
