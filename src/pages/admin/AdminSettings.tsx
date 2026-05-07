@@ -837,6 +837,19 @@ const AdminSettings = () => {
                   />
                 </div>
 
+                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                  <div>
+                    <Label>Require Client Signature on Finance Apps</Label>
+                    <p className="text-sm text-muted-foreground">
+                      When off, applicants can submit without providing a digital signature.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={requireSignature}
+                    onCheckedChange={(checked) => setValue('require_application_signature' as any, checked, { shouldDirty: true })}
+                  />
+                </div>
+
                 {/* Email System Test */}
                 <div className="border-t border-border pt-6 mt-6">
                   <div className="flex items-center gap-3 mb-4">
