@@ -107,6 +107,7 @@ const AdminLeadAnalytics = () => {
   const [apps, setApps] = useState<AppRow[]>([]);
   const [messageCount, setMessageCount] = useState(0);
   const [messages, setMessages] = useState<{ created_at: string; platform_source: string | null; phone_number: string | null }[]>([]);
+  const [drafts, setDrafts] = useState<{ last_completed_step: string; step_number: number | null; submitted: boolean; updated_at: string }[]>([]);
   const [hiddenSeries, setHiddenSeries] = useState<Record<string, boolean>>({});
 
   const toggleSeries = (key: string) => {
@@ -163,14 +164,18 @@ const AdminLeadAnalytics = () => {
       let msgRowsQ = supabase.from('whatsapp_messages')
         .select('created_at, platform_source, phone_number')
         .order('created_at', { ascending: false }).limit(10000);
+      let draftsQ = (supabase.from as any)('application_drafts')
+        .select('last_completed_step, step_number, submitted, updated_at')
+        .order('updated_at', { ascending: false }).limit(10000);
       if (cutoff) {
         leadsQ = leadsQ.gte('created_at', cutoff.toISOString());
         appsQ = appsQ.gte('created_at', cutoff.toISOString());
         msgCountQ = msgCountQ.gte('created_at', cutoff.toISOString());
         msgRowsQ = msgRowsQ.gte('created_at', cutoff.toISOString());
+        draftsQ = draftsQ.gte('updated_at', cutoff.toISOString());
       }
-      const [{ data: leadsData }, { data: appsData }, { count: msgCount }, { data: msgRows }] =
-        await Promise.all([leadsQ, appsQ, msgCountQ, msgRowsQ]);
+      const [{ data: leadsData }, { data: appsData }, { count: msgCount }, { data: msgRows }, { data: draftRows }] =
+        await Promise.all([leadsQ, appsQ, msgCountQ, msgRowsQ, draftsQ]);
       if (cancelled) return;
       // Defense-in-depth: also strip blocklisted emails client-side
       const cleanLeads = (leadsData || []).filter((l: any) =>
@@ -183,6 +188,7 @@ const AdminLeadAnalytics = () => {
       setApps(cleanApps as any);
       setMessageCount(msgCount ?? 0);
       setMessages((msgRows as any) || []);
+      setDrafts(((draftRows as any) || []));
       setLoading(false);
     };
     load();
@@ -269,6 +275,31 @@ const AdminLeadAnalytics = () => {
   }, [apps, totalLeads, totalApps]);
 
   const funnelHasData = funnelData.some((s) => s.value > 0);
+
+  // Application Form Abandonment: aggregate `application_drafts` by step,
+  // excluding any sessions that ultimately submitted the application.
+  const abandonmentData = useMemo(() => {
+    const STEP_LABELS: Record<number, string> = {
+      1: 'Step 1: Personal Details',
+      2: 'Step 2: Employment',
+      3: 'Step 3: Financials',
+      4: 'Step 4: Vehicle Preference',
+      5: 'Step 5: Review & Submit',
+    };
+    const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    drafts.forEach((d) => {
+      if (d.submitted) return;
+      const n = d.step_number ?? 0;
+      if (n >= 1 && n <= 5) counts[n] += 1;
+    });
+    return [1, 2, 3, 4, 5].map((n) => ({
+      step: STEP_LABELS[n],
+      shortStep: `Step ${n}`,
+      abandoned: counts[n],
+      fill: VIBRANT_PALETTE[(n - 1) % VIBRANT_PALETTE.length],
+    }));
+  }, [drafts]);
+  const abandonmentHasData = abandonmentData.some((d) => d.abandoned > 0);
 
   // Time analysis (avg minutes) — outliers > 24h excluded to prevent forgotten test sessions skewing averages
   // - Abandonment: lead.created_at -> lead.updated_at (last progressive step save)
@@ -751,6 +782,40 @@ const AdminLeadAnalytics = () => {
                 </ResponsiveContainer>
               </ChartCard>
             </div>
+
+            {/* Application Form Abandonment */}
+            <ChartCard
+              icon={AlertTriangle}
+              title="Application Form Abandonment"
+              subtitle="Where applicants give up in the multi-step form (submitted sessions excluded)"
+            >
+              {!abandonmentHasData ? (
+                <div className="h-[280px] flex items-center justify-center text-sm text-muted-foreground">
+                  No abandonment data available for this date range.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={abandonmentData} margin={{ top: 10, right: 16, left: -8, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis dataKey="shortStep" stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <Tooltip
+                      contentStyle={tooltipStyle}
+                      itemStyle={tooltipItemStyle}
+                      labelStyle={tooltipLabelStyle}
+                      cursor={{ fill: 'hsl(var(--muted) / 0.2)' }}
+                      formatter={(v: any) => [v, 'Abandoned']}
+                      labelFormatter={(_l, payload: any) => payload?.[0]?.payload?.step ?? _l}
+                    />
+                    <Bar dataKey="abandoned" radius={[6, 6, 0, 0]}>
+                      {abandonmentData.map((row, i) => (
+                        <Cell key={i} fill={row.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </ChartCard>
 
             {/* Time analysis + Credit risk */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
