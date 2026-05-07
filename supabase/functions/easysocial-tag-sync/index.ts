@@ -113,6 +113,7 @@ const planForStatus = (status: string): PlanStep => {
 
 /** Fetch all tags from EasySocial and build a {name: id} dictionary. */
 const fetchTagDictionary = async (apiKey: string): Promise<Record<string, number>> => {
+  console.log('[tag-sync] GET tags →', ES_TAGS_ENDPOINT, '(token len=', apiKey.length, ')');
   const res = await fetch(ES_TAGS_ENDPOINT, {
     method: 'GET',
     headers: {
@@ -121,6 +122,7 @@ const fetchTagDictionary = async (apiKey: string): Promise<Record<string, number
     },
   });
   const text = await res.text();
+  console.log('[tag-sync] tag list response status=', res.status, 'body=', text.slice(0, 500));
   if (!res.ok) {
     throw new Error(`tag list fetch failed: ${res.status} ${text.slice(0, 300)}`);
   }
@@ -128,11 +130,13 @@ const fetchTagDictionary = async (apiKey: string): Promise<Record<string, number
   try { parsed = JSON.parse(text); } catch {
     throw new Error('tag list response was not JSON');
   }
-  // Be permissive about response shape: array, {data:[]}, {tags:[]}.
+  // Be permissive about response shape: array, {data:[]}, {tags:[]}, {payload:[]}.
   const list: any[] = Array.isArray(parsed)
     ? parsed
     : Array.isArray(parsed?.data) ? parsed.data
     : Array.isArray(parsed?.tags) ? parsed.tags
+    : Array.isArray(parsed?.payload) ? parsed.payload
+    : Array.isArray(parsed?.payload?.data) ? parsed.payload.data
     : [];
 
   const dict: Record<string, number> = {};
@@ -143,6 +147,7 @@ const fetchTagDictionary = async (apiKey: string): Promise<Record<string, number
       dict[name] = Number(id);
     }
   }
+  console.log('[tag-sync] tag dictionary resolved with', Object.keys(dict).length, 'tags');
   return dict;
 };
 
@@ -157,19 +162,28 @@ Deno.serve(async (req) => {
   let body: SyncBody = {};
   try { body = await req.json(); } catch { /* noop */ }
 
+  console.log('[tag-sync] incoming payload', { phone_number: body.phone_number, new_status: body.new_status, old_status: body.old_status, flags: body.flags });
+
   const phone = cleanPhone(body.phone_number);
   const newStatus = String(body.new_status || '').toLowerCase().trim();
   const flags = Array.isArray(body.flags) ? body.flags.map((f) => String(f).toLowerCase()) : [];
 
+  console.log('[tag-sync] sanitized', { phone, newStatus, flags });
+
   if (!phone || !newStatus) {
+    console.warn('[tag-sync] rejecting: missing phone or status');
     return new Response(JSON.stringify({ error: 'missing or invalid phone_number / new_status' }), {
       status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
-  const apiKey = Deno.env.get('EASYSOCIAL_API_KEY');
+  // Prefer the dedicated Bearer API token (eSt2dc...) when available; fall back
+  // to the legacy EASYSOCIAL_API_KEY (which historically held the WhatsApp
+  // template token and returns 401 on /engage endpoints).
+  const apiKey = (Deno.env.get('EASYSOCIAL_BEARER_TOKEN') ?? Deno.env.get('EASYSOCIAL_API_KEY') ?? '').trim();
   if (!apiKey) {
-    return new Response(JSON.stringify({ ok: false, error: 'EASYSOCIAL_API_KEY not set' }), {
+    console.error('[tag-sync] no API key configured');
+    return new Response(JSON.stringify({ ok: false, error: 'EASYSOCIAL_BEARER_TOKEN not set' }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
@@ -229,6 +243,8 @@ Deno.serve(async (req) => {
     add_tags: addResolved.ids,
   };
 
+  console.log('[tag-sync] PUT', ES_LEAD_UPDATE(phone), 'payload=', payload, 'plan=', plan, 'missing=', { add: addResolved.missing, remove: removeResolved.missing });
+
   let upstreamStatus = 0;
   let upstreamBody: any = null;
   try {
@@ -243,6 +259,7 @@ Deno.serve(async (req) => {
     });
     upstreamStatus = res.status;
     const text = await res.text();
+    console.log('[tag-sync] PUT response status=', upstreamStatus, 'body=', text.slice(0, 600));
     try { upstreamBody = JSON.parse(text); } catch { upstreamBody = text; }
 
     if (res.ok) {

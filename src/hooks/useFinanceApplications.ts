@@ -284,20 +284,39 @@ export const useUpdateFinanceApplication = () => {
 
       // EasySocial 2-way tag sync — isolated microservice, runs in addition
       // to (and never instead of) the notify-* WhatsApp dispatches above.
+      // Awaited + surfaced via toast so silent failures stop happening.
       if (statusActuallyChanged && newStatus && currentApp?.phone) {
         try {
-          supabase.functions.invoke('easysocial-tag-sync', {
+          console.log('[easysocial-tag-sync] invoking', { phone: currentApp.phone, new_status: newStatus, old_status: currentApp.status });
+          const { data: tagData, error: tagErr } = await supabase.functions.invoke('easysocial-tag-sync', {
             body: {
               phone_number: currentApp.phone,
               new_status: newStatus,
               old_status: currentApp.status,
             },
-          }).then(({ error: tagErr }) => {
-            if (tagErr) console.error('[easysocial-tag-sync] error:', tagErr);
-            else console.log('[easysocial-tag-sync] dispatched for', currentApp.phone);
           });
-        } catch (tagEx) {
+          console.log('[easysocial-tag-sync] response', { tagData, tagErr });
+          if (tagErr) {
+            toast.error(`EasySocial sync failed: ${tagErr.message || 'unknown error'}`, {
+              style: { background: '#1A1A1A', color: '#fca5a5', border: '1px solid #7f1d1d' },
+            });
+          } else if (tagData?.ok === false) {
+            const detail = tagData?.upstream?.body?.message || tagData?.error || tagData?.detail || `status ${tagData?.upstream?.status ?? '?'}`;
+            toast.error(`EasySocial sync failed: ${detail}`, {
+              style: { background: '#1A1A1A', color: '#fca5a5', border: '1px solid #7f1d1d' },
+            });
+          } else if (tagData?.skipped) {
+            // No mapping for this status — informational only, no toast needed.
+          } else {
+            toast.success('EasySocial tags updated', {
+              style: { background: '#1A1A1A', color: '#86efac', border: '1px solid #14532d' },
+            });
+          }
+        } catch (tagEx: any) {
           console.error('[easysocial-tag-sync] failed to invoke:', tagEx);
+          toast.error(`EasySocial sync failed: ${tagEx?.message || tagEx}`, {
+            style: { background: '#1A1A1A', color: '#fca5a5', border: '1px solid #7f1d1d' },
+          });
         }
       }
 
