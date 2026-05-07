@@ -995,7 +995,11 @@ const AdminFinance = () => {
                       try {
                         const { error } = await supabase
                           .from('finance_applications')
-                          .update({ internal_status: 'no_notes', attention_updated_at: new Date().toISOString() })
+                          .update({
+                            internal_status: 'no_notes',
+                            attention_updated_at: new Date().toISOString(),
+                            ...(role === 'f_and_i' && user?.id ? { assigned_f_and_i: user.id } : {}),
+                          })
                           .eq('id', pendingApp.id);
                         if (error) throw error;
                         toast({ title: 'Marked as attended' });
