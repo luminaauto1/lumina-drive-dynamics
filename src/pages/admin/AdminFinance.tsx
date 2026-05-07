@@ -1020,6 +1020,11 @@ const AdminFinance = () => {
                   <h2 className="text-xl font-semibold text-white tracking-wide">
                     Client: {pendingApp?.first_name} {pendingApp?.last_name}
                   </h2>
+                  {pendingLeadName && (
+                    <p className="text-xs text-blue-400 mt-0.5 font-medium">
+                      CRM Lead: {pendingLeadName}
+                    </p>
+                  )}
                   <p className="text-sm text-zinc-400 mt-1">Update Status &amp; CRM Note</p>
                 </div>
                 {(pendingApp as any)?.bank_reference && (
