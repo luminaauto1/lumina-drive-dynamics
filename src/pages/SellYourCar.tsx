@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
+import { publicApiHeaders } from '@/lib/publicApi';
 import { toast } from 'sonner';
 import KineticText from '@/components/KineticText';
 
@@ -146,6 +147,7 @@ const SellYourCar = () => {
 
     try {
       const { data, error } = await supabase.functions.invoke('create-sell-request', {
+        headers: publicApiHeaders(),
         body: {
           client_name: formData.name,
           client_contact: formData.phone,

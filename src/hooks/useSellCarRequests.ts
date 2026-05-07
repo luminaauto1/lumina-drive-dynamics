@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { publicApiHeaders } from '@/lib/publicApi';
 import { toast } from 'sonner';
 
 export interface SellCarRequest {
@@ -51,6 +52,7 @@ export const useSellCarRequests = () => {
   const createRequest = useMutation({
     mutationFn: async (request: CreateSellCarRequestData) => {
       const { data, error } = await supabase.functions.invoke('create-sell-request', {
+        headers: publicApiHeaders(),
         body: request,
       });
 

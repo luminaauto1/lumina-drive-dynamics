@@ -1,6 +1,13 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { buildCorsHeaders, checkInternalKey } from "../_shared/publicGuard.ts";
 
+// SECURITY: This function is locked to a single internal recipient to prevent
+// being abused as an open SMTP relay. The 'to' field in the request payload
+// is intentionally ignored.
+const HARDCODED_RECIPIENT = "lumina.auto1@gmail.com";
+const MAX_SUBJECT_LEN = 300;
+const MAX_HTML_LEN = 50_000;
+
 const handler = async (req: Request): Promise<Response> => {
   const cors = buildCorsHeaders(req.headers.get("origin"));
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
@@ -9,14 +16,17 @@ const handler = async (req: Request): Promise<Response> => {
   if (guard) return guard;
 
   try {
-    const { to, subject, html } = await req.json();
-    if (!to || (Array.isArray(to) && to.length === 0)) {
-      throw new Error("No recipients specified");
+    const { subject, html } = await req.json();
+
+    if (typeof subject !== "string" || subject.trim().length === 0) {
+      throw new Error("Invalid subject");
     }
-    const recipient = Array.isArray(to) ? to[0] : to;
-    if (typeof recipient !== "string" || !recipient.includes("@")) {
-      throw new Error("Invalid recipient");
+    if (typeof html !== "string" || html.trim().length === 0) {
+      throw new Error("Invalid html body");
     }
+
+    const safeSubject = subject.slice(0, MAX_SUBJECT_LEN);
+    const safeHtml = html.slice(0, MAX_HTML_LEN);
 
     const serviceId = Deno.env.get("EMAILJS_SERVICE_ID");
     const templateId = Deno.env.get("EMAILJS_TEMPLATE_ID");
@@ -36,9 +46,9 @@ const handler = async (req: Request): Promise<Response> => {
         user_id: publicKey,
         accessToken: privateKey,
         template_params: {
-          to_email: recipient,
-          subject: subject,
-          html_message: html,
+          to_email: HARDCODED_RECIPIENT,
+          subject: safeSubject,
+          html_message: safeHtml,
         }
       }),
     });
