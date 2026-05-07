@@ -460,6 +460,34 @@ const AdminLeadAnalytics = () => {
       .slice(0, 10);
   }, [enrichedLeads]);
 
+  // App Outcome Breakdown — Submitted vs Pre-Approved vs Declined/Blacklisted
+  const appOutcomeStats = useMemo(() => {
+    const SUBMITTED = new Set(['pending', 'application_submitted', 'sent_to_banks', 'validations_pending', 'revision_submitted', 'documents_received', 'validations_complete']);
+    const PRE_APPROVED = new Set(['pre_approved', 'approved', 'vehicle_selected', 'contract_sent', 'contract_signed', 'vehicle_delivered', 'finalized', 'delivered']);
+    const DECLINED = new Set(['declined', 'declined_conditional', 'blacklisted']);
+
+    let submitted = 0, preApproved = 0, declined = 0;
+    apps.forEach((a) => {
+      const s = String(a.status || '').toLowerCase().trim();
+      if (PRE_APPROVED.has(s)) preApproved += 1;
+      else if (DECLINED.has(s)) declined += 1;
+      else if (SUBMITTED.has(s)) submitted += 1;
+    });
+    const total = submitted + preApproved + declined;
+    return {
+      total,
+      submitted,
+      preApproved,
+      declined,
+      data: [
+        { name: 'Apps Submitted', value: submitted, fill: VIBRANT.electricBlue },
+        { name: 'Pre-Approved', value: preApproved, fill: VIBRANT.neonGreen },
+        { name: 'Declined / Blacklisted', value: declined, fill: VIBRANT.crimson },
+      ],
+    };
+  }, [apps]);
+
+
   // Force light text on dark background — Recharts default tooltip text inherits
   // OS color and renders unreadable against the dark admin theme.
   const tooltipStyle = {
