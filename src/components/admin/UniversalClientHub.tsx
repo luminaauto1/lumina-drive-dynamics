@@ -304,9 +304,12 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
               {leads.length === 0 ? <p className="text-xs text-zinc-600 italic">No active leads.</p> : leads.map(lead => (
                 <div key={lead.id} className="bg-black/50 border border-blue-500/20 p-3 rounded-md mb-2 shadow-[0_0_10px_rgba(59,130,246,0.05)]">
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-bold text-white">{lead.client_name || 'Lead Profile'}</span>
+                    <span className="text-xs font-bold text-white">{lead.deal_headline || lead.client_name || 'Lead Profile'}</span>
                     <span className="text-[9px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30 uppercase font-bold tracking-wider">{lead.status?.replace('_', ' ')}</span>
                   </div>
+                  {lead.deal_headline && lead.client_name && (
+                    <p className="text-[10px] text-zinc-400">{lead.client_name}</p>
+                  )}
                   <p className="text-[10px] text-zinc-500 font-mono">Created: {format(new Date(lead.created_at), 'dd MMM yyyy')}</p>
                 </div>
               ))}
