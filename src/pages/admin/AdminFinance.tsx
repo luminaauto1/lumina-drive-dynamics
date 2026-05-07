@@ -759,7 +759,10 @@ const AdminFinance = () => {
                                 const merged = existingNotes ? `${autoEntry}\n\n${existingNotes}` : autoEntry;
                                 await supabase
                                   .from('finance_applications')
-                                  .update({ notes: merged })
+                                  .update({
+                                    notes: merged,
+                                    ...(role === 'f_and_i' && actingUser?.id ? { assigned_f_and_i: actingUser.id } : {}),
+                                  })
                                   .eq('id', app.id);
                                 await supabase.from('client_audit_logs').insert([{
                                   client_email: app.email || null,
