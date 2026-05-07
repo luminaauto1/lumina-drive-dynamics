@@ -207,7 +207,11 @@ Deno.serve(async (req) => {
             signal: ctrl.signal,
           });
           clearTimeout(timer);
-          tagsApi = { reachable: r.ok, status: r.status, latency_ms: Date.now() - t0 };
+          let upstreamError: string | undefined;
+          if (!r.ok) {
+            try { upstreamError = (await r.text()).slice(0, 300); } catch { /* ignore */ }
+          }
+          tagsApi = { reachable: r.ok, status: r.status, latency_ms: Date.now() - t0, ...(upstreamError ? { error: upstreamError } : {}) };
         } catch (e) {
           tagsApi = { reachable: false, status: null, latency_ms: Date.now() - t0, error: String((e as Error).message ?? e) };
         }
@@ -526,7 +530,9 @@ Deno.serve(async (req) => {
             .filter(Boolean);
           if (matched.length) tagString = Array.from(new Set(matched)).join(', ');
         } else {
-          console.warn('[easysocial-webhook] tags endpoint non-OK', tagsRes.status);
+          let body = '';
+          try { body = (await tagsRes.text()).slice(0, 300); } catch { /* ignore */ }
+          console.warn('[easysocial-webhook] tags endpoint non-OK', tagsRes.status, body);
         }
       } catch (e) {
         console.error('[easysocial-webhook] tag fetch error', e);
