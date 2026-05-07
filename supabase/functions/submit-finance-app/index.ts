@@ -19,6 +19,7 @@ const ALLOWED_FIELDS = new Set([
   "vehicle_id", "selected_vehicle_id", "deposit_amount", "loan_term_months",
   "deal_type", "signature_url", "handover_name", "notes",
   "utm_source", "utm_medium", "utm_campaign", "referrer",
+  "employment_type", "has_6_months_statements", "workplace_cell_no", "business_address_auto",
 ]);
 
 serve(async (req) => {
