@@ -243,6 +243,8 @@ Deno.serve(async (req) => {
     add_tags: addResolved.ids,
   };
 
+  console.log('[tag-sync] PUT', ES_LEAD_UPDATE(phone), 'payload=', payload, 'plan=', plan, 'missing=', { add: addResolved.missing, remove: removeResolved.missing });
+
   let upstreamStatus = 0;
   let upstreamBody: any = null;
   try {
@@ -257,6 +259,7 @@ Deno.serve(async (req) => {
     });
     upstreamStatus = res.status;
     const text = await res.text();
+    console.log('[tag-sync] PUT response status=', upstreamStatus, 'body=', text.slice(0, 600));
     try { upstreamBody = JSON.parse(text); } catch { upstreamBody = text; }
 
     if (res.ok) {
