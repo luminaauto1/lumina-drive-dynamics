@@ -403,12 +403,30 @@ const FinanceApplication = () => {
             job_title: formData.job_title,
             employment_period: getEmploymentPeriod(),
           });
+          if (!formData.employment_type) {
+            setFieldErrors({ employment_type: "Please select your employment type." });
+            toast.error("Please select your employment type before proceeding.");
+            return false;
+          }
+          if (formData.employment_type === "self_employed" && !formData.has_6_months_statements) {
+            setFieldErrors({ has_6_months_statements: "You must confirm you have 6 months of bank statements." });
+            toast.error("Self-employed applicants must confirm 6 months of bank statements.");
+            return false;
+          }
           break;
         case 3:
           financeApplicationStep3Schema.parse({
             kin_name: formData.kin_name,
             kin_contact: formData.kin_contact,
           });
+          {
+            const norm = (s: string) => (s || "").replace(/\D/g, "").replace(/^27/, "0");
+            if (norm(formData.kin_contact) && norm(formData.kin_contact) === norm(formData.phone)) {
+              setFieldErrors({ kin_contact: "Next of Kin number cannot match applicant number." });
+              toast.error("Next of Kin number cannot match applicant number.");
+              return false;
+            }
+          }
           break;
         case 4:
           const totalGross = formData.income_sources.reduce((sum, src) => 
