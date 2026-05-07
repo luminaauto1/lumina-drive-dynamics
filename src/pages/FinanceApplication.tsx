@@ -1175,19 +1175,71 @@ const FinanceApplication = () => {
                       <FieldError field="last_name" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="id_number">ID Number</Label>
+                      <Label htmlFor="id_type">Identification Type *</Label>
+                      <Select
+                        value={formData.id_type}
+                        onValueChange={(v) => {
+                          handleInputChange("id_type", v);
+                          // Clear conditional errors on switch
+                          setFieldErrors((prev) => {
+                            const n = { ...prev };
+                            delete n.id_number;
+                            delete n.nationality;
+                            return n;
+                          });
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ID">SA ID</SelectItem>
+                          <SelectItem value="Passport">Passport</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="id_number">
+                        {formData.id_type === "Passport" ? "Passport Number *" : "ID Number *"}
+                      </Label>
                       <Input
                         id="id_number"
                         value={formData.id_number}
-                        onChange={(e) => handleInputChange("id_number", e.target.value)}
-                        placeholder="e.g., 9001015009087"
+                        onChange={(e) => {
+                          const val = formData.id_type === "ID"
+                            ? e.target.value.replace(/\D/g, "").slice(0, 13)
+                            : e.target.value.slice(0, 20);
+                          handleInputChange("id_number", val);
+                        }}
+                        placeholder={formData.id_type === "Passport" ? "e.g., A12345678" : "e.g., 9001015009087"}
+                        inputMode={formData.id_type === "ID" ? "numeric" : "text"}
+                        className={getErrorClass("id_number")}
                       />
+                      <FieldError field="id_number" />
                     </div>
+                    {formData.id_type === "Passport" && (
+                      <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor="nationality">Nationality *</Label>
+                        <Input
+                          id="nationality"
+                          value={formData.nationality}
+                          onChange={(e) => handleInputChange("nationality", e.target.value)}
+                          placeholder="e.g., Zimbabwean"
+                          className={getErrorClass("nationality")}
+                        />
+                        <FieldError field="nationality" />
+                      </div>
+                    )}
                     <div className="space-y-2">
                       <Label htmlFor="marital_status">Marital Status</Label>
                       <Select
                         value={formData.marital_status}
-                        onValueChange={(v) => handleInputChange("marital_status", v)}
+                        onValueChange={(v) => {
+                          handleInputChange("marital_status", v);
+                          if (v !== "married") {
+                            handleInputChange("marriage_type", "");
+                          }
+                        }}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select" />
@@ -1200,6 +1252,81 @@ const FinanceApplication = () => {
                         </SelectContent>
                       </Select>
                     </div>
+                    {formData.marital_status === "married" && (
+                      <div className="space-y-2">
+                        <Label htmlFor="marriage_type">Marriage Type *</Label>
+                        <Select
+                          value={formData.marriage_type}
+                          onValueChange={(v) => {
+                            handleInputChange("marriage_type", v);
+                            if (v !== "in_community") {
+                              handleInputChange("spouse_first_name", "");
+                              handleInputChange("spouse_surname", "");
+                              handleInputChange("spouse_id", "");
+                              handleInputChange("spouse_contact", "");
+                            }
+                          }}
+                        >
+                          <SelectTrigger className={getErrorClass("marriage_type")}>
+                            <SelectValue placeholder="Select" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="in_community">In Community of Property</SelectItem>
+                            <SelectItem value="out_of_community">Out of Community of Property</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FieldError field="marriage_type" />
+                      </div>
+                    )}
+                    {formData.marital_status === "married" && formData.marriage_type === "in_community" && (
+                      <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-md border border-border/60 bg-muted/20">
+                        <div className="md:col-span-2 text-sm text-muted-foreground">
+                          Spouse Details (required for In Community of Property)
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="spouse_first_name">Spouse First Name *</Label>
+                          <Input
+                            id="spouse_first_name"
+                            value={formData.spouse_first_name}
+                            onChange={(e) => handleInputChange("spouse_first_name", e.target.value)}
+                            className={getErrorClass("spouse_first_name")}
+                          />
+                          <FieldError field="spouse_first_name" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="spouse_surname">Spouse Surname *</Label>
+                          <Input
+                            id="spouse_surname"
+                            value={formData.spouse_surname}
+                            onChange={(e) => handleInputChange("spouse_surname", e.target.value)}
+                            className={getErrorClass("spouse_surname")}
+                          />
+                          <FieldError field="spouse_surname" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="spouse_id">Spouse ID Number *</Label>
+                          <Input
+                            id="spouse_id"
+                            value={formData.spouse_id}
+                            onChange={(e) => handleInputChange("spouse_id", e.target.value.replace(/\D/g, "").slice(0, 13))}
+                            inputMode="numeric"
+                            className={getErrorClass("spouse_id")}
+                          />
+                          <FieldError field="spouse_id" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="spouse_contact">Spouse Contact *</Label>
+                          <Input
+                            id="spouse_contact"
+                            value={formData.spouse_contact}
+                            onChange={(e) => handleInputChange("spouse_contact", e.target.value)}
+                            placeholder="e.g., 082 555 1234"
+                            className={getErrorClass("spouse_contact")}
+                          />
+                          <FieldError field="spouse_contact" />
+                        </div>
+                      </div>
+                    )}
 
                     {/* Anti-Time Wasting Fields */}
                     <div className="space-y-2 md:col-span-2">
