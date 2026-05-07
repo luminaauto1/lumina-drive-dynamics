@@ -88,7 +88,14 @@ const FinanceApplication = () => {
     first_name: "",
     last_name: "",
     id_number: "",
+    id_type: "ID",
+    nationality: "",
     marital_status: "",
+    marriage_type: "",
+    spouse_first_name: "",
+    spouse_surname: "",
+    spouse_id: "",
+    spouse_contact: "",
     gender: "",
     qualification: "",
     email: "",
@@ -197,7 +204,14 @@ const FinanceApplication = () => {
       first_name: data.first_name || "",
       last_name: data.last_name || "",
       id_number: data.id_number || "",
+      id_type: (data as any).id_type || "ID",
+      nationality: (data as any).nationality || "",
       marital_status: data.marital_status || "",
+      marriage_type: (data as any).marriage_type || "",
+      spouse_first_name: (data as any).spouse_first_name || "",
+      spouse_surname: (data as any).spouse_surname || "",
+      spouse_id: (data as any).spouse_id || "",
+      spouse_contact: (data as any).spouse_contact || "",
       gender: data.gender || "",
       qualification: data.qualification || "",
       email: data.email || "",
@@ -463,8 +477,35 @@ const FinanceApplication = () => {
         toast.error("Please enter a valid cell number.");
         return;
       }
-      if (!formData.id_number || formData.id_number.trim().length < 6) {
-        toast.error("ID or Passport number is required.");
+      // Conditional ID/Passport validation
+      const condErrors: Record<string, string> = {};
+      const idVal = (formData.id_number || "").trim();
+      if (!idVal) {
+        condErrors.id_number = "ID or Passport number is required.";
+      } else if (formData.id_type === "ID") {
+        if (!/^\d{13}$/.test(idVal)) condErrors.id_number = "SA ID must be exactly 13 digits.";
+      } else if (formData.id_type === "Passport") {
+        if (!/^[A-Za-z0-9]{4,}$/.test(idVal)) condErrors.id_number = "Enter a valid passport number.";
+        if (!formData.nationality || formData.nationality.trim().length < 2) {
+          condErrors.nationality = "Nationality is required for passport holders.";
+        }
+      }
+      // Conditional marital validation
+      if (formData.marital_status === "married") {
+        if (!formData.marriage_type) {
+          condErrors.marriage_type = "Please select your marriage type.";
+        } else if (formData.marriage_type === "in_community") {
+          if (!formData.spouse_first_name?.trim()) condErrors.spouse_first_name = "Spouse first name is required.";
+          if (!formData.spouse_surname?.trim()) condErrors.spouse_surname = "Spouse surname is required.";
+          if (!formData.spouse_id?.trim()) condErrors.spouse_id = "Spouse ID is required.";
+          if (!formData.spouse_contact?.trim() || formData.spouse_contact.trim().length < 9) {
+            condErrors.spouse_contact = "Valid spouse contact is required.";
+          }
+        }
+      }
+      if (Object.keys(condErrors).length > 0) {
+        setFieldErrors((prev) => ({ ...prev, ...condErrors }));
+        toast.error("Please complete the highlighted fields before proceeding.");
         return;
       }
     }
@@ -624,7 +665,14 @@ const FinanceApplication = () => {
       email: formData.email.trim().toLowerCase(),
       phone: formData.phone.trim().replace(/\s+/g, ''),
       id_number: formData.id_number?.trim() || null,
+      id_type: formData.id_type || 'ID',
+      nationality: formData.id_type === 'Passport' ? (formData.nationality?.trim() || null) : null,
       marital_status: formData.marital_status || null,
+      marriage_type: formData.marital_status === 'married' ? (formData.marriage_type || null) : null,
+      spouse_first_name: formData.marriage_type === 'in_community' ? (formData.spouse_first_name?.trim() || null) : null,
+      spouse_surname: formData.marriage_type === 'in_community' ? (formData.spouse_surname?.trim() || null) : null,
+      spouse_id: formData.marriage_type === 'in_community' ? (formData.spouse_id?.trim() || null) : null,
+      spouse_contact: formData.marriage_type === 'in_community' ? (formData.spouse_contact?.trim() || null) : null,
       gender: formData.gender || null,
       qualification: formData.qualification || null,
       street_address: formData.street_address.trim(),
@@ -873,7 +921,14 @@ const FinanceApplication = () => {
       email: formData.email.trim().toLowerCase() || user.email || '',
       phone: formData.phone.trim().replace(/\s+/g, '') || '',
       id_number: formData.id_number?.trim() || null,
+      id_type: formData.id_type || 'ID',
+      nationality: formData.id_type === 'Passport' ? (formData.nationality?.trim() || null) : null,
       marital_status: formData.marital_status || null,
+      marriage_type: formData.marital_status === 'married' ? (formData.marriage_type || null) : null,
+      spouse_first_name: formData.marriage_type === 'in_community' ? (formData.spouse_first_name?.trim() || null) : null,
+      spouse_surname: formData.marriage_type === 'in_community' ? (formData.spouse_surname?.trim() || null) : null,
+      spouse_id: formData.marriage_type === 'in_community' ? (formData.spouse_id?.trim() || null) : null,
+      spouse_contact: formData.marriage_type === 'in_community' ? (formData.spouse_contact?.trim() || null) : null,
       gender: formData.gender || null,
       qualification: formData.qualification || null,
       street_address: formData.street_address.trim() || null,
@@ -1120,19 +1175,71 @@ const FinanceApplication = () => {
                       <FieldError field="last_name" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="id_number">ID Number</Label>
+                      <Label htmlFor="id_type">Identification Type *</Label>
+                      <Select
+                        value={formData.id_type}
+                        onValueChange={(v) => {
+                          handleInputChange("id_type", v);
+                          // Clear conditional errors on switch
+                          setFieldErrors((prev) => {
+                            const n = { ...prev };
+                            delete n.id_number;
+                            delete n.nationality;
+                            return n;
+                          });
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ID">SA ID</SelectItem>
+                          <SelectItem value="Passport">Passport</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="id_number">
+                        {formData.id_type === "Passport" ? "Passport Number *" : "ID Number *"}
+                      </Label>
                       <Input
                         id="id_number"
                         value={formData.id_number}
-                        onChange={(e) => handleInputChange("id_number", e.target.value)}
-                        placeholder="e.g., 9001015009087"
+                        onChange={(e) => {
+                          const val = formData.id_type === "ID"
+                            ? e.target.value.replace(/\D/g, "").slice(0, 13)
+                            : e.target.value.slice(0, 20);
+                          handleInputChange("id_number", val);
+                        }}
+                        placeholder={formData.id_type === "Passport" ? "e.g., A12345678" : "e.g., 9001015009087"}
+                        inputMode={formData.id_type === "ID" ? "numeric" : "text"}
+                        className={getErrorClass("id_number")}
                       />
+                      <FieldError field="id_number" />
                     </div>
+                    {formData.id_type === "Passport" && (
+                      <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor="nationality">Nationality *</Label>
+                        <Input
+                          id="nationality"
+                          value={formData.nationality}
+                          onChange={(e) => handleInputChange("nationality", e.target.value)}
+                          placeholder="e.g., Zimbabwean"
+                          className={getErrorClass("nationality")}
+                        />
+                        <FieldError field="nationality" />
+                      </div>
+                    )}
                     <div className="space-y-2">
                       <Label htmlFor="marital_status">Marital Status</Label>
                       <Select
                         value={formData.marital_status}
-                        onValueChange={(v) => handleInputChange("marital_status", v)}
+                        onValueChange={(v) => {
+                          handleInputChange("marital_status", v);
+                          if (v !== "married") {
+                            handleInputChange("marriage_type", "");
+                          }
+                        }}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select" />
@@ -1145,6 +1252,81 @@ const FinanceApplication = () => {
                         </SelectContent>
                       </Select>
                     </div>
+                    {formData.marital_status === "married" && (
+                      <div className="space-y-2">
+                        <Label htmlFor="marriage_type">Marriage Type *</Label>
+                        <Select
+                          value={formData.marriage_type}
+                          onValueChange={(v) => {
+                            handleInputChange("marriage_type", v);
+                            if (v !== "in_community") {
+                              handleInputChange("spouse_first_name", "");
+                              handleInputChange("spouse_surname", "");
+                              handleInputChange("spouse_id", "");
+                              handleInputChange("spouse_contact", "");
+                            }
+                          }}
+                        >
+                          <SelectTrigger className={getErrorClass("marriage_type")}>
+                            <SelectValue placeholder="Select" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="in_community">In Community of Property</SelectItem>
+                            <SelectItem value="out_of_community">Out of Community of Property</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FieldError field="marriage_type" />
+                      </div>
+                    )}
+                    {formData.marital_status === "married" && formData.marriage_type === "in_community" && (
+                      <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-md border border-border/60 bg-muted/20">
+                        <div className="md:col-span-2 text-sm text-muted-foreground">
+                          Spouse Details (required for In Community of Property)
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="spouse_first_name">Spouse First Name *</Label>
+                          <Input
+                            id="spouse_first_name"
+                            value={formData.spouse_first_name}
+                            onChange={(e) => handleInputChange("spouse_first_name", e.target.value)}
+                            className={getErrorClass("spouse_first_name")}
+                          />
+                          <FieldError field="spouse_first_name" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="spouse_surname">Spouse Surname *</Label>
+                          <Input
+                            id="spouse_surname"
+                            value={formData.spouse_surname}
+                            onChange={(e) => handleInputChange("spouse_surname", e.target.value)}
+                            className={getErrorClass("spouse_surname")}
+                          />
+                          <FieldError field="spouse_surname" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="spouse_id">Spouse ID Number *</Label>
+                          <Input
+                            id="spouse_id"
+                            value={formData.spouse_id}
+                            onChange={(e) => handleInputChange("spouse_id", e.target.value.replace(/\D/g, "").slice(0, 13))}
+                            inputMode="numeric"
+                            className={getErrorClass("spouse_id")}
+                          />
+                          <FieldError field="spouse_id" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="spouse_contact">Spouse Contact *</Label>
+                          <Input
+                            id="spouse_contact"
+                            value={formData.spouse_contact}
+                            onChange={(e) => handleInputChange("spouse_contact", e.target.value)}
+                            placeholder="e.g., 082 555 1234"
+                            className={getErrorClass("spouse_contact")}
+                          />
+                          <FieldError field="spouse_contact" />
+                        </div>
+                      </div>
+                    )}
 
                     {/* Anti-Time Wasting Fields */}
                     <div className="space-y-2 md:col-span-2">

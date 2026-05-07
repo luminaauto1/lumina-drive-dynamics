@@ -522,6 +522,7 @@ export type Database = {
           has_drivers_license: boolean | null
           id: string
           id_number: string | null
+          id_type: string | null
           internal_status: string | null
           is_archived: boolean
           job_title: string | null
@@ -531,7 +532,9 @@ export type Database = {
           lead_id: string | null
           loan_term_months: number | null
           marital_status: string | null
+          marriage_type: string | null
           monthly_income: number | null
+          nationality: string | null
           net_salary: number | null
           notes: string | null
           phone: string
@@ -542,6 +545,10 @@ export type Database = {
           selected_vehicle_id: string | null
           signature_url: string | null
           source_of_funds: string | null
+          spouse_contact: string | null
+          spouse_first_name: string | null
+          spouse_id: string | null
+          spouse_surname: string | null
           status: string
           street_address: string | null
           submission_source: string
@@ -586,6 +593,7 @@ export type Database = {
           has_drivers_license?: boolean | null
           id?: string
           id_number?: string | null
+          id_type?: string | null
           internal_status?: string | null
           is_archived?: boolean
           job_title?: string | null
@@ -595,7 +603,9 @@ export type Database = {
           lead_id?: string | null
           loan_term_months?: number | null
           marital_status?: string | null
+          marriage_type?: string | null
           monthly_income?: number | null
+          nationality?: string | null
           net_salary?: number | null
           notes?: string | null
           phone: string
@@ -606,6 +616,10 @@ export type Database = {
           selected_vehicle_id?: string | null
           signature_url?: string | null
           source_of_funds?: string | null
+          spouse_contact?: string | null
+          spouse_first_name?: string | null
+          spouse_id?: string | null
+          spouse_surname?: string | null
           status?: string
           street_address?: string | null
           submission_source?: string
@@ -650,6 +664,7 @@ export type Database = {
           has_drivers_license?: boolean | null
           id?: string
           id_number?: string | null
+          id_type?: string | null
           internal_status?: string | null
           is_archived?: boolean
           job_title?: string | null
@@ -659,7 +674,9 @@ export type Database = {
           lead_id?: string | null
           loan_term_months?: number | null
           marital_status?: string | null
+          marriage_type?: string | null
           monthly_income?: number | null
+          nationality?: string | null
           net_salary?: number | null
           notes?: string | null
           phone?: string
@@ -670,6 +687,10 @@ export type Database = {
           selected_vehicle_id?: string | null
           signature_url?: string | null
           source_of_funds?: string | null
+          spouse_contact?: string | null
+          spouse_first_name?: string | null
+          spouse_id?: string | null
+          spouse_surname?: string | null
           status?: string
           street_address?: string | null
           submission_source?: string

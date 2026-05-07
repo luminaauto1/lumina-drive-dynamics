@@ -5,8 +5,11 @@ import { buildCorsHeaders, checkInternalKey } from "../_shared/publicGuard.ts";
 // Allowlist: only these fields can come from the client. Status / access_token /
 // user_id are always set server-side.
 const ALLOWED_FIELDS = new Set([
-  "first_name", "last_name", "full_name", "email", "phone",
-  "id_number", "gender", "marital_status", "kin_name", "kin_contact",
+    "first_name", "last_name", "full_name", "email", "phone",
+    "id_number", "id_type", "nationality",
+    "gender", "marital_status", "marriage_type",
+    "spouse_first_name", "spouse_surname", "spouse_id", "spouse_contact",
+    "kin_name", "kin_contact",
   "street_address", "area_code", "qualification", "has_drivers_license",
   "credit_score_status", "bank_name", "account_type", "account_number",
   "employment_status", "employer_name", "employer_address", "employer_postal_code",

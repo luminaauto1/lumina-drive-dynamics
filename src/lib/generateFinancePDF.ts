@@ -93,7 +93,12 @@ export const generateFinancePDF = async (application: FinanceApplication, vehicl
   
   addField('Full Name', `${application.first_name || ''} ${application.last_name || ''}`);
   yPos += lineHeight;
-  addField('ID Number', application.id_number);
+  const idType = (application as any).id_type || 'ID';
+  addField(idType === 'Passport' ? 'Passport No.' : 'ID Number', application.id_number);
+  if (idType === 'Passport') {
+    yPos += lineHeight;
+    addField('Nationality', (application as any).nationality);
+  }
   yPos += lineHeight;
   addField('Email', application.email);
   yPos += lineHeight;
@@ -104,6 +109,31 @@ export const generateFinancePDF = async (application: FinanceApplication, vehicl
   doc.text('Marital Status:', 100, yPos);
   doc.setTextColor(textColor);
   doc.text(String(application.marital_status || 'N/A'), 135, yPos);
+
+  const marriageType = (application as any).marriage_type;
+  if (application.marital_status === 'married' && marriageType) {
+    yPos += lineHeight;
+    const mtLabel = marriageType === 'in_community' ? 'In Community of Property'
+      : marriageType === 'out_of_community' ? 'Out of Community of Property'
+      : marriageType;
+    addField('Marriage Type', mtLabel);
+  }
+  if (marriageType === 'in_community') {
+    yPos += lineHeight + 2;
+    doc.setFontSize(11);
+    doc.setTextColor(textColor);
+    doc.text('Spouse Details', leftMargin, yPos);
+    yPos += 3;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(leftMargin, yPos, 190, yPos);
+    yPos += lineHeight;
+    doc.setFontSize(10);
+    addField('Spouse Name', `${(application as any).spouse_first_name || ''} ${(application as any).spouse_surname || ''}`.trim());
+    yPos += lineHeight;
+    addField('Spouse ID', (application as any).spouse_id);
+    yPos += lineHeight;
+    addField('Spouse Contact', formatSAPhoneForPDF((application as any).spouse_contact));
+  }
 
   yPos += lineHeight;
   const licenseValue =
