@@ -35,6 +35,7 @@ import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { getStoredAttribution } from "@/hooks/useUTMTracking";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { trackLeadConversion } from "@/lib/pixelTracking";
 import { toast } from "sonner";
 import {
@@ -57,6 +58,8 @@ const STEPS = [
 
 const FinanceApplication = () => {
   const { user, loading } = useAuth();
+  const { data: siteSettings } = useSiteSettings();
+  const requireSignature = (siteSettings as any)?.require_application_signature ?? true;
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const vehicleId = searchParams.get("vehicle");
@@ -1914,14 +1917,21 @@ const FinanceApplication = () => {
                       </Label>
                     </div>
                     
-                    {/* Signature Pad */}
-                    {formData.popia_consent && (
+                    {/* Signature Pad — only when admin requires it */}
+                    {formData.popia_consent && requireSignature && (
                       <div className="pt-4 border-t border-border">
                         <Label className="text-sm font-medium mb-3 block">Digital Signature</Label>
                         <SignaturePad 
                           onSave={(dataUrl) => handleInputChange("signature_url", dataUrl)}
                           existingSignature={formData.signature_url}
                         />
+                      </div>
+                    )}
+                    {formData.popia_consent && !requireSignature && (
+                      <div className="pt-4 border-t border-border">
+                        <p className="text-xs text-muted-foreground italic">
+                          Signature waived by administration.
+                        </p>
                       </div>
                     )}
                   </div>

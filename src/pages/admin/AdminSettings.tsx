@@ -279,6 +279,7 @@ const AdminSettings = () => {
       physical_address: '',
       show_finance_tab: true,
       monthly_sales_target: 10,
+      require_application_signature: true,
     },
   });
 
@@ -313,6 +314,7 @@ const AdminSettings = () => {
         physical_address: settings.physical_address || '',
         show_finance_tab: settings.show_finance_tab ?? true,
         monthly_sales_target: settings.monthly_sales_target || 10,
+        require_application_signature: (settings as any).require_application_signature ?? true,
       });
     }
   }, [settings, reset]);
@@ -338,6 +340,7 @@ const AdminSettings = () => {
   const showPhysicalLocation = watch('show_physical_location');
   const showFinanceTab = watch('show_finance_tab');
   const showTradeIn = watch('show_trade_in' as any) ?? true;
+  const requireSignature = watch('require_application_signature' as any) ?? true;
 
   if (isLoading) {
     return (
@@ -831,6 +834,19 @@ const AdminSettings = () => {
                   <Switch 
                     checked={showTradeIn}
                     onCheckedChange={(checked) => setValue('show_trade_in' as any, checked)}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                  <div>
+                    <Label>Require Client Signature on Finance Apps</Label>
+                    <p className="text-sm text-muted-foreground">
+                      When off, applicants can submit without providing a digital signature.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={requireSignature}
+                    onCheckedChange={(checked) => setValue('require_application_signature' as any, checked, { shouldDirty: true })}
                   />
                 </div>
 

@@ -407,7 +407,7 @@ export const generateFinancePDF = async (application: FinanceApplication, vehicl
   } else {
     doc.setFontSize(8);
     doc.setTextColor(mutedColor);
-    doc.text('[Signed Digitally - Image Pending]', leftMargin, yPos);
+    doc.text('No Signature Required / Provided', leftMargin, yPos);
     yPos += 10;
   }
   

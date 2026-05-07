@@ -1247,6 +1247,7 @@ export type Database = {
           physical_address: string | null
           primary_email: string
           primary_phone: string
+          require_application_signature: boolean
           sales_reps: Json | null
           secondary_phone: string | null
           show_finance_tab: boolean
@@ -1281,6 +1282,7 @@ export type Database = {
           physical_address?: string | null
           primary_email?: string
           primary_phone?: string
+          require_application_signature?: boolean
           sales_reps?: Json | null
           secondary_phone?: string | null
           show_finance_tab?: boolean
@@ -1315,6 +1317,7 @@ export type Database = {
           physical_address?: string | null
           primary_email?: string
           primary_phone?: string
+          require_application_signature?: boolean
           sales_reps?: Json | null
           secondary_phone?: string | null
           show_finance_tab?: boolean
@@ -1670,6 +1673,7 @@ export type Database = {
           physical_address: string | null
           primary_email: string | null
           primary_phone: string | null
+          require_application_signature: boolean | null
           secondary_phone: string | null
           show_finance_tab: boolean | null
           show_physical_location: boolean | null
@@ -1702,6 +1706,7 @@ export type Database = {
           physical_address?: string | null
           primary_email?: string | null
           primary_phone?: string | null
+          require_application_signature?: boolean | null
           secondary_phone?: string | null
           show_finance_tab?: boolean | null
           show_physical_location?: boolean | null
@@ -1734,6 +1739,7 @@ export type Database = {
           physical_address?: string | null
           primary_email?: string | null
           primary_phone?: string | null
+          require_application_signature?: boolean | null
           secondary_phone?: string | null
           show_finance_tab?: boolean | null
           show_physical_location?: boolean | null
