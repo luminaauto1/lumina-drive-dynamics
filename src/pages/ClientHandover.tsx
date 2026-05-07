@@ -19,9 +19,6 @@ const ClientHandover = () => {
     const fetchData = async () => {
       if (!dealId) return;
 
-      const settingsRes = await supabase.from('public_site_settings' as any).select('*').limit(1).maybeSingle();
-      if (settingsRes.data) setSettings(settingsRes.data);
-
       try {
         const { publicApiHeaders } = await import('@/lib/publicApi');
         const { data, error } = await supabase.functions.invoke('get-handover-data', {
@@ -33,9 +30,15 @@ const ClientHandover = () => {
           setErrorMsg(error?.message || "Failed to load handover data");
         } else {
           setDeal(data);
+          if (data.site_settings) setSettings(data.site_settings);
         }
       } catch (err: any) {
         setErrorMsg(err.message || "Failed to load");
+      }
+
+      if (!settings) {
+        const settingsRes = await supabase.from('public_site_settings' as any).select('*').limit(1).maybeSingle();
+        if (settingsRes.data) setSettings(settingsRes.data);
       }
 
       setLoading(false);
