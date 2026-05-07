@@ -208,10 +208,17 @@ const AdminLeadAnalytics = () => {
   }, [leads, submittedKeys]);
 
   // Headline KPIs
+  // Conversion = leads in this range that we matched to a submitted app,
+  // divided by total leads. Using totalApps/totalLeads is wrong because
+  // apps can come from leads OUTSIDE the date window (or from sources that
+  // never created a lead row), producing >100% nonsense.
   const totalLeads = leads.length;
   const totalApps = apps.length;
-  const totalAbandoned = enrichedLeads.filter((l) => !l._submitted).length;
-  const conversion = totalLeads > 0 ? (totalApps / totalLeads) * 100 : 0;
+  const submittedLeadCount = enrichedLeads.filter((l) => l._submitted).length;
+  const totalAbandoned = totalLeads - submittedLeadCount;
+  const conversion = totalLeads > 0
+    ? Math.min(100, (submittedLeadCount / totalLeads) * 100)
+    : 0;
 
   // Drop-off funnel: by deepest step reached among non-submitted leads
   const funnelData = useMemo(() => {
