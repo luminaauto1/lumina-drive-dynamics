@@ -2,9 +2,7 @@
 // Strictly isolated from notify-* functions. Safe to call from frontend after a status update.
 //
 // Request body: { phone_number: string; new_status: string; old_status?: string }
-// Response:     { ok: boolean; intended: { remove: string[]; add: string[] }; upstream?: any }
-
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+// Response:     { ok: boolean; intended: { remove: number[]; add: number[] }; upstream?: any }
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,21 +10,27 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-// Map a CRM finance_application status -> EasySocial tag label.
-// Tag IDs are resolved at runtime from GET /tags so we don't hardcode internal IDs.
-const STATUS_TO_TAG: Record<string, string> = {
-  pending: 'App Submitted',
-  validations_pending: 'App Submitted',
-  approved: 'Approved',
-  vehicle_selected: 'Approved',
-  declined: 'Declined',
-  needs_revision: 'Revision Needed',
-  revision_submitted: 'App Submitted',
+// EasySocial Tag IDs (provided by admin)
+const TAG_IDS = {
+  NEW_LEAD: 1346,
+  APP_SUBMITTED: 1332,
+  BLACKLISTED: 1316,
+  DECLINED: 1334,
+} as const;
+
+// Map a CRM status -> EasySocial Tag ID to add. New Lead is always removed.
+const STATUS_TO_TAG_ID: Record<string, number> = {
+  pending: TAG_IDS.APP_SUBMITTED,
+  application_submitted: TAG_IDS.APP_SUBMITTED,
+  sent_to_banks: TAG_IDS.APP_SUBMITTED,
+  validations_pending: TAG_IDS.APP_SUBMITTED,
+  revision_submitted: TAG_IDS.APP_SUBMITTED,
+  declined: TAG_IDS.DECLINED,
+  declined_conditional: TAG_IDS.DECLINED,
+  blacklisted: TAG_IDS.BLACKLISTED,
 };
 
-const NEW_LEAD_TAG = 'New Lead';
-
-const ES_BASE = 'https://api.easysocial.in/api/v1';
+const ES_ENDPOINT = (phone: string) => `https://client-api.e-so.in/api/v1/leads/${phone}/update`;
 
 interface SyncBody {
   phone_number?: string;
@@ -34,10 +38,20 @@ interface SyncBody {
   old_status?: string;
 }
 
-const normalizePhone = (raw: unknown): string | null => {
+/**
+ * Validate and clean phone number to EasySocial international format.
+ * - Strip whitespace and non-numeric chars.
+ * - If starts with 0, replace leading 0 with 27 (South Africa).
+ * Returns null if the result isn't a plausible international number.
+ */
+const validateAndCleanPhoneNumber = (raw: unknown): string | null => {
   if (raw === null || raw === undefined) return null;
-  const digits = String(raw).replace(/\D/g, '');
-  return digits.length >= 6 ? digits : null;
+  let digits = String(raw).replace(/\D/g, '');
+  if (!digits) return null;
+  if (digits.startsWith('0')) digits = `27${digits.slice(1)}`;
+  // Reject obvious garbage; SA mobile numbers in international form are 11 digits.
+  if (digits.length < 10 || digits.length > 15) return null;
+  return digits;
 };
 
 Deno.serve(async (req) => {
@@ -52,104 +66,75 @@ Deno.serve(async (req) => {
   let body: SyncBody = {};
   try { body = await req.json(); } catch { /* ignore */ }
 
-  const phone = normalizePhone(body.phone_number);
+  const phone = validateAndCleanPhoneNumber(body.phone_number);
   const newStatus = String(body.new_status || '').toLowerCase().trim();
 
   if (!phone || !newStatus) {
-    return new Response(JSON.stringify({ error: 'missing phone_number or new_status' }), {
+    return new Response(JSON.stringify({ error: 'missing or invalid phone_number / new_status' }), {
       status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
-  const targetTag = STATUS_TO_TAG[newStatus];
-  if (!targetTag) {
+  const targetTagId = STATUS_TO_TAG_ID[newStatus];
+  if (!targetTagId) {
+    console.log('[tag-sync] no mapping for status, skipping', { phone, newStatus });
     return new Response(JSON.stringify({ ok: true, skipped: 'no_tag_mapping', status: newStatus }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
-  const intended = { remove: [NEW_LEAD_TAG], add: [targetTag] };
+  const intended = { remove: [TAG_IDS.NEW_LEAD], add: [targetTagId] };
   const esKey = Deno.env.get('EASYSOCIAL_API_KEY');
 
-  // Audit row in webhook_events for traceability (best-effort).
-  try {
-    const sb = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    );
-    await sb.from('webhook_events').insert({
-      source: 'easysocial-tag-sync',
-      event_id: `${phone}:${newStatus}:${Date.now()}`,
-    });
-  } catch (e) {
-    console.warn('[tag-sync] audit insert failed', e);
-  }
-
   if (!esKey) {
-    console.log('[tag-sync] INTENT (no API key configured)', { phone, intended });
-    return new Response(JSON.stringify({ ok: true, intended, note: 'EASYSOCIAL_API_KEY not set' }), {
+    console.warn('[tag-sync] EASYSOCIAL_API_KEY not configured');
+    return new Response(JSON.stringify({ ok: false, intended, error: 'EASYSOCIAL_API_KEY not set' }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
-  // Resolve EasySocial lead id from our leads table by phone.
-  let easysocialId: string | null = null;
+  const url = ES_ENDPOINT(phone);
+  const payload = {
+    remove_tags: intended.remove,
+    add_tags: intended.add,
+    tags: intended.add, // include both per common REST conventions
+  };
+
+  let upstreamStatus = 0;
+  let upstreamBody: any = null;
   try {
-    const sb = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    );
-    const { data } = await sb
-      .from('leads')
-      .select('easysocial_id')
-      .eq('phone_number', phone)
-      .maybeSingle();
-    easysocialId = (data as any)?.easysocial_id ?? null;
-  } catch (e) {
-    console.warn('[tag-sync] easysocial_id lookup failed', e);
-  }
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${esKey}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+    upstreamStatus = res.status;
+    const text = await res.text();
+    try { upstreamBody = JSON.parse(text); } catch { upstreamBody = text; }
 
-  // Best-effort outbound push. Endpoint URL is a placeholder until EasySocial
-  // confirms the exact "Update Lead Tags" route. Wrapped in try/catch so our
-  // CRM never blocks on upstream failures.
-  const upstream: { remove?: any; add?: any; error?: string; intent_only?: boolean } = {};
-  if (!easysocialId) {
-    upstream.intent_only = true;
-    console.log('[tag-sync] INTENT (no easysocial_id mapped)', { phone, intended });
-  } else {
-    try {
-      const url = `${ES_BASE}/leads/${encodeURIComponent(easysocialId)}/tags`;
-
-      const removeRes = await fetch(url, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${esKey}`,
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify({ tags: intended.remove }),
-      }).catch((e) => ({ ok: false, status: 0, _err: String(e) } as any));
-      upstream.remove = { status: (removeRes as any).status ?? null };
-
-      const addRes = await fetch(url, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${esKey}`,
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify({ tags: intended.add }),
-      }).catch((e) => ({ ok: false, status: 0, _err: String(e) } as any));
-      upstream.add = { status: (addRes as any).status ?? null };
-
-      console.log('[tag-sync] pushed', { phone, easysocialId, intended, upstream });
-    } catch (e) {
-      upstream.error = String((e as Error).message ?? e);
-      console.error('[tag-sync] upstream error', upstream.error);
+    if (res.ok) {
+      console.log('[tag-sync] SUCCESS', { phone, newStatus, intended, upstreamStatus, upstreamBody });
+    } else {
+      console.error('[tag-sync] UPSTREAM ERROR', { phone, newStatus, intended, upstreamStatus, upstreamBody });
     }
+  } catch (e) {
+    console.error('[tag-sync] fetch failed', { phone, error: String((e as Error).message ?? e) });
+    return new Response(JSON.stringify({ ok: false, intended, error: String((e as Error).message ?? e) }), {
+      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
-  return new Response(JSON.stringify({ ok: true, easysocial_id: easysocialId, intended, upstream }), {
-    status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
+  return new Response(
+    JSON.stringify({
+      ok: upstreamStatus >= 200 && upstreamStatus < 300,
+      phone,
+      intended,
+      upstream: { status: upstreamStatus, body: upstreamBody },
+    }),
+    { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+  );
 });
