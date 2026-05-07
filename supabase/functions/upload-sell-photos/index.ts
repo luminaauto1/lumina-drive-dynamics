@@ -79,8 +79,13 @@ serve(async (req: Request) => {
     );
 
     const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 100);
-    // Restrict anonymous uploads to the inbound-temp/ folder per security policy
-    const filePath = `inbound-temp/${Date.now()}-${crypto.randomUUID()}-${sanitizedName}`;
+    // Group anonymous uploads into per-session UUID subfolders to prevent
+    // cross-submission enumeration from the admin file viewer.
+    const sessionId =
+      (formData.get("sessionId") as string | null)?.match(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      )?.[0] ?? crypto.randomUUID();
+    const filePath = `inbound-temp/${sessionId}/${Date.now()}-${crypto.randomUUID()}-${sanitizedName}`;
 
     const fileBuffer = await file.arrayBuffer();
     const { error: uploadError } = await supabaseAdmin.storage
