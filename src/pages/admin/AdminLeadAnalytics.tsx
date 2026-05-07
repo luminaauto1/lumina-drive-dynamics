@@ -617,31 +617,7 @@ const AdminLeadAnalytics = () => {
               )}
             </ChartCard>
 
-            {/* Lead Quality by Platform — sourced from EasySocial bot_outcome tags */}
-            <ChartCard icon={ShieldAlert} title="Lead Quality by Platform" subtitle="Bot-classified outcomes per traffic source (TikTok, Facebook, etc.)">
-              {platformQualityData.data.length === 0 ? (
-                <EmptyState />
-              ) : (
-                <ResponsiveContainer width="100%" height={320}>
-                  <BarChart data={platformQualityData.data} margin={{ top: 10, right: 16, left: -8, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
-                    <XAxis dataKey="platform" stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                    <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
-                    <Legend wrapperStyle={{ fontSize: 11, color: MUTED }} />
-                    {platformQualityData.outcomeKeys.map((key, i) => (
-                      <Bar
-                        key={key}
-                        dataKey={key}
-                        stackId="q"
-                        fill={VIBRANT_PALETTE[i % VIBRANT_PALETTE.length]}
-                        radius={i === platformQualityData.outcomeKeys.length - 1 ? [6, 6, 0, 0] : [0, 0, 0, 0]}
-                      />
-                    ))}
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </ChartCard>
+            {/* Lead Quality by Platform removed — depended on EasySocial inbound tag data that is not currently flowing. */}
 
             {/* Message Time-Matrix + Origins Pie */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
