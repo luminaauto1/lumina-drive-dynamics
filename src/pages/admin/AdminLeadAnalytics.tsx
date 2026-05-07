@@ -692,20 +692,44 @@ const AdminLeadAnalytics = () => {
               )}
             </ChartCard>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <ChartCard icon={TrendingUp} title="Drop-off Funnel" subtitle="Where applicants abandon">
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={funnelData} margin={{ top: 10, right: 16, left: -8, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
-                    <XAxis dataKey="step" stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                    <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
-                    <Bar dataKey="Abandoned" radius={[6, 6, 0, 0]}>
-                      {funnelData.map((_, i) => (
-                        <Cell key={i} fill={VIBRANT_PALETTE[i % VIBRANT_PALETTE.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+              <ChartCard icon={TrendingUp} title="Pipeline Funnel" subtitle="Leads → Apps → Bank stages">
+                {!funnelHasData ? (
+                  <div className="h-[280px] flex items-center justify-center text-sm text-muted-foreground">
+                    No data available for this date range.
+                  </div>
+                ) : (
+                  <div className="space-y-2 pt-2">
+                    {funnelData.map((row, i) => {
+                      const max = funnelData[0].value || 1;
+                      const widthPct = Math.max(8, (row.value / max) * 100);
+                      return (
+                        <div key={row.stage} className="space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-foreground/90 font-medium">{row.stage}</span>
+                            <span className="text-muted-foreground tabular-nums">
+                              {row.value}
+                              {i > 0 && (
+                                <span className="ml-2 text-[10px] text-muted-foreground/70">
+                                  {row.conversion.toFixed(1)}%
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                          <div className="h-7 w-full rounded-md bg-muted/30 overflow-hidden border border-border/50">
+                            <div
+                              className="h-full rounded-md transition-all"
+                              style={{
+                                width: `${widthPct}%`,
+                                background: `linear-gradient(90deg, ${row.fill}33, ${row.fill})`,
+                                boxShadow: `0 0 12px ${row.fill}40`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </ChartCard>
 
               <ChartCard icon={Activity} title="Lead Velocity" subtitle={`Volume over ${RANGE_LABELS[range].toLowerCase()}`}>
