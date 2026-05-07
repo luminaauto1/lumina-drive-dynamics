@@ -108,6 +108,36 @@ export type Database = {
         }
         Relationships: []
       }
+      application_drafts: {
+        Row: {
+          created_at: string
+          id: string
+          last_completed_step: string
+          session_id: string
+          step_number: number | null
+          submitted: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_completed_step: string
+          session_id: string
+          step_number?: number | null
+          submitted?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_completed_step?: string
+          session_id?: string
+          step_number?: number | null
+          submitted?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       application_matches: {
         Row: {
           application_id: string
