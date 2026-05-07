@@ -1022,6 +1022,24 @@ const FinanceApplication = () => {
         console.error("Failed to trigger WhatsApp notification flow", err);
       }
 
+      // Mark draft as submitted so it's excluded from abandonment chart.
+      try {
+        supabase
+          .from('application_drafts' as any)
+          .upsert(
+            {
+              session_id: draftSessionRef.current,
+              last_completed_step: 'Submitted',
+              step_number: 5,
+              submitted: true,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'session_id' }
+          )
+          .then(() => {})
+          .then(undefined, () => {});
+      } catch { /* noop */ }
+
       setIsSubmitted(true);
       toast.success("Application submitted successfully!");
     }
