@@ -58,6 +58,8 @@ const STEPS = [
 
 const FinanceApplication = () => {
   const { user, loading } = useAuth();
+  const { data: siteSettings } = useSiteSettings();
+  const requireSignature = (siteSettings as any)?.require_application_signature ?? true;
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const vehicleId = searchParams.get("vehicle");
