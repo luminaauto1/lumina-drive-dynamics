@@ -552,17 +552,24 @@ Deno.serve(async (req) => {
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       );
 
+      // Tag precedence: EasySocial Tags API → referral-derived platform → existing source.
+      const resolvedSource =
+        tagString ??
+        (derivedPlatform && derivedPlatform !== 'Direct/Unknown' ? derivedPlatform : null) ??
+        lead.traffic_source ??
+        null;
+
       const { error } = await supabase
         .from('leads')
         .upsert(
           {
             phone_number: lead.phone_number,
-            traffic_source: tagString ?? lead.traffic_source,
+            traffic_source: resolvedSource,
             bot_outcome: lead.bot_outcome,
             client_phone: lead.client_phone ?? lead.phone_number,
             client_name: lead.client_name,
             client_email: lead.client_email,
-            source: tagString ?? lead.traffic_source ?? 'easysocial',
+            source: resolvedSource ?? 'easysocial',
             updated_at: new Date().toISOString(),
           },
           { onConflict: 'phone_number' }
