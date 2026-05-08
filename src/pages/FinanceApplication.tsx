@@ -1073,6 +1073,7 @@ const FinanceApplication = () => {
           .then(() => {})
           .then(undefined, () => {});
       } catch { /* noop */ }
+      try { sessionStorage.removeItem('lumina_draft_sid'); } catch {}
 
       setIsSubmitted(true);
       toast.success("Application submitted successfully!");
