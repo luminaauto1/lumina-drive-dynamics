@@ -1030,20 +1030,12 @@ const FinanceApplication = () => {
         console.error("Failed to trigger WhatsApp notification flow", err);
       }
 
-      // Mark draft as submitted so it's excluded from abandonment chart.
+      // Delete draft entirely so the abandonment chart only counts true dropoffs.
       try {
         supabase
           .from('application_drafts' as any)
-          .upsert(
-            {
-              session_id: draftSessionRef.current,
-              last_completed_step: 'Submitted',
-              step_number: 5,
-              submitted: true,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: 'session_id' }
-          )
+          .delete()
+          .match({ session_id: draftSessionRef.current })
           .then(() => {})
           .then(undefined, () => {});
       } catch { /* noop */ }
