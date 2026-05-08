@@ -821,9 +821,12 @@ const AdminLeadAnalytics = () => {
                         <Cell key={i} fill={row.fill} />
                       ))}
                       <LabelList
-                        dataKey="rate"
+                        dataKey="abandoned"
                         position="top"
-                        formatter={(v: any) => `${v}%`}
+                        formatter={(v: any, entry: any) => {
+                          const rate = entry?.rate ?? 0;
+                          return `${v} • ${rate}%`;
+                        }}
                         style={{ fill: MUTED, fontSize: 11, fontWeight: 600 }}
                       />
                     </Bar>
