@@ -1048,17 +1048,35 @@ const FinanceApplication = () => {
             if (error) console.error("WhatsApp Edge Function error:", error);
           });
 
-          // Parallel: strip 'New Lead' tag via EasySocial state machine.
-          // Passing 'application_submitted' triggers removal of New Lead + App Received
-          // and adds 'App Submitted' per the tag-sync hierarchy.
-          supabase.functions.invoke('easysocial-tag-sync', {
-            body: {
-              phone_number: formData.phone,
-              new_status: 'application_submitted',
-            },
-          }).then(({ error }) => {
-            if (error) console.error("EasySocial tag-sync error:", error);
-          });
+          // Parallel: tag-sync state machine.
+          // 'application_submitted' → adds 'App Submitted', removes 'New Lead' + 'Application Received'.
+          try {
+            const applicantPhone = (formData.phone || '').toString().trim();
+            if (!applicantPhone) {
+              console.error("[easysocial-tag-sync] aborted: missing applicant phone");
+            } else {
+              console.log('[easysocial-tag-sync] invoking', { phone_number: applicantPhone, new_status: 'application_submitted' });
+              supabase.functions.invoke('easysocial-tag-sync', {
+                body: {
+                  phone_number: applicantPhone,
+                  new_status: 'application_submitted',
+                },
+              }).then(({ data, error }) => {
+                if (error) {
+                  console.error("[easysocial-tag-sync] invoke error:", error);
+                } else {
+                  console.log('[easysocial-tag-sync] response', data);
+                  if (data?.ok === false) {
+                    console.error('[easysocial-tag-sync] upstream failure:', data);
+                  }
+                }
+              }).catch((err) => {
+                console.error("[easysocial-tag-sync] thrown error:", err);
+              });
+            }
+          } catch (tagSyncErr) {
+            console.error("[easysocial-tag-sync] sync block crashed:", tagSyncErr);
+          }
         }
       } catch (err) {
         console.error("Failed to trigger WhatsApp notification flow", err);
