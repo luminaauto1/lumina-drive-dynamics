@@ -280,20 +280,21 @@ const AdminLeadAnalytics = () => {
   // excluding any sessions that ultimately submitted the application.
   const abandonmentData = useMemo(() => {
     const STEP_LABELS: Record<number, string> = {
+      0: 'Step 0: Landed',
       1: 'Step 1: Personal Details',
       2: 'Step 2: Employment',
       3: 'Step 3: Financials',
       4: 'Step 4: Vehicle Preference',
       5: 'Step 5: Review & Submit',
     };
-    const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    const counts: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     drafts.forEach((d) => {
       if (d.submitted) return;
       const n = d.step_number ?? 0;
-      if (n >= 1 && n <= 5) counts[n] += 1;
+      if (n >= 0 && n <= 5) counts[n] += 1;
     });
     const totalAbandoned = Object.values(counts).reduce((a, b) => a + b, 0);
-    return [1, 2, 3, 4, 5].map((n) => {
+    return [0, 1, 2, 3, 4, 5].map((n) => {
       const abandoned = counts[n];
       const rate = totalAbandoned > 0 ? (abandoned / totalAbandoned) * 100 : 0;
       return {
@@ -301,7 +302,7 @@ const AdminLeadAnalytics = () => {
         shortStep: `Step ${n}`,
         abandoned,
         rate: Math.round(rate * 10) / 10,
-        fill: VIBRANT_PALETTE[(n - 1) % VIBRANT_PALETTE.length],
+        fill: VIBRANT_PALETTE[n % VIBRANT_PALETTE.length],
       };
     });
   }, [drafts]);
