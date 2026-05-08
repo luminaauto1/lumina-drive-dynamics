@@ -196,7 +196,7 @@ const AdminFinance = () => {
     const s = (app.status || '').toLowerCase().trim();
     let isArchived: boolean;
     if (role === 'f_and_i') {
-      const fAndIArchived = ['archived', 'vehicle_delivered', 'finalized', 'validations_complete'];
+      const fAndIArchived = ['archived', 'vehicle_delivered', 'finalized'];
       isArchived = fAndIArchived.includes(s);
     } else {
       const legacyTerminal = ['finalized', 'delivered', 'vehicle_delivered', 'archived'].includes(s);
@@ -376,7 +376,7 @@ const AdminFinance = () => {
   const activeApps = applications.filter(a => {
     const s = (a.status || '').toLowerCase().trim();
     if (role === 'f_and_i') {
-      return !['archived', 'vehicle_delivered', 'finalized', 'validations_complete'].includes(s);
+      return !['archived', 'vehicle_delivered', 'finalized'].includes(s);
     }
     return !((a as any).is_archived === true) && !['finalized', 'delivered', 'vehicle_delivered', 'archived'].includes(s);
   });
