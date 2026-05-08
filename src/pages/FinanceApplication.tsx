@@ -81,6 +81,8 @@ const FinanceApplication = () => {
   const [creditAdvisoryKey, setCreditAdvisoryKey] = useState<null | "blacklisted" | "debt_review" | "defaults_arrears" | "judgements">(null);
   const [showLicenseAdvisory, setShowLicenseAdvisory] = useState(false);
   const [trackedLeadId, setTrackedLeadId] = useState<string | null>(null);
+  const [isManualResidentialAddress, setIsManualResidentialAddress] = useState(false);
+  const [isManualBusinessAddress, setIsManualBusinessAddress] = useState(false);
 
   const STEP_NAMES: Record<number, string> = {
     1: 'Step 1: Personal Details',
@@ -1657,13 +1659,33 @@ const FinanceApplication = () => {
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="street_address">Physical Address *</Label>
-                      <AddressAutocomplete
-                        value={formData.street_address}
-                        onChange={(value) => handleInputChange("street_address", value)}
-                        onPostalCodeChange={(postalCode) => handleInputChange("area_code", postalCode)}
-                        placeholder="Start typing your address..."
-                        required
-                      />
+                      {isManualResidentialAddress ? (
+                        <Textarea
+                          id="street_address"
+                          value={formData.street_address}
+                          onChange={(e) => handleInputChange("street_address", e.target.value)}
+                          placeholder="Enter your full address manually..."
+                          required
+                        />
+                      ) : (
+                        <AddressAutocomplete
+                          value={formData.street_address}
+                          onChange={(value) => handleInputChange("street_address", value)}
+                          onPostalCodeChange={(postalCode) => handleInputChange("area_code", postalCode)}
+                          placeholder="Start typing your address..."
+                          required
+                        />
+                      )}
+                      <div className="flex items-center gap-2 pt-1">
+                        <Checkbox
+                          id="manual_residential_toggle"
+                          checked={isManualResidentialAddress}
+                          onCheckedChange={(c) => setIsManualResidentialAddress(Boolean(c))}
+                        />
+                        <Label htmlFor="manual_residential_toggle" className="text-xs text-muted-foreground cursor-pointer font-normal">
+                          Location not found? Enter address manually.
+                        </Label>
+                      </div>
                       <FieldError field="street_address" />
                     </div>
                     <div className="space-y-2">
@@ -1729,12 +1751,31 @@ const FinanceApplication = () => {
                       </div>
                       <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="employer_address">Company Location / Address</Label>
-                        <AddressAutocomplete
-                          value={formData.employer_address}
-                          onChange={(value) => handleInputChange("employer_address", value)}
-                          onPostalCodeChange={(code) => handleInputChange("employer_postal_code", code)}
-                          placeholder="Start typing company name or address..."
-                        />
+                        {isManualBusinessAddress ? (
+                          <Textarea
+                            id="employer_address"
+                            value={formData.employer_address}
+                            onChange={(e) => handleInputChange("employer_address", e.target.value)}
+                            placeholder="Enter company address manually..."
+                          />
+                        ) : (
+                          <AddressAutocomplete
+                            value={formData.employer_address}
+                            onChange={(value) => handleInputChange("employer_address", value)}
+                            onPostalCodeChange={(code) => handleInputChange("employer_postal_code", code)}
+                            placeholder="Start typing company name or address..."
+                          />
+                        )}
+                        <div className="flex items-center gap-2 pt-1">
+                          <Checkbox
+                            id="manual_business_toggle"
+                            checked={isManualBusinessAddress}
+                            onCheckedChange={(c) => setIsManualBusinessAddress(Boolean(c))}
+                          />
+                          <Label htmlFor="manual_business_toggle" className="text-xs text-muted-foreground cursor-pointer font-normal">
+                            Location not found? Enter address manually.
+                          </Label>
+                        </div>
                         {formData.employer_postal_code && (
                           <p className="text-xs text-muted-foreground mt-1">Postal Code: {formData.employer_postal_code}</p>
                         )}
