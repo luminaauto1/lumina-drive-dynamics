@@ -81,6 +81,8 @@ const FinanceApplication = () => {
   const [creditAdvisoryKey, setCreditAdvisoryKey] = useState<null | "blacklisted" | "debt_review" | "defaults_arrears" | "judgements">(null);
   const [showLicenseAdvisory, setShowLicenseAdvisory] = useState(false);
   const [trackedLeadId, setTrackedLeadId] = useState<string | null>(null);
+  const [isManualResidentialAddress, setIsManualResidentialAddress] = useState(false);
+  const [isManualBusinessAddress, setIsManualBusinessAddress] = useState(false);
 
   const STEP_NAMES: Record<number, string> = {
     1: 'Step 1: Personal Details',
