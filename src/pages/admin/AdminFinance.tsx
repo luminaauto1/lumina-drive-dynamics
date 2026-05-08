@@ -196,7 +196,7 @@ const AdminFinance = () => {
     const s = (app.status || '').toLowerCase().trim();
     let isArchived: boolean;
     if (role === 'f_and_i') {
-      const fAndIArchived = ['archived', 'vehicle_delivered', 'finalized', 'validations_complete'];
+      const fAndIArchived = ['archived', 'vehicle_delivered', 'finalized'];
       isArchived = fAndIArchived.includes(s);
     } else {
       const legacyTerminal = ['finalized', 'delivered', 'vehicle_delivered', 'archived'].includes(s);
