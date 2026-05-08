@@ -789,6 +789,33 @@ const AdminLeadAnalytics = () => {
               </ChartCard>
             </div>
 
+            {/* Application Funnel KPIs */}
+            {(() => {
+              const totalSubmitted = apps.length;
+              const totalDrafts = drafts.filter((d: any) => !d.submitted).length;
+              const totalStarted = totalSubmitted + totalDrafts;
+              const completionRate = totalStarted > 0 ? (totalSubmitted / totalStarted) * 100 : 0;
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-1">
+                  <div className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4">
+                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Apps Started</div>
+                    <div className="mt-1 text-2xl font-bold text-foreground">{totalStarted.toLocaleString()}</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">Submitted + Abandoned drafts</div>
+                  </div>
+                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 backdrop-blur p-4">
+                    <div className="text-[11px] uppercase tracking-wider text-emerald-300/80">Total Apps Submitted</div>
+                    <div className="mt-1 text-2xl font-bold text-emerald-400">{totalSubmitted.toLocaleString()}</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">Finalized finance applications</div>
+                  </div>
+                  <div className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4">
+                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Completion Rate</div>
+                    <div className="mt-1 text-2xl font-bold text-foreground">{completionRate.toFixed(1)}%</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">{totalDrafts.toLocaleString()} abandoned</div>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Application Form Abandonment */}
             <ChartCard
               icon={AlertTriangle}
