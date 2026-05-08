@@ -793,20 +793,37 @@ const AdminLeadAnalytics = () => {
             {/* Application Funnel KPIs */}
             {(() => {
               const totalSubmitted = apps.length;
-              const totalDrafts = drafts.filter((d: any) => !d.submitted).length;
+              const activeDrafts = drafts.filter((d: any) => !d.submitted);
+              const totalDrafts = activeDrafts.length;
+              const landedOnly = activeDrafts.filter((d: any) => (d.step_number ?? 0) === 0).length;
+              const engagedDrafts = activeDrafts.filter((d: any) => (d.step_number ?? 0) > 0).length;
               const totalStarted = totalSubmitted + totalDrafts;
+              const totalLandings = totalSubmitted + totalDrafts; // every record = a landing
+              const engagementRate = totalLandings > 0
+                ? ((totalSubmitted + engagedDrafts) / totalLandings) * 100
+                : 0;
               const completionRate = totalStarted > 0 ? (totalSubmitted / totalStarted) * 100 : 0;
               return (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-1">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-1">
+                  <div className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4">
+                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Landings</div>
+                    <div className="mt-1 text-2xl font-bold text-foreground">{totalLandings.toLocaleString()}</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">All form page views</div>
+                  </div>
                   <div className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4">
                     <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Apps Started</div>
                     <div className="mt-1 text-2xl font-bold text-foreground">{totalStarted.toLocaleString()}</div>
-                    <div className="text-[11px] text-muted-foreground mt-0.5">Submitted + Abandoned drafts</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">Submitted + drafts</div>
                   </div>
                   <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 backdrop-blur p-4">
                     <div className="text-[11px] uppercase tracking-wider text-emerald-300/80">Total Apps Submitted</div>
                     <div className="mt-1 text-2xl font-bold text-emerald-400">{totalSubmitted.toLocaleString()}</div>
-                    <div className="text-[11px] text-muted-foreground mt-0.5">Finalized finance applications</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">Finalized applications</div>
+                  </div>
+                  <div className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4">
+                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Engagement Rate</div>
+                    <div className="mt-1 text-2xl font-bold text-foreground">{engagementRate.toFixed(1)}%</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">{landedOnly.toLocaleString()} landed only</div>
                   </div>
                   <div className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4">
                     <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Completion Rate</div>
