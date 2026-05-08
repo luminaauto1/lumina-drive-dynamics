@@ -823,11 +823,13 @@ const AdminLeadAnalytics = () => {
                       <LabelList
                         dataKey="abandoned"
                         position="top"
-                        formatter={(v: any, entry: any) => {
-                          const rate = entry?.rate ?? 0;
-                          return `${v} • ${rate}%`;
-                        }}
-                        style={{ fill: MUTED, fontSize: 11, fontWeight: 600 }}
+                        style={{ fill: 'hsl(var(--foreground))', fontSize: 12, fontWeight: 700 }}
+                      />
+                      <LabelList
+                        dataKey="rate"
+                        position="insideTop"
+                        formatter={(v: any) => `${v}%`}
+                        style={{ fill: 'hsl(var(--background))', fontSize: 10, fontWeight: 600 }}
                       />
                     </Bar>
                   </BarChart>
