@@ -372,8 +372,14 @@ const AdminFinance = () => {
     }
   };
 
-  // Stats for active applications only
-  const activeApps = applications.filter(a => !((a as any).is_archived === true) && !['finalized', 'delivered', 'vehicle_delivered', 'archived'].includes((a.status || '').toLowerCase().trim()));
+  // Stats for active applications only (mirrors the tab filter logic)
+  const activeApps = applications.filter(a => {
+    const s = (a.status || '').toLowerCase().trim();
+    if (role === 'f_and_i') {
+      return !['archived', 'vehicle_delivered', 'finalized', 'validations_complete'].includes(s);
+    }
+    return !((a as any).is_archived === true) && !['finalized', 'delivered', 'vehicle_delivered', 'archived'].includes(s);
+  });
 
   return (
     <AdminLayout>
