@@ -9,6 +9,7 @@ export const F_AND_I_ALLOWED_STATUSES = [
   'declined',
   'declined_conditional',
   'blacklisted',
+  'archived',
 ];
 
 export function filterStatusOptionsForRole<T extends { value: string }>(
