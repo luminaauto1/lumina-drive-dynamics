@@ -134,6 +134,13 @@ const planForStatus = (status: string): PlanStep => {
         add: [PHASE.BLACKLISTED],
         remove: [...MASTER_PIPELINE_TAGS],
       };
+    case 'archived':
+      // Manual F&I archive — wipe all active pipeline tags, add nothing.
+      // Keeps the EasySocial profile clean without throwing on an unknown status.
+      return {
+        add: [],
+        remove: [...MASTER_PIPELINE_TAGS],
+      };
     default:
       return { add: [], remove: [] };
   }
