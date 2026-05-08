@@ -91,11 +91,23 @@ const FinanceApplication = () => {
   };
 
   // Silent session id used only for application abandonment tracking.
-  // Generated once on mount; no PII stored.
+  // Persisted across refreshes via sessionStorage so reloads don't dupe rows.
   const draftSessionRef = useRef<string>(
-    typeof crypto !== 'undefined' && 'randomUUID' in crypto
-      ? crypto.randomUUID()
-      : `s_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+    (() => {
+      try {
+        const existing = typeof sessionStorage !== 'undefined'
+          ? sessionStorage.getItem('lumina_draft_sid')
+          : null;
+        if (existing) return existing;
+        const fresh = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+          ? crypto.randomUUID()
+          : `s_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+        try { sessionStorage.setItem('lumina_draft_sid', fresh); } catch {}
+        return fresh;
+      } catch {
+        return `s_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      }
+    })()
   );
 
   const trackDraftStep = (stepNumber: number) => {
@@ -120,6 +132,27 @@ const FinanceApplication = () => {
     }
   };
 
+  // Top-of-funnel: capture the moment the form is mounted (Step 0: Landed).
+  // Use ignoreDuplicates so returning users with progress aren't reset.
+  useEffect(() => {
+    try {
+      supabase
+        .from('application_drafts' as any)
+        .upsert(
+          {
+            session_id: draftSessionRef.current,
+            last_completed_step: 'Step 0: Landed',
+            step_number: 0,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'session_id', ignoreDuplicates: true }
+        )
+        .then(() => {})
+        .then(undefined, () => {});
+    } catch { /* noop */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Track every step the user reaches (including step 1) so true drop-offs
   // are captured even if they never advance past the first page.
   useEffect(() => {
@@ -127,6 +160,7 @@ const FinanceApplication = () => {
     trackDraftStep(currentStep);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep, isSubmitted]);
+
 
   // Use centralized attribution from useUTMTracking (sessionStorage-backed)
   const getAttribution = () => getStoredAttribution();
