@@ -1659,13 +1659,33 @@ const FinanceApplication = () => {
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="street_address">Physical Address *</Label>
-                      <AddressAutocomplete
-                        value={formData.street_address}
-                        onChange={(value) => handleInputChange("street_address", value)}
-                        onPostalCodeChange={(postalCode) => handleInputChange("area_code", postalCode)}
-                        placeholder="Start typing your address..."
-                        required
-                      />
+                      {isManualResidentialAddress ? (
+                        <Textarea
+                          id="street_address"
+                          value={formData.street_address}
+                          onChange={(e) => handleInputChange("street_address", e.target.value)}
+                          placeholder="Enter your full address manually..."
+                          required
+                        />
+                      ) : (
+                        <AddressAutocomplete
+                          value={formData.street_address}
+                          onChange={(value) => handleInputChange("street_address", value)}
+                          onPostalCodeChange={(postalCode) => handleInputChange("area_code", postalCode)}
+                          placeholder="Start typing your address..."
+                          required
+                        />
+                      )}
+                      <div className="flex items-center gap-2 pt-1">
+                        <Checkbox
+                          id="manual_residential_toggle"
+                          checked={isManualResidentialAddress}
+                          onCheckedChange={(c) => setIsManualResidentialAddress(Boolean(c))}
+                        />
+                        <Label htmlFor="manual_residential_toggle" className="text-xs text-muted-foreground cursor-pointer font-normal">
+                          Location not found? Enter address manually.
+                        </Label>
+                      </div>
                       <FieldError field="street_address" />
                     </div>
                     <div className="space-y-2">
