@@ -280,20 +280,21 @@ const AdminLeadAnalytics = () => {
   // excluding any sessions that ultimately submitted the application.
   const abandonmentData = useMemo(() => {
     const STEP_LABELS: Record<number, string> = {
+      0: 'Step 0: Landed',
       1: 'Step 1: Personal Details',
       2: 'Step 2: Employment',
       3: 'Step 3: Financials',
       4: 'Step 4: Vehicle Preference',
       5: 'Step 5: Review & Submit',
     };
-    const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    const counts: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     drafts.forEach((d) => {
       if (d.submitted) return;
       const n = d.step_number ?? 0;
-      if (n >= 1 && n <= 5) counts[n] += 1;
+      if (n >= 0 && n <= 5) counts[n] += 1;
     });
     const totalAbandoned = Object.values(counts).reduce((a, b) => a + b, 0);
-    return [1, 2, 3, 4, 5].map((n) => {
+    return [0, 1, 2, 3, 4, 5].map((n) => {
       const abandoned = counts[n];
       const rate = totalAbandoned > 0 ? (abandoned / totalAbandoned) * 100 : 0;
       return {
@@ -301,7 +302,7 @@ const AdminLeadAnalytics = () => {
         shortStep: `Step ${n}`,
         abandoned,
         rate: Math.round(rate * 10) / 10,
-        fill: VIBRANT_PALETTE[(n - 1) % VIBRANT_PALETTE.length],
+        fill: VIBRANT_PALETTE[n % VIBRANT_PALETTE.length],
       };
     });
   }, [drafts]);
@@ -792,20 +793,37 @@ const AdminLeadAnalytics = () => {
             {/* Application Funnel KPIs */}
             {(() => {
               const totalSubmitted = apps.length;
-              const totalDrafts = drafts.filter((d: any) => !d.submitted).length;
+              const activeDrafts = drafts.filter((d: any) => !d.submitted);
+              const totalDrafts = activeDrafts.length;
+              const landedOnly = activeDrafts.filter((d: any) => (d.step_number ?? 0) === 0).length;
+              const engagedDrafts = activeDrafts.filter((d: any) => (d.step_number ?? 0) > 0).length;
               const totalStarted = totalSubmitted + totalDrafts;
+              const totalLandings = totalSubmitted + totalDrafts; // every record = a landing
+              const engagementRate = totalLandings > 0
+                ? ((totalSubmitted + engagedDrafts) / totalLandings) * 100
+                : 0;
               const completionRate = totalStarted > 0 ? (totalSubmitted / totalStarted) * 100 : 0;
               return (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-1">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-1">
+                  <div className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4">
+                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Landings</div>
+                    <div className="mt-1 text-2xl font-bold text-foreground">{totalLandings.toLocaleString()}</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">All form page views</div>
+                  </div>
                   <div className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4">
                     <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Apps Started</div>
                     <div className="mt-1 text-2xl font-bold text-foreground">{totalStarted.toLocaleString()}</div>
-                    <div className="text-[11px] text-muted-foreground mt-0.5">Submitted + Abandoned drafts</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">Submitted + drafts</div>
                   </div>
                   <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 backdrop-blur p-4">
                     <div className="text-[11px] uppercase tracking-wider text-emerald-300/80">Total Apps Submitted</div>
                     <div className="mt-1 text-2xl font-bold text-emerald-400">{totalSubmitted.toLocaleString()}</div>
-                    <div className="text-[11px] text-muted-foreground mt-0.5">Finalized finance applications</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">Finalized applications</div>
+                  </div>
+                  <div className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4">
+                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Engagement Rate</div>
+                    <div className="mt-1 text-2xl font-bold text-foreground">{engagementRate.toFixed(1)}%</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">{landedOnly.toLocaleString()} landed only</div>
                   </div>
                   <div className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4">
                     <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Completion Rate</div>
