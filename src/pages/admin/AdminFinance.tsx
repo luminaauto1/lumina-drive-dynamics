@@ -190,13 +190,14 @@ const AdminFinance = () => {
     
     const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
     
-    // Filter by active/archived. For F&I, ONLY explicit `archived` status moves
-    // an app off the Active board — Declined/Blacklisted stay visible until F&I
-    // manually archives them. Other roles keep the legacy auto-archive behaviour.
+    // Filter by active/archived. For F&I, terminal success statuses and 'archived'
+    // go to the Archive tab. Declined/Blacklisted stay in Active. All other roles
+    // keep the legacy auto-archive behaviour.
     const s = (app.status || '').toLowerCase().trim();
     let isArchived: boolean;
     if (role === 'f_and_i') {
-      isArchived = s === 'archived';
+      const fAndIArchived = ['archived', 'vehicle_delivered', 'finalized', 'validations_complete'];
+      isArchived = fAndIArchived.includes(s);
     } else {
       const legacyTerminal = ['finalized', 'delivered', 'vehicle_delivered', 'archived'].includes(s);
       isArchived = (app as any).is_archived === true || legacyTerminal;
@@ -371,8 +372,14 @@ const AdminFinance = () => {
     }
   };
 
-  // Stats for active applications only
-  const activeApps = applications.filter(a => !((a as any).is_archived === true) && !['finalized', 'delivered', 'vehicle_delivered', 'archived'].includes((a.status || '').toLowerCase().trim()));
+  // Stats for active applications only (mirrors the tab filter logic)
+  const activeApps = applications.filter(a => {
+    const s = (a.status || '').toLowerCase().trim();
+    if (role === 'f_and_i') {
+      return !['archived', 'vehicle_delivered', 'finalized', 'validations_complete'].includes(s);
+    }
+    return !((a as any).is_archived === true) && !['finalized', 'delivered', 'vehicle_delivered', 'archived'].includes(s);
+  });
 
   return (
     <AdminLayout>
