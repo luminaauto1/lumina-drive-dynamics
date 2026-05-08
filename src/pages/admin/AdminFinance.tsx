@@ -376,7 +376,7 @@ const AdminFinance = () => {
   const activeApps = applications.filter(a => {
     const s = (a.status || '').toLowerCase().trim();
     if (role === 'f_and_i') {
-      return !['archived', 'vehicle_delivered', 'finalized', 'validations_complete'].includes(s);
+      return !['archived', 'vehicle_delivered', 'finalized'].includes(s);
     }
     return !((a as any).is_archived === true) && !['finalized', 'delivered', 'vehicle_delivered', 'archived'].includes(s);
   });
