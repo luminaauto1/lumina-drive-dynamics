@@ -190,11 +190,17 @@ const AdminFinance = () => {
     
     const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
     
-    // Filter by active/archived — uses dedicated is_archived flag PLUS legacy
-    // terminal statuses (finalized/delivered) which still auto-hide from active.
+    // Filter by active/archived. For F&I, ONLY explicit `archived` status moves
+    // an app off the Active board — Declined/Blacklisted stay visible until F&I
+    // manually archives them. Other roles keep the legacy auto-archive behaviour.
     const s = (app.status || '').toLowerCase().trim();
-    const legacyTerminal = ['finalized', 'delivered', 'vehicle_delivered', 'archived'].includes(s);
-    const isArchived = (app as any).is_archived === true || legacyTerminal;
+    let isArchived: boolean;
+    if (role === 'f_and_i') {
+      isArchived = s === 'archived';
+    } else {
+      const legacyTerminal = ['finalized', 'delivered', 'vehicle_delivered', 'archived'].includes(s);
+      isArchived = (app as any).is_archived === true || legacyTerminal;
+    }
     const matchesViewMode = viewMode === 'archived' ? isArchived : !isArchived;
 
     return matchesSearch && matchesStatus && matchesViewMode;
