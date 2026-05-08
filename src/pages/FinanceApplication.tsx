@@ -1751,12 +1751,31 @@ const FinanceApplication = () => {
                       </div>
                       <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="employer_address">Company Location / Address</Label>
-                        <AddressAutocomplete
-                          value={formData.employer_address}
-                          onChange={(value) => handleInputChange("employer_address", value)}
-                          onPostalCodeChange={(code) => handleInputChange("employer_postal_code", code)}
-                          placeholder="Start typing company name or address..."
-                        />
+                        {isManualBusinessAddress ? (
+                          <Textarea
+                            id="employer_address"
+                            value={formData.employer_address}
+                            onChange={(e) => handleInputChange("employer_address", e.target.value)}
+                            placeholder="Enter company address manually..."
+                          />
+                        ) : (
+                          <AddressAutocomplete
+                            value={formData.employer_address}
+                            onChange={(value) => handleInputChange("employer_address", value)}
+                            onPostalCodeChange={(code) => handleInputChange("employer_postal_code", code)}
+                            placeholder="Start typing company name or address..."
+                          />
+                        )}
+                        <div className="flex items-center gap-2 pt-1">
+                          <Checkbox
+                            id="manual_business_toggle"
+                            checked={isManualBusinessAddress}
+                            onCheckedChange={(c) => setIsManualBusinessAddress(Boolean(c))}
+                          />
+                          <Label htmlFor="manual_business_toggle" className="text-xs text-muted-foreground cursor-pointer font-normal">
+                            Location not found? Enter address manually.
+                          </Label>
+                        </div>
                         {formData.employer_postal_code && (
                           <p className="text-xs text-muted-foreground mt-1">Postal Code: {formData.employer_postal_code}</p>
                         )}
