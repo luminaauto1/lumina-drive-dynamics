@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageSquare, Sparkles, FileText, Loader2, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { publicApiHeaders } from '@/lib/publicApi';
@@ -167,7 +166,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
 
   return (
     <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) reset(); }}>
-      <DialogContent className="max-w-3xl max-h-[90dvh] overflow-hidden flex flex-col bg-zinc-950 border-white/10 text-white">
+      <DialogContent className="max-w-3xl max-h-[calc(100dvh-2rem)] overflow-hidden flex flex-col bg-zinc-950 border-white/10 text-white">
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <MessageSquare className="w-5 h-5 text-emerald-400" />
@@ -178,7 +177,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
           </DialogDescription>
         </DialogHeader>
 
-        <div className="mt-2 flex-1 overflow-hidden flex flex-col">
+        <div className="mt-2 min-h-0 flex-1 flex flex-col">
           {!parsedData ? (
             <div className="space-y-3">
               <Textarea
