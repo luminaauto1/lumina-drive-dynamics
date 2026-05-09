@@ -263,6 +263,15 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
                 </div>
               )}
 
+              <div className="shrink-0 flex gap-3 pt-2 pb-4 border-b border-white/5">
+                <Button variant="outline" onClick={reset} className="flex-1 bg-transparent border-white/10 hover:bg-white/5">
+                  Start Over
+                </Button>
+                <Button onClick={handleDownloadPDF} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white">
+                  <FileText className="w-4 h-4 mr-2" /> Generate PDF
+                </Button>
+              </div>
+
               <div className="min-h-0 flex-1 overflow-y-auto pr-4 pb-28">
                 <div className="space-y-6">
                   <div className="grid grid-cols-2 gap-4">
@@ -278,15 +287,6 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
                         />
                       </div>
                     ))}
-                  </div>
-
-                  <div className="sticky bottom-0 z-50 flex gap-3 pt-4 pb-4 border-t border-white/5 bg-zinc-950">
-                    <Button variant="outline" onClick={reset} className="flex-1 bg-transparent border-white/10 hover:bg-white/5">
-                      Start Over
-                    </Button>
-                    <Button onClick={handleDownloadPDF} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white">
-                      <FileText className="w-4 h-4 mr-2" /> Generate PDF
-                    </Button>
                   </div>
                 </div>
               </div>
