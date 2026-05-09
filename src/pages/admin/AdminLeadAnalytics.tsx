@@ -527,7 +527,7 @@ const AdminLeadAnalytics = () => {
   const messagesByHourPlatform = useMemo(() => {
     const buckets: Record<number, Record<string, number>> = {};
     for (let h = 0; h < 24; h++) {
-      buckets[h] = { Facebook: 0, Instagram: 0, TikTok: 0, 'Direct/Unknown': 0 };
+      buckets[h] = { Facebook: 0, Instagram: 0, TikTok: 0, 'Website Form': 0, 'Direct/Unknown': 0 };
     }
     leads.forEach((l: any) => {
       if (!l.created_at) return;
