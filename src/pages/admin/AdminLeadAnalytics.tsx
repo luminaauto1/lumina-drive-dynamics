@@ -486,6 +486,7 @@ const AdminLeadAnalytics = () => {
     Facebook: VIBRANT.electricBlue,
     Instagram: VIBRANT.pink,
     TikTok: VIBRANT.neonGreen,
+    'Website Form': VIBRANT.violet,
     'Direct/Unknown': VIBRANT.amber,
   };
   // Aggressive type coercion — origin column may arrive as string, array, object, or null.
@@ -501,6 +502,12 @@ const AdminLeadAnalytics = () => {
 
   // Sourced from `leads` (single source of truth populated by EasySocial webhook).
   const leadPlatformOf = (l: any): string => {
+    // Categorize website-originated leads up front so they don't fall into "Direct/Unknown".
+    const safeSource = coerceToString(l?.source).toLowerCase();
+    if (safeSource === 'finance form' || safeSource === 'website' || safeSource.includes('finance form') || safeSource.includes('website')) {
+      return 'Website Form';
+    }
+
     let safeOrigin = '';
     if (Array.isArray(l?.origin)) safeOrigin = l.origin.map(coerceToString).join(' ').toLowerCase();
     else if (typeof l?.origin === 'string') safeOrigin = l.origin.toLowerCase();
