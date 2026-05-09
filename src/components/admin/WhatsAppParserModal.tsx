@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageSquare, Sparkles, FileText, Loader2, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { publicApiHeaders } from '@/lib/publicApi';
@@ -167,7 +166,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
 
   return (
     <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) reset(); }}>
-      <DialogContent className="max-w-3xl max-h-[90dvh] overflow-hidden flex flex-col bg-zinc-950 border-white/10 text-white">
+      <DialogContent className="max-w-3xl max-h-[calc(100dvh-2rem)] overflow-hidden flex flex-col bg-zinc-950 border-white/10 text-white">
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <MessageSquare className="w-5 h-5 text-emerald-400" />
@@ -178,7 +177,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
           </DialogDescription>
         </DialogHeader>
 
-        <div className="mt-2 flex-1 overflow-hidden flex flex-col">
+        <div className="mt-2 min-h-0 flex-1 flex flex-col">
           {!parsedData ? (
             <div className="space-y-3">
               <Textarea
@@ -264,7 +263,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
                 </div>
               )}
 
-              <ScrollArea className="flex-1 pr-4">
+              <div className="min-h-0 flex-1 overflow-y-auto pr-4 pb-28">
                 <div className="space-y-6">
                   <div className="grid grid-cols-2 gap-4">
                     {Object.entries(parsedData).map(([key, value]) => (
@@ -281,7 +280,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
                     ))}
                   </div>
 
-                  <div className="flex gap-3 pt-4 pb-32 border-t border-white/5">
+                  <div className="sticky bottom-0 z-50 flex gap-3 pt-4 pb-4 border-t border-white/5 bg-zinc-950">
                     <Button variant="outline" onClick={reset} className="flex-1 bg-transparent border-white/10 hover:bg-white/5">
                       Start Over
                     </Button>
@@ -290,7 +289,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
                     </Button>
                   </div>
                 </div>
-              </ScrollArea>
+              </div>
             </div>
           )}
         </div>
