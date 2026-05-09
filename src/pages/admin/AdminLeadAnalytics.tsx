@@ -1086,6 +1086,7 @@ const AdminLeadAnalytics = () => {
                         <Line type="monotone" dataKey="Facebook" stroke={PLATFORM_COLOR.Facebook} strokeWidth={3} dot={{ r: 2 }} activeDot={{ r: 5 }} hide={hiddenSeries.Facebook} />
                         <Line type="monotone" dataKey="Instagram" stroke={PLATFORM_COLOR.Instagram} strokeWidth={3} dot={{ r: 2 }} activeDot={{ r: 5 }} hide={hiddenSeries.Instagram} />
                         <Line type="monotone" dataKey="TikTok" stroke={PLATFORM_COLOR.TikTok} strokeWidth={3} dot={{ r: 2 }} activeDot={{ r: 5 }} hide={hiddenSeries.TikTok} />
+                        <Line type="monotone" dataKey="Website Form" stroke={PLATFORM_COLOR['Website Form']} strokeWidth={3} dot={{ r: 2 }} activeDot={{ r: 5 }} hide={hiddenSeries['Website Form']} />
                         <Line type="monotone" dataKey="Direct/Unknown" stroke={PLATFORM_COLOR['Direct/Unknown']} strokeWidth={3} dot={{ r: 2 }} activeDot={{ r: 5 }} hide={hiddenSeries['Direct/Unknown']} />
                       </LineChart>
                     </ResponsiveContainer>
