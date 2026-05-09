@@ -20,7 +20,7 @@ const AdminDashboard = () => {
     avgProfitPerUnit: 0,
   });
   const [urgentLeads, setUrgentLeads] = useState<any[]>([]);
-  const [activityToday, setActivityToday] = useState({ messages: 0, leads: 0, apps: 0 });
+  const [activityToday, setActivityToday] = useState({ totalVolume: 0, leads: 0, apps: 0 });
 
   useEffect(() => {
     const fetchDashboardData = async () => {
