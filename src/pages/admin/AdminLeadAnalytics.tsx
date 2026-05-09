@@ -191,27 +191,26 @@ const AdminLeadAnalytics = () => {
       setMessageCount(msgCount ?? 0);
       setMessages((msgRows as any) || []);
       setDrafts(((draftRows as any) || []));
-      // Strict X-Ray: prefer a lead with easysocial_id, fall back to source = 'WhatsApp'
-      let whLead: any = null;
-      const { data: easysocialLead } = await supabase
+      // Aggregation X-Ray: sweep last 100 leads for unique source/origin/platform/traffic_source values
+      const { data: recentLeads } = await supabase
         .from('leads')
-        .select('*')
-        .not('easysocial_id', 'is', null)
+        .select('source, origin, platform, traffic_source')
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      whLead = easysocialLead;
-      if (!whLead) {
-        const { data: fallbackLead } = await supabase
-          .from('leads')
-          .select('*')
-          .eq('source', 'WhatsApp')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        whLead = fallbackLead;
+        .limit(100);
+      if (!cancelled) {
+        const uniq = (key: string) =>
+          [...new Set((recentLeads || []).map((l: any) => {
+            const v = l?.[key];
+            if (v == null) return null;
+            return typeof v === 'object' ? JSON.stringify(v) : String(v);
+          }))].filter(Boolean) as any[];
+        setUniqueSweep({
+          sources: uniq('source'),
+          origins: uniq('origin'),
+          platforms: uniq('platform'),
+          traffic: uniq('traffic_source'),
+        });
       }
-      if (!cancelled) setWebhookLead(whLead);
       setLoading(false);
     };
     load();
