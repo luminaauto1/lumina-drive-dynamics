@@ -109,6 +109,7 @@ const AdminLeadAnalytics = () => {
   const [messages, setMessages] = useState<{ created_at: string; platform_source: string | null; phone_number: string | null }[]>([]);
   const [drafts, setDrafts] = useState<{ last_completed_step: string; step_number: number | null; submitted: boolean; updated_at: string }[]>([]);
   const [hiddenSeries, setHiddenSeries] = useState<Record<string, boolean>>({});
+  const [webhookLead, setWebhookLead] = useState<any>(null);
 
   const toggleSeries = (key: string) => {
     setHiddenSeries((prev) => ({ ...prev, [key]: !prev[key] }));
