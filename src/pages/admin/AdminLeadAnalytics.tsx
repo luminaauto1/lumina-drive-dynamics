@@ -1155,7 +1155,7 @@ const AdminLeadAnalytics = () => {
         {/* Webhook Lead X-Ray (diagnostic — most recent non-Finance-Form lead) */}
         <div className="mt-8 pt-4 border-t border-border/30">
           <p className="text-[10px] text-zinc-500/80 font-mono tracking-tight mb-2">
-            Webhook Lead X-Ray (most recent lead where source ≠ "Finance Form"):
+            Strict EasySocial Webhook X-Ray (easysocial_id present, fallback: source = "WhatsApp"):
           </p>
           <pre className="text-xs text-zinc-500 whitespace-pre-wrap break-words bg-zinc-950/50 rounded-lg p-3 border border-border/20">
             {webhookLead ? JSON.stringify(webhookLead, null, 2) : '[no webhook lead found]'}
