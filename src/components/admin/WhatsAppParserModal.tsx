@@ -263,7 +263,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
                 </div>
               )}
 
-              <ScrollArea className="flex-1 pr-4">
+              <div className="min-h-0 flex-1 overflow-y-auto pr-4 pb-28">
                 <div className="space-y-6">
                   <div className="grid grid-cols-2 gap-4">
                     {Object.entries(parsedData).map(([key, value]) => (
@@ -280,7 +280,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
                     ))}
                   </div>
 
-                  <div className="flex gap-3 pt-4 pb-32 border-t border-white/5">
+                  <div className="sticky bottom-0 z-50 flex gap-3 pt-4 pb-4 border-t border-white/5 bg-zinc-950">
                     <Button variant="outline" onClick={reset} className="flex-1 bg-transparent border-white/10 hover:bg-white/5">
                       Start Over
                     </Button>
@@ -289,7 +289,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
                     </Button>
                   </div>
                 </div>
-              </ScrollArea>
+              </div>
             </div>
           )}
         </div>
