@@ -166,8 +166,8 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
 
   return (
     <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) reset(); }}>
-      <DialogContent className="max-w-3xl max-h-[calc(100dvh-2rem)] overflow-hidden flex flex-col bg-zinc-950 border-white/10 text-white">
-        <DialogHeader className="shrink-0">
+      <DialogContent className="max-w-3xl max-h-[calc(100dvh-2rem)] overflow-y-auto bg-zinc-950 border-white/10 text-white">
+        <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MessageSquare className="w-5 h-5 text-emerald-400" />
             WhatsApp to PDF Converter
@@ -177,7 +177,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
           </DialogDescription>
         </DialogHeader>
 
-        <div className="mt-2 min-h-0 flex-1 flex flex-col">
+        <div className="mt-2">
           {!parsedData ? (
             <div className="space-y-3">
               <Textarea
@@ -196,7 +196,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
               </Button>
             </div>
           ) : (
-            <div className="space-y-6 flex-1 overflow-hidden flex flex-col">
+            <div className="space-y-6 pb-10">
               <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded text-xs text-amber-400 flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
                 Review the extracted data below. You can correct any mistakes before generating the PDF.
@@ -272,7 +272,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
                 </Button>
               </div>
 
-              <div className="min-h-0 flex-1 overflow-y-auto pr-4 pb-28">
+              <div>
                 <div className="space-y-6">
                   <div className="grid grid-cols-2 gap-4">
                     {Object.entries(parsedData).map(([key, value]) => (
