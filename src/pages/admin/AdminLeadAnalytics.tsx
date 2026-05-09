@@ -165,7 +165,7 @@ const AdminLeadAnalytics = () => {
         .select('created_at, platform_source, phone_number')
         .order('created_at', { ascending: false }).limit(10000);
       let draftsQ = (supabase.from as any)('application_drafts')
-        .select('last_completed_step, step_number, submitted, updated_at')
+        .select('last_completed_step, step_number, submitted, updated_at, abandonment_flags')
         .order('updated_at', { ascending: false }).limit(10000);
       if (cutoff) {
         leadsQ = leadsQ.gte('created_at', cutoff.toISOString());
