@@ -167,8 +167,8 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
 
   return (
     <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) reset(); }}>
-      <DialogContent className="max-w-3xl bg-zinc-950 border-white/10 text-white">
-        <DialogHeader>
+      <DialogContent className="max-w-3xl max-h-[90dvh] overflow-hidden flex flex-col bg-zinc-950 border-white/10 text-white">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <MessageSquare className="w-5 h-5 text-emerald-400" />
             WhatsApp to PDF Converter
@@ -178,7 +178,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
           </DialogDescription>
         </DialogHeader>
 
-        <div className="mt-2">
+        <div className="mt-2 flex-1 overflow-hidden flex flex-col">
           {!parsedData ? (
             <div className="space-y-3">
               <Textarea
