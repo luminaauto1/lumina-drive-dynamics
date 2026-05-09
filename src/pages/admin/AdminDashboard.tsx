@@ -5,7 +5,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ArrowRight, TrendingUp, AlertCircle, Car, DollarSign, Calculator, Search, MessageCircle, UserPlus, FileCheck2, Activity } from "lucide-react";
+import { ArrowRight, TrendingUp, AlertCircle, Car, DollarSign, Calculator, Search, BarChart3, UserPlus, FileCheck2, Activity } from "lucide-react";
 import { format, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
 import { Helmet } from "react-helmet-async";
 
@@ -20,7 +20,7 @@ const AdminDashboard = () => {
     avgProfitPerUnit: 0,
   });
   const [urgentLeads, setUrgentLeads] = useState<any[]>([]);
-  const [activityToday, setActivityToday] = useState({ messages: 0, leads: 0, apps: 0 });
+  const [activityToday, setActivityToday] = useState({ totalVolume: 0, leads: 0, apps: 0 });
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -134,19 +134,19 @@ const AdminDashboard = () => {
         setUrgentLeads(deduped.slice(0, 6));
       }
 
-      // 4. Today's communication activity (messages / leads / apps)
+      // 4. Today's tracked-entity volume (local timezone bounds → ISO for query)
       const dayStart = startOfDay(now).toISOString();
       const dayEnd = endOfDay(now).toISOString();
-      const [{ count: msgToday }, { count: leadsToday }, { count: appsToday }] = await Promise.all([
-        supabase.from("whatsapp_messages").select("id", { count: "exact", head: true })
-          .gte("created_at", dayStart).lte("created_at", dayEnd),
+      const [{ count: leadsToday }, { count: appsToday }, { count: draftsToday }] = await Promise.all([
         supabase.from("leads").select("id", { count: "exact", head: true })
           .gte("created_at", dayStart).lte("created_at", dayEnd),
         supabase.from("finance_applications").select("id", { count: "exact", head: true })
           .gte("created_at", dayStart).lte("created_at", dayEnd),
+        supabase.from("application_drafts").select("id", { count: "exact", head: true })
+          .gte("updated_at", dayStart).lte("updated_at", dayEnd),
       ]);
       setActivityToday({
-        messages: msgToday ?? 0,
+        totalVolume: (leadsToday ?? 0) + (draftsToday ?? 0),
         leads: leadsToday ?? 0,
         apps: appsToday ?? 0,
       });
@@ -340,10 +340,10 @@ const AdminDashboard = () => {
                 className="text-left p-4 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors border border-border/50"
               >
                 <div className="flex items-center gap-2 mb-2 text-emerald-400">
-                  <MessageCircle className="w-4 h-4" />
-                  <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Messages</span>
+                  <BarChart3 className="w-4 h-4" />
+                  <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Volume</span>
                 </div>
-                <p className="text-2xl font-semibold tabular-nums">{activityToday.messages.toLocaleString()}</p>
+                <p className="text-2xl font-semibold tabular-nums">{activityToday.totalVolume.toLocaleString()}</p>
               </button>
 
               <button
