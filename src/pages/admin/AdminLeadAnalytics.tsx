@@ -542,7 +542,7 @@ const AdminLeadAnalytics = () => {
   }, [leads]);
 
   const messageOriginsPie = useMemo(() => {
-    const counts: Record<string, number> = { Facebook: 0, Instagram: 0, TikTok: 0, 'Direct/Unknown': 0 };
+    const counts: Record<string, number> = { Facebook: 0, Instagram: 0, TikTok: 0, 'Website Form': 0, 'Direct/Unknown': 0 };
     leads.forEach((l: any) => {
       const p = leadPlatformOf(l);
       counts[p] = (counts[p] || 0) + 1;
