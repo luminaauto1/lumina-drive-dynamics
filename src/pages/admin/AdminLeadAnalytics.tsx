@@ -1122,24 +1122,14 @@ const AdminLeadAnalytics = () => {
           </>
         )}
 
-        {/* Raw Origin Data X-Ray (diagnostic) */}
-        <div className="mt-8 pt-4 border-t border-border/30 text-[10px] text-zinc-500/80 font-mono tracking-tight">
-          Raw Origin Data X-Ray:{' '}
-          {leads.slice(0, 3).map((l: any, i: number) => {
-            const raw = l?.origin;
-            const display = raw == null
-              ? 'null'
-              : typeof raw === 'object'
-                ? JSON.stringify(raw)
-                : String(raw);
-            return (
-              <span key={i}>
-                [{display || '∅'}]
-                {i < Math.min(2, leads.length - 1) ? ' | ' : ''}
-              </span>
-            );
-          })}
-          {leads.length === 0 && <span>[no leads loaded]</span>}
+        {/* Full Lead Record X-Ray (diagnostic) */}
+        <div className="mt-8 pt-4 border-t border-border/30">
+          <p className="text-[10px] text-zinc-500/80 font-mono tracking-tight mb-2">
+            Full Lead Record X-Ray:
+          </p>
+          <pre className="text-xs text-zinc-500 whitespace-pre-wrap break-words bg-zinc-950/50 rounded-lg p-3 border border-border/20">
+            {leads.length > 0 ? JSON.stringify(leads[0], null, 2) : '[no leads loaded]'}
+          </pre>
         </div>
       </div>
     </AdminLayout>
