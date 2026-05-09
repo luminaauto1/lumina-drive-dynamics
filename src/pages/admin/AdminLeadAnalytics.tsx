@@ -190,14 +190,26 @@ const AdminLeadAnalytics = () => {
       setMessageCount(msgCount ?? 0);
       setMessages((msgRows as any) || []);
       setDrafts(((draftRows as any) || []));
-      // Targeted X-Ray: fetch one non-website lead to inspect EasySocial webhook payload
-      const { data: whLead } = await supabase
+      // Strict X-Ray: prefer a lead with easysocial_id, fall back to source = 'WhatsApp'
+      let whLead: any = null;
+      const { data: easysocialLead } = await supabase
         .from('leads')
         .select('*')
-        .neq('source', 'Finance Form')
+        .not('easysocial_id', 'is', null)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
+      whLead = easysocialLead;
+      if (!whLead) {
+        const { data: fallbackLead } = await supabase
+          .from('leads')
+          .select('*')
+          .eq('source', 'WhatsApp')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        whLead = fallbackLead;
+      }
       if (!cancelled) setWebhookLead(whLead);
       setLoading(false);
     };
