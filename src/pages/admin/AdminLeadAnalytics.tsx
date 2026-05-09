@@ -488,18 +488,34 @@ const AdminLeadAnalytics = () => {
     TikTok: VIBRANT.neonGreen,
     'Direct/Unknown': VIBRANT.amber,
   };
-  const normalizePlatform = (raw: string | null | undefined): string => {
-    const v = String(raw || '').toLowerCase();
-    if (v.includes('facebook') || v === 'fb') return 'Facebook';
-    if (v.includes('insta')) return 'Instagram';
-    if (v.includes('tiktok')) return 'TikTok';
-    return 'Direct/Unknown';
+  // Aggressive type coercion — origin column may arrive as string, array, object, or null.
+  const coerceToString = (val: any): string => {
+    if (val == null) return '';
+    if (Array.isArray(val)) return val.map((v) => coerceToString(v)).join(' ');
+    if (typeof val === 'object') {
+      try { return Object.values(val).map((v) => coerceToString(v)).join(' '); }
+      catch { return ''; }
+    }
+    return String(val);
   };
 
   // Sourced from `leads` (single source of truth populated by EasySocial webhook).
-  // Use lead.origin first, then platform, then traffic_source as fallback.
-  const leadPlatformOf = (l: any): string =>
-    normalizePlatform(l.origin || l.platform || l.traffic_source || l.utm_source);
+  const leadPlatformOf = (l: any): string => {
+    let safeOrigin = '';
+    if (Array.isArray(l?.origin)) safeOrigin = l.origin.map(coerceToString).join(' ').toLowerCase();
+    else if (typeof l?.origin === 'string') safeOrigin = l.origin.toLowerCase();
+    else if (l?.origin) safeOrigin = coerceToString(l.origin).toLowerCase();
+    if (!safeOrigin && l?.platform) safeOrigin = coerceToString(l.platform).toLowerCase();
+    if (!safeOrigin && l?.traffic_source) safeOrigin = coerceToString(l.traffic_source).toLowerCase();
+    if (!safeOrigin && l?.utm_source) safeOrigin = coerceToString(l.utm_source).toLowerCase();
+
+    if (safeOrigin.includes('tiktok') || safeOrigin.includes('tt')) return 'TikTok';
+    if (safeOrigin.includes('facebook') || safeOrigin.includes('fb') || safeOrigin.includes('meta')) return 'Facebook';
+    if (safeOrigin.includes('instagram') || safeOrigin.includes('ig') || safeOrigin.includes('insta')) return 'Instagram';
+    return 'Direct/Unknown';
+  };
+  // Kept for any legacy callers.
+  const normalizePlatform = (raw: any): string => leadPlatformOf({ origin: raw });
 
   const messagesByHourPlatform = useMemo(() => {
     const buckets: Record<number, Record<string, number>> = {};
