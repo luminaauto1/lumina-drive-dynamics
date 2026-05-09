@@ -197,7 +197,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
               </Button>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-6 flex-1 overflow-hidden flex flex-col">
               <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded text-xs text-amber-400 flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
                 Review the extracted data below. You can correct any mistakes before generating the PDF.
@@ -264,31 +264,33 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
                 </div>
               )}
 
-              <ScrollArea className="h-[400px] pr-4">
-                <div className="grid grid-cols-2 gap-4">
-                  {Object.entries(parsedData).map(([key, value]) => (
-                    <div key={key} className="space-y-1.5">
-                      <Label className="text-[10px] uppercase text-zinc-500 tracking-wider">
-                        {key.replace(/_/g, ' ')}
-                      </Label>
-                      <Input
-                        value={(value as string) ?? ''}
-                        onChange={(e) => handleUpdateField(key, e.target.value)}
-                        className="bg-black/50 border-white/5 h-8 text-xs focus:border-emerald-500"
-                      />
-                    </div>
-                  ))}
+              <ScrollArea className="flex-1 pr-4">
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    {Object.entries(parsedData).map(([key, value]) => (
+                      <div key={key} className="space-y-1.5">
+                        <Label className="text-[10px] uppercase text-zinc-500 tracking-wider">
+                          {key.replace(/_/g, ' ')}
+                        </Label>
+                        <Input
+                          value={(value as string) ?? ''}
+                          onChange={(e) => handleUpdateField(key, e.target.value)}
+                          className="bg-black/50 border-white/5 h-8 text-xs focus:border-emerald-500"
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex gap-3 pt-4 pb-32 border-t border-white/5">
+                    <Button variant="outline" onClick={reset} className="flex-1 bg-transparent border-white/10 hover:bg-white/5">
+                      Start Over
+                    </Button>
+                    <Button onClick={handleDownloadPDF} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white">
+                      <FileText className="w-4 h-4 mr-2" /> Generate PDF
+                    </Button>
+                  </div>
                 </div>
               </ScrollArea>
-
-              <div className="flex gap-3 pt-4 border-t border-white/5">
-                <Button variant="outline" onClick={reset} className="flex-1 bg-transparent border-white/10 hover:bg-white/5">
-                  Start Over
-                </Button>
-                <Button onClick={handleDownloadPDF} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white">
-                  <FileText className="w-4 h-4 mr-2" /> Generate PDF
-                </Button>
-              </div>
             </div>
           )}
         </div>
