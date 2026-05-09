@@ -74,9 +74,71 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
     setParsedData((prev) => (prev ? { ...prev, [key]: value } : prev));
   };
 
+  const ensureGoogleMaps = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if ((window as any).google?.maps?.places) return resolve(true);
+      const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+      if (!apiKey) return resolve(false);
+      const existing = document.querySelector<HTMLScriptElement>('script[data-gmaps-loader="1"]');
+      if (existing) {
+        existing.addEventListener('load', () => resolve(!!(window as any).google?.maps?.places));
+        existing.addEventListener('error', () => resolve(false));
+        return;
+      }
+      const s = document.createElement('script');
+      s.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+      s.async = true;
+      s.defer = true;
+      s.dataset.gmapsLoader = '1';
+      s.onload = () => resolve(!!(window as any).google?.maps?.places);
+      s.onerror = () => resolve(false);
+      document.head.appendChild(s);
+      setTimeout(() => resolve(!!(window as any).google?.maps?.places), 5000);
+    });
+  };
+
+  const lookupBusinessAddress = async (businessName: string): Promise<string | null> => {
+    try {
+      const ready = await ensureGoogleMaps();
+      if (!ready) return null;
+      const g = (window as any).google;
+      const service = new g.maps.places.PlacesService(document.createElement('div'));
+      return await new Promise<string | null>((resolve) => {
+        const timer = setTimeout(() => resolve(null), 4000);
+        service.findPlaceFromQuery(
+          { query: `${businessName} South Africa`, fields: ['formatted_address', 'name'] },
+          (results: any[], status: string) => {
+            clearTimeout(timer);
+            if (status === 'OK' && results?.[0]?.formatted_address) {
+              resolve(results[0].formatted_address);
+            } else {
+              resolve(null);
+            }
+          }
+        );
+      });
+    } catch {
+      return null;
+    }
+  };
+
   const handleDownloadPDF = async () => {
     if (!parsedData) return;
     try {
+      // INTERCEPTOR: Resolve workplace address via Google Places if missing/weak.
+      // Fully isolated from residential address. Failures are non-blocking.
+      let resolvedWorkplace = parsedData.workplace_address || '';
+      const businessName = (parsedData.employer_name || '').trim();
+      const workplaceLooksWeak = !resolvedWorkplace || resolvedWorkplace.trim().length < 8;
+      if (businessName && workplaceLooksWeak) {
+        toast.info('Resolving workplace address via Google Places...');
+        const found = await lookupBusinessAddress(businessName);
+        if (found) {
+          resolvedWorkplace = found;
+          toast.success('Workplace address auto-resolved.');
+        }
+      }
+
       // Map AI keys to FinanceApplication shape expected by generateFinancePDF
       const applicationObj: any = {
         id: crypto.randomUUID(),
