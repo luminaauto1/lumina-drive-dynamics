@@ -109,6 +109,7 @@ const AdminLeadAnalytics = () => {
   const [messages, setMessages] = useState<{ created_at: string; platform_source: string | null; phone_number: string | null }[]>([]);
   const [drafts, setDrafts] = useState<{ last_completed_step: string; step_number: number | null; submitted: boolean; updated_at: string }[]>([]);
   const [hiddenSeries, setHiddenSeries] = useState<Record<string, boolean>>({});
+  const [webhookLead, setWebhookLead] = useState<any>(null);
 
   const toggleSeries = (key: string) => {
     setHiddenSeries((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -189,6 +190,15 @@ const AdminLeadAnalytics = () => {
       setMessageCount(msgCount ?? 0);
       setMessages((msgRows as any) || []);
       setDrafts(((draftRows as any) || []));
+      // Targeted X-Ray: fetch one non-website lead to inspect EasySocial webhook payload
+      const { data: whLead } = await supabase
+        .from('leads')
+        .select('*')
+        .neq('source', 'Finance Form')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!cancelled) setWebhookLead(whLead);
       setLoading(false);
     };
     load();
@@ -486,6 +496,7 @@ const AdminLeadAnalytics = () => {
     Facebook: VIBRANT.electricBlue,
     Instagram: VIBRANT.pink,
     TikTok: VIBRANT.neonGreen,
+    'Website Form': VIBRANT.violet,
     'Direct/Unknown': VIBRANT.amber,
   };
   // Aggressive type coercion — origin column may arrive as string, array, object, or null.
@@ -501,6 +512,12 @@ const AdminLeadAnalytics = () => {
 
   // Sourced from `leads` (single source of truth populated by EasySocial webhook).
   const leadPlatformOf = (l: any): string => {
+    // Categorize website-originated leads up front so they don't fall into "Direct/Unknown".
+    const safeSource = coerceToString(l?.source).toLowerCase();
+    if (safeSource === 'finance form' || safeSource === 'website' || safeSource.includes('finance form') || safeSource.includes('website')) {
+      return 'Website Form';
+    }
+
     let safeOrigin = '';
     if (Array.isArray(l?.origin)) safeOrigin = l.origin.map(coerceToString).join(' ').toLowerCase();
     else if (typeof l?.origin === 'string') safeOrigin = l.origin.toLowerCase();
@@ -520,7 +537,7 @@ const AdminLeadAnalytics = () => {
   const messagesByHourPlatform = useMemo(() => {
     const buckets: Record<number, Record<string, number>> = {};
     for (let h = 0; h < 24; h++) {
-      buckets[h] = { Facebook: 0, Instagram: 0, TikTok: 0, 'Direct/Unknown': 0 };
+      buckets[h] = { Facebook: 0, Instagram: 0, TikTok: 0, 'Website Form': 0, 'Direct/Unknown': 0 };
     }
     leads.forEach((l: any) => {
       if (!l.created_at) return;
@@ -535,7 +552,7 @@ const AdminLeadAnalytics = () => {
   }, [leads]);
 
   const messageOriginsPie = useMemo(() => {
-    const counts: Record<string, number> = { Facebook: 0, Instagram: 0, TikTok: 0, 'Direct/Unknown': 0 };
+    const counts: Record<string, number> = { Facebook: 0, Instagram: 0, TikTok: 0, 'Website Form': 0, 'Direct/Unknown': 0 };
     leads.forEach((l: any) => {
       const p = leadPlatformOf(l);
       counts[p] = (counts[p] || 0) + 1;
@@ -1079,6 +1096,7 @@ const AdminLeadAnalytics = () => {
                         <Line type="monotone" dataKey="Facebook" stroke={PLATFORM_COLOR.Facebook} strokeWidth={3} dot={{ r: 2 }} activeDot={{ r: 5 }} hide={hiddenSeries.Facebook} />
                         <Line type="monotone" dataKey="Instagram" stroke={PLATFORM_COLOR.Instagram} strokeWidth={3} dot={{ r: 2 }} activeDot={{ r: 5 }} hide={hiddenSeries.Instagram} />
                         <Line type="monotone" dataKey="TikTok" stroke={PLATFORM_COLOR.TikTok} strokeWidth={3} dot={{ r: 2 }} activeDot={{ r: 5 }} hide={hiddenSeries.TikTok} />
+                        <Line type="monotone" dataKey="Website Form" stroke={PLATFORM_COLOR['Website Form']} strokeWidth={3} dot={{ r: 2 }} activeDot={{ r: 5 }} hide={hiddenSeries['Website Form']} />
                         <Line type="monotone" dataKey="Direct/Unknown" stroke={PLATFORM_COLOR['Direct/Unknown']} strokeWidth={3} dot={{ r: 2 }} activeDot={{ r: 5 }} hide={hiddenSeries['Direct/Unknown']} />
                       </LineChart>
                     </ResponsiveContainer>
@@ -1122,13 +1140,13 @@ const AdminLeadAnalytics = () => {
           </>
         )}
 
-        {/* Full Lead Record X-Ray (diagnostic) */}
+        {/* Webhook Lead X-Ray (diagnostic — most recent non-Finance-Form lead) */}
         <div className="mt-8 pt-4 border-t border-border/30">
           <p className="text-[10px] text-zinc-500/80 font-mono tracking-tight mb-2">
-            Full Lead Record X-Ray:
+            Webhook Lead X-Ray (most recent lead where source ≠ "Finance Form"):
           </p>
           <pre className="text-xs text-zinc-500 whitespace-pre-wrap break-words bg-zinc-950/50 rounded-lg p-3 border border-border/20">
-            {leads.length > 0 ? JSON.stringify(leads[0], null, 2) : '[no leads loaded]'}
+            {webhookLead ? JSON.stringify(webhookLead, null, 2) : '[no webhook lead found]'}
           </pre>
         </div>
       </div>
