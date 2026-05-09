@@ -900,26 +900,18 @@ const AdminLeadAnalytics = () => {
                       itemStyle={tooltipItemStyle}
                       labelStyle={tooltipLabelStyle}
                       cursor={{ fill: 'hsl(var(--muted) / 0.2)' }}
-                      formatter={(v: any, _n: any, props: any) => {
-                        const rate = props?.payload?.rate ?? 0;
-                        return [`${v} (${rate}% of total)`, 'Abandoned'];
-                      }}
                       labelFormatter={(_l, payload: any) => payload?.[0]?.payload?.step ?? _l}
                     />
-                    <Bar dataKey="abandoned" radius={[6, 6, 0, 0]}>
-                      {abandonmentData.map((row, i) => (
-                        <Cell key={i} fill={row.fill} />
-                      ))}
+                    <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} iconType="circle" />
+                    <Bar dataKey="clean" name="Clean Dropoff" stackId="a" fill={ABANDON_COLORS.clean} radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="Blacklisted" name="Blacklisted" stackId="a" fill={ABANDON_COLORS.Blacklisted} />
+                    <Bar dataKey="Bad Credit" name="Bad Credit" stackId="a" fill={ABANDON_COLORS['Bad Credit']} />
+                    <Bar dataKey="No Licence" name="No Licence" stackId="a" fill={ABANDON_COLORS['No Licence']} />
+                    <Bar dataKey="Low Income" name="Low Income" stackId="a" fill={ABANDON_COLORS['Low Income']} radius={[6, 6, 0, 0]}>
                       <LabelList
                         dataKey="abandoned"
                         position="top"
                         style={{ fill: 'hsl(var(--foreground))', fontSize: 12, fontWeight: 700 }}
-                      />
-                      <LabelList
-                        dataKey="rate"
-                        position="insideTop"
-                        formatter={(v: any) => `${v}%`}
-                        style={{ fill: 'hsl(var(--background))', fontSize: 10, fontWeight: 600 }}
                       />
                     </Bar>
                   </BarChart>
