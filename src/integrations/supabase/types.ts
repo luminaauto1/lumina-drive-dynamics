@@ -110,6 +110,7 @@ export type Database = {
       }
       application_drafts: {
         Row: {
+          abandonment_flags: string[]
           created_at: string
           id: string
           last_completed_step: string
@@ -119,6 +120,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          abandonment_flags?: string[]
           created_at?: string
           id?: string
           last_completed_step: string
@@ -128,6 +130,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          abandonment_flags?: string[]
           created_at?: string
           id?: string
           last_completed_step?: string

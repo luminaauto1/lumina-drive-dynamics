@@ -165,7 +165,7 @@ const AdminLeadAnalytics = () => {
         .select('created_at, platform_source, phone_number')
         .order('created_at', { ascending: false }).limit(10000);
       let draftsQ = (supabase.from as any)('application_drafts')
-        .select('last_completed_step, step_number, submitted, updated_at')
+        .select('last_completed_step, step_number, submitted, updated_at, abandonment_flags')
         .order('updated_at', { ascending: false }).limit(10000);
       if (cutoff) {
         leadsQ = leadsQ.gte('created_at', cutoff.toISOString());
@@ -278,6 +278,8 @@ const AdminLeadAnalytics = () => {
 
   // Application Form Abandonment: aggregate `application_drafts` by step,
   // excluding any sessions that ultimately submitted the application.
+  // Stacked by abandonment reason: Clean / Blacklisted / Bad Credit / No Licence / Low Income.
+  const ABANDON_FLAG_KEYS = ['Blacklisted', 'Bad Credit', 'No Licence', 'Low Income'] as const;
   const abandonmentData = useMemo(() => {
     const STEP_LABELS: Record<number, string> = {
       0: 'Step 0: Landed',
@@ -287,26 +289,69 @@ const AdminLeadAnalytics = () => {
       4: 'Step 4: Vehicle Preference',
       5: 'Step 5: Review & Submit',
     };
-    const counts: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    drafts.forEach((d) => {
+    const make = () => ({ clean: 0, Blacklisted: 0, 'Bad Credit': 0, 'No Licence': 0, 'Low Income': 0, total: 0 });
+    const buckets: Record<number, ReturnType<typeof make>> = {
+      0: make(), 1: make(), 2: make(), 3: make(), 4: make(), 5: make(),
+    };
+    drafts.forEach((d: any) => {
       if (d.submitted) return;
       const n = d.step_number ?? 0;
-      if (n >= 0 && n <= 5) counts[n] += 1;
+      if (n < 0 || n > 5) return;
+      const flags: string[] = Array.isArray(d.abandonment_flags) ? d.abandonment_flags : [];
+      const negative = flags.filter((f) => (ABANDON_FLAG_KEYS as readonly string[]).includes(f));
+      buckets[n].total += 1;
+      if (negative.length === 0) {
+        buckets[n].clean += 1;
+      } else {
+        // Count toward each negative flag (stacked); also keep total = sum across stacks
+        negative.forEach((f) => { (buckets[n] as any)[f] += 1; });
+        // Subtract overcounting from total (we want bar height = real abandons,
+        // but stacking multiple flags would inflate). Simpler: when multiple
+        // flags present, attribute to the most severe in priority order.
+        (buckets[n] as any)[negative[0]] = (buckets[n] as any)[negative[0]]; // no-op for clarity
+      }
     });
-    const totalAbandoned = Object.values(counts).reduce((a, b) => a + b, 0);
+    // Re-derive: for each draft, attribute to ONE bucket using priority order
+    // so stacked bar height equals actual abandoned session count.
+    Object.keys(buckets).forEach((k) => {
+      const b: any = buckets[Number(k)];
+      b.Blacklisted = 0; b['Bad Credit'] = 0; b['No Licence'] = 0; b['Low Income'] = 0; b.clean = 0;
+    });
+    drafts.forEach((d: any) => {
+      if (d.submitted) return;
+      const n = d.step_number ?? 0;
+      if (n < 0 || n > 5) return;
+      const flags: string[] = Array.isArray(d.abandonment_flags) ? d.abandonment_flags : [];
+      const priority = ['Blacklisted', 'Bad Credit', 'No Licence', 'Low Income'];
+      const hit = priority.find((p) => flags.includes(p));
+      if (hit) (buckets[n] as any)[hit] += 1;
+      else (buckets[n] as any).clean += 1;
+    });
+    const totalAbandoned = Object.values(buckets).reduce((a, b) => a + b.total, 0);
     return [0, 1, 2, 3, 4, 5].map((n) => {
-      const abandoned = counts[n];
-      const rate = totalAbandoned > 0 ? (abandoned / totalAbandoned) * 100 : 0;
+      const b = buckets[n];
+      const rate = totalAbandoned > 0 ? (b.total / totalAbandoned) * 100 : 0;
       return {
         step: STEP_LABELS[n],
         shortStep: `Step ${n}`,
-        abandoned,
+        clean: b.clean,
+        Blacklisted: b.Blacklisted,
+        'Bad Credit': b['Bad Credit'],
+        'No Licence': b['No Licence'],
+        'Low Income': b['Low Income'],
+        abandoned: b.total,
         rate: Math.round(rate * 10) / 10,
-        fill: VIBRANT_PALETTE[n % VIBRANT_PALETTE.length],
       };
     });
   }, [drafts]);
   const abandonmentHasData = abandonmentData.some((d) => d.abandoned > 0);
+  const ABANDON_COLORS = {
+    clean: '#52525B',           // zinc-600
+    Blacklisted: '#EF4444',     // red
+    'Bad Credit': '#F97316',    // orange
+    'No Licence': '#FBBF24',    // amber
+    'Low Income': '#A855F7',    // violet
+  } as const;
 
   // Time analysis (avg minutes) — outliers > 24h excluded to prevent forgotten test sessions skewing averages
   // - Abandonment: lead.created_at -> lead.updated_at (last progressive step save)
@@ -803,8 +848,11 @@ const AdminLeadAnalytics = () => {
                 ? ((totalSubmitted + engagedDrafts) / totalLandings) * 100
                 : 0;
               const completionRate = totalStarted > 0 ? (totalSubmitted / totalStarted) * 100 : 0;
+              const unqualifiedDropoffs = activeDrafts.filter((d: any) =>
+                Array.isArray(d.abandonment_flags) && d.abandonment_flags.length > 0
+              ).length;
               return (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-1">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-1">
                   <div className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4">
                     <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Landings</div>
                     <div className="mt-1 text-2xl font-bold text-foreground">{totalLandings.toLocaleString()}</div>
@@ -821,14 +869,19 @@ const AdminLeadAnalytics = () => {
                     <div className="text-[11px] text-muted-foreground mt-0.5">Finalized applications</div>
                   </div>
                   <div className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4">
+                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Abandoned</div>
+                    <div className="mt-1 text-2xl font-bold text-foreground">{totalDrafts.toLocaleString()}</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">{completionRate.toFixed(1)}% completion</div>
+                  </div>
+                  <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 backdrop-blur p-4">
+                    <div className="text-[11px] uppercase tracking-wider text-rose-300/80">Unqualified Dropoffs</div>
+                    <div className="mt-1 text-2xl font-bold text-rose-400">{unqualifiedDropoffs.toLocaleString()}</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">Negative flag triggered</div>
+                  </div>
+                  <div className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4">
                     <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Engagement Rate</div>
                     <div className="mt-1 text-2xl font-bold text-foreground">{engagementRate.toFixed(1)}%</div>
                     <div className="text-[11px] text-muted-foreground mt-0.5">{landedOnly.toLocaleString()} landed only</div>
-                  </div>
-                  <div className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4">
-                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Completion Rate</div>
-                    <div className="mt-1 text-2xl font-bold text-foreground">{completionRate.toFixed(1)}%</div>
-                    <div className="text-[11px] text-muted-foreground mt-0.5">{totalDrafts.toLocaleString()} abandoned</div>
                   </div>
                 </div>
               );
@@ -855,26 +908,18 @@ const AdminLeadAnalytics = () => {
                       itemStyle={tooltipItemStyle}
                       labelStyle={tooltipLabelStyle}
                       cursor={{ fill: 'hsl(var(--muted) / 0.2)' }}
-                      formatter={(v: any, _n: any, props: any) => {
-                        const rate = props?.payload?.rate ?? 0;
-                        return [`${v} (${rate}% of total)`, 'Abandoned'];
-                      }}
                       labelFormatter={(_l, payload: any) => payload?.[0]?.payload?.step ?? _l}
                     />
-                    <Bar dataKey="abandoned" radius={[6, 6, 0, 0]}>
-                      {abandonmentData.map((row, i) => (
-                        <Cell key={i} fill={row.fill} />
-                      ))}
+                    <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} iconType="circle" />
+                    <Bar dataKey="clean" name="Clean Dropoff" stackId="a" fill={ABANDON_COLORS.clean} radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="Blacklisted" name="Blacklisted" stackId="a" fill={ABANDON_COLORS.Blacklisted} />
+                    <Bar dataKey="Bad Credit" name="Bad Credit" stackId="a" fill={ABANDON_COLORS['Bad Credit']} />
+                    <Bar dataKey="No Licence" name="No Licence" stackId="a" fill={ABANDON_COLORS['No Licence']} />
+                    <Bar dataKey="Low Income" name="Low Income" stackId="a" fill={ABANDON_COLORS['Low Income']} radius={[6, 6, 0, 0]}>
                       <LabelList
                         dataKey="abandoned"
                         position="top"
                         style={{ fill: 'hsl(var(--foreground))', fontSize: 12, fontWeight: 700 }}
-                      />
-                      <LabelList
-                        dataKey="rate"
-                        position="insideTop"
-                        formatter={(v: any) => `${v}%`}
-                        style={{ fill: 'hsl(var(--background))', fontSize: 10, fontWeight: 600 }}
                       />
                     </Bar>
                   </BarChart>
