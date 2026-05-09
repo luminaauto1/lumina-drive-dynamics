@@ -190,7 +190,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
           marital_status: parsedData.marital_status || null,
           street_address: parsedData.physical_address || null,
           employer_name: parsedData.employer_name || null,
-          employer_address: parsedData.workplace_address || null,
+          employer_address: resolvedWorkplace || null,
           job_title: parsedData.job_title || null,
           employment_period: parsedData.employment_start || null,
           gross_salary: grossNum,
