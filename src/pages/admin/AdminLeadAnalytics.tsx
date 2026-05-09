@@ -1152,14 +1152,17 @@ const AdminLeadAnalytics = () => {
           </>
         )}
 
-        {/* Webhook Lead X-Ray (diagnostic — most recent non-Finance-Form lead) */}
-        <div className="mt-8 pt-4 border-t border-border/30">
-          <p className="text-[10px] text-zinc-500/80 font-mono tracking-tight mb-2">
-            Strict EasySocial Webhook X-Ray (easysocial_id present, fallback: source = "WhatsApp"):
+        {/* Aggregation X-Ray (diagnostic — unique values across last 100 leads) */}
+        <div className="mt-8 pt-4 border-t border-border/30 space-y-2 text-xs text-zinc-500 font-mono">
+          <p className="text-[10px] text-zinc-500/80 tracking-tight">
+            Aggregation X-Ray — unique values across the last 100 leads:
           </p>
-          <pre className="text-xs text-zinc-500 whitespace-pre-wrap break-words bg-zinc-950/50 rounded-lg p-3 border border-border/20">
-            {webhookLead ? JSON.stringify(webhookLead, null, 2) : '[no webhook lead found]'}
-          </pre>
+          <div className="bg-zinc-950/50 rounded-lg p-3 border border-border/20 space-y-1 break-words whitespace-pre-wrap">
+            <div><span className="text-zinc-400">X-Ray Sources:</span> {JSON.stringify(uniqueSweep.sources)}</div>
+            <div><span className="text-zinc-400">X-Ray Origins:</span> {JSON.stringify(uniqueSweep.origins)}</div>
+            <div><span className="text-zinc-400">X-Ray Platforms:</span> {JSON.stringify(uniqueSweep.platforms)}</div>
+            <div><span className="text-zinc-400">X-Ray Traffic:</span> {JSON.stringify(uniqueSweep.traffic)}</div>
+          </div>
         </div>
       </div>
     </AdminLayout>
