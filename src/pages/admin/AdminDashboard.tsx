@@ -134,19 +134,19 @@ const AdminDashboard = () => {
         setUrgentLeads(deduped.slice(0, 6));
       }
 
-      // 4. Today's communication activity (messages / leads / apps)
+      // 4. Today's tracked-entity volume (local timezone bounds → ISO for query)
       const dayStart = startOfDay(now).toISOString();
       const dayEnd = endOfDay(now).toISOString();
-      const [{ count: msgToday }, { count: leadsToday }, { count: appsToday }] = await Promise.all([
-        supabase.from("whatsapp_messages").select("id", { count: "exact", head: true })
-          .gte("created_at", dayStart).lte("created_at", dayEnd),
+      const [{ count: leadsToday }, { count: appsToday }, { count: draftsToday }] = await Promise.all([
         supabase.from("leads").select("id", { count: "exact", head: true })
           .gte("created_at", dayStart).lte("created_at", dayEnd),
         supabase.from("finance_applications").select("id", { count: "exact", head: true })
           .gte("created_at", dayStart).lte("created_at", dayEnd),
+        supabase.from("application_drafts").select("id", { count: "exact", head: true })
+          .gte("updated_at", dayStart).lte("updated_at", dayEnd),
       ]);
       setActivityToday({
-        messages: msgToday ?? 0,
+        totalVolume: (leadsToday ?? 0) + (draftsToday ?? 0),
         leads: leadsToday ?? 0,
         apps: appsToday ?? 0,
       });
