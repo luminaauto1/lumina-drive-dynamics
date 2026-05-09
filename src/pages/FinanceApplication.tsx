@@ -134,6 +134,13 @@ const FinanceApplication = () => {
     }
   };
 
+  // Silent abandonment-reason tracking. Whenever the user toggles a negative
+  // qualifier (Blacklisted, Bad Credit, No Licence, Low Income), upsert the
+  // active flag set onto their draft row. Fire-and-forget; never blocks UI.
+  // NOTE: depends on `formData` which is declared below — wrapped in try/catch
+  // and a guarded effect that runs only when the values actually change.
+  // (See useEffect below the formData declaration.)
+
   // Top-of-funnel: capture the moment the form is mounted (Step 0: Landed).
   // Use ignoreDuplicates so returning users with progress aren't reset.
   useEffect(() => {
