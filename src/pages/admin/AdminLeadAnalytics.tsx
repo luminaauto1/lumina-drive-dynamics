@@ -1140,13 +1140,13 @@ const AdminLeadAnalytics = () => {
           </>
         )}
 
-        {/* Full Lead Record X-Ray (diagnostic) */}
+        {/* Webhook Lead X-Ray (diagnostic — most recent non-Finance-Form lead) */}
         <div className="mt-8 pt-4 border-t border-border/30">
           <p className="text-[10px] text-zinc-500/80 font-mono tracking-tight mb-2">
-            Full Lead Record X-Ray:
+            Webhook Lead X-Ray (most recent lead where source ≠ "Finance Form"):
           </p>
           <pre className="text-xs text-zinc-500 whitespace-pre-wrap break-words bg-zinc-950/50 rounded-lg p-3 border border-border/20">
-            {leads.length > 0 ? JSON.stringify(leads[0], null, 2) : '[no leads loaded]'}
+            {webhookLead ? JSON.stringify(webhookLead, null, 2) : '[no webhook lead found]'}
           </pre>
         </div>
       </div>
