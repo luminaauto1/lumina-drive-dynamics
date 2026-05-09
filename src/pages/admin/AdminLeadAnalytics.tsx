@@ -190,6 +190,15 @@ const AdminLeadAnalytics = () => {
       setMessageCount(msgCount ?? 0);
       setMessages((msgRows as any) || []);
       setDrafts(((draftRows as any) || []));
+      // Targeted X-Ray: fetch one non-website lead to inspect EasySocial webhook payload
+      const { data: whLead } = await supabase
+        .from('leads')
+        .select('*')
+        .neq('source', 'Finance Form')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!cancelled) setWebhookLead(whLead);
       setLoading(false);
     };
     load();
