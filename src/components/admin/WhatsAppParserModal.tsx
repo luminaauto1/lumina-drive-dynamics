@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { MessageSquare, Sparkles, FileText, Loader2, AlertTriangle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { MessageSquare, Sparkles, FileText, Loader2, AlertTriangle, MapPin } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { publicApiHeaders } from '@/lib/publicApi';
 import { toast } from 'sonner';
@@ -340,9 +341,30 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
                   <div className="grid grid-cols-2 gap-4">
                     {Object.entries(parsedData).map(([key, value]) => (
                       <div key={key} className="space-y-1.5">
-                        <Label className="text-[10px] uppercase text-zinc-500 tracking-wider">
-                          {key.replace(/_/g, ' ')}
-                        </Label>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-[10px] uppercase text-zinc-500 tracking-wider">
+                            {key.replace(/_/g, ' ')}
+                          </Label>
+                          {key === 'workplace_address' && workplaceMeta && (
+                            <Badge
+                              variant="outline"
+                              className={
+                                workplaceMeta.source === 'google_places'
+                                  ? 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10 text-[10px]'
+                                  : workplaceMeta.source === 'client_provided'
+                                  ? 'border-amber-500/40 text-amber-400 bg-amber-500/10 text-[10px]'
+                                  : 'border-zinc-500/40 text-zinc-400 bg-zinc-500/10 text-[10px]'
+                              }
+                            >
+                              <MapPin className="w-3 h-3 mr-1" />
+                              {workplaceMeta.source === 'google_places'
+                                ? 'Google Resolved'
+                                : workplaceMeta.source === 'client_provided'
+                                ? 'Client Provided'
+                                : 'Raw Text'}
+                            </Badge>
+                          )}
+                        </div>
                         <Input
                           value={(value as string) ?? ''}
                           onChange={(e) => handleUpdateField(key, e.target.value)}
