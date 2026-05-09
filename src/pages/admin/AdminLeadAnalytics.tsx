@@ -496,32 +496,38 @@ const AdminLeadAnalytics = () => {
     return 'Direct/Unknown';
   };
 
+  // Sourced from `leads` (single source of truth populated by EasySocial webhook).
+  // Use lead.origin first, then platform, then traffic_source as fallback.
+  const leadPlatformOf = (l: any): string =>
+    normalizePlatform(l.origin || l.platform || l.traffic_source || l.utm_source);
+
   const messagesByHourPlatform = useMemo(() => {
     const buckets: Record<number, Record<string, number>> = {};
     for (let h = 0; h < 24; h++) {
       buckets[h] = { Facebook: 0, Instagram: 0, TikTok: 0, 'Direct/Unknown': 0 };
     }
-    messages.forEach((m) => {
-      const hr = new Date(m.created_at).getHours();
-      const p = normalizePlatform(m.platform_source);
+    leads.forEach((l: any) => {
+      if (!l.created_at) return;
+      const hr = new Date(l.created_at).getHours();
+      const p = leadPlatformOf(l);
       buckets[hr][p] = (buckets[hr][p] || 0) + 1;
     });
     return Object.entries(buckets).map(([h, row]) => ({
       hour: `${String(h).padStart(2, '0')}:00`,
       ...row,
     }));
-  }, [messages]);
+  }, [leads]);
 
   const messageOriginsPie = useMemo(() => {
     const counts: Record<string, number> = { Facebook: 0, Instagram: 0, TikTok: 0, 'Direct/Unknown': 0 };
-    messages.forEach((m) => {
-      const p = normalizePlatform(m.platform_source);
+    leads.forEach((l: any) => {
+      const p = leadPlatformOf(l);
       counts[p] = (counts[p] || 0) + 1;
     });
     return Object.entries(counts)
       .filter(([, v]) => v > 0)
       .map(([name, value]) => ({ name, value }));
-  }, [messages]);
+  }, [leads]);
 
   // Unique contacts who sent messages (dedupe by phone)
   const uniqueContactCount = useMemo(() => {
