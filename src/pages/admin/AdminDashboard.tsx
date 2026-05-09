@@ -135,8 +135,12 @@ const AdminDashboard = () => {
       }
 
       // 4. Today's tracked-entity volume (local timezone bounds → ISO for query)
-      const dayStart = startOfDay(now).toISOString();
-      const dayEnd = endOfDay(now).toISOString();
+      // Force "today" boundaries from local midnight → ISO so Supabase (UTC) gets a stable window.
+      const _now = new Date();
+      const startOfDayLocal = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate());
+      const endOfDayLocal = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate(), 23, 59, 59, 999);
+      const dayStart = startOfDayLocal.toISOString();
+      const dayEnd = endOfDayLocal.toISOString();
       const [{ count: leadsToday }, { count: appsToday }, { count: draftsToday }] = await Promise.all([
         supabase.from("leads").select("id", { count: "exact", head: true })
           .gte("created_at", dayStart).lte("created_at", dayEnd),
