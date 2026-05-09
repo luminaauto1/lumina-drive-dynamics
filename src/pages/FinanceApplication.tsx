@@ -258,6 +258,35 @@ const FinanceApplication = () => {
     }
   }, [user, navigate, vehicleId, loading, resumeId, editId]);
 
+  // Silent abandonment-reason tracking. Watch the four negative qualifiers
+  // and upsert the active flag set to the current draft. Never blocks UI.
+  useEffect(() => {
+    const flags: string[] = [];
+    const cs = formData.credit_score_status;
+    if (cs === 'blacklisted') flags.push('Blacklisted');
+    if (cs === 'debt_review' || cs === 'defaults_arrears' || cs === 'judgements') flags.push('Bad Credit');
+    if (formData.has_drivers_license === 'no') flags.push('No Licence');
+    const net = parseFloat(formData.net_salary || '0');
+    if (!isNaN(net) && net > 0 && net < 8000) flags.push('Low Income');
+    try {
+      supabase
+        .from('application_drafts' as any)
+        .upsert(
+          {
+            session_id: draftSessionRef.current,
+            last_completed_step: STEP_NAMES[currentStep] || `Step ${currentStep}`,
+            step_number: currentStep,
+            abandonment_flags: flags,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'session_id' }
+        )
+        .then(() => {})
+        .then(undefined, () => {});
+    } catch { /* never break the form */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.credit_score_status, formData.has_drivers_license, formData.net_salary]);
+
   const loadDraftApplication = async (draftId: string) => {
     const { data, error } = await supabase
       .from("finance_applications")
