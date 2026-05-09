@@ -848,8 +848,11 @@ const AdminLeadAnalytics = () => {
                 ? ((totalSubmitted + engagedDrafts) / totalLandings) * 100
                 : 0;
               const completionRate = totalStarted > 0 ? (totalSubmitted / totalStarted) * 100 : 0;
+              const unqualifiedDropoffs = activeDrafts.filter((d: any) =>
+                Array.isArray(d.abandonment_flags) && d.abandonment_flags.length > 0
+              ).length;
               return (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-1">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-1">
                   <div className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4">
                     <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Landings</div>
                     <div className="mt-1 text-2xl font-bold text-foreground">{totalLandings.toLocaleString()}</div>
@@ -866,14 +869,19 @@ const AdminLeadAnalytics = () => {
                     <div className="text-[11px] text-muted-foreground mt-0.5">Finalized applications</div>
                   </div>
                   <div className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4">
+                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Abandoned</div>
+                    <div className="mt-1 text-2xl font-bold text-foreground">{totalDrafts.toLocaleString()}</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">{completionRate.toFixed(1)}% completion</div>
+                  </div>
+                  <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 backdrop-blur p-4">
+                    <div className="text-[11px] uppercase tracking-wider text-rose-300/80">Unqualified Dropoffs</div>
+                    <div className="mt-1 text-2xl font-bold text-rose-400">{unqualifiedDropoffs.toLocaleString()}</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">Negative flag triggered</div>
+                  </div>
+                  <div className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4">
                     <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Engagement Rate</div>
                     <div className="mt-1 text-2xl font-bold text-foreground">{engagementRate.toFixed(1)}%</div>
                     <div className="text-[11px] text-muted-foreground mt-0.5">{landedOnly.toLocaleString()} landed only</div>
-                  </div>
-                  <div className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4">
-                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Completion Rate</div>
-                    <div className="mt-1 text-2xl font-bold text-foreground">{completionRate.toFixed(1)}%</div>
-                    <div className="text-[11px] text-muted-foreground mt-0.5">{totalDrafts.toLocaleString()} abandoned</div>
                   </div>
                 </div>
               );
