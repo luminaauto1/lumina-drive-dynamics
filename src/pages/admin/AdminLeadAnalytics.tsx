@@ -109,8 +109,6 @@ const AdminLeadAnalytics = () => {
   const [messages, setMessages] = useState<{ created_at: string; platform_source: string | null; phone_number: string | null }[]>([]);
   const [drafts, setDrafts] = useState<{ last_completed_step: string; step_number: number | null; submitted: boolean; updated_at: string }[]>([]);
   const [hiddenSeries, setHiddenSeries] = useState<Record<string, boolean>>({});
-  const [webhookLead, setWebhookLead] = useState<any>(null);
-  const [uniqueSweep, setUniqueSweep] = useState<{ sources: any[]; origins: any[]; platforms: any[]; traffic: any[] }>({ sources: [], origins: [], platforms: [], traffic: [] });
 
   const toggleSeries = (key: string) => {
     setHiddenSeries((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -191,26 +189,6 @@ const AdminLeadAnalytics = () => {
       setMessageCount(msgCount ?? 0);
       setMessages((msgRows as any) || []);
       setDrafts(((draftRows as any) || []));
-      // Aggregation X-Ray: sweep last 100 leads for unique source/origin/platform/traffic_source values
-      const { data: recentLeads } = await supabase
-        .from('leads')
-        .select('source, origin, platform, traffic_source')
-        .order('created_at', { ascending: false })
-        .limit(100);
-      if (!cancelled) {
-        const uniq = (key: string) =>
-          [...new Set((recentLeads || []).map((l: any) => {
-            const v = l?.[key];
-            if (v == null) return null;
-            return typeof v === 'object' ? JSON.stringify(v) : String(v);
-          }))].filter(Boolean) as any[];
-        setUniqueSweep({
-          sources: uniq('source'),
-          origins: uniq('origin'),
-          platforms: uniq('platform'),
-          traffic: uniq('traffic_source'),
-        });
-      }
       setLoading(false);
     };
     load();
@@ -505,52 +483,30 @@ const AdminLeadAnalytics = () => {
 
   // Message Volume by Time-of-Day × Platform (24 hourly buckets)
   const PLATFORM_COLOR: Record<string, string> = {
-    Facebook: VIBRANT.electricBlue,
-    Instagram: VIBRANT.pink,
-    TikTok: VIBRANT.neonGreen,
-    'Website Form': VIBRANT.violet,
-    'Direct/Unknown': VIBRANT.amber,
+    'WhatsApp (EasySocial)': '#10b981',
+    'Paid Ads': '#f59e0b',
+    'Website Form': '#3b82f6',
+    'Direct / Manual': '#71717a',
   };
-  // Aggressive type coercion — origin column may arrive as string, array, object, or null.
-  const coerceToString = (val: any): string => {
-    if (val == null) return '';
-    if (Array.isArray(val)) return val.map((v) => coerceToString(v)).join(' ');
-    if (typeof val === 'object') {
-      try { return Object.values(val).map((v) => coerceToString(v)).join(' '); }
-      catch { return ''; }
-    }
-    return String(val);
-  };
+  const PLATFORM_KEYS = ['WhatsApp (EasySocial)', 'Paid Ads', 'Website Form', 'Direct / Manual'] as const;
 
-  // Sourced from `leads` (single source of truth populated by EasySocial webhook).
+  // Strict mapping based on the `source` column (single source of truth).
   const leadPlatformOf = (l: any): string => {
-    // Categorize website-originated leads up front so they don't fall into "Direct/Unknown".
-    const safeSource = coerceToString(l?.source).toLowerCase();
-    if (safeSource === 'finance form' || safeSource === 'website' || safeSource.includes('finance form') || safeSource.includes('website')) {
-      return 'Website Form';
-    }
-
-    let safeOrigin = '';
-    if (Array.isArray(l?.origin)) safeOrigin = l.origin.map(coerceToString).join(' ').toLowerCase();
-    else if (typeof l?.origin === 'string') safeOrigin = l.origin.toLowerCase();
-    else if (l?.origin) safeOrigin = coerceToString(l.origin).toLowerCase();
-    if (!safeOrigin && l?.platform) safeOrigin = coerceToString(l.platform).toLowerCase();
-    if (!safeOrigin && l?.traffic_source) safeOrigin = coerceToString(l.traffic_source).toLowerCase();
-    if (!safeOrigin && l?.utm_source) safeOrigin = coerceToString(l.utm_source).toLowerCase();
-
-    if (safeOrigin.includes('tiktok') || safeOrigin.includes('tt')) return 'TikTok';
-    if (safeOrigin.includes('facebook') || safeOrigin.includes('fb') || safeOrigin.includes('meta')) return 'Facebook';
-    if (safeOrigin.includes('instagram') || safeOrigin.includes('ig') || safeOrigin.includes('insta')) return 'Instagram';
-    return 'Direct/Unknown';
+    const rawSource = l?.source ? String(l.source).toLowerCase().trim() : '';
+    if (rawSource === 'easysocial') return 'WhatsApp (EasySocial)';
+    if (rawSource === 'ad' || l?.traffic_source === 'ad') return 'Paid Ads';
+    if (rawSource === 'finance form' || rawSource === 'website') return 'Website Form';
+    return 'Direct / Manual';
   };
   // Kept for any legacy callers.
-  const normalizePlatform = (raw: any): string => leadPlatformOf({ origin: raw });
+  const normalizePlatform = (raw: any): string => leadPlatformOf({ source: raw });
+
+  const makePlatformBucket = () =>
+    PLATFORM_KEYS.reduce((acc, k) => ({ ...acc, [k]: 0 }), {} as Record<string, number>);
 
   const messagesByHourPlatform = useMemo(() => {
     const buckets: Record<number, Record<string, number>> = {};
-    for (let h = 0; h < 24; h++) {
-      buckets[h] = { Facebook: 0, Instagram: 0, TikTok: 0, 'Website Form': 0, 'Direct/Unknown': 0 };
-    }
+    for (let h = 0; h < 24; h++) buckets[h] = makePlatformBucket();
     leads.forEach((l: any) => {
       if (!l.created_at) return;
       const hr = new Date(l.created_at).getHours();
@@ -564,7 +520,7 @@ const AdminLeadAnalytics = () => {
   }, [leads]);
 
   const messageOriginsPie = useMemo(() => {
-    const counts: Record<string, number> = { Facebook: 0, Instagram: 0, TikTok: 0, 'Website Form': 0, 'Direct/Unknown': 0 };
+    const counts: Record<string, number> = makePlatformBucket();
     leads.forEach((l: any) => {
       const p = leadPlatformOf(l);
       counts[p] = (counts[p] || 0) + 1;
@@ -1151,19 +1107,6 @@ const AdminLeadAnalytics = () => {
             {/* Top Tags / Lead → App by Tag charts removed — depended on EasySocial inbound tag enrichment that is not currently flowing. */}
           </>
         )}
-
-        {/* Aggregation X-Ray (diagnostic — unique values across last 100 leads) */}
-        <div className="mt-8 pt-4 border-t border-border/30 space-y-2 text-xs text-zinc-500 font-mono">
-          <p className="text-[10px] text-zinc-500/80 tracking-tight">
-            Aggregation X-Ray — unique values across the last 100 leads:
-          </p>
-          <div className="bg-zinc-950/50 rounded-lg p-3 border border-border/20 space-y-1 break-words whitespace-pre-wrap">
-            <div><span className="text-zinc-400">X-Ray Sources:</span> {JSON.stringify(uniqueSweep.sources)}</div>
-            <div><span className="text-zinc-400">X-Ray Origins:</span> {JSON.stringify(uniqueSweep.origins)}</div>
-            <div><span className="text-zinc-400">X-Ray Platforms:</span> {JSON.stringify(uniqueSweep.platforms)}</div>
-            <div><span className="text-zinc-400">X-Ray Traffic:</span> {JSON.stringify(uniqueSweep.traffic)}</div>
-          </div>
-        </div>
       </div>
     </AdminLayout>
   );
