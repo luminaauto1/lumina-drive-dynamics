@@ -340,10 +340,10 @@ const AdminDashboard = () => {
                 className="text-left p-4 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors border border-border/50"
               >
                 <div className="flex items-center gap-2 mb-2 text-emerald-400">
-                  <MessageCircle className="w-4 h-4" />
-                  <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Messages</span>
+                  <BarChart3 className="w-4 h-4" />
+                  <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Volume</span>
                 </div>
-                <p className="text-2xl font-semibold tabular-nums">{activityToday.messages.toLocaleString()}</p>
+                <p className="text-2xl font-semibold tabular-nums">{activityToday.totalVolume.toLocaleString()}</p>
               </button>
 
               <button
