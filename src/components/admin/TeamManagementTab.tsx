@@ -9,10 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-type StaffRoleKind = 'sales_agent' | 'f_and_i';
+type StaffRoleKind = 'sales_agent' | 'f_and_i' | 'senior_f_and_i';
 const ROLE_LABELS: Record<StaffRoleKind, string> = {
   sales_agent: 'Salesperson',
   f_and_i: 'F&I',
+  senior_f_and_i: 'Senior F&I',
 };
 
 interface AgentRow {
