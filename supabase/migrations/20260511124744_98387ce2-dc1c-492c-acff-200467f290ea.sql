@@ -1,0 +1,2 @@
+ALTER TABLE public.finance_applications ADD COLUMN IF NOT EXISTS status_updated_at timestamp with time zone;
+UPDATE public.finance_applications SET status_updated_at = COALESCE(updated_at, created_at) WHERE status_updated_at IS NULL;
