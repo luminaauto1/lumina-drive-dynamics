@@ -115,6 +115,10 @@ Deno.serve(async (req) => {
 
     // Assign requested role (idempotent)
     await admin.from("user_roles").upsert({ user_id: userId, role }, { onConflict: "user_id,role" });
+    // Senior F&I inherits all standard F&I RLS policies — also grant the base f_and_i role
+    if (role === "senior_f_and_i") {
+      await admin.from("user_roles").upsert({ user_id: userId, role: "f_and_i" }, { onConflict: "user_id,role" });
+    }
 
     return new Response(
       JSON.stringify({ ok: true, user_id: userId, mode, email, role, temp_password: tempPassword, email_delivery: emailDelivery }),
