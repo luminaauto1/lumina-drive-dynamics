@@ -101,6 +101,16 @@ export const useUpdateFinanceApplication = () => {
         }
       } catch (_) { /* non-fatal */ }
 
+      // Stamp status_updated_at whenever the pipeline status actually changes.
+      if (
+        updates.status !== undefined &&
+        currentApp &&
+        updates.status !== currentApp.status &&
+        updates.status_updated_at === undefined
+      ) {
+        updates = { ...updates, status_updated_at: new Date().toISOString() };
+      }
+
       // 2. Perform the database update
       const { data, error } = await supabase
         .from('finance_applications')
