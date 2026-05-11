@@ -15,8 +15,10 @@ interface AuthContextType {
   isSuperAdmin: boolean;
   /** True for sales_agent role. */
   isSalesAgent: boolean;
-  /** True for f_and_i role. */
+  /** True for f_and_i role (standard or senior). */
   isFAndI: boolean;
+  /** True specifically for senior_f_and_i role. */
+  isSeniorFAndI: boolean;
   /** True if the user is any staff member (super_admin OR sales_agent OR f_and_i). */
   isStaff: boolean;
   /** Normalized role label, or null if not staff. */
