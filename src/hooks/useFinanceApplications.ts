@@ -86,13 +86,12 @@ export const useUpdateFinanceApplication = () => {
       try {
         const { data: { user: actor } } = await supabase.auth.getUser();
         if (actor?.id && updates.assigned_f_and_i === undefined) {
-          const { data: roleRow } = await supabase
+          const { data: roleRows } = await supabase
             .from('user_roles')
             .select('role')
             .eq('user_id', actor.id)
-            .eq('role', 'f_and_i')
-            .maybeSingle();
-          if (roleRow) {
+            .in('role', ['f_and_i', 'senior_f_and_i'] as any);
+          if (roleRows && roleRows.length > 0) {
             updates = {
               ...updates,
               assigned_f_and_i: actor.id,

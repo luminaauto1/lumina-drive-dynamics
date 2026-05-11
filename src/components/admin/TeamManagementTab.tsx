@@ -9,10 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-type StaffRoleKind = 'sales_agent' | 'f_and_i';
+type StaffRoleKind = 'sales_agent' | 'f_and_i' | 'senior_f_and_i';
 const ROLE_LABELS: Record<StaffRoleKind, string> = {
   sales_agent: 'Salesperson',
   f_and_i: 'F&I',
+  senior_f_and_i: 'Senior F&I',
 };
 
 interface AgentRow {
@@ -40,8 +41,16 @@ const TeamManagementTab = () => {
     const { data: roleRows } = await supabase
       .from('user_roles')
       .select('user_id, role')
-      .in('role', ['sales_agent', 'f_and_i'] as any);
-    const rows = (roleRows || []) as Array<{ user_id: string; role: StaffRoleKind }>;
+      .in('role', ['sales_agent', 'f_and_i', 'senior_f_and_i'] as any);
+    const allRows = (roleRows || []) as Array<{ user_id: string; role: StaffRoleKind }>;
+    // Dedupe per user — prefer senior_f_and_i over f_and_i so a single user doesn't appear twice.
+    const byUser = new Map<string, StaffRoleKind>();
+    const priority: Record<StaffRoleKind, number> = { senior_f_and_i: 3, f_and_i: 2, sales_agent: 1 };
+    for (const r of allRows) {
+      const current = byUser.get(r.user_id);
+      if (!current || priority[r.role] > priority[current]) byUser.set(r.user_id, r.role);
+    }
+    const rows = Array.from(byUser, ([user_id, role]) => ({ user_id, role }));
     const ids = rows.map(r => r.user_id);
     if (ids.length === 0) {
       setAgents([]);
@@ -163,11 +172,15 @@ const TeamManagementTab = () => {
 
   const handleRevoke = async (userId: string, label: string, roleKind: StaffRoleKind) => {
     if (!confirm(`Revoke ${ROLE_LABELS[roleKind]} access for ${label}?`)) return;
+    // Senior F&I was granted alongside the base f_and_i role — revoke both.
+    const rolesToRevoke: string[] = roleKind === 'senior_f_and_i'
+      ? ['senior_f_and_i', 'f_and_i']
+      : [roleKind];
     const { error } = await supabase
       .from('user_roles')
       .delete()
       .eq('user_id', userId)
-      .eq('role', roleKind as any);
+      .in('role', rolesToRevoke as any);
     if (error) {
       toast.error(error.message);
       return;
@@ -264,10 +277,11 @@ const TeamManagementTab = () => {
             <SelectContent>
               <SelectItem value="sales_agent">Salesperson</SelectItem>
               <SelectItem value="f_and_i">F&I (Finance & Insurance)</SelectItem>
+              <SelectItem value="senior_f_and_i">Senior F&I (can move to App Submitted)</SelectItem>
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            F&I users can only move applications between Pre-Approved → Contract Signed.
+            F&I users can only move applications between Pre-Approved → Contract Signed. Senior F&I additionally can flag applications as "App Submitted".
           </p>
         </div>
 

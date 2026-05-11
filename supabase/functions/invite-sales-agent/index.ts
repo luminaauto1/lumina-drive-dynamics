@@ -51,7 +51,11 @@ Deno.serve(async (req) => {
     const providedPassword = body.password ? String(body.password) : "";
     const fullName = body.full_name ? String(body.full_name) : undefined;
     const requestedRole = String(body.role || "sales_agent");
-    const role = requestedRole === "f_and_i" ? "f_and_i" : "sales_agent";
+    const role = requestedRole === "f_and_i"
+      ? "f_and_i"
+      : requestedRole === "senior_f_and_i"
+        ? "senior_f_and_i"
+        : "sales_agent";
 
     if (!email || !email.includes("@")) {
       return new Response(JSON.stringify({ error: "Valid email required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -111,6 +115,10 @@ Deno.serve(async (req) => {
 
     // Assign requested role (idempotent)
     await admin.from("user_roles").upsert({ user_id: userId, role }, { onConflict: "user_id,role" });
+    // Senior F&I inherits all standard F&I RLS policies — also grant the base f_and_i role
+    if (role === "senior_f_and_i") {
+      await admin.from("user_roles").upsert({ user_id: userId, role: "f_and_i" }, { onConflict: "user_id,role" });
+    }
 
     return new Response(
       JSON.stringify({ ok: true, user_id: userId, mode, email, role, temp_password: tempPassword, email_delivery: emailDelivery }),

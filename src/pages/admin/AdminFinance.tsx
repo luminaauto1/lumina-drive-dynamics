@@ -195,7 +195,7 @@ const AdminFinance = () => {
     // keep the legacy auto-archive behaviour.
     const s = (app.status || '').toLowerCase().trim();
     let isArchived: boolean;
-    if (role === 'f_and_i') {
+    if ((role === 'f_and_i' || role === 'senior_f_and_i')) {
       const fAndIArchived = ['archived', 'vehicle_delivered', 'finalized'];
       isArchived = fAndIArchived.includes(s);
     } else {
@@ -244,7 +244,7 @@ const AdminFinance = () => {
       }
       const roleTag = role === 'super_admin' ? 'ADMIN'
         : role === 'sales_agent' ? 'SALES'
-        : role === 'f_and_i' ? 'FNI'
+        : (role === 'f_and_i' || role === 'senior_f_and_i') ? 'FNI'
         : 'STAFF';
 
       let updatedNotes = pendingApp.notes || '';
@@ -262,7 +262,7 @@ const AdminFinance = () => {
       // F&I replies to "Info Updated" → flip back to "Updates Needed" (ping Sales).
       const currentInternal = normalizeInternalStatus(pendingApp.internal_status);
       const isSalesOrAdmin = role === 'sales_agent' || role === 'super_admin';
-      const isFAndI = role === 'f_and_i';
+      const isFAndI = (role === 'f_and_i' || role === 'senior_f_and_i');
       let effectiveStatus = pendingStatus;
       if (isSalesOrAdmin && currentInternal === 'updates_needed' && pendingStatus !== 'no_notes') {
         effectiveStatus = 'info_updated';
@@ -275,7 +275,7 @@ const AdminFinance = () => {
         attention_updated_at: new Date().toISOString(),
         notes: updatedNotes,
       };
-      if (role === 'f_and_i' && actingUser?.id) {
+      if ((role === 'f_and_i' || role === 'senior_f_and_i') && actingUser?.id) {
         updatePayload.assigned_f_and_i = actingUser.id;
         updatePayload.assigned_f_and_i_at = new Date().toISOString();
       }
@@ -375,7 +375,7 @@ const AdminFinance = () => {
   // Stats for active applications only (mirrors the tab filter logic)
   const activeApps = applications.filter(a => {
     const s = (a.status || '').toLowerCase().trim();
-    if (role === 'f_and_i') {
+    if ((role === 'f_and_i' || role === 'senior_f_and_i')) {
       return !['archived', 'vehicle_delivered', 'finalized'].includes(s);
     }
     return !((a as any).is_archived === true) && !['finalized', 'delivered', 'vehicle_delivered', 'archived'].includes(s);
@@ -425,7 +425,7 @@ const AdminFinance = () => {
 
         {/* Status Counter Strip — F&I sees finance pipeline; Admin/Sales see internal-note overview */}
         {(() => {
-          const isFAndIRole = role === 'f_and_i';
+          const isFAndIRole = (role === 'f_and_i' || role === 'senior_f_and_i');
 
           // F&I-relevant pipeline statuses (workflow stages F&I owns)
           const FNI_PIPELINE: { key: string; label: string; color: string }[] = [
@@ -505,7 +505,7 @@ const AdminFinance = () => {
 
         {/* Action Feed — role-aware mirrored notification banner */}
         {(() => {
-          const isFAndI = role === 'f_and_i';
+          const isFAndI = (role === 'f_and_i' || role === 'senior_f_and_i');
           // Each role sees a "standard" alert (escalation loop) and a "general"
           // green ping (passive note from the other side).
           const standardKey = isFAndI ? 'info_updated' : 'updates_needed';
@@ -883,7 +883,7 @@ const AdminFinance = () => {
                                 }
                                 const roleTag = role === 'super_admin' ? 'ADMIN'
                                   : role === 'sales_agent' ? 'SALES'
-                                  : role === 'f_and_i' ? 'FNI'
+                                  : (role === 'f_and_i' || role === 'senior_f_and_i') ? 'FNI'
                                   : 'STAFF';
                                 const timestamp = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
                                 const autoEntry = `[${timestamp}] «${roleTag}» ${actingName} — Sent to Banks: Updated and sent to bank.`;
@@ -893,7 +893,7 @@ const AdminFinance = () => {
                                   .from('finance_applications')
                                   .update({
                                     notes: merged,
-                                    ...(role === 'f_and_i' && actingUser?.id ? {
+                                    ...((role === 'f_and_i' || role === 'senior_f_and_i') && actingUser?.id ? {
                                       assigned_f_and_i: actingUser.id,
                                       assigned_f_and_i_at: new Date().toISOString(),
                                     } : {}),
@@ -938,7 +938,7 @@ const AdminFinance = () => {
                          const statusConfig = INTERNAL_STATUSES[safeStatusKey as keyof typeof INTERNAL_STATUSES] || INTERNAL_STATUSES.no_notes;
                          const hasNotes = !!(app.notes && String(app.notes).trim().length > 0);
                          const normInt = normalizeInternalStatus((app as any).internal_status);
-                         const isFAndIRow = role === 'f_and_i';
+                         const isFAndIRow = (role === 'f_and_i' || role === 'senior_f_and_i');
                          const alertSet = isFAndIRow
                            ? new Set(['info_updated', 'note_to_f_and_i'])
                            : new Set(['updates_needed', 'note_to_sales']);
@@ -1157,7 +1157,7 @@ const AdminFinance = () => {
                           .update({
                             internal_status: 'no_notes',
                             attention_updated_at: new Date().toISOString(),
-                            ...(role === 'f_and_i' && user?.id ? {
+                            ...((role === 'f_and_i' || role === 'senior_f_and_i') && user?.id ? {
                               assigned_f_and_i: user.id,
                               assigned_f_and_i_at: new Date().toISOString(),
                             } : {}),
@@ -1183,7 +1183,7 @@ const AdminFinance = () => {
             })()}
             {(() => {
               const norm = normalizeInternalStatus((pendingApp as any)?.internal_status);
-              const eligible = role === 'f_and_i' && (norm === 'info_updated' || norm === 'no_notes' || !norm);
+              const eligible = (role === 'f_and_i' || role === 'senior_f_and_i') && (norm === 'info_updated' || norm === 'no_notes' || !norm);
               const notAlreadySent = pendingApp?.status !== 'sent_to_banks';
               if (!eligible || !notAlreadySent) return null;
               return (
