@@ -8,10 +8,12 @@ interface ProtectedRouteProps {
   requireAdmin?: boolean;
   /** Require super_admin specifically. Blocks sales_agent. */
   requireSuperAdmin?: boolean;
+  /** When combined with requireSuperAdmin, also allows F&I (standard or senior) roles. */
+  allowFAndI?: boolean;
 }
 
-const ProtectedRoute = ({ children, requireAdmin = false, requireSuperAdmin = false }: ProtectedRouteProps) => {
-  const { user, loading, isAdmin, isStaff } = useAuth();
+const ProtectedRoute = ({ children, requireAdmin = false, requireSuperAdmin = false, allowFAndI = false }: ProtectedRouteProps) => {
+  const { user, loading, isAdmin, isStaff, isFAndI } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -26,7 +28,7 @@ const ProtectedRoute = ({ children, requireAdmin = false, requireSuperAdmin = fa
     return <Navigate to="/auth" state={{ returnTo: location.pathname }} replace />;
   }
 
-  if (requireSuperAdmin && !isAdmin) {
+  if (requireSuperAdmin && !isAdmin && !(allowFAndI && isFAndI)) {
     // Sales agents land on the leads pipeline; non-staff bounce to home.
     return <Navigate to={isStaff ? '/admin/leads' : '/'} replace />;
   }
