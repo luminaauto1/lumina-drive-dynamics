@@ -155,14 +155,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const isSuperAdmin = role === 'super_admin';
   const isSalesAgent = role === 'sales_agent';
-  const isFAndI = role === 'f_and_i';
+  const isSeniorFAndI = role === 'senior_f_and_i';
+  const isFAndI = role === 'f_and_i' || isSeniorFAndI;
   const isStaff = isSuperAdmin || isSalesAgent || isFAndI;
   // Backwards-compat: existing code uses isAdmin to mean "full access".
   // Sales agents are NOT admins.
   const isAdmin = isSuperAdmin;
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isAdmin, isSuperAdmin, isSalesAgent, isFAndI, isStaff, role, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, isAdmin, isSuperAdmin, isSalesAgent, isFAndI, isSeniorFAndI, isStaff, role, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );
