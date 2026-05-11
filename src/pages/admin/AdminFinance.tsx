@@ -24,7 +24,7 @@ import { formatPrice } from '@/hooks/useVehicles';
 import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, STATUS_STEP_ORDER, getWhatsAppMessage, canShowDealActions } from '@/lib/statusConfig';
 import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
 import { INTERNAL_STATUSES, type InternalStatus, normalizeInternalStatus } from '@/lib/internalStatusConfig';
-import { businessHoursBetween } from '@/lib/businessHours';
+
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { getUploadLink } from '@/lib/appConfig';
