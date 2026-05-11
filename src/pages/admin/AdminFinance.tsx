@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import UniversalClientHub from '@/components/admin/UniversalClientHub';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
@@ -23,7 +24,7 @@ import { formatPrice } from '@/hooks/useVehicles';
 import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, STATUS_STEP_ORDER, getWhatsAppMessage, canShowDealActions } from '@/lib/statusConfig';
 import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
 import { INTERNAL_STATUSES, type InternalStatus, normalizeInternalStatus } from '@/lib/internalStatusConfig';
-import { businessHoursBetween } from '@/lib/businessHours';
+
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { getUploadLink } from '@/lib/appConfig';
@@ -279,6 +280,13 @@ const AdminFinance = () => {
         updatePayload.assigned_f_and_i = actingUser.id;
         updatePayload.assigned_f_and_i_at = new Date().toISOString();
       }
+      // 20-hour auto-reset enforcement: if the docs-contacted tick is older than
+      // 20h, flush it back to false on the next save so the DB matches the UI.
+      const dca = (pendingApp as any)?.docs_contacted_at;
+      if ((pendingApp as any)?.docs_contacted && dca && (Date.now() - new Date(dca).getTime() > 20 * 60 * 60 * 1000)) {
+        updatePayload.docs_contacted = false;
+        updatePayload.docs_contacted_at = null;
+      }
       const { error } = await supabase
         .from('finance_applications')
         .update(updatePayload)
@@ -511,13 +519,13 @@ const AdminFinance = () => {
           const standardKey = isFAndI ? 'info_updated' : 'updates_needed';
           const greenKey = isFAndI ? 'note_to_f_and_i' : 'note_to_sales';
           const targetSet = new Set([standardKey, greenKey]);
+          // Internal statuses persist permanently until manually cleared by staff —
+          // no time-based expiration / auto-fade.
           const feed = applications.filter((a: any) => {
             if (a.is_archived) return false;
             const norm = normalizeInternalStatus(a.internal_status);
             if (!norm || !targetSet.has(norm)) return false;
-            const ts = a.attention_updated_at || a.updated_at || a.created_at;
-            if (!ts) return true;
-            return businessHoursBetween(ts) <= 30;
+            return true;
           });
           if (feed.length === 0) return null;
           const headerLabel = isFAndI ? 'F&I Action Feed' : 'Sales Action Feed';
@@ -1299,6 +1307,47 @@ const AdminFinance = () => {
                 </div>
               )}
             </div>
+            {/* Pre-Approved doc-request tracker — visible only while the app is in pre_approved.
+                Auto-resets visually after 20h, and the next save flushes the stale flag to the DB. */}
+            {(pendingApp as any)?.status === 'pre_approved' && (() => {
+              const at = (pendingApp as any)?.docs_contacted_at;
+              const ageMs = at ? Date.now() - new Date(at).getTime() : Infinity;
+              const stale = ageMs > 20 * 60 * 60 * 1000;
+              const dbChecked = !!(pendingApp as any)?.docs_contacted;
+              const checked = dbChecked && !stale;
+              return (
+                <div className="flex items-center gap-2 px-1 py-2 border-t border-zinc-800">
+                  <Checkbox
+                    id="docs-contacted"
+                    checked={checked}
+                    onCheckedChange={async (v) => {
+                      if (!pendingApp) return;
+                      const nowIso = new Date().toISOString();
+                      const payload = v
+                        ? { docs_contacted: true, docs_contacted_at: nowIso }
+                        : { docs_contacted: false, docs_contacted_at: null };
+                      try {
+                        const { error } = await supabase
+                          .from('finance_applications')
+                          .update(payload)
+                          .eq('id', pendingApp.id);
+                        if (error) throw error;
+                        setPendingApp({ ...pendingApp, ...payload });
+                        refetch();
+                      } catch (e: any) {
+                        toast({ title: 'Failed to update', variant: 'destructive' });
+                      }
+                    }}
+                  />
+                  <Label htmlFor="docs-contacted" className="text-sm text-zinc-200 cursor-pointer">
+                    Contacted (Requested Documents)
+                  </Label>
+                  {dbChecked && stale && (
+                    <span className="ml-auto text-[10px] text-amber-400/80 uppercase tracking-wider">Auto-reset (20h)</span>
+                  )}
+                </div>
+              );
+            })()}
             <DialogFooter>
               <Button variant="ghost" onClick={() => setStatusModalOpen(false)}>Cancel</Button>
               <Button onClick={confirmStatusUpdate} className="bg-emerald-600 hover:bg-emerald-700 text-white">Save Update</Button>
