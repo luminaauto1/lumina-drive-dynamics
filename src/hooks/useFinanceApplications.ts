@@ -281,6 +281,35 @@ export const useUpdateFinanceApplication = () => {
         }
       }
 
+      // Pre-Approval staff alert — fan out a WhatsApp summary to the F&I
+      // duty pair whenever an application transitions INTO `pre_approved`.
+      if (
+        statusActuallyChanged &&
+        newStatus === 'pre_approved' &&
+        currentApp?.status !== 'pre_approved'
+      ) {
+        try {
+          const { publicApiHeaders } = await import('@/lib/publicApi');
+          const clientName =
+            currentApp?.full_name ||
+            [currentApp?.first_name, currentApp?.last_name].filter(Boolean).join(' ').trim() ||
+            'Unknown Client';
+          supabase.functions.invoke('notify-pre-approval-internal', {
+            headers: publicApiHeaders(),
+            body: {
+              client_name: clientName,
+              client_phone: currentApp?.phone || null,
+              fni_notes: currentApp?.notes || null,
+            },
+          }).then(({ error: paErr }) => {
+            if (paErr) console.error('[notify-pre-approval-internal] error:', paErr);
+            else console.log('[notify-pre-approval-internal] dispatched for', clientName);
+          });
+        } catch (paEx) {
+          console.error('[notify-pre-approval-internal] failed to invoke:', paEx);
+        }
+      }
+
       // EasySocial 2-way tag sync — isolated microservice, runs in addition
       // to (and never instead of) the notify-* WhatsApp dispatches above.
       // Awaited + surfaced via toast so silent failures stop happening.
