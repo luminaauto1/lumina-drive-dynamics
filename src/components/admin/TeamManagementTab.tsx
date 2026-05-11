@@ -265,10 +265,11 @@ const TeamManagementTab = () => {
             <SelectContent>
               <SelectItem value="sales_agent">Salesperson</SelectItem>
               <SelectItem value="f_and_i">F&I (Finance & Insurance)</SelectItem>
+              <SelectItem value="senior_f_and_i">Senior F&I (can move to App Submitted)</SelectItem>
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            F&I users can only move applications between Pre-Approved → Contract Signed.
+            F&I users can only move applications between Pre-Approved → Contract Signed. Senior F&I additionally can flag applications as "App Submitted".
           </p>
         </div>
 
