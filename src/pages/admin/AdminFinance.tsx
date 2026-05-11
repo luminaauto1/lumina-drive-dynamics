@@ -280,6 +280,13 @@ const AdminFinance = () => {
         updatePayload.assigned_f_and_i = actingUser.id;
         updatePayload.assigned_f_and_i_at = new Date().toISOString();
       }
+      // 20-hour auto-reset enforcement: if the docs-contacted tick is older than
+      // 20h, flush it back to false on the next save so the DB matches the UI.
+      const dca = (pendingApp as any)?.docs_contacted_at;
+      if ((pendingApp as any)?.docs_contacted && dca && (Date.now() - new Date(dca).getTime() > 20 * 60 * 60 * 1000)) {
+        updatePayload.docs_contacted = false;
+        updatePayload.docs_contacted_at = null;
+      }
       const { error } = await supabase
         .from('finance_applications')
         .update(updatePayload)
