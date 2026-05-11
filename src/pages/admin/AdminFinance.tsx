@@ -1299,6 +1299,47 @@ const AdminFinance = () => {
                 </div>
               )}
             </div>
+            {/* Pre-Approved doc-request tracker — visible only while the app is in pre_approved.
+                Auto-resets visually after 20h, and the next save flushes the stale flag to the DB. */}
+            {(pendingApp as any)?.status === 'pre_approved' && (() => {
+              const at = (pendingApp as any)?.docs_contacted_at;
+              const ageMs = at ? Date.now() - new Date(at).getTime() : Infinity;
+              const stale = ageMs > 20 * 60 * 60 * 1000;
+              const dbChecked = !!(pendingApp as any)?.docs_contacted;
+              const checked = dbChecked && !stale;
+              return (
+                <div className="flex items-center gap-2 px-1 py-2 border-t border-zinc-800">
+                  <Checkbox
+                    id="docs-contacted"
+                    checked={checked}
+                    onCheckedChange={async (v) => {
+                      if (!pendingApp) return;
+                      const nowIso = new Date().toISOString();
+                      const payload = v
+                        ? { docs_contacted: true, docs_contacted_at: nowIso }
+                        : { docs_contacted: false, docs_contacted_at: null };
+                      try {
+                        const { error } = await supabase
+                          .from('finance_applications')
+                          .update(payload)
+                          .eq('id', pendingApp.id);
+                        if (error) throw error;
+                        setPendingApp({ ...pendingApp, ...payload });
+                        refetch();
+                      } catch (e: any) {
+                        toast({ title: 'Failed to update', variant: 'destructive' });
+                      }
+                    }}
+                  />
+                  <Label htmlFor="docs-contacted" className="text-sm text-zinc-200 cursor-pointer">
+                    Contacted (Requested Documents)
+                  </Label>
+                  {dbChecked && stale && (
+                    <span className="ml-auto text-[10px] text-amber-400/80 uppercase tracking-wider">Auto-reset (20h)</span>
+                  )}
+                </div>
+              );
+            })()}
             <DialogFooter>
               <Button variant="ghost" onClick={() => setStatusModalOpen(false)}>Cancel</Button>
               <Button onClick={confirmStatusUpdate} className="bg-emerald-600 hover:bg-emerald-700 text-white">Save Update</Button>
