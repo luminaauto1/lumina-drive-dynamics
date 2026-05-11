@@ -989,24 +989,9 @@ const AdminFinance = () => {
                          );
                        })()}
                     </TableCell>
-                     <TableCell>
-                        {(() => {
-                          const d = new Date(app.created_at);
-                          const dateTimeStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) + ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
-                          const stamp = (app as any).status_updated_at || app.updated_at || app.created_at;
-                          const changedStr = stamp !== app.created_at
-                            ? new Date(stamp).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) + ' ' + new Date(stamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
-                            : null;
-                          return (
-                            <div className="leading-tight">
-                              <div className="text-xs text-zinc-400" title={app.created_at}>{dateTimeStr}</div>
-                              {changedStr && (
-                                <div className="text-[10px] text-zinc-600 mt-0.5" title={stamp}>↳ {changedStr}</div>
-                              )}
-                            </div>
-                          );
-                        })()}
-                      </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(app.created_at).toLocaleDateString()}
+                    </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
                         {/* Request Revision */}

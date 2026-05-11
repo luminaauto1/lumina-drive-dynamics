@@ -590,7 +590,6 @@ export type Database = {
           spouse_id: string | null
           spouse_surname: string | null
           status: string
-          status_updated_at: string | null
           street_address: string | null
           submission_source: string
           updated_at: string
@@ -670,7 +669,6 @@ export type Database = {
           spouse_id?: string | null
           spouse_surname?: string | null
           status?: string
-          status_updated_at?: string | null
           street_address?: string | null
           submission_source?: string
           updated_at?: string
@@ -750,7 +748,6 @@ export type Database = {
           spouse_id?: string | null
           spouse_surname?: string | null
           status?: string
-          status_updated_at?: string | null
           street_address?: string | null
           submission_source?: string
           updated_at?: string
