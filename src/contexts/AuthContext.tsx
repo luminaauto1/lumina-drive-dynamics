@@ -114,6 +114,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setRole('super_admin');
     } else if (roles.includes('sales_agent')) {
       setRole('sales_agent');
+    } else if (roles.includes('senior_f_and_i')) {
+      setRole('senior_f_and_i');
     } else if (roles.includes('f_and_i')) {
       setRole('f_and_i');
     } else {
