@@ -126,51 +126,67 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
   const handleDownloadPDF = async () => {
     if (!parsedData) return;
     try {
-      // INTERCEPTOR: Resolve workplace address via Google Places if missing/weak.
-      // Fully isolated from residential address. Failures are non-blocking.
-      let resolvedWorkplace = parsedData.workplace_address || '';
-      const businessName = (parsedData.employer_name || '').trim();
-      const workplaceLooksWeak = !resolvedWorkplace || resolvedWorkplace.trim().length < 8;
-      if (businessName && workplaceLooksWeak) {
+      // === ASYNC RACE CONDITION PATCH ===
+      // 1. Build the base payload from the freshest parsed data (NOT React state).
+      const parsedWhatsAppPayload: Record<string, any> = { ...parsedData };
+
+      // 2. STRICTLY await Google Places resolution before touching the PDF.
+      //    Always attempt when we have a business name — relying on a "looks weak"
+      //    heuristic was masking races where a short raw string blocked enrichment.
+      const businessName = String(parsedWhatsAppPayload.employer_name || '').trim();
+      let fetchedAddress: string | null = null;
+      if (businessName) {
         toast.info('Resolving workplace address via Google Places...');
-        const found = await lookupBusinessAddress(businessName);
-        if (found) {
-          resolvedWorkplace = found;
-          toast.success('Workplace address auto-resolved.');
-        }
+        fetchedAddress = await lookupBusinessAddress(businessName);
+        if (fetchedAddress) toast.success('Workplace address auto-resolved.');
       }
+
+      // 3. Direct payload mutation — bypass React state entirely so the PDF
+      //    generator receives the guaranteed-complete dataset on this tick.
+      const finalPdfData: Record<string, any> = { ...parsedWhatsAppPayload };
+      if (fetchedAddress) {
+        finalPdfData.business_address = fetchedAddress;
+        finalPdfData.business_address_auto = fetchedAddress;
+        finalPdfData.workplace_address = fetchedAddress;
+        finalPdfData.employer_address = fetchedAddress;
+      }
+      const resolvedWorkplace =
+        finalPdfData.workplace_address || parsedWhatsAppPayload.workplace_address || '';
 
       // Map AI keys to FinanceApplication shape expected by generateFinancePDF
       const applicationObj: any = {
         id: crypto.randomUUID(),
-        first_name: parsedData.first_name || '',
-        last_name: parsedData.last_name || '',
-        full_name: `${parsedData.first_name || ''} ${parsedData.last_name || ''}`.trim() || 'Unknown',
-        id_number: parsedData.id_number || '',
-        email: parsedData.email || '',
-        phone: parsedData.phone || '',
-        gender: parsedData.gender || '',
-        marital_status: parsedData.marital_status || '',
-        street_address: parsedData.physical_address || '',
-        employer_name: parsedData.employer_name || '',
+        first_name: finalPdfData.first_name || '',
+        last_name: finalPdfData.last_name || '',
+        full_name: `${finalPdfData.first_name || ''} ${finalPdfData.last_name || ''}`.trim() || 'Unknown',
+        id_number: finalPdfData.id_number || '',
+        email: finalPdfData.email || '',
+        phone: finalPdfData.phone || '',
+        gender: finalPdfData.gender || '',
+        marital_status: finalPdfData.marital_status || '',
+        street_address: finalPdfData.physical_address || '',
+        employer_name: finalPdfData.employer_name || '',
         workplace_address: resolvedWorkplace,
         employer_address: resolvedWorkplace,
         business_address_auto: resolvedWorkplace,
-        job_title: parsedData.job_title || '',
-        employment_period: parsedData.employment_start || '',
-        gross_salary: Number(String(parsedData.gross_income || '').replace(/[^\d.]/g, '')) || null,
-        net_salary: Number(String(parsedData.net_income || '').replace(/[^\d.]/g, '')) || null,
-        expenses_summary: parsedData.living_expenses || '',
-        bank_name: parsedData.bank_name || '',
-        account_number: parsedData.account_number || '',
-        kin_name: parsedData.kin_name || '',
-        kin_contact: parsedData.kin_phone || '',
+        job_title: finalPdfData.job_title || '',
+        employment_period: finalPdfData.employment_start || '',
+        gross_salary: Number(String(finalPdfData.gross_income || '').replace(/[^\d.]/g, '')) || null,
+        net_salary: Number(String(finalPdfData.net_income || '').replace(/[^\d.]/g, '')) || null,
+        expenses_summary: finalPdfData.living_expenses || '',
+        bank_name: finalPdfData.bank_name || '',
+        account_number: finalPdfData.account_number || '',
+        kin_name: finalPdfData.kin_name || '',
+        kin_contact: finalPdfData.kin_phone || '',
         status: 'pending',
         popia_consent: false,
         created_at: new Date().toISOString(),
       };
 
-      // 1. Generate the PDF
+      // 4. Diagnostic — verify the address is in the payload BEFORE the PDF builds.
+      console.log('PDF Payload injected:', applicationObj.business_address_auto);
+
+      // 5. Generate the PDF synchronously off the mutated payload.
       await generateFinancePDF(applicationObj);
 
       // 2. Save FULL application to finance_applications (tagged as whatsapp_parser source)
