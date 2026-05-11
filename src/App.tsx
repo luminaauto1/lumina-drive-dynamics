@@ -100,7 +100,7 @@ const AppLayout = () => {
           <Route path="/admin/contacts" element={<ProtectedRoute requireSuperAdmin><AdminContacts /></ProtectedRoute>} />
           <Route path="/admin/finance" element={<ProtectedRoute requireAdmin><AdminFinance /></ProtectedRoute>} />
           <Route path="/admin/finance/create" element={<ProtectedRoute requireAdmin><AdminCreateApplication /></ProtectedRoute>} />
-          <Route path="/admin/finance/:id" element={<ProtectedRoute requireSuperAdmin><AdminDealRoom /></ProtectedRoute>} />
+          <Route path="/admin/finance/:id" element={<ProtectedRoute requireSuperAdmin allowFAndI><AdminDealRoom /></ProtectedRoute>} />
           <Route path="/admin/quotes" element={<ProtectedRoute requireAdmin><AdminQuoteGenerator /></ProtectedRoute>} />
           <Route path="/admin/aftersales" element={<ProtectedRoute requireSuperAdmin><AdminAftersales /></ProtectedRoute>} />
           <Route path="/admin/reports" element={<ProtectedRoute requireSuperAdmin><AdminReports /></ProtectedRoute>} />
