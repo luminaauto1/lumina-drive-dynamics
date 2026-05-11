@@ -543,6 +543,8 @@ export type Database = {
           deal_type: string | null
           declined_reason: string | null
           deposit_amount: number | null
+          docs_contacted: boolean
+          docs_contacted_at: string | null
           email: string
           employer_address: string | null
           employer_name: string | null
@@ -620,6 +622,8 @@ export type Database = {
           deal_type?: string | null
           declined_reason?: string | null
           deposit_amount?: number | null
+          docs_contacted?: boolean
+          docs_contacted_at?: string | null
           email: string
           employer_address?: string | null
           employer_name?: string | null
@@ -697,6 +701,8 @@ export type Database = {
           deal_type?: string | null
           declined_reason?: string | null
           deposit_amount?: number | null
+          docs_contacted?: boolean
+          docs_contacted_at?: string | null
           email?: string
           employer_address?: string | null
           employer_name?: string | null
