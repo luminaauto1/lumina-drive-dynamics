@@ -41,7 +41,7 @@ const TeamManagementTab = () => {
     const { data: roleRows } = await supabase
       .from('user_roles')
       .select('user_id, role')
-      .in('role', ['sales_agent', 'f_and_i'] as any);
+      .in('role', ['sales_agent', 'f_and_i', 'senior_f_and_i'] as any);
     const rows = (roleRows || []) as Array<{ user_id: string; role: StaffRoleKind }>;
     const ids = rows.map(r => r.user_id);
     if (ids.length === 0) {
