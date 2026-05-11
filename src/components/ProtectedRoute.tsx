@@ -28,7 +28,7 @@ const ProtectedRoute = ({ children, requireAdmin = false, requireSuperAdmin = fa
     return <Navigate to="/auth" state={{ returnTo: location.pathname }} replace />;
   }
 
-  if (requireSuperAdmin && !isAdmin) {
+  if (requireSuperAdmin && !isAdmin && !(allowFAndI && isFAndI)) {
     // Sales agents land on the leads pipeline; non-staff bounce to home.
     return <Navigate to={isStaff ? '/admin/leads' : '/'} replace />;
   }
