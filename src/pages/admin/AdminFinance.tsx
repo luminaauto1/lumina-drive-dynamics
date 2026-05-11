@@ -511,13 +511,13 @@ const AdminFinance = () => {
           const standardKey = isFAndI ? 'info_updated' : 'updates_needed';
           const greenKey = isFAndI ? 'note_to_f_and_i' : 'note_to_sales';
           const targetSet = new Set([standardKey, greenKey]);
+          // Internal statuses persist permanently until manually cleared by staff —
+          // no time-based expiration / auto-fade.
           const feed = applications.filter((a: any) => {
             if (a.is_archived) return false;
             const norm = normalizeInternalStatus(a.internal_status);
             if (!norm || !targetSet.has(norm)) return false;
-            const ts = a.attention_updated_at || a.updated_at || a.created_at;
-            if (!ts) return true;
-            return businessHoursBetween(ts) <= 30;
+            return true;
           });
           if (feed.length === 0) return null;
           const headerLabel = isFAndI ? 'F&I Action Feed' : 'Sales Action Feed';
