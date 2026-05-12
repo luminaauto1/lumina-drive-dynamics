@@ -108,7 +108,8 @@ CRITICAL JSON RULE: You must return a valid JSON object. You MUST use exactly th
     const aiData = await aiResponse.json();
     const raw = aiData.choices?.[0]?.message?.content?.trim() || "";
     let parsed: any = {};
-    try { parsed = JSON.parse(raw); } catch { parsed = { new_note_summary: raw || "No summary generated." }; }
+    const cleanedRaw = raw.replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+    try { parsed = JSON.parse(cleanedRaw); } catch { parsed = { new_note_summary: cleanedRaw || raw || "No summary generated." }; }
     const summary = parsed.new_note_summary || raw || "No summary generated.";
 
     // SECURITY check (existingApp already implies a finance_application match)

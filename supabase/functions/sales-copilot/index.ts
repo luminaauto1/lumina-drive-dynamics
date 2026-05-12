@@ -95,7 +95,8 @@ CRITICAL JSON RULE: You must return a valid JSON object. You MUST use exactly th
 
     if (action === "summarize") {
       let parsed: any = {};
-      try { parsed = JSON.parse(resultText); } catch { parsed = { new_note_summary: resultText }; }
+      const cleaned = resultText.replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+      try { parsed = JSON.parse(cleaned); } catch { parsed = { new_note_summary: cleaned || resultText }; }
       const noteText = parsed.new_note_summary || resultText;
 
       let leadExists = !!existingApp;
