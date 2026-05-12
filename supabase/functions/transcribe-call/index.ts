@@ -139,6 +139,7 @@ serve(async (req) => {
       if (parsed.updated_vehicle) memUpdate.ai_vehicle_interest = parsed.updated_vehicle;
       if (parsed.updated_budget) memUpdate.ai_budget = parsed.updated_budget;
       if (parsed.updated_timeline) memUpdate.ai_timeline = parsed.updated_timeline;
+      if (parsed.updated_status) memUpdate.ai_current_action_status = parsed.updated_status;
       if (Object.keys(memUpdate).length > 0) {
         await supabaseClient.from("finance_applications").update(memUpdate).eq("id", existingApp.id);
       }
