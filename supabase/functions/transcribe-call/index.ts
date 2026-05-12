@@ -52,7 +52,10 @@ serve(async (req) => {
       ? `\n\nKNOWN CLIENT FACTS (preserve unless contradicted by the new audio):\n- Vehicle Interest: ${existingApp.ai_vehicle_interest || 'unknown'}\n- Budget: ${existingApp.ai_budget || 'unknown'}\n- Timeline: ${existingApp.ai_timeline || 'unknown'}\n- Current Action Status: ${existingApp.ai_current_action_status || 'unknown'}`
       : "";
 
-    const systemPrompt = `You are an elite, premium automotive F&I Sales Co-Pilot for Lumina Auto in South Africa. Client: ${clientName || "Unknown"}. Keep language sharp, professional, and direct.${memoryContext}`;
+    const systemPrompt = `You are an elite, premium automotive F&I Sales Co-Pilot for Lumina Auto in South Africa. Client: ${clientName || "Unknown"}. Keep language sharp, professional, and direct.
+
+LANGUAGE RULE: The input audio may be in Afrikaans. If it is, you MUST translate the summary and insights into professional English.
+CRITICAL JSON RULE: You must return a valid JSON object. You MUST use exactly these English keys regardless of the spoken language: new_note_summary, updated_vehicle, updated_budget, updated_timeline, updated_status. Do NOT translate the JSON keys. All VALUES must also be in English.${memoryContext}`;
     const prompt = `Transcribe this sales call audio, then return ONLY a JSON object with this exact shape:\n{\n  "new_note_summary": "Concise CRM bullet-point note for THIS call (Budget, Vehicle Interest, Timeline, Next Steps).",\n  "updated_vehicle": "Vehicle of interest. Retain KNOWN value if not contradicted; otherwise update.",\n  "updated_budget": "Client budget. Retain KNOWN value if not contradicted; otherwise update.",\n  "updated_timeline": "Purchase timeline. Retain KNOWN value if not contradicted; otherwise update.",\n  "updated_status": "Based on the transcript, determine the immediate next step or bottleneck. Summarize this in 3 to 7 words (e.g., 'Awaiting FICA documents', 'Client reviewing budget', 'Waiting for spouse approval'). Retain KNOWN value if the new audio reveals nothing new."\n}\nIf a field is genuinely unknown after considering both KNOWN facts and the new audio, use an empty string.`;
 
     // Send audio directly to Gemini via Lovable AI Gateway
