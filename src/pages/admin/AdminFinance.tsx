@@ -626,54 +626,73 @@ const AdminFinance = () => {
         </motion.div>
 
         {/* Stats */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="grid grid-cols-2 md:grid-cols-8 gap-4 mb-6"
-        >
-          <div className="glass-card rounded-lg p-4">
-            <p className="text-2xl font-bold text-amber-400">{activeApps.filter(a => a.status === 'pending').length}</p>
-            <p className="text-sm text-muted-foreground">Pending</p>
-          </div>
-          <div className="glass-card rounded-lg p-4">
-            <p className="text-2xl font-bold text-indigo-400">{activeApps.filter(a => a.status === 'application_submitted').length}</p>
-            <p className="text-sm text-muted-foreground">Apps Submitted</p>
-          </div>
-          <div className="glass-card rounded-lg p-4">
-            <p className="text-2xl font-bold text-teal-400">{activeApps.filter(a => a.status === 'pre_approved').length}</p>
-            <p className="text-sm text-muted-foreground">Pre-Approved</p>
-          </div>
-          <div className="glass-card rounded-lg p-4">
-            <p className="text-2xl font-bold text-blue-400">{activeApps.filter(a => a.status === 'validations_pending').length}</p>
-            <p className="text-sm text-muted-foreground">Validations</p>
-          </div>
-          <div className="glass-card rounded-lg p-4">
-            <p className="text-2xl font-bold text-emerald-400">{activeApps.filter(a => a.status === 'approved').length}</p>
-            <p className="text-sm text-muted-foreground">Budget Confirmed</p>
-          </div>
-          <div className="glass-card rounded-lg p-4">
-            <p className="text-2xl font-bold text-purple-400">{activeApps.filter(a => a.status === 'vehicle_selected').length}</p>
-            <p className="text-sm text-muted-foreground">Vehicle Selected</p>
-          </div>
-          <div className="glass-card rounded-lg p-4">
-            <p className="text-2xl font-bold text-red-400">{applications.filter(a => a.status === 'declined').length}</p>
-            <p className="text-sm text-muted-foreground">Declined</p>
-            {(() => {
-              const isToday = (d?: string | null) => {
-                if (!d) return false;
-                const x = new Date(d), n = new Date();
-                return x.getFullYear() === n.getFullYear() && x.getMonth() === n.getMonth() && x.getDate() === n.getDate();
-              };
-              const declinedTodayCount = applications.filter(a => a.status === 'declined' && isToday((a as any).status_updated_at || a.updated_at)).length;
-              return <div className="text-xs text-red-900/70 mt-1">{declinedTodayCount} declined today</div>;
-            })()}
-          </div>
-          <div className="glass-card rounded-lg p-4">
-            <p className="text-2xl font-bold">{activeApps.length}</p>
-            <p className="text-sm text-muted-foreground">Total Active</p>
-          </div>
-        </motion.div>
+        {(() => {
+          const isToday = (d?: string | null) => {
+            if (!d) return false;
+            const x = new Date(d), n = new Date();
+            return x.getFullYear() === n.getFullYear() && x.getMonth() === n.getMonth() && x.getDate() === n.getDate();
+          };
+          const todayByStatus = (status: string, useCreated = false) =>
+            applications.filter(a => a.status === status && (useCreated
+              ? isToday(a.created_at)
+              : isToday((a as any).status_updated_at || a.updated_at))
+            ).length;
+          const totalActiveToday = activeApps.filter(a =>
+            isToday(a.created_at) || isToday((a as any).status_updated_at || a.updated_at)
+          ).length;
+          const Sub = ({ n }: { n: number }) => (
+            <div className={`text-xs mt-1 ${n > 0 ? 'opacity-60' : 'text-zinc-600'}`}>+{n} today</div>
+          );
+          return (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+              className="grid grid-cols-2 md:grid-cols-8 gap-4 mb-6"
+            >
+              <div className="glass-card rounded-lg p-4">
+                <p className="text-2xl font-bold text-amber-400">{activeApps.filter(a => a.status === 'pending').length}</p>
+                <p className="text-sm text-muted-foreground">Pending</p>
+                <Sub n={todayByStatus('pending', true)} />
+              </div>
+              <div className="glass-card rounded-lg p-4">
+                <p className="text-2xl font-bold text-indigo-400">{activeApps.filter(a => a.status === 'application_submitted').length}</p>
+                <p className="text-sm text-muted-foreground">Apps Submitted</p>
+                <Sub n={todayByStatus('application_submitted')} />
+              </div>
+              <div className="glass-card rounded-lg p-4">
+                <p className="text-2xl font-bold text-teal-400">{activeApps.filter(a => a.status === 'pre_approved').length}</p>
+                <p className="text-sm text-muted-foreground">Pre-Approved</p>
+                <Sub n={todayByStatus('pre_approved')} />
+              </div>
+              <div className="glass-card rounded-lg p-4">
+                <p className="text-2xl font-bold text-blue-400">{activeApps.filter(a => a.status === 'validations_pending').length}</p>
+                <p className="text-sm text-muted-foreground">Validations</p>
+                <Sub n={todayByStatus('validations_pending')} />
+              </div>
+              <div className="glass-card rounded-lg p-4">
+                <p className="text-2xl font-bold text-emerald-400">{activeApps.filter(a => a.status === 'approved').length}</p>
+                <p className="text-sm text-muted-foreground">Budget Confirmed</p>
+                <Sub n={todayByStatus('approved')} />
+              </div>
+              <div className="glass-card rounded-lg p-4">
+                <p className="text-2xl font-bold text-purple-400">{activeApps.filter(a => a.status === 'vehicle_selected').length}</p>
+                <p className="text-sm text-muted-foreground">Vehicle Selected</p>
+                <Sub n={todayByStatus('vehicle_selected')} />
+              </div>
+              <div className="glass-card rounded-lg p-4">
+                <p className="text-2xl font-bold text-red-400">{applications.filter(a => a.status === 'declined').length}</p>
+                <p className="text-sm text-muted-foreground">Declined</p>
+                <div className={`text-xs mt-1 ${todayByStatus('declined') > 0 ? 'text-red-900/70' : 'text-zinc-600'}`}>+{todayByStatus('declined')} today</div>
+              </div>
+              <div className="glass-card rounded-lg p-4">
+                <p className="text-2xl font-bold">{activeApps.length}</p>
+                <p className="text-sm text-muted-foreground">Total Active</p>
+                <Sub n={totalActiveToday} />
+              </div>
+            </motion.div>
+          );
+        })()}
 
         {/* Table */}
         <motion.div
