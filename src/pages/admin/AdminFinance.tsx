@@ -121,6 +121,7 @@ const AdminFinance = () => {
   // Bank Reference capture (when admin moves an app to "Application Submitted")
   const [bankRefModalOpen, setBankRefModalOpen] = useState(false);
   const [bankRefApp, setBankRefApp] = useState<FinanceApplication | null>(null);
+  const [bankRefTargetStatus, setBankRefTargetStatus] = useState<string>('application_submitted');
 
   // Action Feed → row scroll/highlight
   const [highlightedAppId, setHighlightedAppId] = useState<string | null>(null);
@@ -869,10 +870,15 @@ const AdminFinance = () => {
                         value={app.status}
                         onValueChange={async (newStatus) => {
                           if (newStatus === app.status) return;
-                          if (newStatus === 'application_submitted') {
-                            setBankRefApp(app);
-                            setBankRefModalOpen(true);
-                            return;
+                          if (newStatus === 'application_submitted' || newStatus === 'ready_to_submit') {
+                            if (!(app as any).bank_reference) {
+                              setBankRefApp(app);
+                              setBankRefTargetStatus(newStatus);
+                              setBankRefModalOpen(true);
+                              return;
+                            }
+                            // Existing reference — fall through to standard update
+                            // (status + status_updated_at only; bank_reference untouched).
                           }
                           // DECOUPLED: keep real status; archive via flag only.
                           // Fire WhatsApp BEFORE the DB write so unmount/remap can't abort it.
@@ -1456,7 +1462,7 @@ const AdminFinance = () => {
           try {
             await updateApplication.mutateAsync({
               id: bankRefApp.id,
-              updates: { status: 'application_submitted', bank_reference: reference },
+              updates: { status: bankRefTargetStatus, bank_reference: reference },
             });
           } catch (err) {
             // error toast handled by hook
