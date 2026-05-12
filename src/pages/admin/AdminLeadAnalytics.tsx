@@ -1195,6 +1195,57 @@ const AdminLeadAnalytics = () => {
             </div>
 
             {/* Top Tags / Lead → App by Tag charts removed — depended on EasySocial inbound tag enrichment that is not currently flowing. */}
+
+            {/* Status Transition Times — average elapsed time per pipeline stage */}
+            <ChartCard
+              icon={Clock}
+              title="Avg Status Transition Times"
+              subtitle="Average time apps take to reach each pipeline status (created → status_updated_at; outliers > 90d excluded)"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
+                {statusTransitionStats.map((row) => (
+                  <div
+                    key={row.key}
+                    className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4"
+                  >
+                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                      {row.label}
+                    </div>
+                    <div className="mt-1.5 text-2xl font-bold text-foreground tabular-nums">
+                      {row.display}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">
+                      n = {row.sample}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ChartCard>
+
+            {/* Daily Pipeline Velocity — moved from Analytics page */}
+            <ChartCard
+              icon={Activity}
+              title="Daily Pipeline Velocity"
+              subtitle="Application status movement over the last 14 days"
+            >
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={pipelineVelocity} margin={{ top: 10, right: 16, left: -8, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis dataKey="date" stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="pending" stackId="v" name="Pending" fill="#eab308" />
+                  <Bar dataKey="application_submitted" stackId="v" name="Apps Submitted" fill="#a855f7" />
+                  <Bar dataKey="pre_approved" stackId="v" name="Pre-Approved" fill="#14b8a6" />
+                  <Bar dataKey="validations_pending" stackId="v" name="Vals Submitted" fill="#3b82f6" />
+                  <Bar dataKey="validations_complete" stackId="v" name="Vals Complete" fill="#06b6d4" />
+                  <Bar dataKey="active" stackId="v" name="Active" fill="#22c55e" />
+                  <Bar dataKey="declined" stackId="v" name="Declined" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+
           </>
         )}
       </div>
