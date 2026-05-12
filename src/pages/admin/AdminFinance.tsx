@@ -438,6 +438,7 @@ const AdminFinance = () => {
           // F&I-relevant pipeline statuses (workflow stages F&I owns)
           const FNI_PIPELINE: { key: string; label: string; color: string }[] = [
             { key: 'application_submitted', label: 'App Submitted', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+            { key: 'ready_to_submit', label: 'Ready to Submit', color: 'bg-emerald-900/30 text-emerald-300 border-emerald-400/50' },
             { key: 'sent_to_banks', label: 'Sent to Banks', color: 'bg-sky-500/10 text-sky-400 border-sky-500/20' },
             { key: 'pre_approved', label: 'Pre-Approved', color: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' },
             { key: 'validations_pending', label: 'Validations Pending', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
@@ -654,7 +655,7 @@ const AdminFinance = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              className="grid grid-cols-2 md:grid-cols-7 gap-4 mb-6"
+              className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-6"
             >
               <div className="glass-card rounded-lg p-4">
                 <p className="text-2xl font-bold text-amber-400">{activeApps.filter(a => a.status === 'pending').length}</p>
@@ -665,6 +666,11 @@ const AdminFinance = () => {
                 <p className="text-2xl font-bold text-indigo-400">{activeApps.filter(a => a.status === 'application_submitted').length}</p>
                 <p className="text-sm text-muted-foreground">Apps Submitted</p>
                 <Sub n={todayByStatus('application_submitted')} />
+              </div>
+              <div className="glass-card rounded-lg p-4">
+                <p className="text-2xl font-bold text-emerald-300">{activeApps.filter(a => a.status === 'ready_to_submit').length}</p>
+                <p className="text-sm text-muted-foreground">Ready to Submit</p>
+                <Sub n={todayByStatus('ready_to_submit')} />
               </div>
               <div className="glass-card rounded-lg p-4">
                 <p className="text-2xl font-bold text-teal-400">{activeApps.filter(a => a.status === 'pre_approved').length}</p>
