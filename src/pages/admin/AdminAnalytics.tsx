@@ -21,6 +21,7 @@ const AdminAnalytics = () => {
   });
   const [pipelineData, setPipelineData] = useState<{ name: string; count: number }[]>([]);
   const [revenueTrend, setRevenueTrend] = useState<{ month: string; profit: number; deals: number }[]>([]);
+  const [velocityData, setVelocityData] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchAnalytics = async () => {
