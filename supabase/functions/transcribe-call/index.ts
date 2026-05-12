@@ -81,6 +81,7 @@ serve(async (req) => {
           },
         ],
         temperature: 0.7,
+        response_format: { type: "json_object" },
       }),
     });
 
@@ -102,26 +103,20 @@ serve(async (req) => {
     }
 
     const aiData = await aiResponse.json();
-    const summary = aiData.choices?.[0]?.message?.content?.trim() || "No summary generated.";
+    const raw = aiData.choices?.[0]?.message?.content?.trim() || "";
+    let parsed: any = {};
+    try { parsed = JSON.parse(raw); } catch { parsed = { new_note_summary: raw || "No summary generated." }; }
+    const summary = parsed.new_note_summary || raw || "No summary generated.";
 
-    // Save to CRM Timeline
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
-
-    // SECURITY: Verify caller-supplied identifiers match a real lead or
-    // finance application before writing to the CRM timeline.
-    let leadExists = false;
-    if (clientEmail) {
+    // SECURITY check (existingApp already implies a finance_application match)
+    let leadExists = !!existingApp;
+    if (!leadExists && clientEmail) {
       const { data: l1 } = await supabaseClient.from("leads").select("id").eq("client_email", clientEmail).limit(1).maybeSingle();
-      const { data: a1 } = await supabaseClient.from("finance_applications").select("id").eq("email", clientEmail).limit(1).maybeSingle();
-      if (l1 || a1) leadExists = true;
+      if (l1) leadExists = true;
     }
     if (!leadExists && clientPhone) {
       const { data: l2 } = await supabaseClient.from("leads").select("id").eq("client_phone", clientPhone).limit(1).maybeSingle();
-      const { data: a2 } = await supabaseClient.from("finance_applications").select("id").eq("phone", clientPhone).limit(1).maybeSingle();
-      if (l2 || a2) leadExists = true;
+      if (l2) leadExists = true;
     }
 
     if (!leadExists) {
@@ -138,6 +133,16 @@ serve(async (req) => {
       author_name: "AI Co-Pilot",
       action_type: "Call Summary",
     }]);
+
+    if (existingApp?.id) {
+      const memUpdate: any = {};
+      if (parsed.updated_vehicle) memUpdate.ai_vehicle_interest = parsed.updated_vehicle;
+      if (parsed.updated_budget) memUpdate.ai_budget = parsed.updated_budget;
+      if (parsed.updated_timeline) memUpdate.ai_timeline = parsed.updated_timeline;
+      if (Object.keys(memUpdate).length > 0) {
+        await supabaseClient.from("finance_applications").update(memUpdate).eq("id", existingApp.id);
+      }
+    }
 
     return new Response(JSON.stringify({ success: true, summary }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
