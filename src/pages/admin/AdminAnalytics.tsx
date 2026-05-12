@@ -89,6 +89,34 @@ const AdminAnalytics = () => {
         setRevenueTrend(last6.map(({ month, profit, deals: d }) => ({ month, profit, deals: d })));
       }
 
+      // Daily Pipeline Velocity (last 14 days)
+      if (apps) {
+        const DAYS = 14;
+        const buckets = Array.from({ length: DAYS }).map((_, i) => {
+          const d = startOfDay(subDays(new Date(), DAYS - 1 - i));
+          return {
+            date: format(d, 'dd MMM'),
+            _ts: d.getTime(),
+            pending: 0,
+            application_submitted: 0,
+            pre_approved: 0,
+            validations_pending: 0,
+            approved: 0,
+            vehicle_selected: 0,
+            declined: 0,
+          } as any;
+        });
+        apps.forEach((a: any) => {
+          const isNewLead = a.status === 'pending';
+          const ref = isNewLead ? a.created_at : (a.status_updated_at || a.updated_at || a.created_at);
+          if (!ref) return;
+          const ts = startOfDay(parseISO(ref)).getTime();
+          const b = buckets.find(x => x._ts === ts);
+          if (b && b[a.status] !== undefined) b[a.status] += 1;
+        });
+        setVelocityData(buckets);
+      }
+
       setLoading(false);
     };
     fetchAnalytics();
