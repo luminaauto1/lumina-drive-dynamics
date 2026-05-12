@@ -684,7 +684,7 @@ const AdminFinance = () => {
               <div className="glass-card rounded-lg p-4">
                 <p className="text-2xl font-bold text-red-400">{declinedCount}</p>
                 <p className="text-sm text-muted-foreground">Declined</p>
-                <div className={`text-xs mt-1 ${declinedToday > 0 ? 'text-red-900/70' : 'text-zinc-600'}`}>+{declinedToday} today</div>
+                <div className={`text-xs mt-1 ${declinedToday > 0 ? 'text-red-300' : 'text-zinc-400'}`}>+{declinedToday} today</div>
               </div>
               <div className="glass-card rounded-lg p-4">
                 <p className="text-2xl font-bold">{activeApps.length}</p>
