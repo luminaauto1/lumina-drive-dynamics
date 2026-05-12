@@ -40,6 +40,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
   const [pastDeals, setPastDeals] = useState<any[]>([]);
   const [leads, setLeads] = useState<any[]>([]);
   const [newNote, setNewNote] = useState('');
+  const [phoneCopied, setPhoneCopied] = useState(false);
 
   // Full Quote Calculator state (parity with AdminQuoteGenerator)
   const [calcOpen, setCalcOpen] = useState(false);
