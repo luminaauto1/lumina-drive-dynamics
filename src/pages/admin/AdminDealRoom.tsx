@@ -889,6 +889,12 @@ const AdminDealRoom = () => {
           </div>
         </motion.div>
 
+        {/* Persistent Client Cockpit */}
+        <ClientCockpit
+          application={application}
+          onChange={(patch) => setApplication((prev) => (prev ? { ...prev, ...patch } : prev))}
+        />
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Client Profile */}
           <motion.div
