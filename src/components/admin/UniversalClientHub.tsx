@@ -351,10 +351,17 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
                   <div className="flex items-start gap-2 text-xs">
                     <Banknote className="w-3.5 h-3.5 text-emerald-400 mt-0.5 shrink-0" />
                     <div>
-                      <span className="text-muted-foreground">Net Salary: </span>
-                      <span className="text-foreground font-bold text-sm">
-                        {primaryApp.net_salary ? formatPrice(Number(primaryApp.net_salary)) : '—'}
-                      </span>
+                      <div>
+                        <span className="text-muted-foreground">Net Salary: </span>
+                        <span className="text-foreground font-bold text-sm">
+                          {primaryApp.net_salary ? formatPrice(Number(primaryApp.net_salary)) : '—'}
+                        </span>
+                      </div>
+                      {primaryApp.net_salary ? (
+                        <div className="text-[10px] text-zinc-400 mt-0.5">
+                          Max Allowed Installment (~30%): <span className="font-medium text-zinc-300">{formatPrice(Number(primaryApp.net_salary) * 0.30)}</span>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                   <div className="flex items-start gap-2 text-xs">
