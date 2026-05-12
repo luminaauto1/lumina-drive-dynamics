@@ -27,10 +27,9 @@ const AdminAnalytics = () => {
     const fetchAnalytics = async () => {
       setLoading(true);
 
-      const [{ data: leads }, { data: deals }, { data: apps }] = await Promise.all([
+      const [{ data: leads }, { data: deals }] = await Promise.all([
         supabase.from("leads").select("id, pipeline_stage, created_at, is_archived"),
         supabase.from("deal_records").select("*"),
-        supabase.from("finance_applications").select("id, status, created_at, updated_at, status_updated_at"),
       ]);
 
       if (leads && deals) {
