@@ -121,6 +121,7 @@ const AdminFinance = () => {
   // Bank Reference capture (when admin moves an app to "Application Submitted")
   const [bankRefModalOpen, setBankRefModalOpen] = useState(false);
   const [bankRefApp, setBankRefApp] = useState<FinanceApplication | null>(null);
+  const [bankRefTargetStatus, setBankRefTargetStatus] = useState<string>('application_submitted');
 
   // Action Feed → row scroll/highlight
   const [highlightedAppId, setHighlightedAppId] = useState<string | null>(null);
