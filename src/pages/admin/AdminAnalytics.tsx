@@ -101,18 +101,41 @@ const AdminAnalytics = () => {
             application_submitted: 0,
             pre_approved: 0,
             validations_pending: 0,
-            approved: 0,
-            vehicle_selected: 0,
+            validations_complete: 0,
+            active: 0,
             declined: 0,
           } as any;
         });
+
+        const activeStatuses = new Set([
+          'sent_to_banks',
+          'documents_received',
+          'contract_sent',
+          'contract_signed',
+          'vehicle_delivered',
+          'vehicle_selected',
+          'approved',
+          'finalized',
+          'needs_revision',
+          'revision_submitted',
+        ]);
+
         apps.forEach((a: any) => {
           const isNewLead = a.status === 'pending';
           const ref = isNewLead ? a.created_at : (a.status_updated_at || a.updated_at || a.created_at);
           if (!ref) return;
           const ts = startOfDay(parseISO(ref)).getTime();
           const b = buckets.find(x => x._ts === ts);
-          if (b && b[a.status] !== undefined) b[a.status] += 1;
+          if (!b) return;
+
+          const status = a.status;
+          if (status === 'pending') b.pending += 1;
+          else if (status === 'application_submitted') b.application_submitted += 1;
+          else if (status === 'pre_approved') b.pre_approved += 1;
+          else if (status === 'validations_pending') b.validations_pending += 1;
+          else if (status === 'validations_complete') b.validations_complete += 1;
+          else if (status === 'declined' || status === 'blacklisted') b.declined += 1;
+          else if (activeStatuses.has(status)) b.active += 1;
         });
         setVelocityData(buckets);
       }
@@ -216,9 +239,9 @@ const AdminAnalytics = () => {
                 <Bar dataKey="pending" stackId="v" name="Pending" fill="#eab308" />
                 <Bar dataKey="application_submitted" stackId="v" name="Apps Submitted" fill="#a855f7" />
                 <Bar dataKey="pre_approved" stackId="v" name="Pre-Approved" fill="#14b8a6" />
-                <Bar dataKey="validations_pending" stackId="v" name="Validations" fill="#3b82f6" />
-                <Bar dataKey="approved" stackId="v" name="Budget Confirmed" fill="#10b981" />
-                <Bar dataKey="vehicle_selected" stackId="v" name="Vehicle Selected" fill="#8b5cf6" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="validations_pending" stackId="v" name="Vals Submitted" fill="#3b82f6" />
+                <Bar dataKey="validations_complete" stackId="v" name="Vals Complete" fill="#06b6d4" />
+                <Bar dataKey="active" stackId="v" name="Active" fill="#22c55e" />
                 <Bar dataKey="declined" stackId="v" name="Declined" fill="#ef4444" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
