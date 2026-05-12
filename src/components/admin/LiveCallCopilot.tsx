@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Mic, Square, Sparkles, Loader2, Upload } from 'lucide-react';
+import { Mic, Square, Sparkles, Loader2, Upload, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { publicApiHeaders } from '@/lib/publicApi';
