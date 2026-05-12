@@ -643,12 +643,14 @@ const AdminFinance = () => {
           const Sub = ({ n }: { n: number }) => (
             <div className={`text-xs mt-1 ${n > 0 ? 'opacity-60' : 'text-zinc-600'}`}>+{n} today</div>
           );
+          const declinedCount = applications.filter(a => a.status === 'declined' || a.status === 'blacklisted').length;
+          const declinedToday = todayByStatus('declined') + todayByStatus('blacklisted');
           return (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              className="grid grid-cols-2 md:grid-cols-8 gap-4 mb-6"
+              className="grid grid-cols-2 md:grid-cols-7 gap-4 mb-6"
             >
               <div className="glass-card rounded-lg p-4">
                 <p className="text-2xl font-bold text-amber-400">{activeApps.filter(a => a.status === 'pending').length}</p>
@@ -667,27 +669,22 @@ const AdminFinance = () => {
               </div>
               <div className="glass-card rounded-lg p-4">
                 <p className="text-2xl font-bold text-blue-400">{activeApps.filter(a => a.status === 'validations_pending').length}</p>
-                <p className="text-sm text-muted-foreground">Validations</p>
+                <p className="text-sm text-muted-foreground">Vals Submitted</p>
                 <Sub n={todayByStatus('validations_pending')} />
               </div>
               <div className="glass-card rounded-lg p-4">
-                <p className="text-2xl font-bold text-emerald-400">{activeApps.filter(a => a.status === 'approved').length}</p>
-                <p className="text-sm text-muted-foreground">Budget Confirmed</p>
-                <Sub n={todayByStatus('approved')} />
+                <p className="text-2xl font-bold text-cyan-400">{activeApps.filter(a => a.status === 'validations_complete').length}</p>
+                <p className="text-sm text-muted-foreground">Vals Complete</p>
+                <Sub n={todayByStatus('validations_complete')} />
               </div>
               <div className="glass-card rounded-lg p-4">
-                <p className="text-2xl font-bold text-purple-400">{activeApps.filter(a => a.status === 'vehicle_selected').length}</p>
-                <p className="text-sm text-muted-foreground">Vehicle Selected</p>
-                <Sub n={todayByStatus('vehicle_selected')} />
-              </div>
-              <div className="glass-card rounded-lg p-4">
-                <p className="text-2xl font-bold text-red-400">{applications.filter(a => a.status === 'declined').length}</p>
+                <p className="text-2xl font-bold text-red-400">{declinedCount}</p>
                 <p className="text-sm text-muted-foreground">Declined</p>
-                <div className={`text-xs mt-1 ${todayByStatus('declined') > 0 ? 'text-red-900/70' : 'text-zinc-600'}`}>+{todayByStatus('declined')} today</div>
+                <div className={`text-xs mt-1 ${declinedToday > 0 ? 'text-red-900/70' : 'text-zinc-600'}`}>+{declinedToday} today</div>
               </div>
               <div className="glass-card rounded-lg p-4">
                 <p className="text-2xl font-bold">{activeApps.length}</p>
-                <p className="text-sm text-muted-foreground">Total Active</p>
+                <p className="text-sm text-muted-foreground">Active</p>
                 <Sub n={totalActiveToday} />
               </div>
             </motion.div>
