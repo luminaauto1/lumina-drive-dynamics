@@ -40,20 +40,20 @@ serve(async (req) => {
     );
     let existingApp: any = null;
     if (clientEmail) {
-      const { data } = await supabaseClient.from("finance_applications").select("id, ai_vehicle_interest, ai_budget, ai_timeline").eq("email", clientEmail).limit(1).maybeSingle();
+      const { data } = await supabaseClient.from("finance_applications").select("id, ai_vehicle_interest, ai_budget, ai_timeline, ai_current_action_status").eq("email", clientEmail).limit(1).maybeSingle();
       existingApp = data;
     }
     if (!existingApp && clientPhone) {
-      const { data } = await supabaseClient.from("finance_applications").select("id, ai_vehicle_interest, ai_budget, ai_timeline").eq("phone", clientPhone).limit(1).maybeSingle();
+      const { data } = await supabaseClient.from("finance_applications").select("id, ai_vehicle_interest, ai_budget, ai_timeline, ai_current_action_status").eq("phone", clientPhone).limit(1).maybeSingle();
       existingApp = data;
     }
 
     const memoryContext = existingApp
-      ? `\n\nKNOWN CLIENT FACTS (preserve unless contradicted by the new audio):\n- Vehicle Interest: ${existingApp.ai_vehicle_interest || 'unknown'}\n- Budget: ${existingApp.ai_budget || 'unknown'}\n- Timeline: ${existingApp.ai_timeline || 'unknown'}`
+      ? `\n\nKNOWN CLIENT FACTS (preserve unless contradicted by the new audio):\n- Vehicle Interest: ${existingApp.ai_vehicle_interest || 'unknown'}\n- Budget: ${existingApp.ai_budget || 'unknown'}\n- Timeline: ${existingApp.ai_timeline || 'unknown'}\n- Current Action Status: ${existingApp.ai_current_action_status || 'unknown'}`
       : "";
 
     const systemPrompt = `You are an elite, premium automotive F&I Sales Co-Pilot for Lumina Auto in South Africa. Client: ${clientName || "Unknown"}. Keep language sharp, professional, and direct.${memoryContext}`;
-    const prompt = `Transcribe this sales call audio, then return ONLY a JSON object with this exact shape:\n{\n  "new_note_summary": "Concise CRM bullet-point note for THIS call (Budget, Vehicle Interest, Timeline, Next Steps).",\n  "updated_vehicle": "Vehicle of interest. Retain KNOWN value if not contradicted; otherwise update.",\n  "updated_budget": "Client budget. Retain KNOWN value if not contradicted; otherwise update.",\n  "updated_timeline": "Purchase timeline. Retain KNOWN value if not contradicted; otherwise update."\n}\nIf a field is genuinely unknown after considering both KNOWN facts and the new audio, use an empty string.`;
+    const prompt = `Transcribe this sales call audio, then return ONLY a JSON object with this exact shape:\n{\n  "new_note_summary": "Concise CRM bullet-point note for THIS call (Budget, Vehicle Interest, Timeline, Next Steps).",\n  "updated_vehicle": "Vehicle of interest. Retain KNOWN value if not contradicted; otherwise update.",\n  "updated_budget": "Client budget. Retain KNOWN value if not contradicted; otherwise update.",\n  "updated_timeline": "Purchase timeline. Retain KNOWN value if not contradicted; otherwise update.",\n  "updated_status": "Based on the transcript, determine the immediate next step or bottleneck. Summarize this in 3 to 7 words (e.g., 'Awaiting FICA documents', 'Client reviewing budget', 'Waiting for spouse approval'). Retain KNOWN value if the new audio reveals nothing new."\n}\nIf a field is genuinely unknown after considering both KNOWN facts and the new audio, use an empty string.`;
 
     // Send audio directly to Gemini via Lovable AI Gateway
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
