@@ -120,17 +120,40 @@ export default function LiveCallCopilot({ clientEmail, clientPhone, clientName, 
     if (fullText.length > 50) {
       setIsProcessing(true);
       toast.info('Call ended. AI is writing your CRM summary...');
+      let aiSucceeded = false;
       try {
-        const { error } = await supabase.functions.invoke('sales-copilot', {
+        const { data, error } = await supabase.functions.invoke('sales-copilot', {
           headers: publicApiHeaders(),
           body: { action: 'summarize', transcript: fullText, clientEmail, clientPhone, clientName },
         });
         if (error) throw error;
-        toast.success('Call summarized and saved to timeline.');
-        if (onCallEnd) onCallEnd();
-      } catch {
-        toast.error('Failed to auto-summarize call.');
+        if (data?.success && data?.result) {
+          aiSucceeded = true;
+          toast.success('Call summarized and saved to timeline.');
+        }
+      } catch (err) {
+        console.error('AI summarize failed:', err);
       }
+
+      if (!aiSucceeded) {
+        // Fallback: never lose the raw transcript
+        try {
+          const { error: insertErr } = await supabase.from('client_audit_logs').insert([{
+            client_email: clientEmail || null,
+            client_phone: clientPhone || null,
+            note: `[Raw Transcript (AI Summary Failed)]:\n${fullText}`,
+            author_name: 'AI Co-Pilot (Fallback)',
+            action_type: 'Call Summary',
+          }]);
+          if (insertErr) throw insertErr;
+          toast.warning('AI summary failed — raw transcript saved to timeline.');
+        } catch (e) {
+          console.error('Fallback insert failed:', e);
+          toast.error('Failed to save call note. Copy the transcript manually.');
+        }
+      }
+
+      if (onCallEnd) onCallEnd();
       setIsProcessing(false);
     }
   };
