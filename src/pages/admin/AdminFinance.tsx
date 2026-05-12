@@ -657,8 +657,17 @@ const AdminFinance = () => {
             <p className="text-sm text-muted-foreground">Vehicle Selected</p>
           </div>
           <div className="glass-card rounded-lg p-4">
-            <p className="text-2xl font-bold text-red-400">{activeApps.filter(a => a.status === 'declined').length}</p>
+            <p className="text-2xl font-bold text-red-400">{applications.filter(a => a.status === 'declined').length}</p>
             <p className="text-sm text-muted-foreground">Declined</p>
+            {(() => {
+              const isToday = (d?: string | null) => {
+                if (!d) return false;
+                const x = new Date(d), n = new Date();
+                return x.getFullYear() === n.getFullYear() && x.getMonth() === n.getMonth() && x.getDate() === n.getDate();
+              };
+              const declinedTodayCount = applications.filter(a => a.status === 'declined' && isToday((a as any).status_updated_at || a.updated_at)).length;
+              return <div className="text-xs text-red-900/70 mt-1">{declinedTodayCount} declined today</div>;
+            })()}
           </div>
           <div className="glass-card rounded-lg p-4">
             <p className="text-2xl font-bold">{activeApps.length}</p>
