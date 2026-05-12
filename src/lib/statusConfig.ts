@@ -27,6 +27,7 @@ export const STATUS_OPTIONS = [
 export const STATUS_STEP_ORDER: Record<string, number> = {
   pending: 0,
   application_submitted: 1,
+  ready_to_submit: 1,
   sent_to_banks: 2,
   pre_approved: 2,
   documents_received: 3,
