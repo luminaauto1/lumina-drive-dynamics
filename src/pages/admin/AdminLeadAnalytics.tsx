@@ -98,6 +98,7 @@ interface AppRow {
   email: string | null;
   phone: string | null;
   utm_source?: string | null;
+  status_updated_at?: string | null;
 }
 
 const AdminLeadAnalytics = () => {
