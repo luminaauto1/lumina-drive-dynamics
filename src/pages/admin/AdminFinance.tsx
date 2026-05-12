@@ -632,17 +632,17 @@ const AdminFinance = () => {
             const x = new Date(d), n = new Date();
             return x.getFullYear() === n.getFullYear() && x.getMonth() === n.getMonth() && x.getDate() === n.getDate();
           };
+          const wasTouchedToday = (a: FinanceApplication) =>
+            isToday((a as any).status_updated_at) || isToday(a.updated_at) || isToday(a.created_at);
+
           const todayByStatus = (status: string, useCreated = false) =>
             applications.filter(a => {
               if (a.status !== status) return false;
               if (useCreated) return isToday(a.created_at);
-              // Prefer status_updated_at (stamped on every real status change).
-              // Fall back to updated_at only for legacy rows where it's null.
-              const ts = (a as any).status_updated_at ?? a.updated_at;
-              return isToday(ts);
+              return wasTouchedToday(a);
             }).length;
           const totalActiveToday = activeApps.filter(a =>
-            isToday(a.created_at) || isToday((a as any).status_updated_at || a.updated_at)
+            wasTouchedToday(a)
           ).length;
           const Sub = ({ n }: { n: number }) => (
             <div className={`text-xs mt-1 ${n > 0 ? 'opacity-60' : 'text-zinc-600'}`}>+{n} today</div>
