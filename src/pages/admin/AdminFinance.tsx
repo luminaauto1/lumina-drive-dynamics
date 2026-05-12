@@ -655,7 +655,7 @@ const AdminFinance = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              className="grid grid-cols-2 md:grid-cols-7 gap-4 mb-6"
+              className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-6"
             >
               <div className="glass-card rounded-lg p-4">
                 <p className="text-2xl font-bold text-amber-400">{activeApps.filter(a => a.status === 'pending').length}</p>
@@ -666,6 +666,11 @@ const AdminFinance = () => {
                 <p className="text-2xl font-bold text-indigo-400">{activeApps.filter(a => a.status === 'application_submitted').length}</p>
                 <p className="text-sm text-muted-foreground">Apps Submitted</p>
                 <Sub n={todayByStatus('application_submitted')} />
+              </div>
+              <div className="glass-card rounded-lg p-4">
+                <p className="text-2xl font-bold text-emerald-300">{activeApps.filter(a => a.status === 'ready_to_submit').length}</p>
+                <p className="text-sm text-muted-foreground">Ready to Submit</p>
+                <Sub n={todayByStatus('ready_to_submit')} />
               </div>
               <div className="glass-card rounded-lg p-4">
                 <p className="text-2xl font-bold text-teal-400">{activeApps.filter(a => a.status === 'pre_approved').length}</p>
