@@ -5,13 +5,13 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import VehicleCard from '@/components/VehicleCard';
 import { useWishlist } from '@/hooks/useWishlist';
-import { useVehicles } from '@/hooks/useVehicles';
+import { usePublicVehicles } from '@/hooks/useVehicles';
 import KineticText from '@/components/KineticText';
 import SkeletonCard from '@/components/SkeletonCard';
 
 const Wishlist = () => {
   const { wishlist, clearWishlist } = useWishlist();
-  const { data: vehicles = [], isLoading } = useVehicles();
+  const { data: vehicles = [], isLoading } = usePublicVehicles();
   
   const wishlistVehicles = vehicles.filter((v) => wishlist.includes(v.id));
 
