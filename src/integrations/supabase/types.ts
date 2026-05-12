@@ -527,6 +527,7 @@ export type Database = {
           account_type: string | null
           additional_income: number | null
           ai_budget: string | null
+          ai_current_action_status: string | null
           ai_timeline: string | null
           ai_vehicle_interest: string | null
           approved_budget: number | null
@@ -612,6 +613,7 @@ export type Database = {
           account_type?: string | null
           additional_income?: number | null
           ai_budget?: string | null
+          ai_current_action_status?: string | null
           ai_timeline?: string | null
           ai_vehicle_interest?: string | null
           approved_budget?: number | null
@@ -697,6 +699,7 @@ export type Database = {
           account_type?: string | null
           additional_income?: number | null
           ai_budget?: string | null
+          ai_current_action_status?: string | null
           ai_timeline?: string | null
           ai_vehicle_interest?: string | null
           approved_budget?: number | null

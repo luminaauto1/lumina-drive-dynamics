@@ -1,0 +1,1 @@
+ALTER TABLE public.finance_applications ADD COLUMN IF NOT EXISTS ai_current_action_status text;
