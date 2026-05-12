@@ -88,57 +88,6 @@ const AdminAnalytics = () => {
         setRevenueTrend(last6.map(({ month, profit, deals: d }) => ({ month, profit, deals: d })));
       }
 
-      // Daily Pipeline Velocity (last 14 days)
-      if (apps) {
-        const DAYS = 14;
-        const buckets = Array.from({ length: DAYS }).map((_, i) => {
-          const d = startOfDay(subDays(new Date(), DAYS - 1 - i));
-          return {
-            date: format(d, 'dd MMM'),
-            _ts: d.getTime(),
-            pending: 0,
-            application_submitted: 0,
-            pre_approved: 0,
-            validations_pending: 0,
-            validations_complete: 0,
-            active: 0,
-            declined: 0,
-          } as any;
-        });
-
-        const activeStatuses = new Set([
-          'sent_to_banks',
-          'documents_received',
-          'contract_sent',
-          'contract_signed',
-          'vehicle_delivered',
-          'vehicle_selected',
-          'approved',
-          'finalized',
-          'needs_revision',
-          'revision_submitted',
-        ]);
-
-        apps.forEach((a: any) => {
-          const isNewLead = a.status === 'pending';
-          const ref = isNewLead ? a.created_at : (a.status_updated_at || a.updated_at || a.created_at);
-          if (!ref) return;
-          const ts = startOfDay(parseISO(ref)).getTime();
-          const b = buckets.find(x => x._ts === ts);
-          if (!b) return;
-
-          const status = a.status;
-          if (status === 'pending') b.pending += 1;
-          else if (status === 'application_submitted') b.application_submitted += 1;
-          else if (status === 'pre_approved') b.pre_approved += 1;
-          else if (status === 'validations_pending') b.validations_pending += 1;
-          else if (status === 'validations_complete') b.validations_complete += 1;
-          else if (status === 'declined' || status === 'blacklisted') b.declined += 1;
-          else if (activeStatuses.has(status)) b.active += 1;
-        });
-        setVelocityData(buckets);
-      }
-
       setLoading(false);
     };
     fetchAnalytics();
