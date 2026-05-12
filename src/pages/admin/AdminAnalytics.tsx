@@ -239,9 +239,9 @@ const AdminAnalytics = () => {
                 <Bar dataKey="pending" stackId="v" name="Pending" fill="#eab308" />
                 <Bar dataKey="application_submitted" stackId="v" name="Apps Submitted" fill="#a855f7" />
                 <Bar dataKey="pre_approved" stackId="v" name="Pre-Approved" fill="#14b8a6" />
-                <Bar dataKey="validations_pending" stackId="v" name="Validations" fill="#3b82f6" />
-                <Bar dataKey="approved" stackId="v" name="Budget Confirmed" fill="#10b981" />
-                <Bar dataKey="vehicle_selected" stackId="v" name="Vehicle Selected" fill="#8b5cf6" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="validations_pending" stackId="v" name="Vals Submitted" fill="#3b82f6" />
+                <Bar dataKey="validations_complete" stackId="v" name="Vals Complete" fill="#06b6d4" />
+                <Bar dataKey="active" stackId="v" name="Active" fill="#22c55e" />
                 <Bar dataKey="declined" stackId="v" name="Declined" fill="#ef4444" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
