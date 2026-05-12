@@ -4,6 +4,7 @@
 export const STATUS_OPTIONS = [
   { value: 'pending', label: 'Pending' },
   { value: 'application_submitted', label: 'Application Submitted' },
+  { value: 'ready_to_submit', label: 'Ready to Submit' },
   { value: 'sent_to_banks', label: 'Sent to banks' },
   { value: 'pre_approved', label: 'Pre-Approved (Docs Req)' },
   { value: 'documents_received', label: 'Docs Received' },
