@@ -891,8 +891,8 @@ const AdminDealRoom = () => {
 
         {/* Persistent Client Cockpit */}
         <ClientCockpit
-          application={application}
-          onChange={(patch) => setApplication((prev) => (prev ? { ...prev, ...patch } : prev))}
+          application={application as any}
+          onChange={(patch) => setApplication((prev) => (prev ? ({ ...prev, ...patch } as any) : prev))}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
