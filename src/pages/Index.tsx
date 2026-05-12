@@ -11,7 +11,7 @@ import AftersalesBanner from '@/components/AftersalesBanner';
 import ExitIntentModal from '@/components/ExitIntentModal';
 import VehicleCard from '@/components/VehicleCard';
 import SkeletonCard from '@/components/SkeletonCard';
-import { useVehicles } from '@/hooks/useVehicles';
+import { usePublicVehicles } from '@/hooks/useVehicles';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 const Index = () => {
   const heroRef = useRef<HTMLDivElement>(null);
@@ -39,7 +39,7 @@ const Index = () => {
   const {
     data: vehicles = [],
     isLoading
-  } = useVehicles();
+  } = usePublicVehicles();
   // Show featured vehicles first, then fall back to available vehicles
   // Grab vehicles explicitly marked as featured, regardless of their status (Available, Sourcing, etc.)
   const featuredVehicles = vehicles

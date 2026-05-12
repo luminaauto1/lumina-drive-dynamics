@@ -13,13 +13,13 @@ import { useToast } from '@/components/ui/use-toast';
 import KineticText from '@/components/KineticText';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { useAuth } from '@/contexts/AuthContext';
-import { useVehicles, formatPrice } from '@/hooks/useVehicles';
+import { usePublicVehicles, formatPrice } from '@/hooks/useVehicles';
 const Sourcing = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data: settings } = useSiteSettings();
-  const { data: allVehicles = [] } = useVehicles();
+  const { data: allVehicles = [] } = usePublicVehicles();
   const whatsappNumber = settings?.whatsapp_number || '27686017462';
 
   // Filter for generic/sourcing example vehicles only
