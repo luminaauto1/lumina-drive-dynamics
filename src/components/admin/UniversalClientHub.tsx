@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { Clock, Car, User, FileText, Calculator, Copy, Check, Plus, X, Eye, Trophy, Trash2, Phone, Brain, Wallet, CalendarClock, AlertOctagon } from 'lucide-react';
+import { Clock, Car, User, FileText, Calculator, Copy, Check, Plus, X, Eye, Trophy, Trash2, Phone, Brain, Wallet, CalendarClock, AlertOctagon, Banknote, Fingerprint, Briefcase } from 'lucide-react';
+import { formatPrice } from '@/lib/formatters';
 import LiveCallCopilot from './LiveCallCopilot';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -335,6 +336,49 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
               </div>
               <p className="text-[9px] text-muted-foreground/60 italic mt-3">Auto-updated by AI Co-Pilot after each call.</p>
             </div>
+
+            {/* FINANCIAL SNAPSHOT */}
+            {primaryApp ? (
+              <div className="rounded-md bg-zinc-800/50 border border-zinc-700/50 p-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-300 mb-3 flex items-center gap-2">
+                  <Banknote className="w-4 h-4 text-emerald-400" /> Financial Snapshot
+                </h3>
+                <div className="space-y-2.5">
+                  <div className="flex items-start gap-2 text-xs">
+                    <Banknote className="w-3.5 h-3.5 text-emerald-400 mt-0.5 shrink-0" />
+                    <div>
+                      <span className="text-muted-foreground">Net Salary: </span>
+                      <span className="text-foreground font-bold text-sm">
+                        {primaryApp.net_salary ? formatPrice(Number(primaryApp.net_salary)) : '—'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 text-xs">
+                    <Fingerprint className="w-3.5 h-3.5 text-emerald-400 mt-0.5 shrink-0" />
+                    <div>
+                      <span className="text-muted-foreground">ID Number: </span>
+                      <span className="text-foreground font-medium">{primaryApp.id_number || '—'}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 text-xs">
+                    <Briefcase className="w-3.5 h-3.5 text-emerald-400 mt-0.5 shrink-0" />
+                    <div>
+                      <span className="text-muted-foreground">Employment: </span>
+                      <span className="text-foreground font-medium">
+                        {primaryApp.employment_status || '—'}{primaryApp.employer_name ? ` at ${primaryApp.employer_name}` : ''}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-md bg-zinc-800/50 border border-zinc-700/50 p-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-300 mb-2 flex items-center gap-2">
+                  <Banknote className="w-4 h-4 text-emerald-400" /> Financial Snapshot
+                </h3>
+                <p className="text-[11px] text-muted-foreground italic">Financial details pending application submission.</p>
+              </div>
+            )}
 
             {/* 1. THE GARAGE (LIFETIME PURCHASES) */}
             <div>
