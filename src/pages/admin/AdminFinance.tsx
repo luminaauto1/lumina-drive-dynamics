@@ -732,7 +732,7 @@ const AdminFinance = () => {
                   <TableRow
                     key={app.id}
                     id={`app-row-${app.id}`}
-                    className={`border-white/10 hover:bg-white/5 cursor-pointer transition-colors ${isNew ? 'bg-emerald-500/5' : ''} ${isStagnant ? 'bg-orange-500/5' : ''} ${isHighlighted ? 'ring-2 ring-amber-300/70 bg-amber-300/10 animate-pulse' : ''}`}
+                    className={`border-white/10 hover:bg-white/5 cursor-pointer transition-colors ${app.status === 'pre_approved' ? 'bg-green-900/10 border-l-4 !border-l-green-500 shadow-[0_0_12px_-4px_rgba(34,197,94,0.5)]' : ''} ${isNew ? 'bg-emerald-500/5' : ''} ${isStagnant ? 'bg-orange-500/5' : ''} ${isHighlighted ? 'ring-2 ring-amber-300/70 bg-amber-300/10 animate-pulse' : ''}`}
                     onClick={() => navigate(`/admin/finance/${app.id}`)}
                   >
                     <TableCell onClick={(e) => e.stopPropagation()}>
