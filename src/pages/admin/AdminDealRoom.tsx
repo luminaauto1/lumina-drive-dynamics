@@ -1060,6 +1060,13 @@ const AdminDealRoom = () => {
             transition={{ delay: 0.2 }}
             className="space-y-6"
           >
+            {/* Voice AI Co-Pilot + Call Timeline */}
+            <ClientCallTimeline
+              clientEmail={application.email}
+              clientPhone={application.phone}
+              clientName={application.first_name || application.full_name || 'Client'}
+            />
+
             {/* Status Controller */}
             <div className="glass-card rounded-xl p-6">
               <h3 className="font-semibold mb-4">Status Controller</h3>
