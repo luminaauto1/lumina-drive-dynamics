@@ -4,10 +4,10 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { Card } from "@/components/ui/card";
 import { Users, TrendingUp, DollarSign, Target, Loader2 } from "lucide-react";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, LineChart, Line,
 } from "recharts";
-import { startOfMonth, subMonths, format, parseISO } from "date-fns";
+import { startOfMonth, subMonths, subDays, format, parseISO, startOfDay } from "date-fns";
 import { Helmet } from "react-helmet-async";
 
 const AdminAnalytics = () => {
