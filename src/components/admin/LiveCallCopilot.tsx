@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Mic, Square, Sparkles, Loader2, Upload } from 'lucide-react';
+import { Mic, Square, Sparkles, Loader2, Upload, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { publicApiHeaders } from '@/lib/publicApi';
@@ -19,6 +19,56 @@ export default function LiveCallCopilot({ clientEmail, clientPhone, clientName, 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [language, setLanguage] = useState<'en-ZA' | 'af-ZA'>('en-ZA');
+  const [mode, setMode] = useState<'voice' | 'text'>('voice');
+  const [pastedText, setPastedText] = useState('');
+  const [isProcessingText, setIsProcessingText] = useState(false);
+
+  const handleProcessText = async () => {
+    const text = pastedText.trim();
+    if (text.length < 20) {
+      toast.error('Paste at least a sentence or two for the AI to summarize.');
+      return;
+    }
+    setIsProcessingText(true);
+    let aiSucceeded = false;
+    try {
+      const { data, error } = await supabase.functions.invoke('sales-copilot', {
+        headers: publicApiHeaders(),
+        body: { action: 'summarize', transcript: text, clientEmail, clientPhone, clientName },
+      });
+      if (error) throw error;
+      if (data?.success && data?.result) {
+        aiSucceeded = true;
+        toast.success('Text summarized and saved to timeline.');
+        setPastedText('');
+      }
+    } catch (err) {
+      console.error('AI summarize (text) failed:', err);
+    }
+
+    if (!aiSucceeded) {
+      try {
+        const { error: insertErr } = await supabase.from('client_audit_logs').insert([{
+          client_email: clientEmail || null,
+          client_phone: clientPhone || null,
+          note: `[Raw Text (AI Summary Failed)]:\n${text}`,
+          author_name: 'AI Co-Pilot (Fallback)',
+          action_type: 'Call Summary',
+        }]);
+        if (insertErr) throw insertErr;
+        toast.warning('AI summary failed — raw text saved to timeline.');
+      } catch (e) {
+        console.error('Fallback insert failed:', e);
+        toast.error('Failed to process text. Your text is preserved in the box.');
+        setIsProcessingText(false);
+        if (onCallEnd) onCallEnd();
+        return;
+      }
+    }
+
+    if (onCallEnd) onCallEnd();
+    setIsProcessingText(false);
+  };
 
   const recognitionRef = useRef<any>(null);
   const lastHintTimeRef = useRef(Date.now());
@@ -197,61 +247,107 @@ export default function LiveCallCopilot({ clientEmail, clientPhone, clientName, 
 
   return (
     <div className="rounded-md border border-border bg-muted/20 p-3 space-y-2">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <Sparkles className="w-3 h-3 text-primary" />
-          <span className="text-[10px] font-semibold text-primary">AI Co-Pilot</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="audio/*"
-            className="hidden"
-            onChange={handleFileUpload}
-          />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading || isListening || isProcessing}
-            className="h-7 text-[10px] gap-1 bg-muted/30 border-border hover:bg-muted/50 text-muted-foreground"
-          >
-            {isUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-            {isUploading ? 'Processing...' : 'Upload Audio'}
-          </Button>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1 rounded bg-zinc-900/60 border border-zinc-700 p-0.5">
           <button
-            onClick={() => setLanguage(lang => lang === 'en-ZA' ? 'af-ZA' : 'en-ZA')}
-            disabled={isListening}
-            className="text-[10px] px-2 py-1 rounded bg-muted/30 border border-border text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors"
+            onClick={() => setMode('voice')}
+            disabled={isListening || isProcessing || isUploading || isProcessingText}
+            className={`flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded transition-colors disabled:opacity-50 ${
+              mode === 'voice' ? 'bg-primary/20 text-primary' : 'text-zinc-400 hover:text-zinc-200'
+            }`}
           >
-            {language === 'en-ZA' ? '🇬🇧 EN' : '🇿🇦 AF'}
+            <Sparkles className="w-3 h-3" /> Voice Call
           </button>
-          <Button
-            onClick={toggleListening}
-            size="sm"
-            variant={isListening ? 'destructive' : 'default'}
-            className="h-7 text-[10px] gap-1"
-            disabled={isProcessing || isUploading}
+          <button
+            onClick={() => setMode('text')}
+            disabled={isListening || isProcessing || isUploading || isProcessingText}
+            className={`flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded transition-colors disabled:opacity-50 ${
+              mode === 'text' ? 'bg-primary/20 text-primary' : 'text-zinc-400 hover:text-zinc-200'
+            }`}
           >
-            {isProcessing ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
-            ) : isListening ? (
-              <><Square className="w-3 h-3" /> End Call &amp; Auto-Log</>
-            ) : (
-              <><Mic className="w-3 h-3" /> Start Call</>
-            )}
-          </Button>
+            <FileText className="w-3 h-3" /> Paste Text
+          </button>
         </div>
+
+        {mode === 'voice' && (
+          <div className="flex items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="audio/*"
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading || isListening || isProcessing}
+              className="h-7 text-[10px] gap-1 bg-muted/30 border-border hover:bg-muted/50 text-muted-foreground"
+            >
+              {isUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+              {isUploading ? 'Processing...' : 'Upload Audio'}
+            </Button>
+            <button
+              onClick={() => setLanguage(lang => lang === 'en-ZA' ? 'af-ZA' : 'en-ZA')}
+              disabled={isListening}
+              className="text-[10px] px-2 py-1 rounded bg-muted/30 border border-border text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors"
+            >
+              {language === 'en-ZA' ? '🇬🇧 EN' : '🇿🇦 AF'}
+            </button>
+            <Button
+              onClick={toggleListening}
+              size="sm"
+              variant={isListening ? 'destructive' : 'default'}
+              className="h-7 text-[10px] gap-1"
+              disabled={isProcessing || isUploading}
+            >
+              {isProcessing ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : isListening ? (
+                <><Square className="w-3 h-3" /> End Call &amp; Auto-Log</>
+              ) : (
+                <><Mic className="w-3 h-3" /> Start Call</>
+              )}
+            </Button>
+          </div>
+        )}
       </div>
 
-      <div className="p-2 rounded bg-primary/5 border border-primary/10">
-        <p className="text-[11px] text-foreground/80 leading-relaxed italic">{liveHint}</p>
-      </div>
-
-      <div className="max-h-20 overflow-y-auto text-[9px] text-muted-foreground font-mono p-2 rounded bg-muted/30 border border-border">
-        {transcript || 'Awaiting voice input... (Put call on speakerphone)'}
-      </div>
+      {mode === 'voice' ? (
+        <>
+          <div className="p-2 rounded bg-primary/5 border border-primary/10">
+            <p className="text-[11px] text-foreground/80 leading-relaxed italic">{liveHint}</p>
+          </div>
+          <div className="max-h-20 overflow-y-auto text-[9px] text-muted-foreground font-mono p-2 rounded bg-muted/30 border border-border">
+            {transcript || 'Awaiting voice input... (Put call on speakerphone)'}
+          </div>
+        </>
+      ) : (
+        <div className="space-y-2">
+          <textarea
+            value={pastedText}
+            onChange={(e) => setPastedText(e.target.value)}
+            disabled={isProcessingText}
+            placeholder="Paste a long WhatsApp message, email, or raw call notes here. The AI will summarize it and update Vehicle / Budget / Status on the left panel..."
+            className="w-full min-h-[120px] text-[11px] rounded bg-zinc-900 border border-zinc-700 text-zinc-200 placeholder:text-zinc-600 p-2 leading-relaxed focus:outline-none focus:border-primary/60 resize-y disabled:opacity-60"
+          />
+          <div className="flex justify-end">
+            <Button
+              onClick={handleProcessText}
+              disabled={isProcessingText || pastedText.trim().length < 20}
+              size="sm"
+              className="h-7 text-[10px] gap-1"
+            >
+              {isProcessingText ? (
+                <><Loader2 className="w-3 h-3 animate-spin" /> Analyzing text...</>
+              ) : (
+                <><Sparkles className="w-3 h-3" /> Process Text</>
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
