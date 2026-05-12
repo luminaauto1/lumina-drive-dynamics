@@ -661,6 +661,88 @@ const AdminLeadAnalytics = () => {
     };
   }, [apps]);
 
+  // Daily Pipeline Velocity (last 14 days) — moved from AdminAnalytics
+  const pipelineVelocity = useMemo(() => {
+    const DAYS = 14;
+    const startOfDayMs = (d: Date) => {
+      const x = new Date(d);
+      x.setHours(0, 0, 0, 0);
+      return x.getTime();
+    };
+    const buckets = Array.from({ length: DAYS }).map((_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (DAYS - 1 - i));
+      d.setHours(0, 0, 0, 0);
+      return {
+        date: `${d.getDate().toString().padStart(2, '0')} ${d.toLocaleString('en', { month: 'short' })}`,
+        _ts: d.getTime(),
+        pending: 0,
+        application_submitted: 0,
+        pre_approved: 0,
+        validations_pending: 0,
+        validations_complete: 0,
+        active: 0,
+        declined: 0,
+      } as any;
+    });
+    const activeStatuses = new Set([
+      'sent_to_banks', 'documents_received', 'contract_sent', 'contract_signed',
+      'vehicle_delivered', 'vehicle_selected', 'approved', 'finalized',
+      'needs_revision', 'revision_submitted',
+    ]);
+    apps.forEach((a: any) => {
+      const isNewLead = a.status === 'pending';
+      const ref = isNewLead ? a.created_at : (a.status_updated_at || a.updated_at || a.created_at);
+      if (!ref) return;
+      const ts = startOfDayMs(new Date(ref));
+      const b = buckets.find((x) => x._ts === ts);
+      if (!b) return;
+      const s = a.status;
+      if (s === 'pending') b.pending += 1;
+      else if (s === 'application_submitted') b.application_submitted += 1;
+      else if (s === 'pre_approved') b.pre_approved += 1;
+      else if (s === 'validations_pending') b.validations_pending += 1;
+      else if (s === 'validations_complete') b.validations_complete += 1;
+      else if (s === 'declined' || s === 'blacklisted') b.declined += 1;
+      else if (activeStatuses.has(s)) b.active += 1;
+    });
+    return buckets;
+  }, [apps]);
+
+  // Average time apps spend before reaching each status (created_at → status_updated_at).
+  // For each "current status" bucket, we average elapsed hours from creation.
+  // This approximates per-stage dwell time without a full status_history table.
+  const statusTransitionStats = useMemo(() => {
+    const targets: { key: string; label: string; statuses: string[] }[] = [
+      { key: 'submitted', label: 'Pending → App Submitted', statuses: ['application_submitted'] },
+      { key: 'pre_approved', label: 'App Submitted → Pre-Approved', statuses: ['pre_approved', 'approved'] },
+      { key: 'declined', label: 'App Submitted → Declined / Blacklisted', statuses: ['declined', 'declined_conditional', 'blacklisted'] },
+      { key: 'docs', label: 'Pre-Approved → Docs Received', statuses: ['documents_received'] },
+      { key: 'vals_submitted', label: 'Docs Received → Vals Submitted', statuses: ['validations_pending'] },
+      { key: 'vals_complete', label: 'Vals Submitted → Vals Complete', statuses: ['validations_complete'] },
+      { key: 'finalized', label: 'Vals Complete → Finalized', statuses: ['contract_sent', 'contract_signed', 'vehicle_delivered', 'finalized'] },
+    ];
+    const hoursBetween = (a: string, b: string) =>
+      Math.max(0, (new Date(b).getTime() - new Date(a).getTime()) / 3_600_000);
+    const fmt = (h: number) => {
+      if (!isFinite(h) || h <= 0) return '—';
+      if (h < 1) return `${Math.round(h * 60)}m`;
+      if (h < 48) return `${h.toFixed(1)}h`;
+      return `${(h / 24).toFixed(1)}d`;
+    };
+    return targets.map((t) => {
+      const matching = apps.filter((a: any) =>
+        t.statuses.includes(String(a.status || '').toLowerCase()) &&
+        a.created_at && (a.status_updated_at || a.updated_at)
+      );
+      const samples = matching
+        .map((a: any) => hoursBetween(a.created_at, a.status_updated_at || a.updated_at))
+        .filter((h: number) => h > 0 && h <= 24 * 90); // cap at 90 days
+      const avg = samples.length ? samples.reduce((s, n) => s + n, 0) / samples.length : 0;
+      return { ...t, avgHours: avg, display: fmt(avg), sample: samples.length };
+    });
+  }, [apps]);
+
 
   // Force light text on dark background — Recharts default tooltip text inherits
   // OS color and renders unreadable against the dark admin theme.
