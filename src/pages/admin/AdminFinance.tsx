@@ -1462,7 +1462,7 @@ const AdminFinance = () => {
           try {
             await updateApplication.mutateAsync({
               id: bankRefApp.id,
-              updates: { status: 'application_submitted', bank_reference: reference },
+              updates: { status: bankRefTargetStatus, bank_reference: reference },
             });
           } catch (err) {
             // error toast handled by hook
