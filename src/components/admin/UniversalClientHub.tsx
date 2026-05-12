@@ -405,6 +405,53 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
 
           {/* RIGHT: Timeline */}
           <div className="w-full md:w-1/2 p-6 flex flex-col bg-black/20 h-auto md:h-full min-h-0 overflow-hidden">
+            {/* DAILY ACTION & FOLLOW-UP */}
+            {primaryApp && (
+              <div className={`mb-4 rounded-md p-3 transition-all ${isOverdue ? 'border-2 border-red-500 animate-pulse bg-red-950/20' : 'border border-zinc-700/50 bg-zinc-800/40'}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <p className={`text-[10px] uppercase tracking-wider font-semibold ${isOverdue ? 'text-red-400' : 'text-muted-foreground'}`}>
+                    {isOverdue ? 'OVERDUE — Contact now' : contactedToday ? 'Contacted today ✓' : 'Daily Action'}
+                  </p>
+                  {isOverdue && <AlertOctagon className="w-4 h-4 text-red-500 animate-pulse" />}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="flex items-start gap-2 p-2 rounded bg-black/30 border border-white/5 cursor-pointer hover:bg-black/40 transition">
+                    <Checkbox
+                      checked={contactedToday}
+                      onCheckedChange={(checked) => {
+                        const value = checked ? todayISO() : null;
+                        persistDailyAction(
+                          { last_contacted_date: value },
+                          { note: checked ? `Marked CONTACTED TODAY (${todayISO()})` : `Cleared "Contacted Today" flag`, action_type: 'Daily Contact' }
+                        );
+                      }}
+                      className="mt-0.5"
+                    />
+                    <div>
+                      <p className="text-[11px] font-medium text-foreground">Contacted Today</p>
+                      <p className="text-[9px] text-muted-foreground">Auto-resets at midnight</p>
+                    </div>
+                  </label>
+                  <div className={`p-2 rounded border ${isOverdue ? 'bg-red-950/30 border-red-500/60' : 'bg-black/30 border-white/5'}`}>
+                    <Label htmlFor="hub_follow_up" className={`text-[10px] ${isOverdue ? 'text-red-400 font-bold' : 'text-muted-foreground'}`}>Follow-up time</Label>
+                    <Input
+                      id="hub_follow_up"
+                      type="time"
+                      value={followUp || ''}
+                      onChange={(e) => {
+                        const value = e.target.value || null;
+                        persistDailyAction(
+                          { follow_up_time: value },
+                          { note: value ? `Follow-up time set to ${value}` : `Follow-up time cleared`, action_type: 'Follow-up Scheduled' }
+                        );
+                      }}
+                      className={`mt-1 h-7 text-xs ${isOverdue ? 'border-red-500 text-red-300 font-bold' : ''}`}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             <h3 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mb-3">
               <Clock className="w-3 h-3" /> Universal Timeline
             </h3>
