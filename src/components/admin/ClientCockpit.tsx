@@ -43,7 +43,29 @@ export default function ClientCockpit({ application, onChange }: Props) {
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const persist = async (patch: Record<string, any>) => {
+  const writeAudit = async (note: string, action_type: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    let authorName = 'Admin Staff';
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      authorName = profile?.full_name || profile?.email || user.email || 'Admin Staff';
+    }
+    await supabase.from('client_audit_logs').insert([{
+      client_email: application.email || null,
+      client_phone: application.phone || null,
+      note: `«F&I» ${authorName} — ${note}`,
+      author_id: user?.id || null,
+      author_name: authorName,
+      action_type,
+    }]);
+    queryClient.invalidateQueries({ queryKey: ['client-audit-logs'] });
+  };
+
+  const persist = async (patch: Record<string, any>, audit?: { note: string; action_type: string }) => {
     const { error } = await supabase.from('finance_applications').update(patch).eq('id', application.id);
     if (error) {
       toast.error('Failed to save: ' + error.message);
@@ -51,6 +73,7 @@ export default function ClientCockpit({ application, onChange }: Props) {
     }
     onChange(patch);
     queryClient.invalidateQueries({ queryKey: ['finance-applications'] });
+    if (audit) await writeAudit(audit.note, audit.action_type);
   };
 
   return (
@@ -119,7 +142,16 @@ export default function ClientCockpit({ application, onChange }: Props) {
             <Checkbox
               checked={contactedToday}
               onCheckedChange={(checked) => {
-                persist({ last_contacted_date: checked ? todayISO() : null });
+                const value = checked ? todayISO() : null;
+                persist(
+                  { last_contacted_date: value },
+                  {
+                    note: checked
+                      ? `Marked CONTACTED TODAY (${todayISO()})`
+                      : `Cleared "Contacted Today" flag`,
+                    action_type: 'Daily Contact',
+                  }
+                );
               }}
               className="mt-0.5"
             />
@@ -139,7 +171,18 @@ export default function ClientCockpit({ application, onChange }: Props) {
               id="follow_up_time"
               type="time"
               value={followUp || ''}
-              onChange={(e) => persist({ follow_up_time: e.target.value || null })}
+              onChange={(e) => {
+                const value = e.target.value || null;
+                persist(
+                  { follow_up_time: value },
+                  {
+                    note: value
+                      ? `Follow-up time set to ${value}`
+                      : `Follow-up time cleared`,
+                    action_type: 'Follow-up Scheduled',
+                  }
+                );
+              }}
               className={`mt-1 ${isOverdue ? 'border-red-500 text-red-300 font-bold' : ''}`}
             />
             {isOverdue && (
