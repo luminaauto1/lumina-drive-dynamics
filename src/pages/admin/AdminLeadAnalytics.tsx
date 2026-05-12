@@ -98,6 +98,7 @@ interface AppRow {
   email: string | null;
   phone: string | null;
   utm_source?: string | null;
+  status_updated_at?: string | null;
 }
 
 const AdminLeadAnalytics = () => {
@@ -157,7 +158,7 @@ const AdminLeadAnalytics = () => {
         .select('id, created_at, updated_at, last_step_reached, last_step_name, utm_source, utm_medium, utm_campaign, source, status, client_email, client_phone, traffic_source, bot_outcome, platform, origin')
         .order('created_at', { ascending: false }).limit(5000);
       let appsQ = supabase.from('finance_applications')
-        .select('id, created_at, updated_at, status, credit_score_status, email, phone, utm_source')
+        .select('id, created_at, updated_at, status, credit_score_status, email, phone, utm_source, status_updated_at')
         .order('created_at', { ascending: false }).limit(5000);
       let msgCountQ = supabase.from('whatsapp_messages')
         .select('id', { count: 'exact', head: true });
@@ -660,6 +661,88 @@ const AdminLeadAnalytics = () => {
     };
   }, [apps]);
 
+  // Daily Pipeline Velocity (last 14 days) — moved from AdminAnalytics
+  const pipelineVelocity = useMemo(() => {
+    const DAYS = 14;
+    const startOfDayMs = (d: Date) => {
+      const x = new Date(d);
+      x.setHours(0, 0, 0, 0);
+      return x.getTime();
+    };
+    const buckets = Array.from({ length: DAYS }).map((_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (DAYS - 1 - i));
+      d.setHours(0, 0, 0, 0);
+      return {
+        date: `${d.getDate().toString().padStart(2, '0')} ${d.toLocaleString('en', { month: 'short' })}`,
+        _ts: d.getTime(),
+        pending: 0,
+        application_submitted: 0,
+        pre_approved: 0,
+        validations_pending: 0,
+        validations_complete: 0,
+        active: 0,
+        declined: 0,
+      } as any;
+    });
+    const activeStatuses = new Set([
+      'sent_to_banks', 'documents_received', 'contract_sent', 'contract_signed',
+      'vehicle_delivered', 'vehicle_selected', 'approved', 'finalized',
+      'needs_revision', 'revision_submitted',
+    ]);
+    apps.forEach((a: any) => {
+      const isNewLead = a.status === 'pending';
+      const ref = isNewLead ? a.created_at : (a.status_updated_at || a.updated_at || a.created_at);
+      if (!ref) return;
+      const ts = startOfDayMs(new Date(ref));
+      const b = buckets.find((x) => x._ts === ts);
+      if (!b) return;
+      const s = a.status;
+      if (s === 'pending') b.pending += 1;
+      else if (s === 'application_submitted') b.application_submitted += 1;
+      else if (s === 'pre_approved') b.pre_approved += 1;
+      else if (s === 'validations_pending') b.validations_pending += 1;
+      else if (s === 'validations_complete') b.validations_complete += 1;
+      else if (s === 'declined' || s === 'blacklisted') b.declined += 1;
+      else if (activeStatuses.has(s)) b.active += 1;
+    });
+    return buckets;
+  }, [apps]);
+
+  // Average time apps spend before reaching each status (created_at → status_updated_at).
+  // For each "current status" bucket, we average elapsed hours from creation.
+  // This approximates per-stage dwell time without a full status_history table.
+  const statusTransitionStats = useMemo(() => {
+    const targets: { key: string; label: string; statuses: string[] }[] = [
+      { key: 'submitted', label: 'Pending → App Submitted', statuses: ['application_submitted'] },
+      { key: 'pre_approved', label: 'App Submitted → Pre-Approved', statuses: ['pre_approved', 'approved'] },
+      { key: 'declined', label: 'App Submitted → Declined / Blacklisted', statuses: ['declined', 'declined_conditional', 'blacklisted'] },
+      { key: 'docs', label: 'Pre-Approved → Docs Received', statuses: ['documents_received'] },
+      { key: 'vals_submitted', label: 'Docs Received → Vals Submitted', statuses: ['validations_pending'] },
+      { key: 'vals_complete', label: 'Vals Submitted → Vals Complete', statuses: ['validations_complete'] },
+      { key: 'finalized', label: 'Vals Complete → Finalized', statuses: ['contract_sent', 'contract_signed', 'vehicle_delivered', 'finalized'] },
+    ];
+    const hoursBetween = (a: string, b: string) =>
+      Math.max(0, (new Date(b).getTime() - new Date(a).getTime()) / 3_600_000);
+    const fmt = (h: number) => {
+      if (!isFinite(h) || h <= 0) return '—';
+      if (h < 1) return `${Math.round(h * 60)}m`;
+      if (h < 48) return `${h.toFixed(1)}h`;
+      return `${(h / 24).toFixed(1)}d`;
+    };
+    return targets.map((t) => {
+      const matching = apps.filter((a: any) =>
+        t.statuses.includes(String(a.status || '').toLowerCase()) &&
+        a.created_at && (a.status_updated_at || a.updated_at)
+      );
+      const samples = matching
+        .map((a: any) => hoursBetween(a.created_at, a.status_updated_at || a.updated_at))
+        .filter((h: number) => h > 0 && h <= 24 * 90); // cap at 90 days
+      const avg = samples.length ? samples.reduce((s, n) => s + n, 0) / samples.length : 0;
+      return { ...t, avgHours: avg, display: fmt(avg), sample: samples.length };
+    });
+  }, [apps]);
+
 
   // Force light text on dark background — Recharts default tooltip text inherits
   // OS color and renders unreadable against the dark admin theme.
@@ -1112,6 +1195,57 @@ const AdminLeadAnalytics = () => {
             </div>
 
             {/* Top Tags / Lead → App by Tag charts removed — depended on EasySocial inbound tag enrichment that is not currently flowing. */}
+
+            {/* Status Transition Times — average elapsed time per pipeline stage */}
+            <ChartCard
+              icon={Clock}
+              title="Avg Status Transition Times"
+              subtitle="Average time apps take to reach each pipeline status (created → status_updated_at; outliers > 90d excluded)"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
+                {statusTransitionStats.map((row) => (
+                  <div
+                    key={row.key}
+                    className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4"
+                  >
+                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                      {row.label}
+                    </div>
+                    <div className="mt-1.5 text-2xl font-bold text-foreground tabular-nums">
+                      {row.display}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">
+                      n = {row.sample}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ChartCard>
+
+            {/* Daily Pipeline Velocity — moved from Analytics page */}
+            <ChartCard
+              icon={Activity}
+              title="Daily Pipeline Velocity"
+              subtitle="Application status movement over the last 14 days"
+            >
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={pipelineVelocity} margin={{ top: 10, right: 16, left: -8, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis dataKey="date" stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} cursor={{ fill: 'hsl(var(--muted) / 0.2)' }} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="pending" stackId="v" name="Pending" fill="#eab308" />
+                  <Bar dataKey="application_submitted" stackId="v" name="Apps Submitted" fill="#a855f7" />
+                  <Bar dataKey="pre_approved" stackId="v" name="Pre-Approved" fill="#14b8a6" />
+                  <Bar dataKey="validations_pending" stackId="v" name="Vals Submitted" fill="#3b82f6" />
+                  <Bar dataKey="validations_complete" stackId="v" name="Vals Complete" fill="#06b6d4" />
+                  <Bar dataKey="active" stackId="v" name="Active" fill="#22c55e" />
+                  <Bar dataKey="declined" stackId="v" name="Declined" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+
           </>
         )}
       </div>

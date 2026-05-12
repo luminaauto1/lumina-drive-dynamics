@@ -4,10 +4,10 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { Card } from "@/components/ui/card";
 import { Users, TrendingUp, DollarSign, Target, Loader2 } from "lucide-react";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, LineChart, Line,
 } from "recharts";
-import { startOfMonth, subMonths, subDays, format, parseISO, startOfDay } from "date-fns";
+import { startOfMonth, subMonths, format, parseISO } from "date-fns";
 import { Helmet } from "react-helmet-async";
 
 const AdminAnalytics = () => {
@@ -21,16 +21,15 @@ const AdminAnalytics = () => {
   });
   const [pipelineData, setPipelineData] = useState<{ name: string; count: number }[]>([]);
   const [revenueTrend, setRevenueTrend] = useState<{ month: string; profit: number; deals: number }[]>([]);
-  const [velocityData, setVelocityData] = useState<any[]>([]);
+  
 
   useEffect(() => {
     const fetchAnalytics = async () => {
       setLoading(true);
 
-      const [{ data: leads }, { data: deals }, { data: apps }] = await Promise.all([
+      const [{ data: leads }, { data: deals }] = await Promise.all([
         supabase.from("leads").select("id, pipeline_stage, created_at, is_archived"),
         supabase.from("deal_records").select("*"),
-        supabase.from("finance_applications").select("id, status, created_at, updated_at, status_updated_at"),
       ]);
 
       if (leads && deals) {
@@ -87,57 +86,6 @@ const AdminAnalytics = () => {
         });
 
         setRevenueTrend(last6.map(({ month, profit, deals: d }) => ({ month, profit, deals: d })));
-      }
-
-      // Daily Pipeline Velocity (last 14 days)
-      if (apps) {
-        const DAYS = 14;
-        const buckets = Array.from({ length: DAYS }).map((_, i) => {
-          const d = startOfDay(subDays(new Date(), DAYS - 1 - i));
-          return {
-            date: format(d, 'dd MMM'),
-            _ts: d.getTime(),
-            pending: 0,
-            application_submitted: 0,
-            pre_approved: 0,
-            validations_pending: 0,
-            validations_complete: 0,
-            active: 0,
-            declined: 0,
-          } as any;
-        });
-
-        const activeStatuses = new Set([
-          'sent_to_banks',
-          'documents_received',
-          'contract_sent',
-          'contract_signed',
-          'vehicle_delivered',
-          'vehicle_selected',
-          'approved',
-          'finalized',
-          'needs_revision',
-          'revision_submitted',
-        ]);
-
-        apps.forEach((a: any) => {
-          const isNewLead = a.status === 'pending';
-          const ref = isNewLead ? a.created_at : (a.status_updated_at || a.updated_at || a.created_at);
-          if (!ref) return;
-          const ts = startOfDay(parseISO(ref)).getTime();
-          const b = buckets.find(x => x._ts === ts);
-          if (!b) return;
-
-          const status = a.status;
-          if (status === 'pending') b.pending += 1;
-          else if (status === 'application_submitted') b.application_submitted += 1;
-          else if (status === 'pre_approved') b.pre_approved += 1;
-          else if (status === 'validations_pending') b.validations_pending += 1;
-          else if (status === 'validations_complete') b.validations_complete += 1;
-          else if (status === 'declined' || status === 'blacklisted') b.declined += 1;
-          else if (activeStatuses.has(status)) b.active += 1;
-        });
-        setVelocityData(buckets);
       }
 
       setLoading(false);
@@ -221,32 +169,6 @@ const AdminAnalytics = () => {
           </Card>
         </div>
 
-        {/* Daily Pipeline Velocity */}
-        <Card className="p-5 bg-zinc-900 border-zinc-800">
-          <h3 className="text-base font-semibold mb-4">Daily Pipeline Velocity</h3>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={velocityData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 11 }} />
-                <YAxis stroke="hsl(var(--muted-foreground))" allowDecimals={false} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: "#0a0a0a", border: "1px solid #27272a", borderRadius: 8, fontSize: 12 }}
-                  labelStyle={{ color: "#e4e4e7", fontWeight: 600, marginBottom: 4 }}
-                  itemStyle={{ padding: "1px 0" }}
-                />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="pending" stackId="v" name="Pending" fill="#eab308" />
-                <Bar dataKey="application_submitted" stackId="v" name="Apps Submitted" fill="#a855f7" />
-                <Bar dataKey="pre_approved" stackId="v" name="Pre-Approved" fill="#14b8a6" />
-                <Bar dataKey="validations_pending" stackId="v" name="Vals Submitted" fill="#3b82f6" />
-                <Bar dataKey="validations_complete" stackId="v" name="Vals Complete" fill="#06b6d4" />
-                <Bar dataKey="active" stackId="v" name="Active" fill="#22c55e" />
-                <Bar dataKey="declined" stackId="v" name="Declined" fill="#ef4444" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
       </div>
     </AdminLayout>
   );
