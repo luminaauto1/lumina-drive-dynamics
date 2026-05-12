@@ -16,6 +16,8 @@ import ClientDocumentViewer from '@/components/admin/ClientDocumentViewer';
 import ContractSentModal from '@/components/admin/ContractSentModal';
 import BankReferenceModal from '@/components/admin/BankReferenceModal';
 import BankReferenceBadge from '@/components/admin/BankReferenceBadge';
+import ClientCockpit from '@/components/admin/ClientCockpit';
+import ClientCallTimeline from '@/components/admin/ClientCallTimeline';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -887,6 +889,12 @@ const AdminDealRoom = () => {
           </div>
         </motion.div>
 
+        {/* Persistent Client Cockpit */}
+        <ClientCockpit
+          application={application as any}
+          onChange={(patch) => setApplication((prev) => (prev ? ({ ...prev, ...patch } as any) : prev))}
+        />
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Client Profile */}
           <motion.div
@@ -1052,6 +1060,13 @@ const AdminDealRoom = () => {
             transition={{ delay: 0.2 }}
             className="space-y-6"
           >
+            {/* Voice AI Co-Pilot + Call Timeline */}
+            <ClientCallTimeline
+              clientEmail={application.email}
+              clientPhone={application.phone}
+              clientName={application.first_name || application.full_name || 'Client'}
+            />
+
             {/* Status Controller */}
             <div className="glass-card rounded-xl p-6">
               <h3 className="font-semibold mb-4">Status Controller</h3>

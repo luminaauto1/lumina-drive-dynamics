@@ -31,11 +31,29 @@ serve(async (req) => {
     }
     const base64Audio = btoa(binary);
 
-    // Determine MIME type
     const mimeType = file.type || "audio/webm";
 
-    const systemPrompt = `You are an elite, premium automotive F&I Sales Co-Pilot for Lumina Auto in South Africa. Client: ${clientName || "Unknown"}. Keep language sharp, professional, and direct.`;
-    const prompt = `Listen to this audio recording of a sales call. First transcribe it, then write a concise, professional CRM note summarizing the call. Focus on: Budget, Vehicle Interest, Timeline, and Next Steps. Do not use pleasantries. Format with bullet points under a "## Summary" heading.`;
+    // Pre-fetch existing AI memory
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+    let existingApp: any = null;
+    if (clientEmail) {
+      const { data } = await supabaseClient.from("finance_applications").select("id, ai_vehicle_interest, ai_budget, ai_timeline").eq("email", clientEmail).limit(1).maybeSingle();
+      existingApp = data;
+    }
+    if (!existingApp && clientPhone) {
+      const { data } = await supabaseClient.from("finance_applications").select("id, ai_vehicle_interest, ai_budget, ai_timeline").eq("phone", clientPhone).limit(1).maybeSingle();
+      existingApp = data;
+    }
+
+    const memoryContext = existingApp
+      ? `\n\nKNOWN CLIENT FACTS (preserve unless contradicted by the new audio):\n- Vehicle Interest: ${existingApp.ai_vehicle_interest || 'unknown'}\n- Budget: ${existingApp.ai_budget || 'unknown'}\n- Timeline: ${existingApp.ai_timeline || 'unknown'}`
+      : "";
+
+    const systemPrompt = `You are an elite, premium automotive F&I Sales Co-Pilot for Lumina Auto in South Africa. Client: ${clientName || "Unknown"}. Keep language sharp, professional, and direct.${memoryContext}`;
+    const prompt = `Transcribe this sales call audio, then return ONLY a JSON object with this exact shape:\n{\n  "new_note_summary": "Concise CRM bullet-point note for THIS call (Budget, Vehicle Interest, Timeline, Next Steps).",\n  "updated_vehicle": "Vehicle of interest. Retain KNOWN value if not contradicted; otherwise update.",\n  "updated_budget": "Client budget. Retain KNOWN value if not contradicted; otherwise update.",\n  "updated_timeline": "Purchase timeline. Retain KNOWN value if not contradicted; otherwise update."\n}\nIf a field is genuinely unknown after considering both KNOWN facts and the new audio, use an empty string.`;
 
     // Send audio directly to Gemini via Lovable AI Gateway
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -63,6 +81,7 @@ serve(async (req) => {
           },
         ],
         temperature: 0.7,
+        response_format: { type: "json_object" },
       }),
     });
 
@@ -84,26 +103,20 @@ serve(async (req) => {
     }
 
     const aiData = await aiResponse.json();
-    const summary = aiData.choices?.[0]?.message?.content?.trim() || "No summary generated.";
+    const raw = aiData.choices?.[0]?.message?.content?.trim() || "";
+    let parsed: any = {};
+    try { parsed = JSON.parse(raw); } catch { parsed = { new_note_summary: raw || "No summary generated." }; }
+    const summary = parsed.new_note_summary || raw || "No summary generated.";
 
-    // Save to CRM Timeline
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
-
-    // SECURITY: Verify caller-supplied identifiers match a real lead or
-    // finance application before writing to the CRM timeline.
-    let leadExists = false;
-    if (clientEmail) {
+    // SECURITY check (existingApp already implies a finance_application match)
+    let leadExists = !!existingApp;
+    if (!leadExists && clientEmail) {
       const { data: l1 } = await supabaseClient.from("leads").select("id").eq("client_email", clientEmail).limit(1).maybeSingle();
-      const { data: a1 } = await supabaseClient.from("finance_applications").select("id").eq("email", clientEmail).limit(1).maybeSingle();
-      if (l1 || a1) leadExists = true;
+      if (l1) leadExists = true;
     }
     if (!leadExists && clientPhone) {
       const { data: l2 } = await supabaseClient.from("leads").select("id").eq("client_phone", clientPhone).limit(1).maybeSingle();
-      const { data: a2 } = await supabaseClient.from("finance_applications").select("id").eq("phone", clientPhone).limit(1).maybeSingle();
-      if (l2 || a2) leadExists = true;
+      if (l2) leadExists = true;
     }
 
     if (!leadExists) {
@@ -120,6 +133,16 @@ serve(async (req) => {
       author_name: "AI Co-Pilot",
       action_type: "Call Summary",
     }]);
+
+    if (existingApp?.id) {
+      const memUpdate: any = {};
+      if (parsed.updated_vehicle) memUpdate.ai_vehicle_interest = parsed.updated_vehicle;
+      if (parsed.updated_budget) memUpdate.ai_budget = parsed.updated_budget;
+      if (parsed.updated_timeline) memUpdate.ai_timeline = parsed.updated_timeline;
+      if (Object.keys(memUpdate).length > 0) {
+        await supabaseClient.from("finance_applications").update(memUpdate).eq("id", existingApp.id);
+      }
+    }
 
     return new Response(JSON.stringify({ success: true, summary }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

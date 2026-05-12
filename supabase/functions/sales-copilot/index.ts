@@ -15,13 +15,38 @@ serve(async (req) => {
 
     if (!apiKey) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const systemPrompt = `You are an elite, premium automotive F&I Sales Co-Pilot for Lumina Auto in South Africa. You deal with high-end clients and structured finance. The client's name is ${clientName || 'Unknown'}. Keep language sharp, professional, and direct.`;
+    // Pre-fetch existing AI memory for this client (if summarizing)
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    let existingApp: any = null;
+    if (action === "summarize") {
+      let q = supabaseClient.from("finance_applications").select("id, ai_vehicle_interest, ai_budget, ai_timeline").limit(1);
+      if (clientEmail) {
+        const { data } = await q.eq("email", clientEmail).maybeSingle();
+        existingApp = data;
+      }
+      if (!existingApp && clientPhone) {
+        const { data } = await supabaseClient.from("finance_applications").select("id, ai_vehicle_interest, ai_budget, ai_timeline").eq("phone", clientPhone).limit(1).maybeSingle();
+        existingApp = data;
+      }
+    }
+
+    const memoryContext = existingApp
+      ? `\n\nKNOWN CLIENT FACTS (carry these forward unless the new transcript contradicts them):\n- Vehicle Interest: ${existingApp.ai_vehicle_interest || 'unknown'}\n- Budget: ${existingApp.ai_budget || 'unknown'}\n- Timeline: ${existingApp.ai_timeline || 'unknown'}`
+      : "";
+
+    const systemPrompt = `You are an elite, premium automotive F&I Sales Co-Pilot for Lumina Auto in South Africa. You deal with high-end clients and structured finance. The client's name is ${clientName || 'Unknown'}. Keep language sharp, professional, and direct.${memoryContext}`;
 
     let prompt = "";
+    let useJson = false;
     if (action === "hint") {
       prompt = `Here is the live transcript of an ongoing sales call:\n"${transcript}"\n\nProvide ONE short, punchy sentence suggesting what the salesperson should ask or say next to drive the sale, handle an objection, or qualify the buyer. Maximum 15 words.`;
     } else if (action === "summarize") {
-      prompt = `Here is the full transcript of a completed sales call:\n"${transcript}"\n\nWrite a concise, professional CRM note summarizing the call. Focus on: Budget, Vehicle Interest, Timeline, and Next Steps. Do not use pleasantries. Format with bullet points.`;
+      useJson = true;
+      prompt = `Transcript of completed sales call:\n"${transcript}"\n\nReturn ONLY a JSON object with this exact shape:\n{\n  "new_note_summary": "Concise CRM bullet-point note for THIS call. Focus on what was discussed: budget, vehicle interest, timeline, next steps. No pleasantries.",\n  "updated_vehicle": "Vehicle of interest. Retain the KNOWN value if not contradicted; otherwise update.",\n  "updated_budget": "Client budget. Retain KNOWN value if not contradicted; otherwise update.",\n  "updated_timeline": "Purchase timeline. Retain KNOWN value if not contradicted; otherwise update."\n}\nIf a field is genuinely unknown after considering both KNOWN facts and the transcript, use an empty string.`;
     } else {
       return new Response(JSON.stringify({ error: "Invalid action" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -41,6 +66,7 @@ serve(async (req) => {
           { role: "user", content: prompt },
         ],
         temperature: 0.7,
+        ...(useJson ? { response_format: { type: "json_object" } } : {}),
       }),
     });
 
@@ -64,25 +90,19 @@ serve(async (req) => {
     const aiData = await aiResponse.json();
     const resultText = aiData.choices?.[0]?.message?.content?.trim() || "No response generated.";
 
-    // If it's a summary, automatically save it to the CRM Audit Logs
     if (action === "summarize") {
-      const supabaseClient = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-      );
+      let parsed: any = {};
+      try { parsed = JSON.parse(resultText); } catch { parsed = { new_note_summary: resultText }; }
+      const noteText = parsed.new_note_summary || resultText;
 
-      // SECURITY: Verify caller-supplied email/phone corresponds to a real
-      // lead or finance application before writing to the CRM timeline.
-      let leadExists = false;
-      if (clientEmail) {
+      let leadExists = !!existingApp;
+      if (!leadExists && clientEmail) {
         const { data: l1 } = await supabaseClient.from("leads").select("id").eq("client_email", clientEmail).limit(1).maybeSingle();
-        const { data: a1 } = await supabaseClient.from("finance_applications").select("id").eq("email", clientEmail).limit(1).maybeSingle();
-        if (l1 || a1) leadExists = true;
+        if (l1) leadExists = true;
       }
       if (!leadExists && clientPhone) {
         const { data: l2 } = await supabaseClient.from("leads").select("id").eq("client_phone", clientPhone).limit(1).maybeSingle();
-        const { data: a2 } = await supabaseClient.from("finance_applications").select("id").eq("phone", clientPhone).limit(1).maybeSingle();
-        if (l2 || a2) leadExists = true;
+        if (l2) leadExists = true;
       }
 
       if (!leadExists) {
@@ -95,10 +115,24 @@ serve(async (req) => {
       await supabaseClient.from("client_audit_logs").insert([{
         client_email: clientEmail || null,
         client_phone: clientPhone || null,
-        note: `[AI Call Summary]\n${resultText}`,
+        note: `[AI Call Summary]\n${noteText}`,
         author_name: "AI Co-Pilot",
         action_type: "Call Summary",
       }]);
+
+      if (existingApp?.id) {
+        const memUpdate: any = {};
+        if (parsed.updated_vehicle) memUpdate.ai_vehicle_interest = parsed.updated_vehicle;
+        if (parsed.updated_budget) memUpdate.ai_budget = parsed.updated_budget;
+        if (parsed.updated_timeline) memUpdate.ai_timeline = parsed.updated_timeline;
+        if (Object.keys(memUpdate).length > 0) {
+          await supabaseClient.from("finance_applications").update(memUpdate).eq("id", existingApp.id);
+        }
+      }
+
+      return new Response(JSON.stringify({ success: true, result: noteText, memory: parsed }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     return new Response(JSON.stringify({ success: true, result: resultText }), {

@@ -526,6 +526,9 @@ export type Database = {
           account_number: string | null
           account_type: string | null
           additional_income: number | null
+          ai_budget: string | null
+          ai_timeline: string | null
+          ai_vehicle_interest: string | null
           approved_budget: number | null
           area_code: string | null
           assigned_f_and_i: string | null
@@ -554,6 +557,7 @@ export type Database = {
           employment_type: string | null
           expenses_summary: string | null
           first_name: string | null
+          follow_up_time: string | null
           full_name: string
           gender: string | null
           gross_salary: number | null
@@ -568,6 +572,7 @@ export type Database = {
           job_title: string | null
           kin_contact: string | null
           kin_name: string | null
+          last_contacted_date: string | null
           last_name: string | null
           lead_id: string | null
           loan_term_months: number | null
@@ -606,6 +611,9 @@ export type Database = {
           account_number?: string | null
           account_type?: string | null
           additional_income?: number | null
+          ai_budget?: string | null
+          ai_timeline?: string | null
+          ai_vehicle_interest?: string | null
           approved_budget?: number | null
           area_code?: string | null
           assigned_f_and_i?: string | null
@@ -634,6 +642,7 @@ export type Database = {
           employment_type?: string | null
           expenses_summary?: string | null
           first_name?: string | null
+          follow_up_time?: string | null
           full_name: string
           gender?: string | null
           gross_salary?: number | null
@@ -648,6 +657,7 @@ export type Database = {
           job_title?: string | null
           kin_contact?: string | null
           kin_name?: string | null
+          last_contacted_date?: string | null
           last_name?: string | null
           lead_id?: string | null
           loan_term_months?: number | null
@@ -686,6 +696,9 @@ export type Database = {
           account_number?: string | null
           account_type?: string | null
           additional_income?: number | null
+          ai_budget?: string | null
+          ai_timeline?: string | null
+          ai_vehicle_interest?: string | null
           approved_budget?: number | null
           area_code?: string | null
           assigned_f_and_i?: string | null
@@ -714,6 +727,7 @@ export type Database = {
           employment_type?: string | null
           expenses_summary?: string | null
           first_name?: string | null
+          follow_up_time?: string | null
           full_name?: string
           gender?: string | null
           gross_salary?: number | null
@@ -728,6 +742,7 @@ export type Database = {
           job_title?: string | null
           kin_contact?: string | null
           kin_name?: string | null
+          last_contacted_date?: string | null
           last_name?: string | null
           lead_id?: string | null
           loan_term_months?: number | null
