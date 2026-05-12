@@ -1000,9 +1000,14 @@ const AdminFinance = () => {
                          );
                        })()}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {new Date(app.created_at).toLocaleDateString()}
-                    </TableCell>
+                     <TableCell className="text-sm text-muted-foreground">
+                       <div className="whitespace-nowrap text-sm text-zinc-200">
+                         {new Date(app.created_at).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short' })}
+                         <span className="text-xs text-zinc-500 ml-2">
+                           {new Date(app.created_at).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                         </span>
+                       </div>
+                     </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
                         {/* Request Revision */}
