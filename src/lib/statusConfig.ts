@@ -50,6 +50,7 @@ export const STATUS_STEP_ORDER: Record<string, number> = {
 export const USER_STATUS_LABELS: Record<string, string> = {
   pending: 'Application Received - Analyzing Profile',
   application_submitted: 'Application Submitted - Under Review',
+  ready_to_submit: 'Application Ready - Preparing Submission',
   sent_to_banks: 'Sent to Banks - Awaiting Response',
   pre_approved: 'Pre-Approved - Docs Required',
   documents_received: 'Documents Received - Verifying',
