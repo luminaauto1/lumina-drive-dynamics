@@ -928,13 +928,20 @@ const AdminFinance = () => {
                           }
                         }}
                       >
-                        <SelectTrigger
-                          className={`w-[180px] h-7 text-xs uppercase tracking-wider border ${STATUS_STYLES[app.status] || STATUS_STYLES.pending}`}
-                        >
-                          <SelectValue>
-                            {ADMIN_STATUS_LABELS[app.status] || app.status}
-                          </SelectValue>
-                        </SelectTrigger>
+                         <SelectTrigger
+                           className={`w-[180px] h-7 text-xs uppercase tracking-wider border whitespace-nowrap ${STATUS_STYLES[app.status] || STATUS_STYLES.pending}`}
+                         >
+                           <SelectValue>
+                             <span className="whitespace-nowrap">
+                               {ADMIN_STATUS_LABELS[app.status] || app.status}
+                               {app.updated_at && (
+                                 <span className="text-[10px] opacity-60 ml-2 normal-case tracking-normal">
+                                   {new Date(app.updated_at).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                 </span>
+                               )}
+                             </span>
+                           </SelectValue>
+                         </SelectTrigger>
                         <SelectContent>
                           {filterStatusOptionsForRole(STATUS_OPTIONS, role, app.status).map((opt) => (
                             <SelectItem key={opt.value} value={opt.value} className="text-xs">
@@ -993,9 +1000,14 @@ const AdminFinance = () => {
                          );
                        })()}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {new Date(app.created_at).toLocaleDateString()}
-                    </TableCell>
+                     <TableCell className="text-sm text-muted-foreground">
+                       <div className="whitespace-nowrap text-sm text-zinc-200">
+                         {new Date(app.created_at).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short' })}
+                         <span className="text-xs text-zinc-500 ml-2">
+                           {new Date(app.created_at).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                         </span>
+                       </div>
+                     </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
                         {/* Request Revision */}
