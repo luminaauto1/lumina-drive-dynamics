@@ -15,13 +15,38 @@ serve(async (req) => {
 
     if (!apiKey) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const systemPrompt = `You are an elite, premium automotive F&I Sales Co-Pilot for Lumina Auto in South Africa. You deal with high-end clients and structured finance. The client's name is ${clientName || 'Unknown'}. Keep language sharp, professional, and direct.`;
+    // Pre-fetch existing AI memory for this client (if summarizing)
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    let existingApp: any = null;
+    if (action === "summarize") {
+      let q = supabaseClient.from("finance_applications").select("id, ai_vehicle_interest, ai_budget, ai_timeline").limit(1);
+      if (clientEmail) {
+        const { data } = await q.eq("email", clientEmail).maybeSingle();
+        existingApp = data;
+      }
+      if (!existingApp && clientPhone) {
+        const { data } = await supabaseClient.from("finance_applications").select("id, ai_vehicle_interest, ai_budget, ai_timeline").eq("phone", clientPhone).limit(1).maybeSingle();
+        existingApp = data;
+      }
+    }
+
+    const memoryContext = existingApp
+      ? `\n\nKNOWN CLIENT FACTS (carry these forward unless the new transcript contradicts them):\n- Vehicle Interest: ${existingApp.ai_vehicle_interest || 'unknown'}\n- Budget: ${existingApp.ai_budget || 'unknown'}\n- Timeline: ${existingApp.ai_timeline || 'unknown'}`
+      : "";
+
+    const systemPrompt = `You are an elite, premium automotive F&I Sales Co-Pilot for Lumina Auto in South Africa. You deal with high-end clients and structured finance. The client's name is ${clientName || 'Unknown'}. Keep language sharp, professional, and direct.${memoryContext}`;
 
     let prompt = "";
+    let useJson = false;
     if (action === "hint") {
       prompt = `Here is the live transcript of an ongoing sales call:\n"${transcript}"\n\nProvide ONE short, punchy sentence suggesting what the salesperson should ask or say next to drive the sale, handle an objection, or qualify the buyer. Maximum 15 words.`;
     } else if (action === "summarize") {
-      prompt = `Here is the full transcript of a completed sales call:\n"${transcript}"\n\nWrite a concise, professional CRM note summarizing the call. Focus on: Budget, Vehicle Interest, Timeline, and Next Steps. Do not use pleasantries. Format with bullet points.`;
+      useJson = true;
+      prompt = `Transcript of completed sales call:\n"${transcript}"\n\nReturn ONLY a JSON object with this exact shape:\n{\n  "new_note_summary": "Concise CRM bullet-point note for THIS call. Focus on what was discussed: budget, vehicle interest, timeline, next steps. No pleasantries.",\n  "updated_vehicle": "Vehicle of interest. Retain the KNOWN value if not contradicted; otherwise update.",\n  "updated_budget": "Client budget. Retain KNOWN value if not contradicted; otherwise update.",\n  "updated_timeline": "Purchase timeline. Retain KNOWN value if not contradicted; otherwise update."\n}\nIf a field is genuinely unknown after considering both KNOWN facts and the transcript, use an empty string.`;
     } else {
       return new Response(JSON.stringify({ error: "Invalid action" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
