@@ -1190,9 +1190,41 @@ const AdminFinance = () => {
                   )}
                   <p className="text-sm text-zinc-400 mt-1">Update Status &amp; CRM Note</p>
                 </div>
-                {(pendingApp as any)?.bank_reference && (
-                  <BankReferenceBadge reference={(pendingApp as any).bank_reference} />
+                {pendingApp?.phone && (
+                  <span
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(pendingApp.phone);
+                        toast({ title: 'Number copied' });
+                      } catch {
+                        toast({ title: 'Copy failed', variant: 'destructive' });
+                      }
+                    }}
+                    className="text-base text-zinc-200 hover:text-white cursor-pointer transition-colors font-normal whitespace-nowrap self-center"
+                    title="Click to copy"
+                  >
+                    📞 {pendingApp.phone}
+                  </span>
                 )}
+                <div className="flex items-center gap-2 self-center">
+                  {(pendingApp as any)?.bank_reference && (
+                    <BankReferenceBadge reference={(pendingApp as any).bank_reference} />
+                  )}
+                  {pendingApp?.id && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const id = pendingApp.id;
+                        setStatusModalOpen(false);
+                        setPendingApp(null);
+                        navigate(`/admin/finance/${id}`);
+                      }}
+                      className="px-3 py-1 text-xs border border-zinc-700 text-zinc-300 hover:bg-zinc-800 rounded transition-colors whitespace-nowrap"
+                    >
+                      View Full File
+                    </button>
+                  )}
+                </div>
               </DialogTitle>
             </DialogHeader>
             {(() => {
