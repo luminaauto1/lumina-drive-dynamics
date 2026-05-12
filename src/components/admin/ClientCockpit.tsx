@@ -142,7 +142,16 @@ export default function ClientCockpit({ application, onChange }: Props) {
             <Checkbox
               checked={contactedToday}
               onCheckedChange={(checked) => {
-                persist({ last_contacted_date: checked ? todayISO() : null });
+                const value = checked ? todayISO() : null;
+                persist(
+                  { last_contacted_date: value },
+                  {
+                    note: checked
+                      ? `Marked CONTACTED TODAY (${todayISO()})`
+                      : `Cleared "Contacted Today" flag`,
+                    action_type: 'Daily Contact',
+                  }
+                );
               }}
               className="mt-0.5"
             />
@@ -162,7 +171,18 @@ export default function ClientCockpit({ application, onChange }: Props) {
               id="follow_up_time"
               type="time"
               value={followUp || ''}
-              onChange={(e) => persist({ follow_up_time: e.target.value || null })}
+              onChange={(e) => {
+                const value = e.target.value || null;
+                persist(
+                  { follow_up_time: value },
+                  {
+                    note: value
+                      ? `Follow-up time set to ${value}`
+                      : `Follow-up time cleared`,
+                    action_type: 'Follow-up Scheduled',
+                  }
+                );
+              }}
               className={`mt-1 ${isOverdue ? 'border-red-500 text-red-300 font-bold' : ''}`}
             />
             {isOverdue && (
