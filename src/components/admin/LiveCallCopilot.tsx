@@ -19,6 +19,56 @@ export default function LiveCallCopilot({ clientEmail, clientPhone, clientName, 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [language, setLanguage] = useState<'en-ZA' | 'af-ZA'>('en-ZA');
+  const [mode, setMode] = useState<'voice' | 'text'>('voice');
+  const [pastedText, setPastedText] = useState('');
+  const [isProcessingText, setIsProcessingText] = useState(false);
+
+  const handleProcessText = async () => {
+    const text = pastedText.trim();
+    if (text.length < 20) {
+      toast.error('Paste at least a sentence or two for the AI to summarize.');
+      return;
+    }
+    setIsProcessingText(true);
+    let aiSucceeded = false;
+    try {
+      const { data, error } = await supabase.functions.invoke('sales-copilot', {
+        headers: publicApiHeaders(),
+        body: { action: 'summarize', transcript: text, clientEmail, clientPhone, clientName },
+      });
+      if (error) throw error;
+      if (data?.success && data?.result) {
+        aiSucceeded = true;
+        toast.success('Text summarized and saved to timeline.');
+        setPastedText('');
+      }
+    } catch (err) {
+      console.error('AI summarize (text) failed:', err);
+    }
+
+    if (!aiSucceeded) {
+      try {
+        const { error: insertErr } = await supabase.from('client_audit_logs').insert([{
+          client_email: clientEmail || null,
+          client_phone: clientPhone || null,
+          note: `[Raw Text (AI Summary Failed)]:\n${text}`,
+          author_name: 'AI Co-Pilot (Fallback)',
+          action_type: 'Call Summary',
+        }]);
+        if (insertErr) throw insertErr;
+        toast.warning('AI summary failed — raw text saved to timeline.');
+      } catch (e) {
+        console.error('Fallback insert failed:', e);
+        toast.error('Failed to process text. Your text is preserved in the box.');
+        setIsProcessingText(false);
+        if (onCallEnd) onCallEnd();
+        return;
+      }
+    }
+
+    if (onCallEnd) onCallEnd();
+    setIsProcessingText(false);
+  };
 
   const recognitionRef = useRef<any>(null);
   const lastHintTimeRef = useRef(Date.now());
