@@ -38,7 +38,10 @@ serve(async (req) => {
       ? `\n\nKNOWN CLIENT FACTS (carry these forward unless the new transcript contradicts them):\n- Vehicle Interest: ${existingApp.ai_vehicle_interest || 'unknown'}\n- Budget: ${existingApp.ai_budget || 'unknown'}\n- Timeline: ${existingApp.ai_timeline || 'unknown'}`
       : "";
 
-    const systemPrompt = `You are an elite, premium automotive F&I Sales Co-Pilot for Lumina Auto in South Africa. You deal with high-end clients and structured finance. The client's name is ${clientName || 'Unknown'}. Keep language sharp, professional, and direct.${memoryContext}`;
+    const systemPrompt = `You are an elite, premium automotive F&I Sales Co-Pilot for Lumina Auto in South Africa. You deal with high-end clients and structured finance. The client's name is ${clientName || 'Unknown'}. Keep language sharp, professional, and direct.
+
+LANGUAGE RULE: The input transcript may be in Afrikaans. If it is, you MUST translate the summary and insights into professional English.
+CRITICAL JSON RULE: You must return a valid JSON object. You MUST use exactly these English keys regardless of the input language: new_note_summary, updated_vehicle, updated_budget, updated_timeline, updated_status. Do NOT translate the JSON keys. All VALUES must also be in English.${memoryContext}`;
 
     let prompt = "";
     let useJson = false;
