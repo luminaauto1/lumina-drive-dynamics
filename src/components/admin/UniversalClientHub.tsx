@@ -12,8 +12,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { Clock, Car, User, FileText, Calculator, Copy, Check, Plus, X, Eye, Trophy, Trash2 } from 'lucide-react';
+import { Clock, Car, User, FileText, Calculator, Copy, Check, Plus, X, Eye, Trophy, Trash2, Phone, Brain, Wallet, CalendarClock, AlertOctagon } from 'lucide-react';
 import LiveCallCopilot from './LiveCallCopilot';
+
+const todayISO = () => new Date().toISOString().slice(0, 10);
 
 interface UniversalClientHubProps {
   open: boolean;
@@ -38,6 +40,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
   const [pastDeals, setPastDeals] = useState<any[]>([]);
   const [leads, setLeads] = useState<any[]>([]);
   const [newNote, setNewNote] = useState('');
+  const [phoneCopied, setPhoneCopied] = useState(false);
 
   // Full Quote Calculator state (parity with AdminQuoteGenerator)
   const [calcOpen, setCalcOpen] = useState(false);
@@ -223,24 +226,86 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
     }
   };
 
-  const allApps = [...pastDeals, ...activeApps];
+  const allApps = [...activeApps, ...pastDeals];
+  const primaryApp = allApps[0];
   const masterName = allApps[0]?.first_name
     ? `${allApps[0].first_name} ${allApps[0].last_name || ''}`.trim()
     : allApps[0]?.full_name || leads[0]?.client_name || 'Unknown Client';
 
+  const contactedToday = primaryApp?.last_contacted_date === todayISO();
+  const followUp: string | null = primaryApp?.follow_up_time || null;
+  const isOverdue = (() => {
+    if (!primaryApp || contactedToday || !followUp) return false;
+    const [hh, mm] = followUp.split(':').map(Number);
+    const target = new Date();
+    target.setHours(hh, mm, 0, 0);
+    return Date.now() > target.getTime();
+  })();
+
+  const writeAuditEntry = async (note: string, action_type: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    let authorName = 'Admin Staff';
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles').select('full_name, email').eq('user_id', user.id).maybeSingle();
+      authorName = (profile as any)?.full_name || (profile as any)?.email || user.email || authorName;
+    }
+    await supabase.from('client_audit_logs').insert([{
+      client_email: clientEmail || null,
+      client_phone: clientPhone || null,
+      note: `«F&I» ${authorName} — ${note}`,
+      author_id: user?.id || null,
+      author_name: authorName,
+      action_type,
+    }]);
+  };
+
+  const persistDailyAction = async (patch: Record<string, any>, audit: { note: string; action_type: string }) => {
+    if (!primaryApp) { toast.error('No active application to update'); return; }
+    const { error } = await supabase.from('finance_applications').update(patch).eq('id', primaryApp.id);
+    if (error) { toast.error('Failed to save: ' + error.message); return; }
+    await writeAuditEntry(audit.note, audit.action_type);
+    fetchGlobalProfile();
+  };
+
+  const copyPhoneToClipboard = async () => {
+    if (!clientPhone) return;
+    await navigator.clipboard.writeText(clientPhone);
+    setPhoneCopied(true);
+    toast.success('Number copied');
+    setTimeout(() => setPhoneCopied(false), 1500);
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-2xl p-0 bg-card border-border flex flex-col h-[100dvh] overflow-y-auto md:overflow-hidden" aria-describedby={undefined}>
-        <SheetHeader className="px-5 pt-5 pb-3 border-b border-white/10 bg-gradient-to-r from-zinc-900 to-black shadow-md">
-          <div className="flex items-center justify-between">
-            <div>
+        <SheetHeader className="px-5 pt-5 pb-4 border-b border-white/10 bg-gradient-to-r from-zinc-900 to-black shadow-md">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <User className="w-4 h-4 text-emerald-400" />
-                <SheetTitle className="text-sm">{masterName}</SheetTitle>
+                <SheetTitle className="text-base">{masterName}</SheetTitle>
               </div>
-              <p className="text-[10px] text-muted-foreground">{clientEmail || 'No Email'} | {clientPhone || 'No Phone'}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{clientEmail || 'No Email'}</p>
+              {clientPhone ? (
+                <button
+                  onClick={copyPhoneToClipboard}
+                  className="group mt-2 flex items-center gap-2 text-2xl md:text-3xl font-bold text-white hover:text-zinc-300 cursor-pointer transition-colors"
+                  title="Click to copy"
+                >
+                  <Phone className="w-5 h-5 text-emerald-400" />
+                  <span className="tracking-tight">{clientPhone}</span>
+                  {phoneCopied ? (
+                    <Check className="w-5 h-5 text-emerald-400" />
+                  ) : (
+                    <Copy className="w-4 h-4 opacity-0 group-hover:opacity-60 transition-opacity" />
+                  )}
+                </button>
+              ) : (
+                <p className="mt-2 text-sm text-zinc-500 italic">No phone on record</p>
+              )}
             </div>
-            <Button onClick={() => setCalcOpen(true)} size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2 text-xs">
+            <Button onClick={() => setCalcOpen(true)} size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2 text-xs shrink-0">
               <Calculator className="w-3 h-3" /> Quick Quote
             </Button>
           </div>
@@ -249,6 +314,28 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
         <div className="flex-1 flex flex-col md:flex-row md:overflow-hidden min-h-0">
           {/* LEFT: Data */}
           <div className="w-full md:w-1/2 md:border-r border-b md:border-b-0 border-white/10 p-6 flex flex-col gap-6 md:overflow-y-auto h-auto md:h-full">
+            {/* 0. CLIENT AI PROFILE (persistent core requirements) */}
+            <div className="rounded-md bg-zinc-800/50 border border-zinc-700/50 p-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-300 mb-3 flex items-center gap-2">
+                <Brain className="w-4 h-4 text-primary" /> Client AI Profile
+              </h3>
+              <div className="space-y-2.5">
+                <div className="flex items-start gap-2 text-xs">
+                  <Car className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
+                  <div><span className="text-muted-foreground">Vehicle interest: </span><span className="text-foreground font-medium">{primaryApp?.ai_vehicle_interest || '—'}</span></div>
+                </div>
+                <div className="flex items-start gap-2 text-xs">
+                  <Wallet className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
+                  <div><span className="text-muted-foreground">Budget: </span><span className="text-foreground font-medium">{primaryApp?.ai_budget || '—'}</span></div>
+                </div>
+                <div className="flex items-start gap-2 text-xs">
+                  <CalendarClock className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
+                  <div><span className="text-muted-foreground">Timeline: </span><span className="text-foreground font-medium">{primaryApp?.ai_timeline || '—'}</span></div>
+                </div>
+              </div>
+              <p className="text-[9px] text-muted-foreground/60 italic mt-3">Auto-updated by AI Co-Pilot after each call.</p>
+            </div>
+
             {/* 1. THE GARAGE (LIFETIME PURCHASES) */}
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-wider text-amber-500 mb-3 flex items-center gap-2">
@@ -318,6 +405,53 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
 
           {/* RIGHT: Timeline */}
           <div className="w-full md:w-1/2 p-6 flex flex-col bg-black/20 h-auto md:h-full min-h-0 overflow-hidden">
+            {/* DAILY ACTION & FOLLOW-UP */}
+            {primaryApp && (
+              <div className={`mb-4 rounded-md p-3 transition-all ${isOverdue ? 'border-2 border-red-500 animate-pulse bg-red-950/20' : 'border border-zinc-700/50 bg-zinc-800/40'}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <p className={`text-[10px] uppercase tracking-wider font-semibold ${isOverdue ? 'text-red-400' : 'text-muted-foreground'}`}>
+                    {isOverdue ? 'OVERDUE — Contact now' : contactedToday ? 'Contacted today ✓' : 'Daily Action'}
+                  </p>
+                  {isOverdue && <AlertOctagon className="w-4 h-4 text-red-500 animate-pulse" />}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="flex items-start gap-2 p-2 rounded bg-black/30 border border-white/5 cursor-pointer hover:bg-black/40 transition">
+                    <Checkbox
+                      checked={contactedToday}
+                      onCheckedChange={(checked) => {
+                        const value = checked ? todayISO() : null;
+                        persistDailyAction(
+                          { last_contacted_date: value },
+                          { note: checked ? `Marked CONTACTED TODAY (${todayISO()})` : `Cleared "Contacted Today" flag`, action_type: 'Daily Contact' }
+                        );
+                      }}
+                      className="mt-0.5"
+                    />
+                    <div>
+                      <p className="text-[11px] font-medium text-foreground">Contacted Today</p>
+                      <p className="text-[9px] text-muted-foreground">Auto-resets at midnight</p>
+                    </div>
+                  </label>
+                  <div className={`p-2 rounded border ${isOverdue ? 'bg-red-950/30 border-red-500/60' : 'bg-black/30 border-white/5'}`}>
+                    <Label htmlFor="hub_follow_up" className={`text-[10px] ${isOverdue ? 'text-red-400 font-bold' : 'text-muted-foreground'}`}>Follow-up time</Label>
+                    <Input
+                      id="hub_follow_up"
+                      type="time"
+                      value={followUp || ''}
+                      onChange={(e) => {
+                        const value = e.target.value || null;
+                        persistDailyAction(
+                          { follow_up_time: value },
+                          { note: value ? `Follow-up time set to ${value}` : `Follow-up time cleared`, action_type: 'Follow-up Scheduled' }
+                        );
+                      }}
+                      className={`mt-1 h-7 text-xs ${isOverdue ? 'border-red-500 text-red-300 font-bold' : ''}`}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             <h3 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mb-3">
               <Clock className="w-3 h-3" /> Universal Timeline
             </h3>
