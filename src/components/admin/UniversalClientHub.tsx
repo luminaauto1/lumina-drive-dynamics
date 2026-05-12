@@ -333,6 +333,10 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
                   <CalendarClock className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
                   <div><span className="text-muted-foreground">Timeline: </span><span className="text-foreground font-medium">{primaryApp?.ai_timeline || '—'}</span></div>
                 </div>
+                <div className="flex items-start gap-2 text-xs pt-1.5 border-t border-zinc-700/40">
+                  <AlertOctagon className="w-3.5 h-3.5 text-orange-400 mt-0.5 shrink-0" />
+                  <div><span className="text-muted-foreground">Action Status: </span><span className="text-orange-400 font-semibold">{primaryApp?.ai_current_action_status || '—'}</span></div>
+                </div>
               </div>
               <p className="text-[9px] text-muted-foreground/60 italic mt-3">Auto-updated by AI Co-Pilot after each call.</p>
             </div>
