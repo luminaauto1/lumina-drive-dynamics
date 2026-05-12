@@ -100,6 +100,7 @@ export const STATUS_STYLES: Record<string, string> = {
 export const ADMIN_STATUS_LABELS: Record<string, string> = {
   pending: 'Pending',
   application_submitted: 'App Submitted',
+  ready_to_submit: 'Ready to Submit',
   sent_to_banks: 'Sent to banks',
   pre_approved: 'Pre-Approved - Docs Required',
   documents_received: 'Docs Received',
