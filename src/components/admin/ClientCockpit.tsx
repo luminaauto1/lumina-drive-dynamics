@@ -43,7 +43,29 @@ export default function ClientCockpit({ application, onChange }: Props) {
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const persist = async (patch: Record<string, any>) => {
+  const writeAudit = async (note: string, action_type: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    let authorName = 'Admin Staff';
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      authorName = profile?.full_name || profile?.email || user.email || 'Admin Staff';
+    }
+    await supabase.from('client_audit_logs').insert([{
+      client_email: application.email || null,
+      client_phone: application.phone || null,
+      note: `«F&I» ${authorName} — ${note}`,
+      author_id: user?.id || null,
+      author_name: authorName,
+      action_type,
+    }]);
+    queryClient.invalidateQueries({ queryKey: ['client-audit-logs'] });
+  };
+
+  const persist = async (patch: Record<string, any>, audit?: { note: string; action_type: string }) => {
     const { error } = await supabase.from('finance_applications').update(patch).eq('id', application.id);
     if (error) {
       toast.error('Failed to save: ' + error.message);
@@ -51,6 +73,7 @@ export default function ClientCockpit({ application, onChange }: Props) {
     }
     onChange(patch);
     queryClient.invalidateQueries({ queryKey: ['finance-applications'] });
+    if (audit) await writeAudit(audit.note, audit.action_type);
   };
 
   return (
