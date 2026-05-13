@@ -634,18 +634,24 @@ const AdminFinance = () => {
             const x = new Date(d), n = new Date();
             return x.getFullYear() === n.getFullYear() && x.getMonth() === n.getMonth() && x.getDate() === n.getDate();
           };
-          const wasTouchedToday = (a: FinanceApplication) =>
-            isToday((a as any).status_updated_at) || isToday(a.updated_at) || isToday(a.created_at);
+          // Strictly: did the app ENTER this status today?
+          // Use status_updated_at when present; otherwise fall back to created_at
+          // (covers brand-new rows where status_updated_at hasn't been stamped yet).
+          // Never use updated_at — it gets bumped by unrelated writes (notes,
+          // internal status, F&I auto-claim) and inflates the counter.
+          const enteredStatusToday = (a: FinanceApplication) => {
+            const stamp = (a as any).status_updated_at;
+            if (stamp) return isToday(stamp);
+            return isToday(a.created_at);
+          };
 
           const todayByStatus = (status: string, useCreated = false) =>
             applications.filter(a => {
               if (a.status !== status) return false;
               if (useCreated) return isToday(a.created_at);
-              return wasTouchedToday(a);
+              return enteredStatusToday(a);
             }).length;
-          const totalActiveToday = activeApps.filter(a =>
-            wasTouchedToday(a)
-          ).length;
+          const totalActiveToday = activeApps.filter(a => enteredStatusToday(a)).length;
           const Sub = ({ n }: { n: number }) => (
             <div className={`text-xs mt-1 ${n > 0 ? 'opacity-60' : 'text-zinc-600'}`}>+{n} today</div>
           );
