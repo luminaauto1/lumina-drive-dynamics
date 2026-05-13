@@ -44,9 +44,117 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
   const [addressMeta, setAddressMeta] = useState<AddressMeta | null>(null);
   const [workplaceMeta, setWorkplaceMeta] = useState<WorkplaceMeta | null>(null);
 
+  // Alternating-line format parser ("Name\nCelin\nSurname\nDoe\n...").
+  // Returns null if format not recognized so we fall back to the AI parser.
+  const parseAlternatingFormat = (text: string): Record<string, string> | null => {
+    const lines = text
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+
+    // Map of recognised keys (lowercased) -> target payload field
+    const KEY_MAP: Record<string, string> = {
+      'name': 'first_name',
+      'first name': 'first_name',
+      'surname': 'last_name',
+      'last name': 'last_name',
+      'email': 'email',
+      'email address': 'email',
+      'id number': 'id_number',
+      'id no': 'id_number',
+      'contact number': 'phone',
+      'cell number': 'phone',
+      'phone': 'phone',
+      'phone number': 'phone',
+      'gender': 'gender',
+      'marital status': 'marital_status',
+      'company name': 'employer_name',
+      'employer': 'employer_name',
+      'employer name': 'employer_name',
+      'job title': 'job_title',
+      'occupation': 'job_title',
+      'gross salary': 'gross_income',
+      'gross income': 'gross_income',
+      'net income': 'net_income',
+      'net salary': 'net_income',
+      'street address': '__street',
+      'physical address': '__street',
+      'area code': '__area_code',
+      'postal code': '__area_code',
+      'city': '__city',
+      'province': '__province',
+      'workplace address': 'workplace_address',
+      'work address': 'workplace_address',
+      'employer address': 'workplace_address',
+      'bank': 'bank_name',
+      'bank name': 'bank_name',
+      'account number': 'account_number',
+      'type of account': 'account_type',
+      'account type': 'account_type',
+      'summary of expenses': 'living_expenses',
+      'expenses': 'living_expenses',
+      'living expenses': 'living_expenses',
+      'next of kin name and surname': 'kin_name',
+      'next of kin name': 'kin_name',
+      'next of kin': 'kin_name',
+      'next of kin number': 'kin_phone',
+      'next of kin contact': 'kin_phone',
+      'employment start': 'employment_start',
+      'employment period': 'employment_start',
+    };
+
+    const out: Record<string, string> = {};
+    let matches = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+      const keyRaw = lines[i].replace(/[:\-•]+\s*$/, '').toLowerCase().trim();
+      const target = KEY_MAP[keyRaw];
+      if (target && i + 1 < lines.length) {
+        const value = lines[i + 1];
+        // Skip if next line also looks like a known key (means value missing)
+        const nextIsKey = !!KEY_MAP[value.replace(/[:\-•]+\s*$/, '').toLowerCase().trim()];
+        if (!nextIsKey) {
+          out[target] = value;
+          matches++;
+          i++; // consume value line
+        }
+      }
+    }
+
+    if (matches < 3) return null; // not this format
+
+    // Combine address parts
+    const addrParts = [out.__street, out.__city, out.__province, out.__area_code].filter(Boolean);
+    if (addrParts.length) out.physical_address = addrParts.join(', ');
+    delete out.__street; delete out.__city; delete out.__province; delete out.__area_code;
+
+    // Ensure all expected keys exist (default empty string)
+    const EXPECTED = [
+      'first_name','last_name','email','id_number','phone','gender','marital_status',
+      'employer_name','job_title','gross_income','net_income','physical_address',
+      'workplace_address','bank_name','account_number','account_type','living_expenses',
+      'kin_name','kin_phone','employment_start',
+    ];
+    EXPECTED.forEach((k) => { if (!(k in out)) out[k] = ''; });
+
+    return out;
+  };
+
   const handleParse = async () => {
     if (!rawText.trim()) return;
     setIsParsing(true);
+
+    // Try local alternating-line parser first
+    const local = parseAlternatingFormat(rawText);
+    if (local) {
+      setParsedData(local);
+      setAddressMeta(null);
+      setWorkplaceMeta(null);
+      setIsParsing(false);
+      toast.success('Extraction complete (alternating-line format). Please review.');
+      return;
+    }
+
     toast.info('AI is decoding WhatsApp message...');
 
     try {
