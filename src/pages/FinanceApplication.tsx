@@ -1087,17 +1087,17 @@ const FinanceApplication = () => {
           });
 
           // Parallel: tag-sync state machine.
-          // 'application_submitted' → adds 'App Submitted', removes 'New Lead' + 'Application Received'.
+          // 'pending' → adds 'Application Received', removes 'New Lead'.
           try {
             const applicantPhone = (formData.phone || '').toString().trim();
             if (!applicantPhone) {
               console.error("[easysocial-tag-sync] aborted: missing applicant phone");
             } else {
-              console.log('[easysocial-tag-sync] invoking', { phone_number: applicantPhone, new_status: 'application_submitted' });
+              console.log('[easysocial-tag-sync] invoking', { phone_number: applicantPhone, new_status: 'pending' });
               supabase.functions.invoke('easysocial-tag-sync', {
                 body: {
                   phone_number: applicantPhone,
-                  new_status: 'application_submitted',
+                  new_status: 'pending',
                 },
               }).then(({ data, error }) => {
                 if (error) {
