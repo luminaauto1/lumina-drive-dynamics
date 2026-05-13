@@ -31,6 +31,24 @@ const Inventory = () => {
   const { data: vehicles = [], isLoading } = usePublicVehicles();
   const { compareList, toggleCompare, removeFromCompare, clearCompare, isInCompare } = useCompare();
 
+  // 🩻 DIAGNOSTIC X-RAY — temporary, remove after RLS fix is confirmed
+  const [xrayData, setXrayData] = useState<any>(null);
+  const [xrayError, setXrayError] = useState<any>(null);
+  const [xrayView, setXrayView] = useState<any>(null);
+  const [xrayViewError, setXrayViewError] = useState<any>(null);
+
+  useEffect(() => {
+    (async () => {
+      console.log('🩻 X-RAY: filters used by usePublicVehicles → table=public_vehicles, status IN (available, sourcing, incoming), order=created_at desc');
+      const naked = await supabase.from('vehicles' as any).select('*').limit(3);
+      const view = await supabase.from('public_vehicles' as any).select('*').limit(3);
+      console.log('🩻 X-RAY naked vehicles:', naked);
+      console.log('🩻 X-RAY public_vehicles view:', view);
+      setXrayData(naked.data); setXrayError(naked.error);
+      setXrayView(view.data); setXrayViewError(view.error);
+    })();
+  }, []);
+
   // Get unique makes from DB
   const allMakes = useMemo(() => {
     return [...new Set(vehicles.map((v) => v.make))].sort();
