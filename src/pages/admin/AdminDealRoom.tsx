@@ -5,7 +5,7 @@ import { Helmet } from 'react-helmet-async';
 import { 
   ArrowLeft, User, MapPin, Building, Wallet, Users, Phone, Mail, 
   MessageCircle, Car, Plus, X, Search, FileText, CheckCircle, AlertTriangle, Copy, Check,
-  Download, PartyPopper, Edit2, Save, Building2, FileSignature, Share2
+  Download, PartyPopper, Edit2, Save, Building2, FileSignature, Share2, FileDown
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import AdminLayout from '@/components/admin/AdminLayout';
@@ -365,6 +365,15 @@ const AdminDealRoom = () => {
       : undefined;
     await generateFinancePDF(application, vehicleDetails);
     toast.success('PDF downloaded');
+  };
+
+  const handleDownloadUnbrandedPDF = async () => {
+    if (!application) return;
+    const vehicleDetails = activeVehicle 
+      ? `${activeVehicle.year} ${activeVehicle.make} ${activeVehicle.model}`
+      : undefined;
+    await generateFinancePDF(application, vehicleDetails, true);
+    toast.success('Unbranded PDF downloaded');
   };
 
   const handleOpenFinalizeModal = async () => {
@@ -792,6 +801,15 @@ const AdminDealRoom = () => {
                   >
                     <Download className="w-4 h-4 mr-1 md:mr-2" />
                     <span className="hidden sm:inline">Download</span> PDF
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleDownloadUnbrandedPDF}
+                    className="text-xs md:text-sm border border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                  >
+                    <FileDown className="w-4 h-4 mr-1 md:mr-2" />
+                    <span className="hidden sm:inline">Export</span> No Brand
                   </Button>
                   <Button
                     variant="outline"
