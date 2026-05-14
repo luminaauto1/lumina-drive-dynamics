@@ -558,22 +558,32 @@ const AdminFinance = () => {
                     ? 'border-emerald-500/40 hover:border-emerald-400 hover:bg-emerald-400/10'
                     : 'border-zinc-800 hover:border-amber-300/40 hover:bg-amber-300/10';
                   const textHover = isGreen ? 'group-hover:text-emerald-200' : 'group-hover:text-amber-200';
+                  const ts = app.status_updated_at || app.updated_at || app.created_at;
+                  const formattedDate = ts
+                    ? new Date(ts).toLocaleString('en-GB', {
+                        day: '2-digit', month: 'short', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit', hour12: false,
+                      }).replace(',', ' •')
+                    : '';
                   return (
                     <button
                       key={app.id}
                       onClick={() => focusApplicationRow(app)}
-                      className={`group flex items-center justify-between gap-3 px-3 py-2 rounded-md bg-zinc-900/60 border text-left transition-colors ${containerClass}`}
+                      className={`group grid grid-cols-[1fr_auto_auto] md:grid-cols-3 items-center gap-3 px-3 py-2 rounded-md bg-zinc-900/60 border text-left transition-colors ${containerClass}`}
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="flex items-center gap-2.5 min-w-0 justify-self-start">
                         <span className={`w-1.5 h-1.5 rounded-full ${dotClass} animate-pulse shrink-0`} />
                         <span className={`text-sm text-zinc-200 truncate ${textHover}`}>
                           {app.first_name} {app.last_name}
                         </span>
-                        <span className="text-[11px] text-zinc-500 truncate">
+                        <span className="text-[11px] text-zinc-500 truncate hidden sm:inline">
                           {subLabel}
                         </span>
                       </div>
-                      <span className="text-[10px] uppercase tracking-wider text-zinc-500 shrink-0">
+                      <div className="hidden md:flex justify-center text-[11px] text-zinc-500 font-mono tracking-wide whitespace-nowrap">
+                        {formattedDate}
+                      </div>
+                      <span className="text-[10px] uppercase tracking-wider text-zinc-500 shrink-0 justify-self-end whitespace-nowrap">
                         {ADMIN_STATUS_LABELS[app.status] || app.status} →
                       </span>
                     </button>
