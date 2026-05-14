@@ -367,6 +367,15 @@ const AdminDealRoom = () => {
     toast.success('PDF downloaded');
   };
 
+  const handleDownloadUnbrandedPDF = async () => {
+    if (!application) return;
+    const vehicleDetails = activeVehicle 
+      ? `${activeVehicle.year} ${activeVehicle.make} ${activeVehicle.model}`
+      : undefined;
+    await generateFinancePDF(application, vehicleDetails, true);
+    toast.success('Unbranded PDF downloaded');
+  };
+
   const handleOpenFinalizeModal = async () => {
     // Get the selected vehicle from matches
     const selectedMatch = matches[0] as any;
