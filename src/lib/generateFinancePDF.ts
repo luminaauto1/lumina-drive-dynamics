@@ -29,7 +29,7 @@ const getBase64FromUrl = (url: string): Promise<string> => {
   });
 };
 
-export const generateFinancePDF = async (application: FinanceApplication, vehicleDetails?: string) => {
+export const generateFinancePDF = async (application: FinanceApplication, vehicleDetails?: string, isUnbranded = false) => {
   const doc = new jsPDF();
   
   // Colors
@@ -41,15 +41,22 @@ export const generateFinancePDF = async (application: FinanceApplication, vehicl
   const leftMargin = 20;
   const lineHeight = 7;
   
-  // Header
-  doc.setFontSize(24);
-  doc.setTextColor(textColor);
-  doc.text('LUMINA AUTO', leftMargin, yPos);
-  
-  yPos += 10;
-  doc.setFontSize(12);
-  doc.setTextColor(mutedColor);
-  doc.text('Finance Application Details', leftMargin, yPos);
+  // Header (branded only)
+  if (!isUnbranded) {
+    doc.setFontSize(24);
+    doc.setTextColor(textColor);
+    doc.text('LUMINA AUTO', leftMargin, yPos);
+    
+    yPos += 10;
+    doc.setFontSize(12);
+    doc.setTextColor(mutedColor);
+    doc.text('Finance Application Details', leftMargin, yPos);
+  } else {
+    doc.setFontSize(18);
+    doc.setTextColor(textColor);
+    doc.text('Client Finance Profile', leftMargin, yPos);
+    yPos += 10;
+  }
   
   // Application ID and Date
   yPos += 8;
