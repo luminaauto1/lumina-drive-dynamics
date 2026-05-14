@@ -1303,61 +1303,73 @@ const AdminFinance = () => {
               const eligible = (role === 'f_and_i' || role === 'senior_f_and_i') && (norm === 'info_updated' || norm === 'no_notes' || !norm);
               const notAlreadySent = pendingApp?.status !== 'sent_to_banks';
               if (!eligible || !notAlreadySent) return null;
+              const handleFinalize = async (
+                targetStatus: 'sent_to_banks' | 'ready_to_submit',
+                opts: { label: string; auditVerb: string }
+              ) => {
+                if (!pendingApp) return;
+                try {
+                  const { error } = await supabase
+                    .from('finance_applications')
+                    .update({
+                      status: targetStatus,
+                      internal_status: 'no_notes',
+                      attention_updated_at: new Date().toISOString(),
+                      ...(user?.id ? {
+                        assigned_f_and_i: user.id,
+                        assigned_f_and_i_at: new Date().toISOString(),
+                      } : {}),
+                    })
+                    .eq('id', pendingApp.id);
+                  if (error) throw error;
+
+                  const stamp = new Date().toLocaleString('en-ZA', { hour12: false });
+                  const comment = statusNote?.trim();
+                  const autoEntry = comment
+                    ? `[${stamp}] «FNI» ${opts.auditVerb} — ${comment}`
+                    : `[${stamp}] «FNI» ${opts.auditVerb}`;
+                  const existingNotes = (pendingApp as any).notes || '';
+                  const merged = existingNotes ? `${autoEntry}\n\n${existingNotes}` : autoEntry;
+                  await supabase
+                    .from('finance_applications')
+                    .update({ notes: merged })
+                    .eq('id', pendingApp.id);
+
+                  if (user?.id) {
+                    await supabase.from('client_audit_logs').insert({
+                      note: comment ? `${opts.auditVerb} — ${comment}` : opts.auditVerb,
+                      action_type: 'status_change',
+                      author_id: user.id,
+                      author_name: 'F&I',
+                      client_email: pendingApp.email || null,
+                      client_phone: pendingApp.phone || null,
+                    });
+                  }
+
+                  toast({ title: opts.label, description: 'Status updated & notification cleared.' });
+                  setStatusModalOpen(false);
+                  setPendingApp(null);
+                  setPendingStatus('');
+                  setStatusNote('');
+                  refetch();
+                } catch (e: any) {
+                  console.error(`[${opts.label}] failed:`, e);
+                  toast({ title: `Failed: ${opts.label}`, description: e.message, variant: 'destructive' });
+                }
+              };
               return (
-                <div className="pt-1 pb-2">
+                <div className="pt-1 pb-2 grid grid-cols-1 md:grid-cols-2 gap-3">
                   <button
                     type="button"
-                    onClick={async () => {
-                      if (!pendingApp) return;
-                      try {
-                        const { error } = await supabase
-                          .from('finance_applications')
-                          .update({
-                            status: 'sent_to_banks',
-                            internal_status: 'no_notes',
-                            attention_updated_at: new Date().toISOString(),
-                            ...(user?.id ? {
-                              assigned_f_and_i: user.id,
-                              assigned_f_and_i_at: new Date().toISOString(),
-                            } : {}),
-                          })
-                          .eq('id', pendingApp.id);
-                        if (error) throw error;
-
-                        // Append audit note to application
-                        const stamp = new Date().toLocaleString('en-ZA', { hour12: false });
-                        const autoEntry = `[${stamp}] «FNI» Updated and sent to bank.`;
-                        const existingNotes = (pendingApp as any).notes || '';
-                        const merged = existingNotes ? `${autoEntry}\n\n${existingNotes}` : autoEntry;
-                        await supabase
-                          .from('finance_applications')
-                          .update({ notes: merged })
-                          .eq('id', pendingApp.id);
-
-                        // Audit log
-                        if (user?.id) {
-                          await supabase.from('client_audit_logs').insert({
-                            note: 'Updated and sent to bank.',
-                            action_type: 'status_change',
-                            author_id: user.id,
-                            author_name: 'F&I',
-                            client_email: pendingApp.email || null,
-                            client_phone: pendingApp.phone || null,
-                          });
-                        }
-
-                        toast({ title: 'Sent to Banks', description: 'Status updated & notification cleared.' });
-                        setStatusModalOpen(false);
-                        setPendingApp(null);
-                        setPendingStatus('');
-                        setStatusNote('');
-                        refetch();
-                      } catch (e: any) {
-                        console.error('[Send to Banks] failed:', e);
-                        toast({ title: 'Failed to send to banks', description: e.message, variant: 'destructive' });
-                      }
-                    }}
-                    className="w-full bg-yellow-500 text-black font-semibold px-4 py-2 rounded hover:bg-yellow-400 transition-colors"
+                    onClick={() => handleFinalize('ready_to_submit', { label: 'Ready to Submit', auditVerb: 'Marked Ready to Submit.' })}
+                    className="w-full bg-emerald-900/30 text-emerald-300 border border-emerald-500/50 hover:bg-emerald-800/40 transition-colors font-medium px-4 py-3 rounded-md"
+                  >
+                    ✅ Ready to Submit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleFinalize('sent_to_banks', { label: 'Sent to Banks', auditVerb: 'Updated and sent to bank.' })}
+                    className="w-full bg-yellow-500 text-black font-semibold px-4 py-3 rounded-md hover:bg-yellow-400 transition-colors"
                   >
                     🏦 Finalize: Send to Banks
                   </button>
