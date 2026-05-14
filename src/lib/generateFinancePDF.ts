@@ -343,7 +343,9 @@ export const generateFinancePDF = async (application: FinanceApplication, vehicl
   doc.setFontSize(8);
   doc.setTextColor(mutedColor);
   
-  const consentText = `I hereby give consent to Lumina Auto to process my personal information in accordance with the Protection of Personal Information Act (POPIA). I understand that my information will be used for the purpose of processing my finance application and may be shared with financial institutions for credit assessment purposes. I confirm that all information provided is true and accurate to the best of my knowledge.`;
+  const consentText = isUnbranded
+    ? `I hereby give consent to the dealership to process my personal information in accordance with the Protection of Personal Information Act (POPIA). I understand that my information will be used for the purpose of processing my finance application and may be shared with financial institutions for credit assessment purposes. I confirm that all information provided is true and accurate to the best of my knowledge.`
+    : `I hereby give consent to Lumina Auto to process my personal information in accordance with the Protection of Personal Information Act (POPIA). I understand that my information will be used for the purpose of processing my finance application and may be shared with financial institutions for credit assessment purposes. I confirm that all information provided is true and accurate to the best of my knowledge.`;
   
   const consentLines = doc.splitTextToSize(consentText, 170);
   consentLines.forEach((line: string) => {
@@ -418,14 +420,18 @@ export const generateFinancePDF = async (application: FinanceApplication, vehicl
     yPos += 10;
   }
   
-  // Footer
-  yPos = 280;
-  doc.setFontSize(8);
-  doc.setTextColor(mutedColor);
-  doc.text('This document is confidential and intended for internal use only.', leftMargin, yPos);
-  doc.text(`Generated on ${new Date().toLocaleString()}`, leftMargin, yPos + 4);
+  // Footer (branded only)
+  if (!isUnbranded) {
+    yPos = 280;
+    doc.setFontSize(8);
+    doc.setTextColor(mutedColor);
+    doc.text('This document is confidential and intended for internal use only.', leftMargin, yPos);
+    doc.text(`Generated on ${new Date().toLocaleString()}`, leftMargin, yPos + 4);
+  }
   
   // Save
-  const fileName = `LuminaAuto_Finance_${application.first_name}_${application.last_name}_${application.id.slice(0, 8)}.pdf`;
+  const fileName = isUnbranded
+    ? `Finance_Profile_${application.first_name}_${application.last_name}_${application.id.slice(0, 8)}.pdf`
+    : `LuminaAuto_Finance_${application.first_name}_${application.last_name}_${application.id.slice(0, 8)}.pdf`;
   doc.save(fileName);
 };
