@@ -803,6 +803,15 @@ const AdminDealRoom = () => {
                     <span className="hidden sm:inline">Download</span> PDF
                   </Button>
                   <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleDownloadUnbrandedPDF}
+                    className="text-xs md:text-sm border border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                  >
+                    <FileDown className="w-4 h-4 mr-1 md:mr-2" />
+                    <span className="hidden sm:inline">Export</span> No Brand
+                  </Button>
+                  <Button
                     variant="outline"
                     size="sm"
                     className="text-xs md:text-sm"
