@@ -42,6 +42,12 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
   const [leads, setLeads] = useState<any[]>([]);
   const [newNote, setNewNote] = useState('');
   const [phoneCopied, setPhoneCopied] = useState(false);
+  const [openHistoryIds, setOpenHistoryIds] = useState<Set<string>>(new Set());
+  const toggleHistory = (id: string) => setOpenHistoryIds(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
 
   // Full Quote Calculator state (parity with AdminQuoteGenerator)
   const [calcOpen, setCalcOpen] = useState(false);
