@@ -302,28 +302,35 @@ const AdminDashboard = () => {
               </p>
             ) : (
               <div className="space-y-2">
-                {urgentLeads.map((lead) => (
-                  <div
-                    key={lead.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 cursor-pointer transition-colors"
-                    onClick={() => navigate("/admin/leads")}
-                  >
-                    <div>
-                      <p className="font-medium text-sm">
-                        {lead.client_name || "Unknown"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {lead.client_phone || "No phone"}
-                      </p>
+                {urgentLeads.map((lead) => {
+                  const ts = lead.updated_at || lead.created_at;
+                  const formattedDate = ts ? format(new Date(ts), "dd MMM yyyy • HH:mm") : "";
+                  return (
+                    <div
+                      key={lead.id}
+                      className="grid grid-cols-3 items-center gap-2 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 cursor-pointer transition-colors"
+                      onClick={() => navigate("/admin/leads")}
+                    >
+                      <div className="justify-self-start min-w-0">
+                        <p className="font-medium text-sm truncate">
+                          {lead.client_name || "Unknown"}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {lead.client_phone || "No phone"}
+                        </p>
+                      </div>
+                      <div className="hidden md:flex justify-center text-xs text-zinc-500 font-mono tracking-wide">
+                        {formattedDate}
+                      </div>
+                      <div className="flex items-center gap-2 justify-self-end">
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 whitespace-nowrap">
+                          {(lead.pipeline_stage || "new").replace(/_/g, " ")}
+                        </span>
+                        <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-400">
-                        {(lead.pipeline_stage || "new").replace(/_/g, " ")}
-                      </span>
-                      <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </Card>
