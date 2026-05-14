@@ -975,20 +975,24 @@ const AdminFinance = () => {
                           }
                         }}
                       >
-                         <SelectTrigger
-                           className={`w-[180px] h-7 text-xs uppercase tracking-wider border whitespace-nowrap ${STATUS_STYLES[app.status] || STATUS_STYLES.pending}`}
-                         >
-                           <SelectValue>
-                             <span className="whitespace-nowrap">
-                               {ADMIN_STATUS_LABELS[app.status] || app.status}
-                               {app.updated_at && (
-                                 <span className="text-[10px] opacity-60 ml-2 normal-case tracking-normal">
-                                   {new Date(app.updated_at).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                         {(() => {
+                           const stamp = (app as any).status_updated_at || app.updated_at;
+                           const tip = stamp
+                             ? `Changed: ${new Date(stamp).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' })} at ${new Date(stamp).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })}`
+                             : undefined;
+                           return (
+                             <SelectTrigger
+                               title={tip}
+                               className={`w-[180px] h-7 text-xs uppercase tracking-wider border whitespace-nowrap ${STATUS_STYLES[app.status] || STATUS_STYLES.pending}`}
+                             >
+                               <SelectValue>
+                                 <span className="whitespace-nowrap">
+                                   {ADMIN_STATUS_LABELS[app.status] || app.status}
                                  </span>
-                               )}
-                             </span>
-                           </SelectValue>
-                         </SelectTrigger>
+                               </SelectValue>
+                             </SelectTrigger>
+                           );
+                         })()}
                         <SelectContent>
                           {filterStatusOptionsForRole(STATUS_OPTIONS, role, app.status).map((opt) => (
                             <SelectItem key={opt.value} value={opt.value} className="text-xs">
