@@ -110,7 +110,16 @@ export const useUpdateFinanceApplication = () => {
         updates.status !== currentApp.status &&
         updates.status_updated_at === undefined
       ) {
-        updates = { ...updates, status_updated_at: new Date().toISOString() };
+        const nowIso = new Date().toISOString();
+        const existingHistory = Array.isArray((currentApp as any)?.status_history)
+          ? ((currentApp as any).status_history as Array<{ status: string; timestamp: string }>)
+          : [];
+        const newHistoryEntry = { status: updates.status as string, timestamp: nowIso };
+        updates = {
+          ...updates,
+          status_updated_at: nowIso,
+          status_history: [...existingHistory, newHistoryEntry] as any,
+        };
       }
 
       // 2. Perform the database update

@@ -42,6 +42,12 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
   const [leads, setLeads] = useState<any[]>([]);
   const [newNote, setNewNote] = useState('');
   const [phoneCopied, setPhoneCopied] = useState(false);
+  const [openHistoryIds, setOpenHistoryIds] = useState<Set<string>>(new Set());
+  const toggleHistory = (id: string) => setOpenHistoryIds(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
 
   // Full Quote Calculator state (parity with AdminQuoteGenerator)
   const [calcOpen, setCalcOpen] = useState(false);
@@ -434,6 +440,38 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
                     <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase font-bold tracking-wider">{app.status?.replace('_', ' ')}</span>
                   </div>
                   <p className="text-[10px] text-zinc-500 font-mono">App ID: {app.id.slice(0,8)}</p>
+                  {(() => {
+                    const history: Array<{ status: string; timestamp: string }> = Array.isArray(app.status_history) ? app.status_history : [];
+                    const isOpen = openHistoryIds.has(app.id);
+                    return (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => toggleHistory(app.id)}
+                          className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors mt-4"
+                        >
+                          {isOpen ? 'Hide Progress History' : 'View Progress History'}
+                        </button>
+                        {isOpen && (
+                          history.length === 0 ? (
+                            <p className="text-[10px] text-zinc-600 italic mt-2 ml-2">No status changes recorded yet.</p>
+                          ) : (
+                            <div className="relative border-l border-zinc-800 ml-2 pl-4 space-y-3 mt-3">
+                              {[...history]
+                                .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+                                .map((entry, idx) => (
+                                  <div key={idx} className="relative">
+                                    <span className="w-2 h-2 rounded-full bg-zinc-600 -ml-[21px] mt-1.5 absolute" />
+                                    <p className="text-zinc-200 text-sm capitalize">{entry.status?.replace(/_/g, ' ')}</p>
+                                    <p className="text-zinc-500 text-xs font-mono">{format(new Date(entry.timestamp), 'dd MMM yyyy • HH:mm')}</p>
+                                  </div>
+                                ))}
+                            </div>
+                          )
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               ))}
             </div>
