@@ -1,6 +1,5 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { supabase } from '@/integrations/supabase/client';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { Button } from '@/components/ui/button';
@@ -30,24 +29,6 @@ const Inventory = () => {
 
   const { data: vehicles = [], isLoading } = usePublicVehicles();
   const { compareList, toggleCompare, removeFromCompare, clearCompare, isInCompare } = useCompare();
-
-  // 🩻 DIAGNOSTIC X-RAY — temporary, remove after RLS fix is confirmed
-  const [xrayData, setXrayData] = useState<any>(null);
-  const [xrayError, setXrayError] = useState<any>(null);
-  const [xrayView, setXrayView] = useState<any>(null);
-  const [xrayViewError, setXrayViewError] = useState<any>(null);
-
-  useEffect(() => {
-    (async () => {
-      console.log('🩻 X-RAY: filters used by usePublicVehicles → table=public_vehicles, status IN (available, sourcing, incoming), order=created_at desc');
-      const naked = await supabase.from('vehicles' as any).select('*').limit(3);
-      const view = await supabase.from('public_vehicles' as any).select('*').limit(3);
-      console.log('🩻 X-RAY naked vehicles:', naked);
-      console.log('🩻 X-RAY public_vehicles view:', view);
-      setXrayData(naked.data); setXrayError(naked.error);
-      setXrayView(view.data); setXrayViewError(view.error);
-    })();
-  }, []);
 
   // Get unique makes from DB
   const allMakes = useMemo(() => {
@@ -160,17 +141,6 @@ const Inventory = () => {
 
       <div className="min-h-screen pt-24 pb-32">
         <div className="container mx-auto px-6">
-          {/* 🩻 DIAGNOSTIC X-RAY — REMOVE AFTER FIX */}
-          <div className="bg-red-900/20 border border-red-500 p-4 mb-8 text-xs text-white overflow-auto rounded">
-            <p className="font-bold mb-2">🩻 DIAGNOSTIC X-RAY (anon role check)</p>
-            <p>Naked vehicles table → Error: {JSON.stringify(xrayError)}</p>
-            <p>Naked vehicles table → Rows returned: {Array.isArray(xrayData) ? xrayData.length : 'null'}</p>
-            <pre className="mt-1 max-h-40 overflow-auto">{JSON.stringify(xrayData, null, 2)}</pre>
-            <p className="mt-3">public_vehicles view → Error: {JSON.stringify(xrayViewError)}</p>
-            <p>public_vehicles view → Rows returned: {Array.isArray(xrayView) ? xrayView.length : 'null'}</p>
-            <pre className="mt-1 max-h-40 overflow-auto">{JSON.stringify(xrayView, null, 2)}</pre>
-            <p className="mt-3 text-yellow-300">usePublicVehicles() returned {vehicles.length} rows · isLoading={String(isLoading)}</p>
-          </div>
           {/* Header */}
           <div className="mb-12">
             <motion.span
