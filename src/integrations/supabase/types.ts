@@ -66,13 +66,6 @@ export type Database = {
             foreignKeyName: "aftersales_records_vehicle_id_fkey"
             columns: ["vehicle_id"]
             isOneToOne: false
-            referencedRelation: "public_vehicles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aftersales_records_vehicle_id_fkey"
-            columns: ["vehicle_id"]
-            isOneToOne: false
             referencedRelation: "vehicles"
             referencedColumns: ["id"]
           },
@@ -169,13 +162,6 @@ export type Database = {
             columns: ["application_id"]
             isOneToOne: false
             referencedRelation: "finance_applications"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "application_matches_vehicle_id_fkey"
-            columns: ["vehicle_id"]
-            isOneToOne: false
-            referencedRelation: "public_vehicles"
             referencedColumns: ["id"]
           },
           {
@@ -392,13 +378,6 @@ export type Database = {
             columns: ["application_id"]
             isOneToOne: false
             referencedRelation: "finance_applications"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "deal_records_vehicle_id_fkey"
-            columns: ["vehicle_id"]
-            isOneToOne: false
-            referencedRelation: "public_vehicles"
             referencedColumns: ["id"]
           },
           {
@@ -794,21 +773,7 @@ export type Database = {
             foreignKeyName: "finance_applications_selected_vehicle_id_fkey"
             columns: ["selected_vehicle_id"]
             isOneToOne: false
-            referencedRelation: "public_vehicles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "finance_applications_selected_vehicle_id_fkey"
-            columns: ["selected_vehicle_id"]
-            isOneToOne: false
             referencedRelation: "vehicles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "finance_applications_vehicle_id_fkey"
-            columns: ["vehicle_id"]
-            isOneToOne: false
-            referencedRelation: "public_vehicles"
             referencedColumns: ["id"]
           },
           {
@@ -1082,13 +1047,6 @@ export type Database = {
             foreignKeyName: "leads_vehicle_id_fkey"
             columns: ["vehicle_id"]
             isOneToOne: false
-            referencedRelation: "public_vehicles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "leads_vehicle_id_fkey"
-            columns: ["vehicle_id"]
-            isOneToOne: false
             referencedRelation: "vehicles"
             referencedColumns: ["id"]
           },
@@ -1133,6 +1091,108 @@ export type Database = {
           phone?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      public_vehicles: {
+        Row: {
+          body_type: string | null
+          color: string | null
+          created_at: string
+          description: string | null
+          finance_available: boolean | null
+          fsh_status: string | null
+          fuel_type: string
+          id: string
+          images: string[] | null
+          is_featured: boolean | null
+          is_generic_listing: boolean | null
+          last_service_date: string | null
+          last_service_km: number | null
+          make: string
+          mileage: number
+          model: string
+          next_service_date: string | null
+          next_service_km: number | null
+          price: number
+          service_history: string | null
+          service_plan_expiry_date: string | null
+          sourced_count: number | null
+          spare_keys: boolean | null
+          status: string
+          transmission: string
+          updated_at: string
+          variant: string | null
+          variants: Json | null
+          warranty_expiry_date: string | null
+          year: number
+          youtube_url: string | null
+        }
+        Insert: {
+          body_type?: string | null
+          color?: string | null
+          created_at: string
+          description?: string | null
+          finance_available?: boolean | null
+          fsh_status?: string | null
+          fuel_type: string
+          id: string
+          images?: string[] | null
+          is_featured?: boolean | null
+          is_generic_listing?: boolean | null
+          last_service_date?: string | null
+          last_service_km?: number | null
+          make: string
+          mileage: number
+          model: string
+          next_service_date?: string | null
+          next_service_km?: number | null
+          price: number
+          service_history?: string | null
+          service_plan_expiry_date?: string | null
+          sourced_count?: number | null
+          spare_keys?: boolean | null
+          status: string
+          transmission: string
+          updated_at: string
+          variant?: string | null
+          variants?: Json | null
+          warranty_expiry_date?: string | null
+          year: number
+          youtube_url?: string | null
+        }
+        Update: {
+          body_type?: string | null
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          finance_available?: boolean | null
+          fsh_status?: string | null
+          fuel_type?: string
+          id?: string
+          images?: string[] | null
+          is_featured?: boolean | null
+          is_generic_listing?: boolean | null
+          last_service_date?: string | null
+          last_service_km?: number | null
+          make?: string
+          mileage?: number
+          model?: string
+          next_service_date?: string | null
+          next_service_km?: number | null
+          price?: number
+          service_history?: string | null
+          service_plan_expiry_date?: string | null
+          sourced_count?: number | null
+          spare_keys?: boolean | null
+          status?: string
+          transmission?: string
+          updated_at?: string
+          variant?: string | null
+          variants?: Json | null
+          warranty_expiry_date?: string | null
+          year?: number
+          youtube_url?: string | null
         }
         Relationships: []
       }
@@ -1486,13 +1546,6 @@ export type Database = {
             foreignKeyName: "vehicle_expenses_vehicle_id_fkey"
             columns: ["vehicle_id"]
             isOneToOne: false
-            referencedRelation: "public_vehicles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "vehicle_expenses_vehicle_id_fkey"
-            columns: ["vehicle_id"]
-            isOneToOne: false
             referencedRelation: "vehicles"
             referencedColumns: ["id"]
           },
@@ -1698,13 +1751,6 @@ export type Database = {
             foreignKeyName: "wishlists_vehicle_id_fkey"
             columns: ["vehicle_id"]
             isOneToOne: false
-            referencedRelation: "public_vehicles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "wishlists_vehicle_id_fkey"
-            columns: ["vehicle_id"]
-            isOneToOne: false
             referencedRelation: "vehicles"
             referencedColumns: ["id"]
           },
@@ -1811,108 +1857,6 @@ export type Database = {
           trustpilot_url?: string | null
           updated_at?: string | null
           whatsapp_number?: string | null
-        }
-        Relationships: []
-      }
-      public_vehicles: {
-        Row: {
-          body_type: string | null
-          color: string | null
-          created_at: string | null
-          description: string | null
-          finance_available: boolean | null
-          fsh_status: string | null
-          fuel_type: string | null
-          id: string | null
-          images: string[] | null
-          is_featured: boolean | null
-          is_generic_listing: boolean | null
-          last_service_date: string | null
-          last_service_km: number | null
-          make: string | null
-          mileage: number | null
-          model: string | null
-          next_service_date: string | null
-          next_service_km: number | null
-          price: number | null
-          service_history: string | null
-          service_plan_expiry_date: string | null
-          sourced_count: number | null
-          spare_keys: boolean | null
-          status: string | null
-          transmission: string | null
-          updated_at: string | null
-          variant: string | null
-          variants: Json | null
-          warranty_expiry_date: string | null
-          year: number | null
-          youtube_url: string | null
-        }
-        Insert: {
-          body_type?: string | null
-          color?: string | null
-          created_at?: string | null
-          description?: string | null
-          finance_available?: boolean | null
-          fsh_status?: string | null
-          fuel_type?: string | null
-          id?: string | null
-          images?: string[] | null
-          is_featured?: boolean | null
-          is_generic_listing?: boolean | null
-          last_service_date?: string | null
-          last_service_km?: number | null
-          make?: string | null
-          mileage?: number | null
-          model?: string | null
-          next_service_date?: string | null
-          next_service_km?: number | null
-          price?: number | null
-          service_history?: string | null
-          service_plan_expiry_date?: string | null
-          sourced_count?: number | null
-          spare_keys?: boolean | null
-          status?: string | null
-          transmission?: string | null
-          updated_at?: string | null
-          variant?: string | null
-          variants?: Json | null
-          warranty_expiry_date?: string | null
-          year?: number | null
-          youtube_url?: string | null
-        }
-        Update: {
-          body_type?: string | null
-          color?: string | null
-          created_at?: string | null
-          description?: string | null
-          finance_available?: boolean | null
-          fsh_status?: string | null
-          fuel_type?: string | null
-          id?: string | null
-          images?: string[] | null
-          is_featured?: boolean | null
-          is_generic_listing?: boolean | null
-          last_service_date?: string | null
-          last_service_km?: number | null
-          make?: string | null
-          mileage?: number | null
-          model?: string | null
-          next_service_date?: string | null
-          next_service_km?: number | null
-          price?: number | null
-          service_history?: string | null
-          service_plan_expiry_date?: string | null
-          sourced_count?: number | null
-          spare_keys?: boolean | null
-          status?: string | null
-          transmission?: string | null
-          updated_at?: string | null
-          variant?: string | null
-          variants?: Json | null
-          warranty_expiry_date?: string | null
-          year?: number | null
-          youtube_url?: string | null
         }
         Relationships: []
       }
