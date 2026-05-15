@@ -44,87 +44,123 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
   const [addressMeta, setAddressMeta] = useState<AddressMeta | null>(null);
   const [workplaceMeta, setWorkplaceMeta] = useState<WorkplaceMeta | null>(null);
 
-  // Alternating-line format parser ("Name\nCelin\nSurname\nDoe\n...").
-  // Returns null if format not recognized so we fall back to the AI parser.
+  // Bulletproof self-healing alternating-line parser.
+  // Forward-scans line-by-line, skips anomalies (e.g. "Source Id..."), and
+  // protects against blank values that would otherwise cause index drift.
+  // Returns null if format is not recognised so we fall back to the AI parser.
   const parseAlternatingFormat = (text: string): Record<string, string> | null => {
     const lines = text
       .split(/\r?\n/)
       .map((l) => l.trim())
       .filter((l) => l.length > 0);
 
-    // Map of recognised keys (lowercased) -> target payload field
+    // Canonical key map (lowercased label -> internal payload field).
+    // Internal field names match downstream consumers (PDF + insert payload).
     const KEY_MAP: Record<string, string> = {
+      'bank': 'bank_name',
+      'bank name': 'bank_name',
+      'city': '__city',
       'name': 'first_name',
       'first name': 'first_name',
-      'surname': 'last_name',
-      'last name': 'last_name',
       'email': 'email',
       'email address': 'email',
+      'gender': 'gender',
+      'surname': 'last_name',
+      'last name': 'last_name',
+      'whatsapp name': 'whatsapp_name',
+      'province': '__province',
+      'area code': '__area_code',
+      'postal code': '__area_code',
       'id number': 'id_number',
       'id no': 'id_number',
+      'job title': 'job_title',
+      'occupation': 'job_title',
+      'net income': 'net_income',
+      'net salary': 'net_income',
+      'company name': 'employer_name',
+      'employer': 'employer_name',
+      'employer name': 'employer_name',
+      'gross salary': 'gross_income',
+      'gross income': 'gross_income',
+      'account number': 'account_number',
       'contact number': 'phone',
       'cell number': 'phone',
       'phone': 'phone',
       'phone number': 'phone',
-      'gender': 'gender',
       'marital status': 'marital_status',
-      'company name': 'employer_name',
-      'employer': 'employer_name',
-      'employer name': 'employer_name',
-      'job title': 'job_title',
-      'occupation': 'job_title',
-      'gross salary': 'gross_income',
-      'gross income': 'gross_income',
-      'net income': 'net_income',
-      'net salary': 'net_income',
       'street address': '__street',
       'physical address': '__street',
-      'area code': '__area_code',
-      'postal code': '__area_code',
-      'city': '__city',
-      'province': '__province',
+      'type of account': 'account_type',
+      'account type': 'account_type',
       'workplace address': 'workplace_address',
       'work address': 'workplace_address',
       'employer address': 'workplace_address',
-      'bank': 'bank_name',
-      'bank name': 'bank_name',
-      'account number': 'account_number',
-      'type of account': 'account_type',
-      'account type': 'account_type',
-      'summary of expenses': 'living_expenses',
-      'expenses': 'living_expenses',
-      'living expenses': 'living_expenses',
+      'next of kin number': 'kin_phone',
+      'next of kin contact': 'kin_phone',
       'next of kin name and surname': 'kin_name',
       'next of kin name': 'kin_name',
       'next of kin': 'kin_name',
-      'next of kin number': 'kin_phone',
-      'next of kin contact': 'kin_phone',
+      'duration at address': 'duration_at_address',
+      'summary of expenses': 'living_expenses',
+      'expenses': 'living_expenses',
+      'living expenses': 'living_expenses',
+      'duration at employer': 'employment_start',
       'employment start': 'employment_start',
       'employment period': 'employment_start',
+      'credit profile status': 'credit_status',
+      'highest qualification': 'highest_qualification',
+      'spouse name and surname': 'spouse_name',
+      'spouse id': 'spouse_id',
+      'spouse cell number': 'spouse_phone',
     };
+
+    const normalize = (s: string) =>
+      s.replace(/[:\-•]+\s*$/, '').toLowerCase().trim();
 
     const out: Record<string, string> = {};
     let matches = 0;
 
-    for (let i = 0; i < lines.length; i++) {
-      const keyRaw = lines[i].replace(/[:\-•]+\s*$/, '').toLowerCase().trim();
-      const target = KEY_MAP[keyRaw];
-      if (target && i + 1 < lines.length) {
-        const value = lines[i + 1];
-        // Skip if next line also looks like a known key (means value missing)
-        const nextIsKey = !!KEY_MAP[value.replace(/[:\-•]+\s*$/, '').toLowerCase().trim()];
-        if (!nextIsKey) {
-          out[target] = value;
-          matches++;
-          i++; // consume value line
-        }
+    let i = 0;
+    while (i < lines.length) {
+      const currentLine = normalize(lines[i]);
+
+      // Anomaly skip — e.g. "Source Id120242531770620172" (merged garbage line).
+      if (currentLine.startsWith('source id') || currentLine.startsWith('source_id')) {
+        i += 1;
+        continue;
       }
+
+      const target = KEY_MAP[currentLine];
+      if (!target) {
+        // Unknown line — realign by advancing one step instead of two.
+        i += 1;
+        continue;
+      }
+
+      const rawNext = lines[i + 1] !== undefined ? lines[i + 1].trim() : '';
+      const nextIsKey = rawNext.length > 0 && !!KEY_MAP[normalize(rawNext)];
+
+      let value = '';
+      if (nextIsKey || rawNext.length === 0) {
+        // Field was left blank — do NOT consume the next key line.
+        value = '';
+        i += 1;
+      } else {
+        value = rawNext;
+        i += 2;
+      }
+
+      // ENFORCE STRING — never let JS coerce IDs / account numbers to Number
+      // (would drop leading zeros and lose precision past 2^53).
+      out[target] = String(value);
+      if (value) matches++;
     }
 
     if (matches < 3) return null; // not this format
 
-    // Combine address parts
-    const addrParts = [out.__street, out.__city, out.__province, out.__area_code].filter(Boolean);
+    // Merge split address fields into a single home/physical address string.
+    const addrParts = [out.__street, out.__city, out.__province, out.__area_code]
+      .filter(Boolean);
     if (addrParts.length) out.physical_address = addrParts.join(', ');
     delete out.__street; delete out.__city; delete out.__province; delete out.__area_code;
 
