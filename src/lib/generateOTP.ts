@@ -303,13 +303,13 @@ export const generateOTP = (data: OTPData) => {
     bodyLines.forEach((line: string) => {
       if (y > BOTTOM_LIMIT) { doc.addPage(); y = TOP_MARGIN; }
       doc.text(line, leftMargin, y);
-      y += 3.2;
+      y += LINE_HEIGHT;
     });
-    y += 3;
+    y += SECTION_GAP;
   });
 
-  // Acknowledgement
-  if (y > 260) { doc.addPage(); y = 20; }
+  // Acknowledgement — reserve ~35mm for the full block + signature lines
+  if (y + 35 > BOTTOM_LIMIT) { doc.addPage(); y = TOP_MARGIN; }
   y += 6;
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
