@@ -492,6 +492,15 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
                       </>
                     );
                   })()}
+                  <div className="mt-3 flex">
+                    <Button
+                      onClick={() => openOtpForApp(app)}
+                      size="sm"
+                      className="h-7 px-2.5 text-[10px] gap-1.5 bg-amber-500 hover:bg-amber-600 text-black font-semibold"
+                    >
+                      <FileSignature className="w-3 h-3" /> Generate OTP
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
