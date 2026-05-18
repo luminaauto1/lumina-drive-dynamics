@@ -237,24 +237,37 @@ export const useUpdateFinanceApplication = () => {
       }
 
       // WhatsApp "Submitted to Bank" notification — fires when status moves
-      // from pending → application_submitted (regardless of submission_source).
+      // into either `application_submitted` OR `ready_to_submit` for the first
+      // time. Deduplicated via status_history so toggling between the two
+      // submission-phase statuses never fires twice.
       if (
         statusActuallyChanged &&
-        newStatus === 'application_submitted' &&
+        (newStatus === 'application_submitted' || newStatus === 'ready_to_submit') &&
         currentApp?.phone
       ) {
-        try {
-          const { publicApiHeaders } = await import('@/lib/publicApi');
-          const clientName = currentApp.first_name || currentApp.full_name || 'Valued Client';
-          supabase.functions.invoke('notify-app-submitted', {
-            body: { phone_number: currentApp.phone, client_name: clientName },
-            headers: publicApiHeaders(),
-          }).then(({ error: waErr }) => {
-            if (waErr) console.error('[notify-app-submitted] error:', waErr);
-            else console.log('[notify-app-submitted] dispatched for', currentApp.phone);
-          });
-        } catch (waEx) {
-          console.error('[notify-app-submitted] failed to invoke:', waEx);
+        const priorHistory = Array.isArray((currentApp as any)?.status_history)
+          ? ((currentApp as any).status_history as Array<{ status: string; timestamp: string }>)
+          : [];
+        const hasAlreadyBeenSubmitted = priorHistory.some(
+          (entry) => entry?.status === 'application_submitted' || entry?.status === 'ready_to_submit'
+        );
+
+        if (hasAlreadyBeenSubmitted) {
+          console.log('[notify-app-submitted] skipped — application already passed through submission phase.');
+        } else {
+          try {
+            const { publicApiHeaders } = await import('@/lib/publicApi');
+            const clientName = currentApp.first_name || currentApp.full_name || 'Valued Client';
+            supabase.functions.invoke('notify-app-submitted', {
+              body: { phone_number: currentApp.phone, client_name: clientName },
+              headers: publicApiHeaders(),
+            }).then(({ error: waErr }) => {
+              if (waErr) console.error('[notify-app-submitted] error:', waErr);
+              else console.log('[notify-app-submitted] dispatched for', currentApp.phone);
+            });
+          } catch (waEx) {
+            console.error('[notify-app-submitted] failed to invoke:', waEx);
+          }
         }
       }
 
