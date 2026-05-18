@@ -270,24 +270,38 @@ export const generateOTP = (data: OTPData) => {
   doc.line(leftMargin, y, rightMargin, y);
   y += 8;
 
+  const BOTTOM_LIMIT = 278; // reserve room for footer at y=292
+  const TOP_MARGIN = 20;
+  const LINE_HEIGHT = 3.4;
+  const HEADING_GAP = 4.5;
+  const SECTION_GAP = 4;
+
   OTP_TERMS.forEach((section) => {
-    // Heading
-    const bodyLines = doc.splitTextToSize(section.body, pageWidth);
-    const blockHeight = 5 + bodyLines.length * 3.2 + 4;
-    if (y + blockHeight > 285) {
+    // Measure body using the SAME font that will render it (critical for accurate wrapping)
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    const bodyLines: string[] = doc.splitTextToSize(section.body, pageWidth);
+
+    // Keep heading + at least 2 body lines together to avoid orphan headings
+    const keepTogether = HEADING_GAP + Math.min(2, bodyLines.length) * LINE_HEIGHT;
+    if (y + keepTogether > BOTTOM_LIMIT) {
       doc.addPage();
-      y = 20;
+      y = TOP_MARGIN;
     }
+
+    // Heading
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(...primary);
     doc.text(section.heading, leftMargin, y);
-    y += 4;
+    y += HEADING_GAP;
+
+    // Body
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(...text);
     bodyLines.forEach((line: string) => {
-      if (y > 285) { doc.addPage(); y = 20; }
+      if (y > BOTTOM_LIMIT) { doc.addPage(); y = TOP_MARGIN; }
       doc.text(line, leftMargin, y);
       y += 3.2;
     });
