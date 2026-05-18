@@ -15,6 +15,8 @@ import { toast } from 'sonner';
 import { Clock, Car, User, FileText, Calculator, Copy, Check, Plus, X, Eye, Trophy, Trash2, Phone, Brain, Wallet, CalendarClock, AlertOctagon, Banknote, Fingerprint, Briefcase } from 'lucide-react';
 import { formatPrice } from '@/lib/formatters';
 import LiveCallCopilot from './LiveCallCopilot';
+import OTPModal from './OTPModal';
+import { FileSignature } from 'lucide-react';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
