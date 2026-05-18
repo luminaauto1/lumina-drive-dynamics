@@ -2,7 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 export interface OTPData {
-  // Contact Information
+  // Client
   clientName: string;
   idNumber: string;
   address: string;
@@ -11,270 +11,323 @@ export interface OTPData {
   salesExecutive: string;
   date: string;
   quoteRef: string;
-  
-  // Vehicle Details
-  makeModel: string;
+
+  // Vehicle
+  make: string;
+  model: string;
   year: string;
   regNo: string;
+  colorVal: string;
   vin: string;
   engineNo: string;
   mileage: string;
-  color: string;
-  
+
   // Financial
-  totalPrice: number;
-  extras: { description: string; amount: number }[];
+  basePrice: number;
+  extrasPrice: number;
+  vapPrice: number;
   adminFee: number;
-  
-  // Signature
+
   signedPlace: string;
 }
 
-const formatCurrency = (amount: number): string => {
-  return `R ${amount.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-};
+const fmt = (n: number): string =>
+  `R ${n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const OTP_TERMS: { heading: string; body: string }[] = [
+  {
+    heading: '1. DEFINITIONS',
+    body:
+      '1.1 "I", "me" and "my" refer to the Purchaser; and "you", "they" and "Company" refers to Lumina Auto which is the Seller and "us" or "we" refers to Company and me.\n' +
+      '1.2 "Offer" means this offer to purchase that I have made to the Company. Once accepted, it becomes a binding contract.\n' +
+      '1.3 "Risk" refers to the possibility of suffering harm or loss.',
+  },
+  {
+    heading: '2. GENERAL CONDITIONS',
+    body:
+      '2.1 You will not be obliged to deliver the vehicle until a manager accepts the offer in writing.\n' +
+      '2.2 If accepted, I will be liable to pay the balance of the purchase price. Risk passes to me on delivery. You continue to own the vehicle until paid in full.\n' +
+      '2.3 The offer lapses if I cannot provide proof of ability to pay or finance approval within 14 days.',
+  },
+  {
+    heading: '3. DELIVERY',
+    body:
+      '3.1 Delivery will be made at the agreed date/time at Lumina Auto premises.\n' +
+      '3.3 Prior to taking delivery I have the right to examine the vehicle for quality.',
+  },
+  {
+    heading: '4. WARRANTY / PLANS',
+    body:
+      '4.1 Sale is subject to manufacturer\'s warranty/plans if applicable.\n' +
+      '4.5 Warranty may be void if terms are not complied with.',
+  },
+  {
+    heading: '5. ORDERING FEE',
+    body:
+      'If I paid an ordering fee, it will be deducted from the balance. If I breach, I remain liable for amounts due and Lumina Auto may deduct a reasonable cancellation charge.',
+  },
+  {
+    heading: '6. TRADE-INS',
+    body:
+      '6.1 I warrant the trade-in is my sole property, not subject to retention, all defects/modifications disclosed, and no accident damage exceeding R20,000.\n' +
+      '6.4 Lumina Auto may reduce the value if the condition differs from the valuation.',
+  },
+  {
+    heading: '7. HAZARDOUS NATURE',
+    body: 'I am aware a motor vehicle can be dangerous if used contrary to instructions.',
+  },
+  {
+    heading: '8. FIT FOR PURPOSE',
+    body: '8.2 I have read the specifications and confirm the vehicle fits my purpose.',
+  },
+  {
+    heading: '9. RETURN',
+    body:
+      '9.1 If I cancel and return the vehicle, I must pay the difference between my purchase price and the resale price, plus restocking costs.',
+  },
+  {
+    heading: '10. MISCELLANEOUS',
+    body:
+      '10.1 Disputes will be addressed amicably within 10 days, failing which it may be referred to the motor ombudsman.\n' +
+      '10.2 No variation is valid unless in writing.',
+  },
+  {
+    heading: '11. PRE-OWNED SPECIFICATIONS',
+    body:
+      '11.4 I accept Lumina Auto believes the registration date and odometer are correct but cannot warrant this.\n' +
+      '11.6 I accept the vehicle in its current condition with disclosed defects.',
+  },
+  {
+    heading: '12. NEW VEHICLE SPECIFICATIONS',
+    body: 'I confirm I am satisfied the vehicle is suited for my purpose based on promotional material.',
+  },
+  {
+    heading: '13. SPECIAL CONDITIONS (NEW)',
+    body:
+      '13.1 List price at delivery may be higher than this offer.\n' +
+      '13.2 The vehicle is new even if driven for delivery/testing.',
+  },
+  {
+    heading: '14. POPIA & DATA PROTECTION',
+    body:
+      '14.1 Lumina Auto processes my personal information as a Responsible Party.\n' +
+      '14.2 Information is not sold to third parties but may be shared with agents/banks for processing.\n' +
+      '14.3 I have the right to access, correct, or withdraw consent.\n' +
+      '15. I consent to Lumina Auto sharing my information strictly for reporting to authorities, eNatis registration, and rendering requested financial services.',
+  },
+];
 
 export const generateOTP = (data: OTPData) => {
   const doc = new jsPDF();
-  
-  // Colors
-  const primaryColor: [number, number, number] = [212, 175, 55]; // Gold
-  const textColor: [number, number, number] = [26, 26, 26];
-  const mutedColor: [number, number, number] = [102, 102, 102];
-  
-  let yPos = 15;
+  const primary: [number, number, number] = [212, 175, 55];
+  const text: [number, number, number] = [26, 26, 26];
+  const muted: [number, number, number] = [102, 102, 102];
+
   const leftMargin = 15;
   const rightMargin = 195;
   const pageWidth = 180;
-  
-  // ==================== HEADER ====================
+  let y = 15;
+
+  // HEADER
   doc.setFontSize(22);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...textColor);
-  doc.text('LUMINA AUTO', leftMargin, yPos);
-  
-  yPos += 7;
+  doc.setTextColor(...text);
+  doc.text('LUMINA AUTO', leftMargin, y);
+  y += 6;
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...mutedColor);
-  doc.text('Pretoria, South Africa', leftMargin, yPos);
-  
-  yPos += 4;
-  doc.text('Email: info@luminaauto.co.za | Cell: 068 601 7462', leftMargin, yPos);
-  
-  // Title
-  yPos += 10;
-  doc.setDrawColor(...primaryColor);
+  doc.setTextColor(...muted);
+  doc.text('Pretoria, South Africa', leftMargin, y);
+  y += 4;
+  doc.text('Email: info@luminaauto.co.za  |  Cell: 068 601 7462', leftMargin, y);
+
+  y += 8;
+  doc.setDrawColor(...primary);
   doc.setLineWidth(0.8);
-  doc.line(leftMargin, yPos, rightMargin, yPos);
-  
-  yPos += 8;
+  doc.line(leftMargin, y, rightMargin, y);
+  y += 8;
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...textColor);
-  doc.text('OFFER TO PURCHASE', 105, yPos, { align: 'center' });
-  
-  yPos += 5;
-  doc.setLineWidth(0.5);
-  doc.line(leftMargin, yPos, rightMargin, yPos);
-  
-  // ==================== SECTION 1: CONTACT INFORMATION ====================
-  yPos += 10;
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...primaryColor);
-  doc.text('1. CONTACT INFORMATION', leftMargin, yPos);
-  
-  yPos += 6;
-  doc.setFontSize(9);
+  doc.setTextColor(...text);
+  doc.text('OFFER TO PURCHASE', 105, y, { align: 'center' });
+  y += 4;
+  doc.setLineWidth(0.4);
+  doc.line(leftMargin, y, rightMargin, y);
+
+  // Quote ref / date strip
+  y += 6;
+  doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...textColor);
-  
-  const col1X = leftMargin;
-  const col2X = 110;
-  const lineSpacing = 5;
-  
-  const addGridRow = (label1: string, value1: string, label2: string, value2: string) => {
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...mutedColor);
-    doc.text(`${label1}:`, col1X, yPos);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...textColor);
-    doc.text(value1 || '[TBA]', col1X + 28, yPos);
-    
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...mutedColor);
-    doc.text(`${label2}:`, col2X, yPos);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...textColor);
-    doc.text(value2 || '[TBA]', col2X + 28, yPos);
-    
-    yPos += lineSpacing;
-  };
-  
-  addGridRow('Client Name', data.clientName, 'ID Number', data.idNumber);
-  addGridRow('Address', data.address.slice(0, 35) + (data.address.length > 35 ? '...' : ''), 'Email', data.email);
-  addGridRow('Cell', data.cellPhone, 'Sales Exec', data.salesExecutive);
-  addGridRow('Date', data.date, 'Quote Ref', data.quoteRef);
-  
-  // ==================== SECTION 2: VEHICLE DETAILS ====================
-  yPos += 8;
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...primaryColor);
-  doc.text('2. VEHICLE DETAILS', leftMargin, yPos);
-  
-  yPos += 6;
-  addGridRow('Make & Model', data.makeModel, 'Year', data.year);
-  addGridRow('Reg No', data.regNo, 'VIN', data.vin);
-  addGridRow('Engine No', data.engineNo, 'Mileage', data.mileage);
-  addGridRow('Color', data.color, '', '');
-  
-  // ==================== SECTION 3: FINANCIAL SUMMARY ====================
-  yPos += 8;
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...primaryColor);
-  doc.text('3. FINANCIAL SUMMARY', leftMargin, yPos);
-  
-  yPos += 6;
-  
-  // Calculate VAT breakdown
-  const vatRate = 0.15;
-  const totalIncVAT = data.totalPrice;
-  const extrasTotal = data.extras.reduce((sum, e) => sum + e.amount, 0);
-  const sellingPriceIncVAT = totalIncVAT - extrasTotal - data.adminFee;
-  const sellingPriceExclVAT = sellingPriceIncVAT / (1 + vatRate);
-  const extrasExclVAT = extrasTotal / (1 + vatRate);
-  const adminExclVAT = data.adminFee / (1 + vatRate);
-  const subtotalExclVAT = sellingPriceExclVAT + extrasExclVAT + adminExclVAT;
-  const vatAmount = subtotalExclVAT * vatRate;
-  
-  // Build table data
-  const tableData: (string | { content: string; styles: object })[][] = [
-    ['Selling Price (Excl. VAT)', formatCurrency(sellingPriceExclVAT)],
-  ];
-  
-  // Add extras if any
-  if (data.extras.length > 0) {
-    const extrasText = data.extras.map(e => `${e.description}: ${formatCurrency(e.amount)}`).join(', ');
-    tableData.push(['Extras / Value Added Products', extrasText]);
-  } else {
-    tableData.push(['Extras / Value Added Products', 'None']);
-  }
-  
-  tableData.push(['Admin & Fees', formatCurrency(adminExclVAT)]);
-  tableData.push([{ content: 'Subtotal (Excl. VAT)', styles: { fontStyle: 'bold' } }, formatCurrency(subtotalExclVAT)]);
-  tableData.push(['VAT (15%)', formatCurrency(vatAmount)]);
-  tableData.push([
-    { content: 'TOTAL COST (Incl. VAT)', styles: { fontStyle: 'bold', fillColor: [245, 245, 220] } },
-    { content: formatCurrency(totalIncVAT), styles: { fontStyle: 'bold', fillColor: [245, 245, 220] } }
-  ]);
-  
+  doc.setTextColor(...muted);
+  doc.text(`Quote Ref: ${data.quoteRef}`, leftMargin, y);
+  doc.text(`Date: ${data.date}`, rightMargin, y, { align: 'right' });
+
+  // SECTION 1: CLIENT
+  y += 6;
   autoTable(doc, {
-    startY: yPos,
-    head: [['Description', 'Amount']],
-    body: tableData,
+    startY: y,
+    head: [['1. CLIENT DETAILS', '']],
+    body: [
+      ['Full Name', data.clientName],
+      ['ID Number', data.idNumber],
+      ['Address', data.address],
+      ['Email', data.email],
+      ['Cell', data.cellPhone],
+      ['Sales Executive', data.salesExecutive],
+    ],
     margin: { left: leftMargin },
     tableWidth: pageWidth,
-    headStyles: {
-      fillColor: primaryColor,
-      textColor: [255, 255, 255],
-      fontStyle: 'bold',
-      fontSize: 9,
-    },
-    bodyStyles: {
-      fontSize: 9,
-      textColor: textColor,
-    },
-    alternateRowStyles: {
-      fillColor: [250, 250, 250],
-    },
-    columnStyles: {
-      0: { cellWidth: 100 },
-      1: { cellWidth: 80, halign: 'right' },
-    },
+    headStyles: { fillColor: primary, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 10 },
+    bodyStyles: { fontSize: 9, textColor: text },
+    alternateRowStyles: { fillColor: [250, 250, 250] },
+    columnStyles: { 0: { cellWidth: 60, fontStyle: 'bold' }, 1: { cellWidth: 120 } },
   });
-  
-  yPos = (doc as any).lastAutoTable.finalY + 12;
-  
-  // ==================== SECTION 4: SIGNATURES ====================
-  doc.setFontSize(11);
+  y = (doc as any).lastAutoTable.finalY + 6;
+
+  // SECTION 2: VEHICLE
+  autoTable(doc, {
+    startY: y,
+    head: [['2. VEHICLE DETAILS', '']],
+    body: [
+      ['Make', data.make],
+      ['Model', data.model],
+      ['Year', data.year],
+      ['Reg No', data.regNo],
+      ['Colour', data.colorVal],
+      ['VIN No', data.vin],
+      ['Engine No', data.engineNo],
+      ['Mileage', data.mileage],
+    ],
+    margin: { left: leftMargin },
+    tableWidth: pageWidth,
+    headStyles: { fillColor: primary, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 10 },
+    bodyStyles: { fontSize: 9, textColor: text },
+    alternateRowStyles: { fillColor: [250, 250, 250] },
+    columnStyles: { 0: { cellWidth: 60, fontStyle: 'bold' }, 1: { cellWidth: 120 } },
+  });
+  y = (doc as any).lastAutoTable.finalY + 6;
+
+  // SECTION 3: FINANCIAL
+  const subtotal = data.basePrice + data.extrasPrice + data.vapPrice + data.adminFee;
+  const vat = subtotal * 0.15;
+  const total = subtotal + vat;
+
+  autoTable(doc, {
+    startY: y,
+    head: [['3. FINANCIAL SUMMARY', 'Amount']],
+    body: [
+      ['Base Vehicle Price', fmt(data.basePrice)],
+      ['Extras', fmt(data.extrasPrice)],
+      ['Value Added Products', fmt(data.vapPrice)],
+      ['Administration Fee', fmt(data.adminFee)],
+      [{ content: 'Vatable Subtotal', styles: { fontStyle: 'bold' } }, { content: fmt(subtotal), styles: { fontStyle: 'bold' } }],
+      ['VAT (15%)', fmt(vat)],
+      [
+        { content: 'TOTAL BALANCE PAYABLE', styles: { fontStyle: 'bold', fillColor: [245, 235, 200] } },
+        { content: fmt(total), styles: { fontStyle: 'bold', fillColor: [245, 235, 200], halign: 'right' } },
+      ],
+    ],
+    margin: { left: leftMargin },
+    tableWidth: pageWidth,
+    headStyles: { fillColor: primary, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 10 },
+    bodyStyles: { fontSize: 9, textColor: text },
+    columnStyles: { 0: { cellWidth: 110 }, 1: { cellWidth: 70, halign: 'right' } },
+  });
+  y = (doc as any).lastAutoTable.finalY + 12;
+
+  // SIGNATURES
+  if (y > 250) { doc.addPage(); y = 20; }
+  doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...primaryColor);
-  doc.text('4. SIGNATURES', leftMargin, yPos);
-  
-  yPos += 8;
+  doc.setTextColor(...primary);
+  doc.text('SIGNATURES', leftMargin, y);
+  y += 6;
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...textColor);
-  doc.text(`Signed at ${data.signedPlace || '[PLACE]'} on ${data.date || '[DATE]'}`, leftMargin, yPos);
-  
-  yPos += 12;
-  
-  // Purchaser signature
-  doc.text('Purchaser:', leftMargin, yPos);
-  yPos += 8;
-  doc.setDrawColor(...mutedColor);
+  doc.setTextColor(...text);
+  doc.text(`Signed at ${data.signedPlace} on ${data.date}`, leftMargin, y);
+  y += 14;
+  doc.setDrawColor(...muted);
   doc.setLineWidth(0.3);
-  doc.line(leftMargin, yPos, leftMargin + 70, yPos);
-  yPos += 4;
-  doc.setFontSize(7);
-  doc.text('(Signature)', leftMargin, yPos);
-  doc.setFontSize(9);
-  
-  // Lumina Representative signature
-  const repX = 110;
-  doc.text('Lumina Representative:', repX, yPos - 12);
-  doc.line(repX, yPos - 4, repX + 70, yPos - 4);
-  doc.setFontSize(7);
-  doc.text('(Signature)', repX, yPos);
-  
-  // ==================== SECTION 5: CONDITIONS OF OFFER ====================
-  yPos += 15;
-  doc.setFontSize(11);
+  doc.line(leftMargin, y, leftMargin + 75, y);
+  doc.line(110, y, 110 + 75, y);
+  y += 4;
+  doc.setFontSize(8);
+  doc.setTextColor(...muted);
+  doc.text('Client Signature', leftMargin, y);
+  doc.text('Sales Executive Signature', 110, y);
+
+  // ============ PAGE 2+: TERMS ============
+  doc.addPage();
+  y = 20;
+  doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...primaryColor);
-  doc.text('5. CONDITIONS OF OFFER', leftMargin, yPos);
-  
-  yPos += 6;
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...mutedColor);
-  
-  const termsText = `DEFINITIONS: "I" or "Purchaser" refers to the person whose details appear above. "Lumina" refers to Lumina Auto (Pty) Ltd and its authorized representatives.
+  doc.setTextColor(...text);
+  doc.text('CONDITIONS OF OFFER — ALL VEHICLE SALES', 105, y, { align: 'center' });
+  y += 4;
+  doc.setDrawColor(...primary);
+  doc.setLineWidth(0.5);
+  doc.line(leftMargin, y, rightMargin, y);
+  y += 8;
 
-RISK: All risk in and to the vehicle shall pass to the Purchaser upon delivery of the vehicle, irrespective of when ownership passes.
-
-OWNERSHIP: Ownership of the vehicle shall remain with Lumina Auto until the full purchase price and all other amounts due have been paid in full.
-
-ACCEPTANCE: This Offer to Purchase is subject to acceptance by Lumina Auto. The sale is concluded only upon written acceptance by Lumina.
-
-DEPOSIT: Any deposit paid is non-refundable should the Purchaser withdraw from this agreement after acceptance by Lumina.
-
-WARRANTY: The vehicle is sold voetstoots (as is) unless otherwise specified in writing. Any warranties are as per the Consumer Protection Act where applicable.
-
-POPIA CONSENT: I hereby consent to Lumina Auto processing my personal information for the purposes of this transaction and related communications, in accordance with the Protection of Personal Information Act (POPIA).
-
-ENTIRE AGREEMENT: This document constitutes the entire agreement between the parties. No amendments shall be valid unless in writing and signed by both parties.`;
-  
-  const lines = doc.splitTextToSize(termsText, pageWidth);
-  lines.forEach((line: string) => {
-    if (yPos > 280) {
+  OTP_TERMS.forEach((section) => {
+    // Heading
+    const bodyLines = doc.splitTextToSize(section.body, pageWidth);
+    const blockHeight = 5 + bodyLines.length * 3.2 + 4;
+    if (y + blockHeight > 285) {
       doc.addPage();
-      yPos = 20;
+      y = 20;
     }
-    doc.text(line, leftMargin, yPos);
-    yPos += 3;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...primary);
+    doc.text(section.heading, leftMargin, y);
+    y += 4;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...text);
+    bodyLines.forEach((line: string) => {
+      if (y > 285) { doc.addPage(); y = 20; }
+      doc.text(line, leftMargin, y);
+      y += 3.2;
+    });
+    y += 3;
   });
-  
-  // Footer
-  yPos = 287;
+
+  // Acknowledgement
+  if (y > 260) { doc.addPage(); y = 20; }
+  y += 6;
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...text);
+  doc.text('ACKNOWLEDGEMENT', leftMargin, y);
+  y += 4;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  const ack = doc.splitTextToSize(
+    'I confirm I have read, understood and agree to be bound by the Conditions of Offer set out above and consent to the processing of my personal information in accordance with POPIA.',
+    pageWidth,
+  );
+  ack.forEach((line: string) => { doc.text(line, leftMargin, y); y += 3.2; });
+  y += 10;
+  doc.setDrawColor(...muted);
+  doc.line(leftMargin, y, leftMargin + 75, y);
+  doc.line(110, y, 110 + 75, y);
+  y += 4;
   doc.setFontSize(7);
-  doc.setTextColor(...mutedColor);
-  doc.text('This document is generated by Lumina Auto. For queries, contact info@luminaauto.co.za', 105, yPos, { align: 'center' });
-  
-  // Save
-  const fileName = `OTP_${data.clientName.replace(/\s+/g, '_')}_${data.quoteRef || 'DRAFT'}.pdf`;
-  doc.save(fileName);
+  doc.setTextColor(...muted);
+  doc.text('Purchaser Signature & Date', leftMargin, y);
+  doc.text('Lumina Auto Representative', 110, y);
+
+  // Footer on every page
+  const pageCount = (doc as any).internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(7);
+    doc.setTextColor(...muted);
+    doc.text(`Lumina Auto  •  Offer to Purchase  •  ${data.quoteRef}`, 105, 292, { align: 'center' });
+    doc.text(`Page ${i} of ${pageCount}`, rightMargin, 292, { align: 'right' });
+  }
+
+  doc.save(`OTP_${data.clientName.replace(/\s+/g, '_')}_${data.quoteRef}.pdf`);
 };
