@@ -771,6 +771,28 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
           </DialogContent>
         </Dialog>
       </SheetContent>
+      <OTPModal
+        open={otpOpen}
+        onOpenChange={setOtpOpen}
+        applicationData={otpApp ? {
+          clientName: `${otpApp.first_name || ''} ${otpApp.last_name || ''}`.trim() || otpApp.full_name,
+          idNumber: otpApp.id_number || '',
+          address: otpApp.street_address || '',
+          email: otpApp.email || '',
+          phone: otpApp.phone || '',
+        } : undefined}
+        vehicleData={otpVehicle ? {
+          make: otpVehicle.make,
+          model: otpVehicle.model,
+          variant: otpVehicle.variant || undefined,
+          year: otpVehicle.year,
+          vin: otpVehicle.vin || undefined,
+          engineCode: otpVehicle.engine_code || undefined,
+          mileage: otpVehicle.mileage,
+          color: otpVehicle.color || undefined,
+          price: otpVehicle.price,
+        } : undefined}
+      />
     </Sheet>
   );
 }
