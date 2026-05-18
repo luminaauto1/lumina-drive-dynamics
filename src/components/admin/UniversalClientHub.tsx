@@ -15,6 +15,8 @@ import { toast } from 'sonner';
 import { Clock, Car, User, FileText, Calculator, Copy, Check, Plus, X, Eye, Trophy, Trash2, Phone, Brain, Wallet, CalendarClock, AlertOctagon, Banknote, Fingerprint, Briefcase } from 'lucide-react';
 import { formatPrice } from '@/lib/formatters';
 import LiveCallCopilot from './LiveCallCopilot';
+import OTPModal from './OTPModal';
+import { FileSignature } from 'lucide-react';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -39,6 +41,24 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
   const [logs, setLogs] = useState<any[]>([]);
   const [activeApps, setActiveApps] = useState<any[]>([]);
   const [pastDeals, setPastDeals] = useState<any[]>([]);
+  const [otpOpen, setOtpOpen] = useState(false);
+  const [otpApp, setOtpApp] = useState<any | null>(null);
+  const [otpVehicle, setOtpVehicle] = useState<any | null>(null);
+
+  const openOtpForApp = useCallback(async (app: any) => {
+    setOtpApp(app);
+    setOtpVehicle(null);
+    const vid = app?.selected_vehicle_id || app?.vehicle_id;
+    if (vid) {
+      const { data } = await supabase
+        .from('vehicles')
+        .select('make,model,variant,year,vin,engine_code,mileage,color,price')
+        .eq('id', vid)
+        .maybeSingle();
+      if (data) setOtpVehicle(data);
+    }
+    setOtpOpen(true);
+  }, []);
   const [leads, setLeads] = useState<any[]>([]);
   const [newNote, setNewNote] = useState('');
   const [phoneCopied, setPhoneCopied] = useState(false);
@@ -472,6 +492,15 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
                       </>
                     );
                   })()}
+                  <div className="mt-3 flex">
+                    <Button
+                      onClick={() => openOtpForApp(app)}
+                      size="sm"
+                      className="h-7 px-2.5 text-[10px] gap-1.5 bg-amber-500 hover:bg-amber-600 text-black font-semibold"
+                    >
+                      <FileSignature className="w-3 h-3" /> Generate OTP
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -751,6 +780,28 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
           </DialogContent>
         </Dialog>
       </SheetContent>
+      <OTPModal
+        open={otpOpen}
+        onOpenChange={setOtpOpen}
+        applicationData={otpApp ? {
+          clientName: `${otpApp.first_name || ''} ${otpApp.last_name || ''}`.trim() || otpApp.full_name,
+          idNumber: otpApp.id_number || '',
+          address: otpApp.street_address || '',
+          email: otpApp.email || '',
+          phone: otpApp.phone || '',
+        } : undefined}
+        vehicleData={otpVehicle ? {
+          make: otpVehicle.make,
+          model: otpVehicle.model,
+          variant: otpVehicle.variant || undefined,
+          year: otpVehicle.year,
+          vin: otpVehicle.vin || undefined,
+          engineCode: otpVehicle.engine_code || undefined,
+          mileage: otpVehicle.mileage,
+          color: otpVehicle.color || undefined,
+          price: otpVehicle.price,
+        } : undefined}
+      />
     </Sheet>
   );
 }
