@@ -41,6 +41,24 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
   const [logs, setLogs] = useState<any[]>([]);
   const [activeApps, setActiveApps] = useState<any[]>([]);
   const [pastDeals, setPastDeals] = useState<any[]>([]);
+  const [otpOpen, setOtpOpen] = useState(false);
+  const [otpApp, setOtpApp] = useState<any | null>(null);
+  const [otpVehicle, setOtpVehicle] = useState<any | null>(null);
+
+  const openOtpForApp = useCallback(async (app: any) => {
+    setOtpApp(app);
+    setOtpVehicle(null);
+    const vid = app?.selected_vehicle_id || app?.vehicle_id;
+    if (vid) {
+      const { data } = await supabase
+        .from('vehicles')
+        .select('make,model,variant,year,vin,engine_code,mileage,color,price')
+        .eq('id', vid)
+        .maybeSingle();
+      if (data) setOtpVehicle(data);
+    }
+    setOtpOpen(true);
+  }, []);
   const [leads, setLeads] = useState<any[]>([]);
   const [newNote, setNewNote] = useState('');
   const [phoneCopied, setPhoneCopied] = useState(false);
