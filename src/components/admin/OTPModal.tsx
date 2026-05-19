@@ -42,8 +42,7 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData }: OTPModal
   const [email, setEmail] = useState('');
   const [cellPhone, setCellPhone] = useState('');
   const [salesExecutive, setSalesExecutive] = useState('Albert');
-  const [signedPlace, setSignedPlace] = useState('Pretoria');
-  const [deliveryPlace, setDeliveryPlace] = useState('Lumina Auto, Pretoria');
+  const [signedPlace, setSignedPlace] = useState('Lumina Auto, Pretoria');
 
   // Vehicle
   const [make, setMake] = useState('');
@@ -114,7 +113,6 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData }: OTPModal
       vapPrice,
       adminFee,
       signedPlace,
-      deliveryPlace,
     };
     generateOTP(data);
     toast.success('OTP PDF downloaded');
@@ -146,8 +144,7 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData }: OTPModal
                 <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Email</Label><Input value={email} onChange={e=>setEmail(e.target.value)} className="bg-zinc-900 border-zinc-800"/></div>
                 <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Cell Phone</Label><Input value={cellPhone} onChange={e=>setCellPhone(e.target.value)} className="bg-zinc-900 border-zinc-800"/></div>
                 <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Sales Executive</Label><Input value={salesExecutive} onChange={e=>setSalesExecutive(e.target.value)} className="bg-zinc-900 border-zinc-800"/></div>
-                <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Signed at (where client signs OTP)</Label><Input value={signedPlace} onChange={e=>setSignedPlace(e.target.value)} className="bg-zinc-900 border-zinc-800"/></div>
-                <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Delivery Location</Label><Input value={deliveryPlace} onChange={e=>setDeliveryPlace(e.target.value)} className="bg-zinc-900 border-zinc-800"/></div>
+                <div className="space-y-1.5 col-span-2"><Label className="text-xs text-zinc-400">Place of Signing / Delivery</Label><Input value={signedPlace} onChange={e=>setSignedPlace(e.target.value)} placeholder="e.g. Client home – 12 Oak Ave, Sandton" className="bg-zinc-900 border-zinc-800"/></div>
               </div>
             </div>
 
