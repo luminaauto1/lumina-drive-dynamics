@@ -113,7 +113,6 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData }: OTPModal
       vapPrice,
       adminFee,
       signedPlace,
-      deliveryPlace,
     };
     generateOTP(data);
     toast.success('OTP PDF downloaded');
