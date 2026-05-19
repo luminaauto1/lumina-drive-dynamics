@@ -83,9 +83,10 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData }: OTPModal
     }
   }, [applicationData, vehicleData, open]);
 
-  const vatableSubtotal = basePrice + extrasPrice + vapPrice + adminFee;
-  const vatAmount = vatableSubtotal * 0.15;
-  const totalPayable = vatableSubtotal + vatAmount;
+  // All entered amounts are VAT-inclusive
+  const totalPayable = basePrice + extrasPrice + vapPrice + adminFee;
+  const vatAmount = totalPayable * (15 / 115);
+  const vatableSubtotal = totalPayable - vatAmount;
 
   const fmt = (n: number) => `R ${n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -168,7 +169,7 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData }: OTPModal
 
             {/* Financial */}
             <div>
-              <h3 className="font-semibold text-xs uppercase tracking-wider text-amber-400 mb-3">3. Pricing (excl. VAT inputs)</h3>
+              <h3 className="font-semibold text-xs uppercase tracking-wider text-amber-400 mb-3">3. Pricing (VAT-inclusive inputs)</h3>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Base Vehicle Price</Label><Input type="number" value={basePrice} onChange={e=>setBasePrice(parseFloat(e.target.value)||0)} className="bg-zinc-900 border-zinc-800"/></div>
                 <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Extras Price</Label><Input type="number" value={extrasPrice} onChange={e=>setExtrasPrice(parseFloat(e.target.value)||0)} className="bg-zinc-900 border-zinc-800"/></div>
@@ -177,10 +178,10 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData }: OTPModal
               </div>
 
               <div className="mt-4 p-4 bg-zinc-900/60 border border-zinc-800 rounded-lg space-y-2">
-                <div className="flex justify-between text-sm text-zinc-400"><span>Vatable Subtotal</span><span className="font-mono text-zinc-200">{fmt(vatableSubtotal)}</span></div>
-                <div className="flex justify-between text-sm text-zinc-400"><span>VAT (15%)</span><span className="font-mono text-zinc-200">{fmt(vatAmount)}</span></div>
+                <div className="flex justify-between text-sm text-zinc-400"><span>Subtotal (excl. VAT)</span><span className="font-mono text-zinc-200">{fmt(vatableSubtotal)}</span></div>
+                <div className="flex justify-between text-sm text-zinc-400"><span>VAT (15%) included</span><span className="font-mono text-zinc-200">{fmt(vatAmount)}</span></div>
                 <Separator className="bg-zinc-800 my-2"/>
-                <div className="flex justify-between items-center"><span className="font-semibold text-zinc-100">Total Balance Payable</span><span className="text-xl font-bold text-amber-400 font-mono">{fmt(totalPayable)}</span></div>
+                <div className="flex justify-between items-center"><span className="font-semibold text-zinc-100">Total Balance Payable (incl. VAT)</span><span className="text-xl font-bold text-amber-400 font-mono">{fmt(totalPayable)}</span></div>
               </div>
             </div>
           </div>
