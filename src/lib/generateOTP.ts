@@ -116,21 +116,20 @@ export const generateOTP = (data: OTPData) => {
   let y = 14;
 
   // HEADER — compact
-  doc.setFontSize(18);
+  doc.setFontSize(15);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...text);
   doc.text('MAKHULU HOLDINGS (PTY) LTD', leftMargin, y);
-  doc.setFontSize(8.5);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'italic');
+  doc.setTextColor(...primary);
+  doc.text('t/a Lumina Auto', leftMargin, y + 5);
+  doc.setFontSize(7.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...muted);
-  doc.text('t/a Lumina Auto', leftMargin, y + 4);
-  y += 4;
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...muted);
-  doc.text('Pretoria, South Africa  •  info@luminaauto.co.za  •  068 601 7462', leftMargin, y + 4);
+  doc.text('Pretoria, South Africa  •  info@luminaauto.co.za  •  068 601 7462', leftMargin, y + 10);
 
-  y += 8;
+  y += 14;
   doc.setDrawColor(...primary);
   doc.setLineWidth(0.6);
   doc.line(leftMargin, y, rightMargin, y);
