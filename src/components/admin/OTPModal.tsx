@@ -178,10 +178,10 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData }: OTPModal
               </div>
 
               <div className="mt-4 p-4 bg-zinc-900/60 border border-zinc-800 rounded-lg space-y-2">
-                <div className="flex justify-between text-sm text-zinc-400"><span>Vatable Subtotal</span><span className="font-mono text-zinc-200">{fmt(vatableSubtotal)}</span></div>
-                <div className="flex justify-between text-sm text-zinc-400"><span>VAT (15%)</span><span className="font-mono text-zinc-200">{fmt(vatAmount)}</span></div>
+                <div className="flex justify-between text-sm text-zinc-400"><span>Subtotal (excl. VAT)</span><span className="font-mono text-zinc-200">{fmt(vatableSubtotal)}</span></div>
+                <div className="flex justify-between text-sm text-zinc-400"><span>VAT (15%) included</span><span className="font-mono text-zinc-200">{fmt(vatAmount)}</span></div>
                 <Separator className="bg-zinc-800 my-2"/>
-                <div className="flex justify-between items-center"><span className="font-semibold text-zinc-100">Total Balance Payable</span><span className="text-xl font-bold text-amber-400 font-mono">{fmt(totalPayable)}</span></div>
+                <div className="flex justify-between items-center"><span className="font-semibold text-zinc-100">Total Balance Payable (incl. VAT)</span><span className="text-xl font-bold text-amber-400 font-mono">{fmt(totalPayable)}</span></div>
               </div>
             </div>
           </div>
