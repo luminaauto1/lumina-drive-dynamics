@@ -83,9 +83,10 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData }: OTPModal
     }
   }, [applicationData, vehicleData, open]);
 
-  const vatableSubtotal = basePrice + extrasPrice + vapPrice + adminFee;
-  const vatAmount = vatableSubtotal * 0.15;
-  const totalPayable = vatableSubtotal + vatAmount;
+  // All entered amounts are VAT-inclusive
+  const totalPayable = basePrice + extrasPrice + vapPrice + adminFee;
+  const vatAmount = totalPayable * (15 / 115);
+  const vatableSubtotal = totalPayable - vatAmount;
 
   const fmt = (n: number) => `R ${n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
