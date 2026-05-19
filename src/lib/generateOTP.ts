@@ -29,6 +29,7 @@ export interface OTPData {
   adminFee: number;
 
   signedPlace: string;
+  deliveryPlace?: string;
 }
 
 const fmt = (n: number): string =>
