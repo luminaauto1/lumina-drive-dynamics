@@ -119,7 +119,12 @@ export const generateOTP = (data: OTPData) => {
   doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...text);
-  doc.text('LUMINA AUTO', leftMargin, y);
+  doc.text('MAKHULU HOLDINGS (PTY) LTD', leftMargin, y);
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...muted);
+  doc.text('t/a Lumina Auto', leftMargin, y + 4);
+  y += 4;
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...muted);
