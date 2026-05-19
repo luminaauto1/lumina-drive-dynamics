@@ -43,6 +43,7 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData }: OTPModal
   const [cellPhone, setCellPhone] = useState('');
   const [salesExecutive, setSalesExecutive] = useState('Albert');
   const [signedPlace, setSignedPlace] = useState('Pretoria');
+  const [deliveryPlace, setDeliveryPlace] = useState('Lumina Auto, Pretoria');
 
   // Vehicle
   const [make, setMake] = useState('');
