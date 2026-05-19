@@ -198,23 +198,23 @@ export const generateOTP = (data: OTPData) => {
   });
   y = (doc as any).lastAutoTable.finalY + 3;
 
-  // SECTION 3: FINANCIAL
-  const subtotal = data.basePrice + data.extrasPrice + data.vapPrice + data.adminFee;
-  const vat = subtotal * 0.15;
-  const total = subtotal + vat;
+  // SECTION 3: FINANCIAL — all inputs are VAT-inclusive
+  const total = data.basePrice + data.extrasPrice + data.vapPrice + data.adminFee;
+  const vat = total * (15 / 115);
+  const excl = total - vat;
 
   autoTable(doc, {
     startY: y,
-    head: [['FINANCIAL SUMMARY', 'Amount']],
+    head: [['FINANCIAL SUMMARY (VAT inclusive)', 'Amount']],
     body: [
-      ['Base Vehicle Price', fmt(data.basePrice)],
-      ['Extras', fmt(data.extrasPrice)],
-      ['Value Added Products', fmt(data.vapPrice)],
-      ['Administration Fee', fmt(data.adminFee)],
-      [{ content: 'Vatable Subtotal', styles: { fontStyle: 'bold' } }, { content: fmt(subtotal), styles: { fontStyle: 'bold', halign: 'right' } }],
+      ['Base Vehicle Price (incl. VAT)', fmt(data.basePrice)],
+      ['Extras (incl. VAT)', fmt(data.extrasPrice)],
+      ['Value Added Products (incl. VAT)', fmt(data.vapPrice)],
+      ['Administration Fee (incl. VAT)', fmt(data.adminFee)],
+      [{ content: 'Subtotal (excl. VAT)', styles: { fontStyle: 'bold' } }, { content: fmt(excl), styles: { fontStyle: 'bold', halign: 'right' } }],
       ['VAT (15%)', { content: fmt(vat), styles: { halign: 'right' } }],
       [
-        { content: 'TOTAL BALANCE PAYABLE', styles: { fontStyle: 'bold', fillColor: [240, 230, 195] } },
+        { content: 'TOTAL BALANCE PAYABLE (incl. VAT)', styles: { fontStyle: 'bold', fillColor: [240, 230, 195] } },
         { content: fmt(total), styles: { fontStyle: 'bold', fillColor: [240, 230, 195], halign: 'right' } },
       ],
     ],
