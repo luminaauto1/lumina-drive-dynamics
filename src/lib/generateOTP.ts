@@ -237,11 +237,7 @@ export const generateOTP = (data: OTPData) => {
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...text);
-  doc.text(`Signed at ${data.signedPlace} on ${data.date}`, leftMargin, y);
-  if (data.deliveryPlace) {
-    y += 4;
-    doc.text(`Delivery Location: ${data.deliveryPlace}`, leftMargin, y);
-  }
+  doc.text(`Signed and delivered at ${data.signedPlace} on ${data.date}`, leftMargin, y);
   y += 11;
   doc.setDrawColor(...muted);
   doc.setLineWidth(0.3);
