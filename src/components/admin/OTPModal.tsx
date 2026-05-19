@@ -169,7 +169,7 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData }: OTPModal
 
             {/* Financial */}
             <div>
-              <h3 className="font-semibold text-xs uppercase tracking-wider text-amber-400 mb-3">3. Pricing (excl. VAT inputs)</h3>
+              <h3 className="font-semibold text-xs uppercase tracking-wider text-amber-400 mb-3">3. Pricing (VAT-inclusive inputs)</h3>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Base Vehicle Price</Label><Input type="number" value={basePrice} onChange={e=>setBasePrice(parseFloat(e.target.value)||0)} className="bg-zinc-900 border-zinc-800"/></div>
                 <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Extras Price</Label><Input type="number" value={extrasPrice} onChange={e=>setExtrasPrice(parseFloat(e.target.value)||0)} className="bg-zinc-900 border-zinc-800"/></div>
