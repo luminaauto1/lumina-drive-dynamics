@@ -357,7 +357,7 @@ export const generateOTP = (data: OTPData) => {
     doc.setPage(i);
     doc.setFontSize(6.5);
     doc.setTextColor(...muted);
-    doc.text(`Lumina Auto  •  Offer to Purchase  •  ${data.quoteRef}`, 105, 292, { align: 'center' });
+    doc.text(`Makhulu Holdings (Pty) Ltd t/a Lumina Auto  •  Offer to Purchase  •  ${data.quoteRef}`, 105, 292, { align: 'center' });
     doc.text(`Page ${i} of ${pageCount}`, rightMargin, 292, { align: 'right' });
   }
 
