@@ -485,9 +485,84 @@ const AdminCreateApplication = () => {
                 className="space-y-6"
               >
                 <h2 className="text-xl font-semibold mb-4">Client Contact Information</h2>
+
+                {/* Existing Client Lookup */}
+                <div className="space-y-2 mb-6 p-4 rounded-lg border border-border bg-muted/30">
+                  <Label>Link Existing Client (Optional)</Label>
+                  <div className="flex gap-2">
+                    <Popover open={lookupOpen} onOpenChange={setLookupOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={lookupOpen}
+                          className="flex-1 justify-between font-normal"
+                          disabled={isHydrating}
+                        >
+                          {linkedClient ? (
+                            <span className="flex items-center gap-2 truncate">
+                              <Badge variant="secondary" className="shrink-0">Linked</Badge>
+                              <span className="truncate">{linkedClient.full_name || linkedClient.email}</span>
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">
+                              {isHydrating ? 'Loading client data…' : 'Search by name, email or phone…'}
+                            </span>
+                          )}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                        <Command
+                          filter={(value, search) => {
+                            return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
+                          }}
+                        >
+                          <CommandInput placeholder="Type name, email or phone…" />
+                          <CommandList>
+                            <CommandEmpty>No matching clients.</CommandEmpty>
+                            <CommandGroup>
+                              {clientOptions.map((c) => {
+                                const label = `${c.full_name || ''} ${c.email} ${c.phone || ''}`.trim();
+                                return (
+                                  <CommandItem
+                                    key={c.email}
+                                    value={label}
+                                    onSelect={() => hydrateFromClient(c)}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        'mr-2 h-4 w-4',
+                                        linkedClient?.email === c.email ? 'opacity-100' : 'opacity-0',
+                                      )}
+                                    />
+                                    <div className="flex flex-col">
+                                      <span className="text-sm">{c.full_name || '(No name)'}</span>
+                                      <span className="text-xs text-muted-foreground">{c.email}{c.phone ? ` • ${c.phone}` : ''}</span>
+                                    </div>
+                                  </CommandItem>
+                                );
+                              })}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    {linkedClient && (
+                      <Button variant="ghost" size="icon" onClick={clearLinkedClient} title="Clear selection & reset form">
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Select a returning client to pre-fill the form. A new application will still be created and linked to their existing profile. All fields remain editable.
+                  </p>
+                </div>
+
                 <p className="text-sm text-muted-foreground mb-4">
                   Enter the client's email and phone. This will be used to link the application to their account if they have one.
                 </p>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="client_email">Client Email *</Label>
