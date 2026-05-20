@@ -313,6 +313,14 @@ const AdminCreateApplication = () => {
         toast.info(`Existing client found: ${existingProfile.full_name || 'Unknown'}. Application will be linked to their profile.`);
       }
 
+      // If admin linked an existing client, the looked-up profile email MUST match
+      // the form email — otherwise we'd silently attach this app to the wrong client.
+      if (linkedClient && linkedClient.email !== formData.client_email.toLowerCase().trim()) {
+        toast.error('Linked client email no longer matches the form email. Clear the selection or restore the original email.');
+        setIsSubmitting(false);
+        return;
+      }
+
       // Use existing user_id if found, otherwise use shadow ID for admin-created applications
       const userId = existingProfile?.user_id || '00000000-0000-0000-0000-000000000000';
 
