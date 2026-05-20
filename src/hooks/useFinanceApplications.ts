@@ -335,6 +335,7 @@ export const useUpdateFinanceApplication = () => {
               first_name: currentApp?.first_name || null,
               last_name: currentApp?.last_name || null,
               client_phone: currentApp?.phone || null,
+              bank_reference_code: (currentApp as any)?.bank_reference_code || null,
               fni_notes: currentApp?.notes || null,
             },
           }).then(({ error: paErr }) => {
