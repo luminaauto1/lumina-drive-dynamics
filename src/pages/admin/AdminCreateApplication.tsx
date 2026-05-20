@@ -12,6 +12,9 @@ import {
   Wallet,
   Shield,
   UserPlus,
+  Check,
+  ChevronsUpDown,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +23,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import AdminLayout from '@/components/admin/AdminLayout';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import { supabase } from '@/integrations/supabase/client';
