@@ -116,9 +116,103 @@ const AdminCreateApplication = () => {
     }
   }, [prefillData]);
 
+  // Load distinct existing clients (most recent application per email)
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase
+        .from('finance_applications')
+        .select('id, email, full_name, phone, created_at')
+        .order('created_at', { ascending: false })
+        .limit(1000);
+      if (error) {
+        console.warn('Client lookup load failed:', error.message);
+        return;
+      }
+      const seen = new Set<string>();
+      const unique: ClientOption[] = [];
+      for (const row of data || []) {
+        const email = (row.email || '').toLowerCase().trim();
+        if (!email || seen.has(email)) continue;
+        seen.add(email);
+        unique.push({
+          email,
+          full_name: row.full_name,
+          phone: row.phone,
+          latest_application_id: row.id,
+        });
+      }
+      setClientOptions(unique);
+    })();
+  }, []);
+
+  const hydrateFromClient = async (client: ClientOption) => {
+    setIsHydrating(true);
+    try {
+      const { data, error } = await supabase
+        .from('finance_applications')
+        .select('*')
+        .eq('id', client.latest_application_id)
+        .maybeSingle();
+      if (error || !data) {
+        toast.error('Could not load client data');
+        return;
+      }
+      setFormData((prev) => ({
+        ...prev,
+        client_email: (data.email || '').toLowerCase(),
+        client_phone: data.phone || '',
+        first_name: data.first_name || (data.full_name || '').split(' ')[0] || '',
+        last_name: data.last_name || (data.full_name || '').split(' ').slice(1).join(' ') || '',
+        id_number: data.id_number || '',
+        marital_status: data.marital_status || '',
+        gender: data.gender || '',
+        qualification: data.qualification || '',
+        street_address: data.street_address || '',
+        area_code: data.area_code || '',
+        employer_name: data.employer_name || '',
+        job_title: data.job_title || '',
+        employment_period: data.employment_period || '',
+        kin_name: data.kin_name || '',
+        kin_contact: data.kin_contact || '',
+        bank_name: data.bank_name || '',
+        account_type: data.account_type || '',
+        account_number: data.account_number || '',
+        gross_salary: data.gross_salary != null ? String(data.gross_salary) : '',
+        net_salary: data.net_salary != null ? String(data.net_salary) : '',
+        expenses_summary: data.expenses_summary || '',
+        has_drivers_license: data.has_drivers_license === true ? 'yes' : data.has_drivers_license === false ? 'no' : '',
+        credit_score_status: data.credit_score_status || '',
+        preferred_vehicle_text: '',
+        popia_consent: false,
+        admin_notes: '',
+      }));
+      setLinkedClient(client);
+      setLookupOpen(false);
+      toast.success(`Loaded data for ${client.full_name || client.email}. All fields are editable.`);
+    } finally {
+      setIsHydrating(false);
+    }
+  };
+
+  const clearLinkedClient = () => {
+    setLinkedClient(null);
+    setFormData({
+      client_email: '', client_phone: '', first_name: '', last_name: '',
+      id_number: '', marital_status: '', gender: '', qualification: '',
+      street_address: '', area_code: '', employer_name: '', job_title: '',
+      employment_period: '', kin_name: '', kin_contact: '',
+      bank_name: '', account_type: '', account_number: '',
+      gross_salary: '', net_salary: '', expenses_summary: '',
+      popia_consent: false, preferred_vehicle_text: '',
+      has_drivers_license: '', credit_score_status: '', admin_notes: '',
+    });
+    toast.info('Form reset');
+  };
+
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
+
 
   const validateStep = (step: number): boolean => {
     switch (step) {
