@@ -94,6 +94,7 @@ const planForStatus = (status: string): PlanStep => {
         remove: [PHASE.NEW_LEAD],
       };
     case 'application_submitted':
+    case 'ready_to_submit':
     case 'sent_to_banks':
     case 'revision_submitted':
       return {
