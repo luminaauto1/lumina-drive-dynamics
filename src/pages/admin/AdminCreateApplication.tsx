@@ -48,6 +48,20 @@ const AdminCreateApplication = () => {
   
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Existing client lookup
+  type ClientOption = {
+    email: string;
+    full_name: string | null;
+    phone: string | null;
+    latest_application_id: string;
+  };
+  const [clientOptions, setClientOptions] = useState<ClientOption[]>([]);
+  const [linkedClient, setLinkedClient] = useState<ClientOption | null>(null);
+  const [lookupOpen, setLookupOpen] = useState(false);
+  const [isHydrating, setIsHydrating] = useState(false);
+
+
   
   const [formData, setFormData] = useState({
     // Client Contact (Step 1 - Admin Only)
