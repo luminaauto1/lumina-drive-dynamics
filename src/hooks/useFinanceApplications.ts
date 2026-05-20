@@ -332,6 +332,8 @@ export const useUpdateFinanceApplication = () => {
             headers: publicApiHeaders(),
             body: {
               client_name: clientName,
+              first_name: currentApp?.first_name || null,
+              last_name: currentApp?.last_name || null,
               client_phone: currentApp?.phone || null,
               fni_notes: currentApp?.notes || null,
             },
