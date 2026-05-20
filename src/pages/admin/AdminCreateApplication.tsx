@@ -367,11 +367,21 @@ const AdminCreateApplication = () => {
 
       console.log('Submitting application data:', { ...applicationData, user_id: '[REDACTED]' });
 
+      // HARD GUARD: this flow must always INSERT a brand new finance_applications row.
+      // Never UPDATE the linked client's previous application. We deliberately do NOT
+      // pass an `id` and do NOT use `.upsert()` here.
+      if ('id' in (applicationData as any)) {
+        console.error('Refusing to submit: applicationData unexpectedly contains an id.');
+        toast.error('Internal error: application payload must not contain an id.');
+        setIsSubmitting(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('finance_applications')
         .insert(applicationData as any)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Supabase insert error:', {
