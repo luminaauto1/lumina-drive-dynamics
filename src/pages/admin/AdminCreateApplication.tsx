@@ -12,6 +12,9 @@ import {
   Wallet,
   Shield,
   UserPlus,
+  Check,
+  ChevronsUpDown,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +23,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import AdminLayout from '@/components/admin/AdminLayout';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import { supabase } from '@/integrations/supabase/client';
@@ -41,6 +48,20 @@ const AdminCreateApplication = () => {
   
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Existing client lookup
+  type ClientOption = {
+    email: string;
+    full_name: string | null;
+    phone: string | null;
+    latest_application_id: string;
+  };
+  const [clientOptions, setClientOptions] = useState<ClientOption[]>([]);
+  const [linkedClient, setLinkedClient] = useState<ClientOption | null>(null);
+  const [lookupOpen, setLookupOpen] = useState(false);
+  const [isHydrating, setIsHydrating] = useState(false);
+
+
   
   const [formData, setFormData] = useState({
     // Client Contact (Step 1 - Admin Only)
@@ -95,9 +116,103 @@ const AdminCreateApplication = () => {
     }
   }, [prefillData]);
 
+  // Load distinct existing clients (most recent application per email)
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase
+        .from('finance_applications')
+        .select('id, email, full_name, phone, created_at')
+        .order('created_at', { ascending: false })
+        .limit(1000);
+      if (error) {
+        console.warn('Client lookup load failed:', error.message);
+        return;
+      }
+      const seen = new Set<string>();
+      const unique: ClientOption[] = [];
+      for (const row of data || []) {
+        const email = (row.email || '').toLowerCase().trim();
+        if (!email || seen.has(email)) continue;
+        seen.add(email);
+        unique.push({
+          email,
+          full_name: row.full_name,
+          phone: row.phone,
+          latest_application_id: row.id,
+        });
+      }
+      setClientOptions(unique);
+    })();
+  }, []);
+
+  const hydrateFromClient = async (client: ClientOption) => {
+    setIsHydrating(true);
+    try {
+      const { data, error } = await supabase
+        .from('finance_applications')
+        .select('*')
+        .eq('id', client.latest_application_id)
+        .maybeSingle();
+      if (error || !data) {
+        toast.error('Could not load client data');
+        return;
+      }
+      setFormData((prev) => ({
+        ...prev,
+        client_email: (data.email || '').toLowerCase(),
+        client_phone: data.phone || '',
+        first_name: data.first_name || (data.full_name || '').split(' ')[0] || '',
+        last_name: data.last_name || (data.full_name || '').split(' ').slice(1).join(' ') || '',
+        id_number: data.id_number || '',
+        marital_status: data.marital_status || '',
+        gender: data.gender || '',
+        qualification: data.qualification || '',
+        street_address: data.street_address || '',
+        area_code: data.area_code || '',
+        employer_name: data.employer_name || '',
+        job_title: data.job_title || '',
+        employment_period: data.employment_period || '',
+        kin_name: data.kin_name || '',
+        kin_contact: data.kin_contact || '',
+        bank_name: data.bank_name || '',
+        account_type: data.account_type || '',
+        account_number: data.account_number || '',
+        gross_salary: data.gross_salary != null ? String(data.gross_salary) : '',
+        net_salary: data.net_salary != null ? String(data.net_salary) : '',
+        expenses_summary: data.expenses_summary || '',
+        has_drivers_license: data.has_drivers_license === true ? 'yes' : data.has_drivers_license === false ? 'no' : '',
+        credit_score_status: data.credit_score_status || '',
+        preferred_vehicle_text: '',
+        popia_consent: false,
+        admin_notes: '',
+      }));
+      setLinkedClient(client);
+      setLookupOpen(false);
+      toast.success(`Loaded data for ${client.full_name || client.email}. All fields are editable.`);
+    } finally {
+      setIsHydrating(false);
+    }
+  };
+
+  const clearLinkedClient = () => {
+    setLinkedClient(null);
+    setFormData({
+      client_email: '', client_phone: '', first_name: '', last_name: '',
+      id_number: '', marital_status: '', gender: '', qualification: '',
+      street_address: '', area_code: '', employer_name: '', job_title: '',
+      employment_period: '', kin_name: '', kin_contact: '',
+      bank_name: '', account_type: '', account_number: '',
+      gross_salary: '', net_salary: '', expenses_summary: '',
+      popia_consent: false, preferred_vehicle_text: '',
+      has_drivers_license: '', credit_score_status: '', admin_notes: '',
+    });
+    toast.info('Form reset');
+  };
+
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
+
 
   const validateStep = (step: number): boolean => {
     switch (step) {
@@ -370,9 +485,84 @@ const AdminCreateApplication = () => {
                 className="space-y-6"
               >
                 <h2 className="text-xl font-semibold mb-4">Client Contact Information</h2>
+
+                {/* Existing Client Lookup */}
+                <div className="space-y-2 mb-6 p-4 rounded-lg border border-border bg-muted/30">
+                  <Label>Link Existing Client (Optional)</Label>
+                  <div className="flex gap-2">
+                    <Popover open={lookupOpen} onOpenChange={setLookupOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={lookupOpen}
+                          className="flex-1 justify-between font-normal"
+                          disabled={isHydrating}
+                        >
+                          {linkedClient ? (
+                            <span className="flex items-center gap-2 truncate">
+                              <Badge variant="secondary" className="shrink-0">Linked</Badge>
+                              <span className="truncate">{linkedClient.full_name || linkedClient.email}</span>
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">
+                              {isHydrating ? 'Loading client data…' : 'Search by name, email or phone…'}
+                            </span>
+                          )}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                        <Command
+                          filter={(value, search) => {
+                            return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
+                          }}
+                        >
+                          <CommandInput placeholder="Type name, email or phone…" />
+                          <CommandList>
+                            <CommandEmpty>No matching clients.</CommandEmpty>
+                            <CommandGroup>
+                              {clientOptions.map((c) => {
+                                const label = `${c.full_name || ''} ${c.email} ${c.phone || ''}`.trim();
+                                return (
+                                  <CommandItem
+                                    key={c.email}
+                                    value={label}
+                                    onSelect={() => hydrateFromClient(c)}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        'mr-2 h-4 w-4',
+                                        linkedClient?.email === c.email ? 'opacity-100' : 'opacity-0',
+                                      )}
+                                    />
+                                    <div className="flex flex-col">
+                                      <span className="text-sm">{c.full_name || '(No name)'}</span>
+                                      <span className="text-xs text-muted-foreground">{c.email}{c.phone ? ` • ${c.phone}` : ''}</span>
+                                    </div>
+                                  </CommandItem>
+                                );
+                              })}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    {linkedClient && (
+                      <Button variant="ghost" size="icon" onClick={clearLinkedClient} title="Clear selection & reset form">
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Select a returning client to pre-fill the form. A new application will still be created and linked to their existing profile. All fields remain editable.
+                  </p>
+                </div>
+
                 <p className="text-sm text-muted-foreground mb-4">
                   Enter the client's email and phone. This will be used to link the application to their account if they have one.
                 </p>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="client_email">Client Email *</Label>
