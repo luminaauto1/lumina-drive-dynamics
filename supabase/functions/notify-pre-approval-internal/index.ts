@@ -20,7 +20,7 @@ serve(async (req) => {
   if (guard) return guard;
 
   try {
-    const { client_name, first_name, last_name, client_phone } = await req.json();
+    const { client_name, first_name, last_name, client_phone, bank_reference_code } = await req.json();
 
     // Derive first / last name from whichever fields the caller provided.
     let derivedFirst = (first_name || "").toString().trim();
@@ -34,16 +34,23 @@ serve(async (req) => {
     if (!derivedLast) derivedLast = "-";
 
     const phoneForBody = (client_phone || "N/A").toString();
+    const refCode =
+      bank_reference_code !== undefined &&
+      bank_reference_code !== null &&
+      String(bank_reference_code).trim() !== ""
+        ? String(bank_reference_code).trim()
+        : "No Ref Code";
 
     const b1 = encodeURIComponent(derivedFirst);
     const b2 = encodeURIComponent(derivedLast);
     const b3 = encodeURIComponent(phoneForBody);
+    const b4 = encodeURIComponent(refCode);
 
     const results: any[] = [];
     for (const phone of STAFF_NUMBERS) {
       const apiUrl =
         `https://api.easysocial.in/api/v1/wa-templates/send/${CAMPAIGN_ID}/${TEMPLATE_ID}/${ACCOUNT_ID}/API/${phone}` +
-        `?body1=${b1}&body2=${b2}&body3=${b3}`;
+        `?body1=${b1}&body2=${b2}&body3=${b3}&body4=${b4}`;
       console.log("[notify-pre-approval-internal] →", phone, apiUrl);
       const resp = await fetch(apiUrl, { headers: { Accept: "application/json" } });
       const raw = await resp.text();
