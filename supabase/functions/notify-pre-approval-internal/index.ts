@@ -70,7 +70,7 @@ serve(async (req) => {
       JSON.stringify({
         success: allOk,
         results,
-        payload: { body1: derivedFirst, body2: derivedLast, body3: phoneForBody },
+        payload: { body1: derivedFirst, body2: derivedLast, body3: phoneForBody, body4: refCode },
       }),
       { status: allOk ? 200 : 207, headers: { ...cors, "Content-Type": "application/json" } },
     );
