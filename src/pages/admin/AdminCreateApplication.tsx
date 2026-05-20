@@ -313,6 +313,14 @@ const AdminCreateApplication = () => {
         toast.info(`Existing client found: ${existingProfile.full_name || 'Unknown'}. Application will be linked to their profile.`);
       }
 
+      // If admin linked an existing client, the looked-up profile email MUST match
+      // the form email — otherwise we'd silently attach this app to the wrong client.
+      if (linkedClient && linkedClient.email !== formData.client_email.toLowerCase().trim()) {
+        toast.error('Linked client email no longer matches the form email. Clear the selection or restore the original email.');
+        setIsSubmitting(false);
+        return;
+      }
+
       // Use existing user_id if found, otherwise use shadow ID for admin-created applications
       const userId = existingProfile?.user_id || '00000000-0000-0000-0000-000000000000';
 
@@ -359,11 +367,21 @@ const AdminCreateApplication = () => {
 
       console.log('Submitting application data:', { ...applicationData, user_id: '[REDACTED]' });
 
+      // HARD GUARD: this flow must always INSERT a brand new finance_applications row.
+      // Never UPDATE the linked client's previous application. We deliberately do NOT
+      // pass an `id` and do NOT use `.upsert()` here.
+      if ('id' in (applicationData as any)) {
+        console.error('Refusing to submit: applicationData unexpectedly contains an id.');
+        toast.error('Internal error: application payload must not contain an id.');
+        setIsSubmitting(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('finance_applications')
         .insert(applicationData as any)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Supabase insert error:', {
