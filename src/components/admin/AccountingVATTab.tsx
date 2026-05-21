@@ -524,6 +524,53 @@ const AccountingVATTab = () => {
                   </dl>
                 </section>
 
+                {/* Invoice Total Summary */}
+                {(() => {
+                  const invoiceTotal =
+                    breakdown.grossSelling + breakdown.vapTotal + breakdown.licensing;
+                  const exclVat = invoiceTotal / 1.15;
+                  const vatAmount = invoiceTotal - exclVat;
+                  return (
+                    <section className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4">
+                      <h4 className="text-xs uppercase tracking-wider text-emerald-400/80 mb-3">
+                        Invoice Total Summary
+                      </h4>
+                      <dl className="space-y-2.5">
+                        <BreakdownRow
+                          label="Vehicle"
+                          value={fmtR(breakdown.grossSelling)}
+                        />
+                        <BreakdownRow
+                          label="VAP / Extras"
+                          value={fmtR(breakdown.vapTotal)}
+                        />
+                        <BreakdownRow
+                          label="Licensing & Registration"
+                          value={fmtR(breakdown.licensing)}
+                        />
+                        <div className="border-t border-emerald-500/20 pt-2.5 mt-1 space-y-2.5">
+                          <BreakdownRow
+                            label="Subtotal (excl. VAT)"
+                            value={fmtR(exclVat)}
+                          />
+                          <BreakdownRow
+                            label="VAT @ 15%"
+                            value={fmtR(vatAmount)}
+                          />
+                          <div className="flex items-start justify-between gap-6 pt-2 border-t border-emerald-500/30 select-text">
+                            <dt className="text-sm font-semibold text-zinc-200 select-text">
+                              Invoice Total (incl. VAT)
+                            </dt>
+                            <dd className="text-base font-bold tabular-nums text-right text-emerald-400 select-text">
+                              {fmtR(invoiceTotal)}
+                            </dd>
+                          </div>
+                        </div>
+                      </dl>
+                    </section>
+                  );
+                })()}
+
                 <p className="text-[11px] text-zinc-600 italic pt-4 border-t border-zinc-800 select-text">
                   All text is selectable — click and drag to copy any value for your external invoice.
                 </p>
