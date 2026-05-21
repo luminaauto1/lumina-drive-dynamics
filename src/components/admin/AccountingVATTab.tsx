@@ -26,6 +26,7 @@ const fmtR = (val: number) =>
 
 interface AccountingDeal {
   id: string;
+  application_id: string | null;
   sale_date: string | null;
   created_at: string;
   sold_price: number | null;
@@ -47,6 +48,7 @@ interface AccountingDeal {
     registration_number: string | null;
   } | null;
   application?: {
+    id: string;
     first_name: string | null;
     last_name: string | null;
     full_name: string | null;
@@ -55,6 +57,7 @@ interface AccountingDeal {
     email: string | null;
     internal_status: string | null;
     status: string | null;
+    is_invoiced: boolean | null;
   } | null;
 }
 
@@ -65,14 +68,14 @@ const useAccountingDeals = () => {
       const { data, error } = await supabase
         .from('deal_records')
         .select(`
-          id, sale_date, created_at, sold_price, cost_price, recon_cost,
+          id, application_id, sale_date, created_at, sold_price, cost_price, recon_cost,
           dic_amount, partner_profit_amount, partner_capital_contribution,
           sales_rep_commission, referral_commission_amount,
           addons_data, aftersales_expenses, is_closed,
           vehicle:vehicles(make, model, year, vin, registration_number),
           application:finance_applications(
-            first_name, last_name, full_name, id_number, phone, email,
-            internal_status, status
+            id, first_name, last_name, full_name, id_number, phone, email,
+            internal_status, status, is_invoiced
           )
         `)
         .order('sale_date', { ascending: false });
