@@ -1,12 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format, subDays } from 'date-fns';
-import { Receipt, TrendingUp, Gift } from 'lucide-react';
+import { format } from 'date-fns';
+import { Receipt, TrendingUp, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import {
@@ -16,8 +15,6 @@ import {
   SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet';
-
-const VAT_THRESHOLD = 1_000_000;
 
 const fmtR = (val: number) =>
   `R ${Number(val || 0).toLocaleString('en-ZA', { maximumFractionDigits: 0 })}`;
@@ -56,6 +53,8 @@ interface AccountingDeal {
     internal_status: string | null;
     status: string | null;
     is_invoiced: boolean | null;
+    bank_reference: string | null;
+    contract_bank_name: string | null;
   } | null;
 }
 
@@ -73,7 +72,7 @@ const useAccountingDeals = () => {
           vehicle:vehicles(make, model, year, vin, registration_number),
           application:finance_applications(
             id, first_name, last_name, full_name, id_number, phone, email,
-            internal_status, status, is_invoiced
+            internal_status, status, is_invoiced, bank_reference, contract_bank_name
           )
         `)
         .order('sale_date', { ascending: false });
@@ -89,10 +88,6 @@ const sumAddons = (addons: any[] | null) =>
     ? addons.reduce((s, a) => s + (Number(a?.price) || 0), 0)
     : 0;
 
-const addonsList = (addons: any[] | null) =>
-  Array.isArray(addons) ? addons.map((a: any) => a?.name).filter(Boolean) : [];
-
-// Heuristic to extract licensing/registration from aftersales_expenses
 const sumLicensing = (expenses: any[] | null) => {
   if (!Array.isArray(expenses)) return 0;
   return expenses.reduce((s, e) => {
@@ -107,6 +102,19 @@ const sumLicensing = (expenses: any[] | null) => {
     }
     return s;
   }, 0);
+};
+
+const calcNetProfit = (d: AccountingDeal) => {
+  const gross = Number(d.sold_price || 0);
+  const vap = sumAddons(d.addons_data);
+  const dic = Number(d.dic_amount || 0);
+  const cost = Number(d.cost_price || 0);
+  const recon = Number(d.recon_cost || 0);
+  const licensing = sumLicensing(d.aftersales_expenses);
+  const partnerPayout =
+    Number(d.partner_profit_amount || 0) + Number(d.partner_capital_contribution || 0);
+  const referralPayout = Number(d.referral_commission_amount || 0);
+  return gross + vap + dic - cost - recon - licensing - partnerPayout - referralPayout;
 };
 
 const AccountingVATTab = () => {
@@ -159,33 +167,19 @@ const AccountingVATTab = () => {
   }, [deals]);
 
   const headerMetrics = useMemo(() => {
-    const oneYearAgo = subDays(new Date(), 365);
-    const yearStart = new Date(new Date().getFullYear(), 0, 1);
-
-    let rolling12 = 0;
-    let ytdVAP = 0;
-    let ytdDIC = 0;
-
+    let grossRevenue = 0;
+    let netProfit = 0;
     finalizedDeals.forEach((d) => {
-      const saleDate = d.sale_date ? new Date(d.sale_date) : new Date(d.created_at);
-      const vatableSubtotal = Number(d.sold_price || 0);
-
-      if (saleDate >= oneYearAgo) rolling12 += vatableSubtotal;
-      if (saleDate >= yearStart) {
-        ytdVAP += sumAddons(d.addons_data);
-        ytdDIC += Number(d.dic_amount || 0);
-      }
+      grossRevenue += Number(d.sold_price || 0);
+      netProfit += calcNetProfit(d);
     });
-
     return {
-      rolling12,
-      ytdVAP,
-      ytdDIC,
-      pct: Math.min(100, (rolling12 / VAT_THRESHOLD) * 100),
+      grossRevenue,
+      netProfit,
+      dealCount: finalizedDeals.length,
     };
   }, [finalizedDeals]);
 
-  // === Breakdown derived values for active deal ===
   const breakdown = useMemo(() => {
     if (!activeDeal) return null;
     const d = activeDeal;
@@ -202,11 +196,16 @@ const AccountingVATTab = () => {
       ? format(new Date(d.sale_date), 'dd MMM yyyy')
       : format(new Date(d.created_at), 'dd MMM yyyy');
     const vapTotal = sumAddons(d.addons_data);
-    const extras = addonsList(d.addons_data);
     const licensing = sumLicensing(d.aftersales_expenses);
     const partnerPayout =
       Number(d.partner_profit_amount || 0) + Number(d.partner_capital_contribution || 0);
     const referralPayout = Number(d.referral_commission_amount || 0);
+    const grossSelling = Number(d.sold_price || 0);
+    const dic = Number(d.dic_amount || 0);
+    const vehicleCost = Number(d.cost_price || 0);
+    const recon = Number(d.recon_cost || 0);
+    const netProfit =
+      grossSelling + vapTotal + dic - vehicleCost - recon - licensing - partnerPayout - referralPayout;
 
     return {
       clientName,
@@ -214,17 +213,23 @@ const AccountingVATTab = () => {
       dateStr,
       vin: v?.vin || '—',
       reg: v?.registration_number || '—',
+      make: v?.make || '—',
+      model: v?.model || '—',
+      year: v?.year ? String(v.year) : '—',
       idNumber: app?.id_number || '—',
       phone: app?.phone || '—',
       email: app?.email || '—',
-      grossSelling: Number(d.sold_price || 0),
-      vehicleCost: Number(d.cost_price || 0),
+      bankName: app?.contract_bank_name || '—',
+      bankReference: app?.bank_reference || '—',
+      grossSelling,
+      vehicleCost,
+      recon,
       licensing,
-      dic: Number(d.dic_amount || 0),
+      dic,
       vapTotal,
-      extras,
       partnerPayout,
       referralPayout,
+      netProfit,
     };
   }, [activeDeal]);
 
@@ -236,50 +241,43 @@ const AccountingVATTab = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-emerald-400" />
-              12-Month Rolling Turnover
+              Total Gross Revenue
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-emerald-400">{fmtR(headerMetrics.rolling12)}</p>
-            <p className="text-xs text-muted-foreground mt-1">Vatable subtotal · last 365 days</p>
+            <p className="text-2xl font-bold text-emerald-400">{fmtR(headerMetrics.grossRevenue)}</p>
+            <p className="text-xs text-muted-foreground mt-1">Sum of all finalized selling prices</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Receipt className="w-4 h-4 text-amber-400" />
-              VAT Threshold Progress
+              <Receipt className="w-4 h-4 text-cyan-400" />
+              Total Net Profit
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex items-baseline justify-between">
-              <p className="text-2xl font-bold">{headerMetrics.pct.toFixed(1)}%</p>
-              <p className="text-xs text-muted-foreground">of {fmtR(VAT_THRESHOLD)}</p>
-            </div>
-            <Progress value={headerMetrics.pct} className="h-2" />
-            <p className="text-xs text-muted-foreground">
-              {fmtR(Math.max(0, VAT_THRESHOLD - headerMetrics.rolling12))} remaining to SARS threshold
+          <CardContent>
+            <p className={cn(
+              "text-2xl font-bold",
+              headerMetrics.netProfit >= 0 ? "text-cyan-400" : "text-red-400"
+            )}>
+              {fmtR(headerMetrics.netProfit)}
             </p>
+            <p className="text-xs text-muted-foreground mt-1">After cost, recon, payouts & reg</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Gift className="w-4 h-4 text-purple-400" />
-              YTD VAP / DIC Income
+              <CheckCircle2 className="w-4 h-4 text-purple-400" />
+              Total Finalized Deals
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-1">
-            <div className="flex items-baseline justify-between">
-              <span className="text-xs text-muted-foreground">VAP</span>
-              <span className="text-lg font-bold text-purple-400">{fmtR(headerMetrics.ytdVAP)}</span>
-            </div>
-            <div className="flex items-baseline justify-between">
-              <span className="text-xs text-muted-foreground">DIC</span>
-              <span className="text-lg font-bold text-cyan-400">{fmtR(headerMetrics.ytdDIC)}</span>
-            </div>
+          <CardContent>
+            <p className="text-2xl font-bold text-purple-400">{headerMetrics.dealCount}</p>
+            <p className="text-xs text-muted-foreground mt-1">Delivered / finalized count</p>
           </CardContent>
         </Card>
       </div>
@@ -288,9 +286,9 @@ const AccountingVATTab = () => {
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
           <div>
-            <CardTitle>Accounting Ledger</CardTitle>
+            <CardTitle>Deals Breakdown</CardTitle>
             <CardDescription>
-              Click any row to open the financial breakdown for external invoicing
+              Click any row to open the full financial breakdown for this deal
             </CardDescription>
           </div>
           <div className="inline-flex rounded-md border border-border bg-muted/30 p-0.5">
@@ -329,26 +327,25 @@ const AccountingVATTab = () => {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/30">
-                      <TableHead className="font-semibold w-16">Status</TableHead>
-                      <TableHead className="font-semibold">Date</TableHead>
+                      <TableHead className="font-semibold w-16">Invoiced</TableHead>
+                      <TableHead className="font-semibold">Date Finalized</TableHead>
                       <TableHead className="font-semibold">Client</TableHead>
                       <TableHead className="font-semibold">Vehicle</TableHead>
-                      <TableHead className="font-semibold text-right">Gross Revenue</TableHead>
-                      <TableHead className="font-semibold text-right">VAP / Extras</TableHead>
-                      <TableHead className="font-semibold text-right">Partner Payout</TableHead>
+                      <TableHead className="font-semibold text-right">Gross Selling</TableHead>
+                      <TableHead className="font-semibold text-right">Net Profit</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isLoading && (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                          Loading ledger…
+                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                          Loading deals…
                         </TableCell>
                       </TableRow>
                     )}
                     {!isLoading && visibleDeals.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                           {view === 'pending'
                             ? 'No pending invoices — all clear.'
                             : 'No finalized deals yet.'}
@@ -366,16 +363,13 @@ const AccountingVATTab = () => {
                         '';
                       const clientName = `${firstName} ${lastName}`.trim() || app?.full_name || '—';
                       const idNumber = app?.id_number || '—';
-                      const vapTotal = sumAddons(d.addons_data);
-                      const partnerPayout =
-                        Number(d.partner_profit_amount || 0) +
-                        Number(d.partner_capital_contribution || 0);
                       const dateStr = d.sale_date
                         ? format(new Date(d.sale_date), 'dd MMM yyyy')
                         : format(new Date(d.created_at), 'dd MMM yyyy');
                       const vehicleLabel = v
                         ? `${v.year || ''} ${v.make || ''} ${v.model || ''}`.trim() || '—'
                         : '—';
+                      const netProfit = calcNetProfit(d);
 
                       return (
                         <TableRow
@@ -414,11 +408,11 @@ const AccountingVATTab = () => {
                           <TableCell className="text-right font-semibold text-emerald-400">
                             {fmtR(Number(d.sold_price || 0))}
                           </TableCell>
-                          <TableCell className="text-right text-purple-400">
-                            {fmtR(vapTotal)}
-                          </TableCell>
-                          <TableCell className="text-right text-red-400 italic">
-                            {partnerPayout > 0 ? `− ${fmtR(partnerPayout)}` : '—'}
+                          <TableCell className={cn(
+                            "text-right font-semibold tabular-nums",
+                            netProfit >= 0 ? "text-cyan-400" : "text-red-400"
+                          )}>
+                            {fmtR(netProfit)}
                           </TableCell>
                         </TableRow>
                       );
@@ -428,10 +422,6 @@ const AccountingVATTab = () => {
               </div>
             );
           })()}
-          <p className="text-xs text-muted-foreground italic mt-3">
-            Partner Payout shown in red is a Cost of Sale — it is <strong>not</strong> deducted
-            from Gross Revenue and must be paid out separately.
-          </p>
         </CardContent>
       </Card>
 
@@ -439,7 +429,7 @@ const AccountingVATTab = () => {
       <Sheet open={!!activeDeal} onOpenChange={(open) => !open && setActiveDeal(null)}>
         <SheetContent
           side="right"
-          className="w-full sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-200 overflow-y-auto"
+          className="w-full sm:max-w-2xl bg-zinc-950 border-zinc-800 text-zinc-200 overflow-y-auto"
         >
           {breakdown && (
             <>
@@ -455,121 +445,108 @@ const AccountingVATTab = () => {
                 </SheetDescription>
               </SheetHeader>
 
-              <div className="mt-6 space-y-6 leading-relaxed">
-                {/* Client Block */}
+              <div className="mt-6 space-y-8 leading-relaxed">
+                {/* SECTION 1: DEAL OVERVIEW */}
                 <section>
-                  <h4 className="text-xs uppercase tracking-wider text-zinc-500 mb-3">
-                    Client
+                  <h4 className="text-xs uppercase font-bold tracking-wider text-zinc-500 mb-3">
+                    Deal Overview
                   </h4>
-                  <dl className="space-y-2.5">
-                    <BreakdownRow label="ID Number" value={breakdown.idNumber} />
-                    <BreakdownRow label="Phone" value={breakdown.phone} />
-                    <BreakdownRow label="Email" value={breakdown.email} />
-                  </dl>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                    <BreakdownItem label="Client Name" value={breakdown.clientName} />
+                    <BreakdownItem label="ID Number" value={breakdown.idNumber} />
+                    <BreakdownItem label="Phone" value={breakdown.phone} />
+                    <BreakdownItem label="Email" value={breakdown.email} />
+                    <BreakdownItem label="Bank / Finance House" value={breakdown.bankName} />
+                    <BreakdownItem label="Bank Reference" value={breakdown.bankReference} />
+                    <BreakdownItem label="Make" value={breakdown.make} />
+                    <BreakdownItem label="Model" value={breakdown.model} />
+                    <BreakdownItem label="Year" value={breakdown.year} />
+                    <BreakdownItem label="VIN" value={breakdown.vin} />
+                    <BreakdownItem
+                      label="Registration"
+                      value={breakdown.reg}
+                      className="col-span-2"
+                    />
+                  </div>
                 </section>
 
-                {/* Vehicle Block */}
+                {/* SECTION 2: INCOME & REVENUE */}
                 <section>
-                  <h4 className="text-xs uppercase tracking-wider text-zinc-500 mb-3">
-                    Vehicle
+                  <h4 className="text-xs uppercase font-bold tracking-wider text-zinc-500 mb-3">
+                    Income & Revenue
                   </h4>
-                  <dl className="space-y-2.5">
-                    <BreakdownRow label="Description" value={breakdown.vehicleLabel} />
-                    <BreakdownRow label="VIN" value={breakdown.vin} />
-                    <BreakdownRow label="Registration" value={breakdown.reg} />
-                  </dl>
-                </section>
-
-                {/* Financial Block */}
-                <section>
-                  <h4 className="text-xs uppercase tracking-wider text-zinc-500 mb-3">
-                    Financial Breakdown
-                  </h4>
-                  <dl className="space-y-3">
-                    <BreakdownRow
-                      label="Vehicle Total / Gross Selling Price"
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                    <BreakdownItem
+                      label="Gross Selling Price"
                       value={fmtR(breakdown.grossSelling)}
-                      emphasis="emerald"
+                      tone="emerald"
                     />
-                    <BreakdownRow label="Vehicle Cost" value={fmtR(breakdown.vehicleCost)} />
-                    <BreakdownRow
-                      label="Licensing & Registration (Disc)"
-                      value={fmtR(breakdown.licensing)}
-                    />
-                    <BreakdownRow
-                      label="DIC (Dealer Incentive Commission)"
+                    <BreakdownItem
+                      label="DIC (Dealer Incentive)"
                       value={fmtR(breakdown.dic)}
-                      emphasis="cyan"
+                      tone="cyan"
                     />
-                    <BreakdownRow
+                    <BreakdownItem
                       label="VAP (Value Added Products)"
                       value={fmtR(breakdown.vapTotal)}
-                      emphasis="purple"
+                      tone="purple"
+                      className="col-span-2"
                     />
-                    {breakdown.extras.length > 0 && (
-                      <div className="pl-3 border-l border-zinc-800 text-xs text-zinc-400 select-text">
-                        {breakdown.extras.join(', ')}
-                      </div>
-                    )}
-                    <BreakdownRow
-                      label="Partner Payout"
-                      value={fmtR(breakdown.partnerPayout)}
-                      emphasis="red"
-                    />
-                    <BreakdownRow
-                      label="Referral Payout"
-                      value={fmtR(breakdown.referralPayout)}
-                      emphasis="red"
-                    />
-                  </dl>
+                  </div>
                 </section>
 
-                {/* Invoice Total Summary */}
-                {(() => {
-                  const invoiceTotal =
-                    breakdown.grossSelling + breakdown.vapTotal + breakdown.licensing;
-                  const exclVat = invoiceTotal / 1.15;
-                  const vatAmount = invoiceTotal - exclVat;
-                  return (
-                    <section className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4">
-                      <h4 className="text-xs uppercase tracking-wider text-emerald-400/80 mb-3">
-                        Invoice Total Summary
-                      </h4>
-                      <dl className="space-y-2.5">
-                        <BreakdownRow
-                          label="Vehicle"
-                          value={fmtR(breakdown.grossSelling)}
-                        />
-                        <BreakdownRow
-                          label="VAP / Extras"
-                          value={fmtR(breakdown.vapTotal)}
-                        />
-                        <BreakdownRow
-                          label="Licensing & Registration"
-                          value={fmtR(breakdown.licensing)}
-                        />
-                        <div className="border-t border-emerald-500/20 pt-2.5 mt-1 space-y-2.5">
-                          <BreakdownRow
-                            label="Subtotal (excl. VAT)"
-                            value={fmtR(exclVat)}
-                          />
-                          <BreakdownRow
-                            label="VAT @ 15%"
-                            value={fmtR(vatAmount)}
-                          />
-                          <div className="flex items-start justify-between gap-6 pt-2 border-t border-emerald-500/30 select-text">
-                            <dt className="text-sm font-semibold text-zinc-200 select-text">
-                              Invoice Total (incl. VAT)
-                            </dt>
-                            <dd className="text-base font-bold tabular-nums text-right text-emerald-400 select-text">
-                              {fmtR(invoiceTotal)}
-                            </dd>
-                          </div>
-                        </div>
-                      </dl>
-                    </section>
-                  );
-                })()}
+                {/* SECTION 3: COSTS & DEDUCTIONS */}
+                <section>
+                  <h4 className="text-xs uppercase font-bold tracking-wider text-zinc-500 mb-3">
+                    Costs & Deductions
+                  </h4>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                    <BreakdownItem
+                      label="Vehicle Purchase Cost"
+                      value={fmtR(breakdown.vehicleCost)}
+                    />
+                    <BreakdownItem
+                      label="Recon Total"
+                      value={fmtR(breakdown.recon)}
+                    />
+                    <BreakdownItem
+                      label="Licensing & Registration"
+                      value={fmtR(breakdown.licensing)}
+                    />
+                    <BreakdownItem
+                      label="Partner Payout"
+                      value={fmtR(breakdown.partnerPayout)}
+                      tone="red"
+                    />
+                    <BreakdownItem
+                      label="Referral Payout"
+                      value={fmtR(breakdown.referralPayout)}
+                      tone="red"
+                      className="col-span-2"
+                    />
+                  </div>
+                </section>
+
+                {/* SECTION 4: PROFITABILITY */}
+                <section className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-5">
+                  <h4 className="text-xs uppercase font-bold tracking-wider text-emerald-400/80 mb-3">
+                    Profitability
+                  </h4>
+                  <div className="flex items-start justify-between gap-6 select-text">
+                    <span className="text-sm font-semibold text-zinc-200">
+                      Total Deal Profit
+                    </span>
+                    <span className={cn(
+                      "text-xl font-bold tabular-nums text-right",
+                      breakdown.netProfit >= 0 ? "text-emerald-400" : "text-red-400"
+                    )}>
+                      {fmtR(breakdown.netProfit)}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-zinc-500 mt-2 select-text">
+                    Income (Selling + VAP + DIC) minus Costs (Vehicle + Recon + Licensing + Payouts)
+                  </p>
+                </section>
 
                 <p className="text-[11px] text-zinc-600 italic pt-4 border-t border-zinc-800 select-text">
                   All text is selectable — click and drag to copy any value for your external invoice.
@@ -583,36 +560,35 @@ const AccountingVATTab = () => {
   );
 };
 
-const BreakdownRow = ({
+const BreakdownItem = ({
   label,
   value,
-  emphasis,
+  tone,
+  className,
 }: {
   label: string;
   value: string;
-  emphasis?: 'emerald' | 'red' | 'purple' | 'cyan';
+  tone?: 'emerald' | 'red' | 'purple' | 'cyan';
+  className?: string;
 }) => {
   const colorClass =
-    emphasis === 'emerald'
+    tone === 'emerald'
       ? 'text-emerald-400'
-      : emphasis === 'red'
+      : tone === 'red'
         ? 'text-red-400'
-        : emphasis === 'purple'
+        : tone === 'purple'
           ? 'text-purple-400'
-          : emphasis === 'cyan'
+          : tone === 'cyan'
             ? 'text-cyan-400'
             : 'text-zinc-200';
   return (
-    <div className="flex items-start justify-between gap-6 py-1 select-text">
-      <dt className="text-sm text-zinc-500 select-text">{label}</dt>
-      <dd
-        className={cn(
-          'text-sm font-medium tabular-nums text-right select-text',
-          colorClass
-        )}
-      >
+    <div className={cn('flex flex-col gap-1 select-text', className)}>
+      <span className="text-[11px] uppercase tracking-wide text-zinc-500 select-text">
+        {label}
+      </span>
+      <span className={cn('text-sm font-medium tabular-nums select-text break-words', colorClass)}>
         {value}
-      </dd>
+      </span>
     </div>
   );
 };
