@@ -159,23 +159,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOut = async () => {
     await supabase.auth.signOut();
     setRole(null);
+    setIsAccountant(false);
   };
 
   const isSuperAdmin = role === 'super_admin';
   const isSalesAgent = role === 'sales_agent';
   const isSeniorFAndI = role === 'senior_f_and_i';
   const isFAndI = role === 'f_and_i' || isSeniorFAndI;
-  const isStaff = isSuperAdmin || isSalesAgent || isFAndI;
+  const isStaff = isSuperAdmin || isSalesAgent || isFAndI || isAccountant;
   // Backwards-compat: existing code uses isAdmin to mean "full access".
   // Sales agents are NOT admins.
   const isAdmin = isSuperAdmin;
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isAdmin, isSuperAdmin, isSalesAgent, isFAndI, isSeniorFAndI, isStaff, role, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, isAdmin, isSuperAdmin, isSalesAgent, isFAndI, isSeniorFAndI, isAccountant, isStaff, role, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );
 };
+
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
