@@ -175,10 +175,13 @@ const TeamManagementTab = () => {
 
   const handleRevoke = async (userId: string, label: string, roleKind: StaffRoleKind) => {
     if (!confirm(`Revoke ${ROLE_LABELS[roleKind]} access for ${label}?`)) return;
-    // Senior F&I was granted alongside the base f_and_i role — revoke both.
+    // Senior F&I and Accountant were granted alongside the base f_and_i role — revoke all related roles.
     const rolesToRevoke: string[] = roleKind === 'senior_f_and_i'
       ? ['senior_f_and_i', 'f_and_i']
-      : [roleKind];
+      : roleKind === 'accountant'
+        ? ['accountant', 'senior_f_and_i', 'f_and_i']
+        : [roleKind];
+
     const { error } = await supabase
       .from('user_roles')
       .delete()
