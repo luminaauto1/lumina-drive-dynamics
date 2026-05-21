@@ -20,6 +20,8 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { supabase } from '@/integrations/supabase/client';
 import { formatPrice } from '@/hooks/useVehicles';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+
 
 interface DealRecord {
   id: string;
