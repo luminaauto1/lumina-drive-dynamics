@@ -81,7 +81,7 @@ const SALES_AGENT_ALLOWED_PATHS = new Set<string>([
 const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, isAccountant } = useAuth();
 
   useEffect(() => {
     onCollapse?.(collapsed);
@@ -93,19 +93,24 @@ const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
   const isGroupActive = (group: NavGroup) =>
     group.children.some(c => isPathActive(c.path));
 
+  // Accountants only see the Reports entry (Accounting & VAT ledger lives there).
+  const ACCOUNTANT_ALLOWED_PATHS = new Set<string>(['/admin/reports']);
+
   // Filter menu by role.
   const visibleMenuItems = isSuperAdmin
     ? menuItems
     : menuItems
         .map((item) => {
+          const allowed = isAccountant ? ACCOUNTANT_ALLOWED_PATHS : SALES_AGENT_ALLOWED_PATHS;
           if (isGroup(item)) {
-            const allowedChildren = item.children.filter(c => SALES_AGENT_ALLOWED_PATHS.has(c.path));
+            const allowedChildren = item.children.filter(c => allowed.has(c.path));
             if (allowedChildren.length === 0) return null;
             return { ...item, children: allowedChildren } as NavGroup;
           }
-          return SALES_AGENT_ALLOWED_PATHS.has(item.path) ? item : null;
+          return allowed.has(item.path) ? item : null;
         })
         .filter(Boolean) as MenuItem[];
+
 
   return (
     <aside
