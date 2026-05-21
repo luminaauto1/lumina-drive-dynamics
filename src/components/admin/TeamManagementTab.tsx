@@ -45,14 +45,15 @@ const TeamManagementTab = () => {
       .select('user_id, role')
       .in('role', ['sales_agent', 'f_and_i', 'senior_f_and_i'] as any);
     const allRows = (roleRows || []) as Array<{ user_id: string; role: StaffRoleKind }>;
-    // Dedupe per user — prefer senior_f_and_i over f_and_i so a single user doesn't appear twice.
+    // Dedupe per user — prefer senior_f_and_i/accountant over f_and_i so a single user doesn't appear twice.
     const byUser = new Map<string, StaffRoleKind>();
-    const priority: Record<StaffRoleKind, number> = { senior_f_and_i: 3, f_and_i: 2, sales_agent: 1 };
+    const priority: Record<StaffRoleKind, number> = { accountant: 4, senior_f_and_i: 3, f_and_i: 2, sales_agent: 1 };
     for (const r of allRows) {
       const current = byUser.get(r.user_id);
       if (!current || priority[r.role] > priority[current]) byUser.set(r.user_id, r.role);
     }
     const rows = Array.from(byUser, ([user_id, role]) => ({ user_id, role }));
+
     const ids = rows.map(r => r.user_id);
     if (ids.length === 0) {
       setAgents([]);
