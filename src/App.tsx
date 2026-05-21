@@ -103,7 +103,7 @@ const AppLayout = () => {
           <Route path="/admin/finance/:id" element={<ProtectedRoute requireSuperAdmin allowFAndI><AdminDealRoom /></ProtectedRoute>} />
           <Route path="/admin/quotes" element={<ProtectedRoute requireAdmin><AdminQuoteGenerator /></ProtectedRoute>} />
           <Route path="/admin/aftersales" element={<ProtectedRoute requireSuperAdmin><AdminAftersales /></ProtectedRoute>} />
-          <Route path="/admin/reports" element={<ProtectedRoute requireSuperAdmin><AdminReports /></ProtectedRoute>} />
+          <Route path="/admin/reports" element={<ProtectedRoute requireSuperAdmin allowAccountant><AdminReports /></ProtectedRoute>} />
           <Route path="/admin/reports/lead-analytics" element={<ProtectedRoute requireSuperAdmin><AdminLeadAnalytics /></ProtectedRoute>} />
           <Route path="/admin/extra-incomes" element={<ProtectedRoute requireSuperAdmin><AdminExtraIncomes /></ProtectedRoute>} />
           <Route path="/admin/cars-to-buy" element={<ProtectedRoute requireSuperAdmin><AdminCarsToBuy /></ProtectedRoute>} />

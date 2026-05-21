@@ -9,12 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-type StaffRoleKind = 'sales_agent' | 'f_and_i' | 'senior_f_and_i';
+type StaffRoleKind = 'sales_agent' | 'f_and_i' | 'senior_f_and_i' | 'accountant';
 const ROLE_LABELS: Record<StaffRoleKind, string> = {
   sales_agent: 'Salesperson',
   f_and_i: 'F&I',
   senior_f_and_i: 'Senior F&I',
+  accountant: 'Accountant',
 };
+
 
 interface AgentRow {
   user_id: string;
@@ -41,16 +43,17 @@ const TeamManagementTab = () => {
     const { data: roleRows } = await supabase
       .from('user_roles')
       .select('user_id, role')
-      .in('role', ['sales_agent', 'f_and_i', 'senior_f_and_i'] as any);
+      .in('role', ['sales_agent', 'f_and_i', 'senior_f_and_i', 'accountant'] as any);
     const allRows = (roleRows || []) as Array<{ user_id: string; role: StaffRoleKind }>;
-    // Dedupe per user — prefer senior_f_and_i over f_and_i so a single user doesn't appear twice.
+    // Dedupe per user — prefer senior_f_and_i/accountant over f_and_i so a single user doesn't appear twice.
     const byUser = new Map<string, StaffRoleKind>();
-    const priority: Record<StaffRoleKind, number> = { senior_f_and_i: 3, f_and_i: 2, sales_agent: 1 };
+    const priority: Record<StaffRoleKind, number> = { accountant: 4, senior_f_and_i: 3, f_and_i: 2, sales_agent: 1 };
     for (const r of allRows) {
       const current = byUser.get(r.user_id);
       if (!current || priority[r.role] > priority[current]) byUser.set(r.user_id, r.role);
     }
     const rows = Array.from(byUser, ([user_id, role]) => ({ user_id, role }));
+
     const ids = rows.map(r => r.user_id);
     if (ids.length === 0) {
       setAgents([]);
@@ -172,10 +175,13 @@ const TeamManagementTab = () => {
 
   const handleRevoke = async (userId: string, label: string, roleKind: StaffRoleKind) => {
     if (!confirm(`Revoke ${ROLE_LABELS[roleKind]} access for ${label}?`)) return;
-    // Senior F&I was granted alongside the base f_and_i role — revoke both.
+    // Senior F&I and Accountant were granted alongside the base f_and_i role — revoke all related roles.
     const rolesToRevoke: string[] = roleKind === 'senior_f_and_i'
       ? ['senior_f_and_i', 'f_and_i']
-      : [roleKind];
+      : roleKind === 'accountant'
+        ? ['accountant', 'senior_f_and_i', 'f_and_i']
+        : [roleKind];
+
     const { error } = await supabase
       .from('user_roles')
       .delete()
@@ -278,11 +284,13 @@ const TeamManagementTab = () => {
               <SelectItem value="sales_agent">Salesperson</SelectItem>
               <SelectItem value="f_and_i">F&I (Finance & Insurance)</SelectItem>
               <SelectItem value="senior_f_and_i">Senior F&I (can move to App Submitted)</SelectItem>
+              <SelectItem value="accountant">Accountant (Senior F&I + Accounting ledger)</SelectItem>
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            F&I users can only move applications between Pre-Approved → Contract Signed. Senior F&I additionally can flag applications as "App Submitted".
+            F&I users can only move applications between Pre-Approved → Contract Signed. Senior F&I additionally can flag applications as "App Submitted". Accountants inherit Senior F&I permissions and additionally see the Accounting & VAT ledger.
           </p>
+
         </div>
 
         <div className="flex justify-end">

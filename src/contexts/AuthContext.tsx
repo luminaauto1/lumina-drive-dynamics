@@ -19,7 +19,9 @@ interface AuthContextType {
   isFAndI: boolean;
   /** True specifically for senior_f_and_i role. */
   isSeniorFAndI: boolean;
-  /** True if the user is any staff member (super_admin OR sales_agent OR f_and_i). */
+  /** True for accountant role — inherits Senior F&I permissions plus access to the Accounting ledger. */
+  isAccountant: boolean;
+  /** True if the user is any staff member. */
   isStaff: boolean;
   /** Normalized role label, or null if not staff. */
   role: StaffRole;
@@ -28,6 +30,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
 }
 
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -35,6 +38,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<StaffRole>(null);
+  const [isAccountant, setIsAccountant] = useState(false);
+
 
   useEffect(() => {
     let mounted = true;
@@ -110,11 +115,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .eq('user_id', userId);
 
     const roles = (data || []).map((r: any) => r.role as string);
+    setIsAccountant(roles.includes('accountant'));
     if (roles.includes('admin')) {
       setRole('super_admin');
     } else if (roles.includes('sales_agent')) {
       setRole('sales_agent');
-    } else if (roles.includes('senior_f_and_i')) {
+    } else if (roles.includes('senior_f_and_i') || roles.includes('accountant')) {
+      // Accountants inherit Senior F&I operational permissions
       setRole('senior_f_and_i');
     } else if (roles.includes('f_and_i')) {
       setRole('f_and_i');
@@ -122,6 +129,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setRole(null);
     }
   };
+
 
   const signUp = async (email: string, password: string, fullName?: string, phone?: string) => {
     const redirectUrl = `${window.location.origin}/`;
@@ -151,23 +159,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOut = async () => {
     await supabase.auth.signOut();
     setRole(null);
+    setIsAccountant(false);
   };
 
   const isSuperAdmin = role === 'super_admin';
   const isSalesAgent = role === 'sales_agent';
   const isSeniorFAndI = role === 'senior_f_and_i';
   const isFAndI = role === 'f_and_i' || isSeniorFAndI;
-  const isStaff = isSuperAdmin || isSalesAgent || isFAndI;
+  const isStaff = isSuperAdmin || isSalesAgent || isFAndI || isAccountant;
   // Backwards-compat: existing code uses isAdmin to mean "full access".
   // Sales agents are NOT admins.
   const isAdmin = isSuperAdmin;
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isAdmin, isSuperAdmin, isSalesAgent, isFAndI, isSeniorFAndI, isStaff, role, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, isAdmin, isSuperAdmin, isSalesAgent, isFAndI, isSeniorFAndI, isAccountant, isStaff, role, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );
 };
+
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
