@@ -38,6 +38,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<StaffRole>(null);
+  const [isAccountant, setIsAccountant] = useState(false);
+
 
   useEffect(() => {
     let mounted = true;
