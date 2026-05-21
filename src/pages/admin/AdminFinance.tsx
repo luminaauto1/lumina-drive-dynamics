@@ -518,7 +518,13 @@ const AdminFinance = () => {
 
         {/* Action Feed — role-aware mirrored notification banner */}
         {(() => {
-          const isFAndI = (role === 'f_and_i' || role === 'senior_f_and_i');
+          const canToggle = role === 'super_admin' || role === 'senior_f_and_i';
+          const roleDefaultFAndI = (role === 'f_and_i' || role === 'senior_f_and_i');
+          const effectiveView: 'f_and_i' | 'admin' =
+            canToggle && notificationFilter !== 'auto'
+              ? notificationFilter
+              : (roleDefaultFAndI ? 'f_and_i' : 'admin');
+          const isFAndI = effectiveView === 'f_and_i';
           // Each role sees a "standard" alert (escalation loop) and a "general"
           // green ping (passive note from the other side).
           const standardKey = isFAndI ? 'info_updated' : 'updates_needed';
@@ -532,7 +538,7 @@ const AdminFinance = () => {
             if (!norm || !targetSet.has(norm)) return false;
             return true;
           });
-          if (feed.length === 0) return null;
+          if (feed.length === 0 && !canToggle) return null;
           const headerLabel = isFAndI ? 'F&I Action Feed' : 'Sales Action Feed';
           return (
             <motion.div
@@ -540,6 +546,37 @@ const AdminFinance = () => {
               animate={{ opacity: 1, y: 0 }}
               className="w-full bg-[#1A1A1A] border border-zinc-800 rounded-lg p-4 mb-6 flex flex-col gap-2"
             >
+              {canToggle && (
+                <div className="flex items-center gap-2 pb-2 mb-1 border-b border-zinc-800/80">
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 mr-1">View</span>
+                  <button
+                    type="button"
+                    onClick={() => setNotificationFilter('f_and_i')}
+                    className={`text-[11px] px-3 py-1 rounded-md transition-colors ${
+                      effectiveView === 'f_and_i'
+                        ? 'bg-emerald-900/40 text-emerald-400 border border-emerald-500/50'
+                        : 'bg-transparent text-zinc-500 border border-zinc-800 hover:text-zinc-300'
+                    }`}
+                  >
+                    F&I Notifications
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNotificationFilter('admin')}
+                    className={`text-[11px] px-3 py-1 rounded-md transition-colors ${
+                      effectiveView === 'admin'
+                        ? 'bg-red-900/40 text-red-400 border border-red-500/50'
+                        : 'bg-transparent text-zinc-500 border border-zinc-800 hover:text-zinc-300'
+                    }`}
+                  >
+                    Admin Notifications
+                  </button>
+                </div>
+              )}
+              {feed.length === 0 ? (
+                <p className="text-[11px] text-zinc-500 py-2">No items in this feed.</p>
+              ) : (
+              <>
               <div className="flex items-center justify-between">
                 <p className="text-xs uppercase tracking-[0.2em] text-amber-300/80 font-medium flex items-center gap-2">
                   <MailWarning className="w-3.5 h-3.5" />
