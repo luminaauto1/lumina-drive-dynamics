@@ -1,0 +1,1 @@
+ALTER TABLE public.finance_applications ADD COLUMN IF NOT EXISTS is_invoiced boolean NOT NULL DEFAULT false;
