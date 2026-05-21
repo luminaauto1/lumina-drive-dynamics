@@ -291,24 +291,28 @@ const AdminReports = () => {
         </motion.div>
 
         {/* Tabs */}
-        <Tabs defaultValue="financial" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
-            <TabsTrigger value="financial" className="gap-2">
-              <DollarSign className="w-4 h-4" />
-              Financial Health
-            </TabsTrigger>
-            <TabsTrigger value="velocity" className="gap-2">
-              <Clock className="w-4 h-4" />
-              Inventory Velocity
-            </TabsTrigger>
-            <TabsTrigger value="insights" className="gap-2">
-              <PieChart className="w-4 h-4" />
-              Deal Insights
-            </TabsTrigger>
-            <TabsTrigger value="investor" className="gap-2">
-              <Briefcase className="w-4 h-4" />
-              Investor Report
-            </TabsTrigger>
+        <Tabs defaultValue={accountantOnly ? 'accounting' : 'financial'} className="space-y-6">
+          <TabsList className={cn('grid w-full lg:w-auto lg:inline-grid', accountantOnly ? 'grid-cols-1' : 'grid-cols-5')}>
+            {!accountantOnly && (
+              <>
+                <TabsTrigger value="financial" className="gap-2">
+                  <DollarSign className="w-4 h-4" />
+                  Financial Health
+                </TabsTrigger>
+                <TabsTrigger value="velocity" className="gap-2">
+                  <Clock className="w-4 h-4" />
+                  Inventory Velocity
+                </TabsTrigger>
+                <TabsTrigger value="insights" className="gap-2">
+                  <PieChart className="w-4 h-4" />
+                  Deal Insights
+                </TabsTrigger>
+                <TabsTrigger value="investor" className="gap-2">
+                  <Briefcase className="w-4 h-4" />
+                  Investor Report
+                </TabsTrigger>
+              </>
+            )}
             <TabsTrigger value="accounting" className="gap-2">
               <Receipt className="w-4 h-4" />
               Accounting & VAT
@@ -318,6 +322,8 @@ const AdminReports = () => {
           <TabsContent value="accounting" className="space-y-6">
             <AccountingVATTab />
           </TabsContent>
+
+
 
 
           {/* Tab 1: Financial Health */}
