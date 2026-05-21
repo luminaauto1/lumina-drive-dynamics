@@ -55,7 +55,10 @@ Deno.serve(async (req) => {
       ? "f_and_i"
       : requestedRole === "senior_f_and_i"
         ? "senior_f_and_i"
-        : "sales_agent";
+        : requestedRole === "accountant"
+          ? "accountant"
+          : "sales_agent";
+
 
     if (!email || !email.includes("@")) {
       return new Response(JSON.stringify({ error: "Valid email required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
