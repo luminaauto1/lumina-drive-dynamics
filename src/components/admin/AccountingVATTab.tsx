@@ -105,6 +105,38 @@ const copyToClipboard = async (text: string, label: string) => {
 
 const AccountingVATTab = () => {
   const { data: deals = [], isLoading } = useAccountingDeals();
+  const queryClient = useQueryClient();
+  const [view, setView] = useState<'pending' | 'all'>('pending');
+
+  const toggleInvoiced = useMutation({
+    mutationFn: async ({ appId, value }: { appId: string; value: boolean }) => {
+      const { error } = await supabase
+        .from('finance_applications')
+        .update({ is_invoiced: value })
+        .eq('id', appId);
+      if (error) throw error;
+    },
+    onMutate: async ({ appId, value }) => {
+      await queryClient.cancelQueries({ queryKey: ['accounting-deals'] });
+      const prev = queryClient.getQueryData<AccountingDeal[]>(['accounting-deals']);
+      queryClient.setQueryData<AccountingDeal[]>(['accounting-deals'], (old) =>
+        (old || []).map((d) =>
+          d.application?.id === appId && d.application
+            ? { ...d, application: { ...d.application, is_invoiced: value } }
+            : d
+        )
+      );
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(['accounting-deals'], ctx.prev);
+      toast.error('Failed to update invoice status');
+    },
+    onSuccess: (_d, v) => {
+      toast.success(v.value ? 'Marked as invoiced' : 'Reopened as pending');
+    },
+  });
+
 
   // Finalized/Delivered filter: deal_records inherently represent finalized deals.
   // Strengthen by checking is_closed OR application status.
