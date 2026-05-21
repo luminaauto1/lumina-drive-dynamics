@@ -115,11 +115,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .eq('user_id', userId);
 
     const roles = (data || []).map((r: any) => r.role as string);
+    setIsAccountant(roles.includes('accountant'));
     if (roles.includes('admin')) {
       setRole('super_admin');
     } else if (roles.includes('sales_agent')) {
       setRole('sales_agent');
-    } else if (roles.includes('senior_f_and_i')) {
+    } else if (roles.includes('senior_f_and_i') || roles.includes('accountant')) {
+      // Accountants inherit Senior F&I operational permissions
       setRole('senior_f_and_i');
     } else if (roles.includes('f_and_i')) {
       setRole('f_and_i');
@@ -127,6 +129,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setRole(null);
     }
   };
+
 
   const signUp = async (email: string, password: string, fullName?: string, phone?: string) => {
     const redirectUrl = `${window.location.origin}/`;
