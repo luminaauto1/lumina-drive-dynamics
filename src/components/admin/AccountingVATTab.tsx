@@ -243,17 +243,51 @@ const AccountingVATTab = () => {
 
       {/* === LEDGER TABLE === */}
       <Card>
-        <CardHeader>
-          <CardTitle>Accounting Ledger</CardTitle>
-          <CardDescription>
-            Finalized / Delivered deals · One-click copy for external invoicing
-          </CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
+          <div>
+            <CardTitle>Accounting Ledger</CardTitle>
+            <CardDescription>
+              Finalized / Delivered deals · One-click copy for external invoicing
+            </CardDescription>
+          </div>
+          {/* Segmented control: Pending | All */}
+          <div className="inline-flex rounded-md border border-border bg-muted/30 p-0.5">
+            {(['pending', 'all'] as const).map((v) => {
+              const active = view === v;
+              const label = v === 'pending' ? `Pending Invoices` : 'All Deals';
+              const count =
+                v === 'pending'
+                  ? finalizedDeals.filter((d) => !d.application?.is_invoiced).length
+                  : finalizedDeals.length;
+              return (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={cn(
+                    'px-3 py-1.5 text-xs font-medium rounded-sm transition-colors',
+                    active
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  {label} <span className="opacity-60">({count})</span>
+                </button>
+              );
+            })}
+          </div>
         </CardHeader>
         <CardContent>
+          {(() => {
+            const visibleDeals =
+              view === 'pending'
+                ? finalizedDeals.filter((d) => !d.application?.is_invoiced)
+                : finalizedDeals;
+            return (
           <div className="overflow-x-auto rounded-lg border border-border">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/30">
+                  <TableHead className="font-semibold w-16">Status</TableHead>
                   <TableHead className="font-semibold">Date</TableHead>
                   <TableHead className="font-semibold">Client</TableHead>
                   <TableHead className="font-semibold">Vehicle</TableHead>
@@ -266,19 +300,20 @@ const AccountingVATTab = () => {
               <TableBody>
                 {isLoading && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                       Loading ledger…
                     </TableCell>
                   </TableRow>
                 )}
-                {!isLoading && finalizedDeals.length === 0 && (
+                {!isLoading && visibleDeals.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                      No finalized deals yet.
+                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                      {view === 'pending' ? 'No pending invoices — all clear.' : 'No finalized deals yet.'}
                     </TableCell>
                   </TableRow>
                 )}
-                {finalizedDeals.map((d) => {
+                {visibleDeals.map((d) => {
+
                   const app = d.application;
                   const v = d.vehicle;
                   const firstName =
