@@ -3,8 +3,9 @@ import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import { 
   TrendingUp, DollarSign, Car, Clock, AlertTriangle, Percent, 
-  PieChart, BarChart3, Calendar, Filter, Briefcase, Printer
+  PieChart, BarChart3, Calendar, Filter, Briefcase, Printer, Receipt
 } from 'lucide-react';
+import AccountingVATTab from '@/components/admin/AccountingVATTab';
 import { useQuery } from '@tanstack/react-query';
 import { format, subDays, differenceInDays, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart as RechartsPie, Pie, Cell } from 'recharts';
@@ -285,7 +286,7 @@ const AdminReports = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="financial" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
             <TabsTrigger value="financial" className="gap-2">
               <DollarSign className="w-4 h-4" />
               Financial Health
@@ -302,7 +303,16 @@ const AdminReports = () => {
               <Briefcase className="w-4 h-4" />
               Investor Report
             </TabsTrigger>
+            <TabsTrigger value="accounting" className="gap-2">
+              <Receipt className="w-4 h-4" />
+              Accounting & VAT
+            </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="accounting" className="space-y-6">
+            <AccountingVATTab />
+          </TabsContent>
+
 
           {/* Tab 1: Financial Health */}
           <TabsContent value="financial" className="space-y-6">
