@@ -122,6 +122,12 @@ Deno.serve(async (req) => {
     if (role === "senior_f_and_i") {
       await admin.from("user_roles").upsert({ user_id: userId, role: "f_and_i" }, { onConflict: "user_id,role" });
     }
+    // Accountant inherits Senior F&I permissions — grant senior_f_and_i + f_and_i base roles
+    if (role === "accountant") {
+      await admin.from("user_roles").upsert({ user_id: userId, role: "senior_f_and_i" }, { onConflict: "user_id,role" });
+      await admin.from("user_roles").upsert({ user_id: userId, role: "f_and_i" }, { onConflict: "user_id,role" });
+    }
+
 
     return new Response(
       JSON.stringify({ ok: true, user_id: userId, mode, email, role, temp_password: tempPassword, email_delivery: emailDelivery }),
