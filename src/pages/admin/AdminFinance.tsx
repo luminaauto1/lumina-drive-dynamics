@@ -78,6 +78,9 @@ const AdminFinance = () => {
   const [selectedAppForDelivery, setSelectedAppForDelivery] = useState<FinanceApplication | null>(null);
   const [cashDealModalOpen, setCashDealModalOpen] = useState(false);
   const [waModalOpen, setWaModalOpen] = useState(false);
+  // Role-restricted notification feed filter (super_admin + senior_f_and_i only).
+  // 'auto' = role-default behavior. 'f_and_i' or 'admin' = forced view.
+  const [notificationFilter, setNotificationFilter] = useState<'auto' | 'f_and_i' | 'admin'>('auto');
 
   // Universal Client Hub state
   const [hubOpen, setHubOpen] = useState(false);
