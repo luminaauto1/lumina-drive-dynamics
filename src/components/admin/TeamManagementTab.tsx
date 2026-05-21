@@ -43,7 +43,7 @@ const TeamManagementTab = () => {
     const { data: roleRows } = await supabase
       .from('user_roles')
       .select('user_id, role')
-      .in('role', ['sales_agent', 'f_and_i', 'senior_f_and_i'] as any);
+      .in('role', ['sales_agent', 'f_and_i', 'senior_f_and_i', 'accountant'] as any);
     const allRows = (roleRows || []) as Array<{ user_id: string; role: StaffRoleKind }>;
     // Dedupe per user — prefer senior_f_and_i/accountant over f_and_i so a single user doesn't appear twice.
     const byUser = new Map<string, StaffRoleKind>();
