@@ -19,7 +19,9 @@ interface AuthContextType {
   isFAndI: boolean;
   /** True specifically for senior_f_and_i role. */
   isSeniorFAndI: boolean;
-  /** True if the user is any staff member (super_admin OR sales_agent OR f_and_i). */
+  /** True for accountant role — inherits Senior F&I permissions plus access to the Accounting ledger. */
+  isAccountant: boolean;
+  /** True if the user is any staff member. */
   isStaff: boolean;
   /** Normalized role label, or null if not staff. */
   role: StaffRole;
@@ -27,6 +29,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
+
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
