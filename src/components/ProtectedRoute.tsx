@@ -10,10 +10,12 @@ interface ProtectedRouteProps {
   requireSuperAdmin?: boolean;
   /** When combined with requireSuperAdmin, also allows F&I (standard or senior) roles. */
   allowFAndI?: boolean;
+  /** When combined with requireSuperAdmin, also allows the accountant role. */
+  allowAccountant?: boolean;
 }
 
-const ProtectedRoute = ({ children, requireAdmin = false, requireSuperAdmin = false, allowFAndI = false }: ProtectedRouteProps) => {
-  const { user, loading, isAdmin, isStaff, isFAndI } = useAuth();
+const ProtectedRoute = ({ children, requireAdmin = false, requireSuperAdmin = false, allowFAndI = false, allowAccountant = false }: ProtectedRouteProps) => {
+  const { user, loading, isAdmin, isStaff, isFAndI, isAccountant } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -28,10 +30,11 @@ const ProtectedRoute = ({ children, requireAdmin = false, requireSuperAdmin = fa
     return <Navigate to="/auth" state={{ returnTo: location.pathname }} replace />;
   }
 
-  if (requireSuperAdmin && !isAdmin && !(allowFAndI && isFAndI)) {
+  if (requireSuperAdmin && !isAdmin && !(allowFAndI && isFAndI) && !(allowAccountant && isAccountant)) {
     // Sales agents land on the leads pipeline; non-staff bounce to home.
     return <Navigate to={isStaff ? '/admin/leads' : '/'} replace />;
   }
+
 
   // requireAdmin now means "any staff" for backwards compatibility,
   // since most existing routes were intended for staff use.
