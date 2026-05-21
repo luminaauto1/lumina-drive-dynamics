@@ -3,8 +3,9 @@ import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import { 
   TrendingUp, DollarSign, Car, Clock, AlertTriangle, Percent, 
-  PieChart, BarChart3, Calendar, Filter, Briefcase, Printer
+  PieChart, BarChart3, Calendar, Filter, Briefcase, Printer, Receipt
 } from 'lucide-react';
+import AccountingVATTab from '@/components/admin/AccountingVATTab';
 import { useQuery } from '@tanstack/react-query';
 import { format, subDays, differenceInDays, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart as RechartsPie, Pie, Cell } from 'recharts';
