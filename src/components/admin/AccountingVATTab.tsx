@@ -1,23 +1,21 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, subDays } from 'date-fns';
-import { Receipt, TrendingUp, Gift, Copy, User, Car, Package } from 'lucide-react';
+import { Receipt, TrendingUp, Gift } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
-import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet';
 
 const VAT_THRESHOLD = 1_000_000;
 
@@ -94,19 +92,28 @@ const sumAddons = (addons: any[] | null) =>
 const addonsList = (addons: any[] | null) =>
   Array.isArray(addons) ? addons.map((a: any) => a?.name).filter(Boolean) : [];
 
-const copyToClipboard = async (text: string, label: string) => {
-  try {
-    await navigator.clipboard.writeText(text);
-    toast.success(`${label} copied to clipboard`);
-  } catch {
-    toast.error('Failed to copy');
-  }
+// Heuristic to extract licensing/registration from aftersales_expenses
+const sumLicensing = (expenses: any[] | null) => {
+  if (!Array.isArray(expenses)) return 0;
+  return expenses.reduce((s, e) => {
+    const label = String(e?.name || e?.description || e?.type || '').toLowerCase();
+    if (
+      label.includes('licens') ||
+      label.includes('registr') ||
+      label.includes('disc') ||
+      label.includes('natis')
+    ) {
+      return s + (Number(e?.amount || e?.price || e?.cost) || 0);
+    }
+    return s;
+  }, 0);
 };
 
 const AccountingVATTab = () => {
   const { data: deals = [], isLoading } = useAccountingDeals();
   const queryClient = useQueryClient();
   const [view, setView] = useState<'pending' | 'all'>('pending');
+  const [activeDeal, setActiveDeal] = useState<AccountingDeal | null>(null);
 
   const toggleInvoiced = useMutation({
     mutationFn: async ({ appId, value }: { appId: string; value: boolean }) => {
@@ -137,9 +144,6 @@ const AccountingVATTab = () => {
     },
   });
 
-
-  // Finalized/Delivered filter: deal_records inherently represent finalized deals.
-  // Strengthen by checking is_closed OR application status.
   const finalizedDeals = useMemo(() => {
     return deals.filter((d) => {
       const status = (d.application?.internal_status || d.application?.status || '').toLowerCase();
@@ -149,13 +153,11 @@ const AccountingVATTab = () => {
         status.includes('finalized') ||
         status.includes('paid_out') ||
         status.includes('handover') ||
-        // Fallback: a deal_record with a sale_date is treated as finalized
         !!d.sale_date
       );
     });
   }, [deals]);
 
-  // === Header metrics ===
   const headerMetrics = useMemo(() => {
     const oneYearAgo = subDays(new Date(), 365);
     const yearStart = new Date(new Date().getFullYear(), 0, 1);
@@ -166,11 +168,9 @@ const AccountingVATTab = () => {
 
     finalizedDeals.forEach((d) => {
       const saleDate = d.sale_date ? new Date(d.sale_date) : new Date(d.created_at);
-      const vatableSubtotal = Number(d.sold_price || 0); // gross selling price
+      const vatableSubtotal = Number(d.sold_price || 0);
 
-      if (saleDate >= oneYearAgo) {
-        rolling12 += vatableSubtotal;
-      }
+      if (saleDate >= oneYearAgo) rolling12 += vatableSubtotal;
       if (saleDate >= yearStart) {
         ytdVAP += sumAddons(d.addons_data);
         ytdDIC += Number(d.dic_amount || 0);
@@ -184,6 +184,49 @@ const AccountingVATTab = () => {
       pct: Math.min(100, (rolling12 / VAT_THRESHOLD) * 100),
     };
   }, [finalizedDeals]);
+
+  // === Breakdown derived values for active deal ===
+  const breakdown = useMemo(() => {
+    if (!activeDeal) return null;
+    const d = activeDeal;
+    const app = d.application;
+    const v = d.vehicle;
+    const firstName = app?.first_name || (app?.full_name || '').split(' ')[0] || '';
+    const lastName =
+      app?.last_name || (app?.full_name || '').split(' ').slice(1).join(' ') || '';
+    const clientName = `${firstName} ${lastName}`.trim() || app?.full_name || '—';
+    const vehicleLabel = v
+      ? `${v.year || ''} ${v.make || ''} ${v.model || ''}`.trim() || '—'
+      : '—';
+    const dateStr = d.sale_date
+      ? format(new Date(d.sale_date), 'dd MMM yyyy')
+      : format(new Date(d.created_at), 'dd MMM yyyy');
+    const vapTotal = sumAddons(d.addons_data);
+    const extras = addonsList(d.addons_data);
+    const licensing = sumLicensing(d.aftersales_expenses);
+    const partnerPayout =
+      Number(d.partner_profit_amount || 0) + Number(d.partner_capital_contribution || 0);
+    const referralPayout = Number(d.referral_commission_amount || 0);
+
+    return {
+      clientName,
+      vehicleLabel,
+      dateStr,
+      vin: v?.vin || '—',
+      reg: v?.registration_number || '—',
+      idNumber: app?.id_number || '—',
+      phone: app?.phone || '—',
+      email: app?.email || '—',
+      grossSelling: Number(d.sold_price || 0),
+      vehicleCost: Number(d.cost_price || 0),
+      licensing,
+      dic: Number(d.dic_amount || 0),
+      vapTotal,
+      extras,
+      partnerPayout,
+      referralPayout,
+    };
+  }, [activeDeal]);
 
   return (
     <div className="space-y-6">
@@ -247,10 +290,9 @@ const AccountingVATTab = () => {
           <div>
             <CardTitle>Accounting Ledger</CardTitle>
             <CardDescription>
-              Finalized / Delivered deals · One-click copy for external invoicing
+              Click any row to open the financial breakdown for external invoicing
             </CardDescription>
           </div>
-          {/* Segmented control: Pending | All */}
           <div className="inline-flex rounded-md border border-border bg-muted/30 p-0.5">
             {(['pending', 'all'] as const).map((v) => {
               const active = view === v;
@@ -283,157 +325,247 @@ const AccountingVATTab = () => {
                 ? finalizedDeals.filter((d) => !d.application?.is_invoiced)
                 : finalizedDeals;
             return (
-          <div className="overflow-x-auto rounded-lg border border-border">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/30">
-                  <TableHead className="font-semibold w-16">Status</TableHead>
-                  <TableHead className="font-semibold">Date</TableHead>
-                  <TableHead className="font-semibold">Client</TableHead>
-                  <TableHead className="font-semibold">Vehicle</TableHead>
-                  <TableHead className="font-semibold text-right">Gross Revenue</TableHead>
-                  <TableHead className="font-semibold text-right">VAP / Extras</TableHead>
-                  <TableHead className="font-semibold text-right">Partner Payout</TableHead>
-                  <TableHead className="font-semibold text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading && (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                      Loading ledger…
-                    </TableCell>
-                  </TableRow>
-                )}
-                {!isLoading && visibleDeals.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                      {view === 'pending' ? 'No pending invoices — all clear.' : 'No finalized deals yet.'}
-                    </TableCell>
-                  </TableRow>
-                )}
-                {visibleDeals.map((d) => {
-
-                  const app = d.application;
-                  const v = d.vehicle;
-                  const firstName =
-                    app?.first_name || (app?.full_name || '').split(' ')[0] || '';
-                  const lastName =
-                    app?.last_name ||
-                    (app?.full_name || '').split(' ').slice(1).join(' ') ||
-                    '';
-                  const clientName = `${firstName} ${lastName}`.trim() || app?.full_name || '—';
-                  const idNumber = app?.id_number || '—';
-                  const phone = app?.phone || '—';
-                  const vapTotal = sumAddons(d.addons_data);
-                  const extras = addonsList(d.addons_data);
-                  const partnerPayout =
-                    Number(d.partner_profit_amount || 0) +
-                    Number(d.partner_capital_contribution || 0);
-
-                  const dateStr = d.sale_date
-                    ? format(new Date(d.sale_date), 'dd MMM yyyy')
-                    : format(new Date(d.created_at), 'dd MMM yyyy');
-
-                  const vehicleLabel = v
-                    ? `${v.year || ''} ${v.make || ''} ${v.model || ''}`.trim() || '—'
-                    : '—';
-
-                  const clientCopy = `${firstName} ${lastName}\nID: ${idNumber}\nPhone: ${phone}`;
-                  const vehicleCopy = `${v?.year || ''} ${v?.make || ''} ${v?.model || ''} - VIN: ${v?.vin || 'N/A'} - Reg: ${v?.registration_number || 'N/A'}`;
-                  const vapCopy =
-                    extras.length > 0
-                      ? `Value Added Products: ${extras.join(', ')} - Total: ${fmtR(vapTotal)}`
-                      : 'Value Added Products: None';
-
-                  return (
-                    <TableRow
-                      key={d.id}
-                      className={cn(
-                        'hover:bg-muted/30 transition-opacity',
-                        d.application?.is_invoiced && 'opacity-50 text-zinc-500'
-                      )}
-                    >
-                      <TableCell>
-                        <Checkbox
-                          checked={!!d.application?.is_invoiced}
-                          disabled={!d.application?.id || toggleInvoiced.isPending}
-                          onCheckedChange={(checked) => {
-                            if (!d.application?.id) return;
-                            toggleInvoiced.mutate({
-                              appId: d.application.id,
-                              value: checked === true,
-                            });
-                          }}
-                          aria-label="Mark as invoiced"
-                        />
-                      </TableCell>
-                      <TableCell className="text-sm whitespace-nowrap">{dateStr}</TableCell>
-                      <TableCell>
-                        <div className="font-medium text-sm">{clientName}</div>
-                        <div className="text-xs text-muted-foreground">ID: {idNumber}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium text-sm">{vehicleLabel}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {v?.registration_number || 'No reg'}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right font-semibold text-emerald-400">
-                        {fmtR(Number(d.sold_price || 0))}
-                      </TableCell>
-                      <TableCell className="text-right text-purple-400">
-                        {fmtR(vapTotal)}
-                      </TableCell>
-                      <TableCell className="text-right text-red-400 italic">
-                        {partnerPayout > 0 ? `− ${fmtR(partnerPayout)}` : '—'}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button size="sm" variant="outline" className="gap-2">
-                              <Copy className="w-3.5 h-3.5" />
-                              Copy
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-56">
-                            <DropdownMenuLabel>Copy for Invoice</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => copyToClipboard(clientCopy, 'Client details')}
-                              className="gap-2"
-                            >
-                              <User className="w-4 h-4" /> Client Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => copyToClipboard(vehicleCopy, 'Vehicle line item')}
-                              className="gap-2"
-                            >
-                              <Car className="w-4 h-4" /> Vehicle Line Item
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => copyToClipboard(vapCopy, 'VAP line item')}
-                              className="gap-2"
-                            >
-                              <Package className="w-4 h-4" /> VAP Line Item
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+              <div className="overflow-x-auto rounded-lg border border-border">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/30">
+                      <TableHead className="font-semibold w-16">Status</TableHead>
+                      <TableHead className="font-semibold">Date</TableHead>
+                      <TableHead className="font-semibold">Client</TableHead>
+                      <TableHead className="font-semibold">Vehicle</TableHead>
+                      <TableHead className="font-semibold text-right">Gross Revenue</TableHead>
+                      <TableHead className="font-semibold text-right">VAP / Extras</TableHead>
+                      <TableHead className="font-semibold text-right">Partner Payout</TableHead>
                     </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                          Loading ledger…
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {!isLoading && visibleDeals.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                          {view === 'pending'
+                            ? 'No pending invoices — all clear.'
+                            : 'No finalized deals yet.'}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {visibleDeals.map((d) => {
+                      const app = d.application;
+                      const v = d.vehicle;
+                      const firstName =
+                        app?.first_name || (app?.full_name || '').split(' ')[0] || '';
+                      const lastName =
+                        app?.last_name ||
+                        (app?.full_name || '').split(' ').slice(1).join(' ') ||
+                        '';
+                      const clientName = `${firstName} ${lastName}`.trim() || app?.full_name || '—';
+                      const idNumber = app?.id_number || '—';
+                      const vapTotal = sumAddons(d.addons_data);
+                      const partnerPayout =
+                        Number(d.partner_profit_amount || 0) +
+                        Number(d.partner_capital_contribution || 0);
+                      const dateStr = d.sale_date
+                        ? format(new Date(d.sale_date), 'dd MMM yyyy')
+                        : format(new Date(d.created_at), 'dd MMM yyyy');
+                      const vehicleLabel = v
+                        ? `${v.year || ''} ${v.make || ''} ${v.model || ''}`.trim() || '—'
+                        : '—';
+
+                      return (
+                        <TableRow
+                          key={d.id}
+                          onClick={() => setActiveDeal(d)}
+                          className={cn(
+                            'cursor-pointer transition-colors hover:bg-zinc-800/50',
+                            d.application?.is_invoiced && 'opacity-50 text-zinc-500'
+                          )}
+                        >
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={!!d.application?.is_invoiced}
+                              disabled={!d.application?.id || toggleInvoiced.isPending}
+                              onCheckedChange={(checked) => {
+                                if (!d.application?.id) return;
+                                toggleInvoiced.mutate({
+                                  appId: d.application.id,
+                                  value: checked === true,
+                                });
+                              }}
+                              aria-label="Mark as invoiced"
+                            />
+                          </TableCell>
+                          <TableCell className="text-sm whitespace-nowrap">{dateStr}</TableCell>
+                          <TableCell>
+                            <div className="font-medium text-sm">{clientName}</div>
+                            <div className="text-xs text-muted-foreground">ID: {idNumber}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-medium text-sm">{vehicleLabel}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {v?.registration_number || 'No reg'}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-semibold text-emerald-400">
+                            {fmtR(Number(d.sold_price || 0))}
+                          </TableCell>
+                          <TableCell className="text-right text-purple-400">
+                            {fmtR(vapTotal)}
+                          </TableCell>
+                          <TableCell className="text-right text-red-400 italic">
+                            {partnerPayout > 0 ? `− ${fmtR(partnerPayout)}` : '—'}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
             );
           })()}
           <p className="text-xs text-muted-foreground italic mt-3">
-            Partner Payout shown in red is a Cost of Sale — it is <strong>not</strong> deducted from Gross Revenue and must be paid out separately.
+            Partner Payout shown in red is a Cost of Sale — it is <strong>not</strong> deducted
+            from Gross Revenue and must be paid out separately.
           </p>
         </CardContent>
       </Card>
 
+      {/* === BREAKDOWN DRAWER === */}
+      <Sheet open={!!activeDeal} onOpenChange={(open) => !open && setActiveDeal(null)}>
+        <SheetContent
+          side="right"
+          className="w-full sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-200 overflow-y-auto"
+        >
+          {breakdown && (
+            <>
+              <SheetHeader className="space-y-1 pb-4 border-b border-zinc-800">
+                <SheetTitle className="text-zinc-100 select-text">
+                  {breakdown.clientName}
+                </SheetTitle>
+                <SheetDescription className="select-text text-zinc-400">
+                  {breakdown.vehicleLabel}
+                  <span className="block text-xs text-zinc-500 mt-0.5">
+                    Finalized · {breakdown.dateStr}
+                  </span>
+                </SheetDescription>
+              </SheetHeader>
+
+              <div className="mt-6 space-y-6 leading-relaxed">
+                {/* Client Block */}
+                <section>
+                  <h4 className="text-xs uppercase tracking-wider text-zinc-500 mb-3">
+                    Client
+                  </h4>
+                  <dl className="space-y-2.5">
+                    <BreakdownRow label="ID Number" value={breakdown.idNumber} />
+                    <BreakdownRow label="Phone" value={breakdown.phone} />
+                    <BreakdownRow label="Email" value={breakdown.email} />
+                  </dl>
+                </section>
+
+                {/* Vehicle Block */}
+                <section>
+                  <h4 className="text-xs uppercase tracking-wider text-zinc-500 mb-3">
+                    Vehicle
+                  </h4>
+                  <dl className="space-y-2.5">
+                    <BreakdownRow label="Description" value={breakdown.vehicleLabel} />
+                    <BreakdownRow label="VIN" value={breakdown.vin} />
+                    <BreakdownRow label="Registration" value={breakdown.reg} />
+                  </dl>
+                </section>
+
+                {/* Financial Block */}
+                <section>
+                  <h4 className="text-xs uppercase tracking-wider text-zinc-500 mb-3">
+                    Financial Breakdown
+                  </h4>
+                  <dl className="space-y-3">
+                    <BreakdownRow
+                      label="Vehicle Total / Gross Selling Price"
+                      value={fmtR(breakdown.grossSelling)}
+                      emphasis="emerald"
+                    />
+                    <BreakdownRow label="Vehicle Cost" value={fmtR(breakdown.vehicleCost)} />
+                    <BreakdownRow
+                      label="Licensing & Registration (Disc)"
+                      value={fmtR(breakdown.licensing)}
+                    />
+                    <BreakdownRow
+                      label="DIC (Dealer Incentive Commission)"
+                      value={fmtR(breakdown.dic)}
+                      emphasis="cyan"
+                    />
+                    <BreakdownRow
+                      label="VAP (Value Added Products)"
+                      value={fmtR(breakdown.vapTotal)}
+                      emphasis="purple"
+                    />
+                    {breakdown.extras.length > 0 && (
+                      <div className="pl-3 border-l border-zinc-800 text-xs text-zinc-400 select-text">
+                        {breakdown.extras.join(', ')}
+                      </div>
+                    )}
+                    <BreakdownRow
+                      label="Partner Payout"
+                      value={fmtR(breakdown.partnerPayout)}
+                      emphasis="red"
+                    />
+                    <BreakdownRow
+                      label="Referral Payout"
+                      value={fmtR(breakdown.referralPayout)}
+                      emphasis="red"
+                    />
+                  </dl>
+                </section>
+
+                <p className="text-[11px] text-zinc-600 italic pt-4 border-t border-zinc-800 select-text">
+                  All text is selectable — click and drag to copy any value for your external invoice.
+                </p>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+};
+
+const BreakdownRow = ({
+  label,
+  value,
+  emphasis,
+}: {
+  label: string;
+  value: string;
+  emphasis?: 'emerald' | 'red' | 'purple' | 'cyan';
+}) => {
+  const colorClass =
+    emphasis === 'emerald'
+      ? 'text-emerald-400'
+      : emphasis === 'red'
+        ? 'text-red-400'
+        : emphasis === 'purple'
+          ? 'text-purple-400'
+          : emphasis === 'cyan'
+            ? 'text-cyan-400'
+            : 'text-zinc-200';
+  return (
+    <div className="flex items-start justify-between gap-6 py-1 select-text">
+      <dt className="text-sm text-zinc-500 select-text">{label}</dt>
+      <dd
+        className={cn(
+          'text-sm font-medium tabular-nums text-right select-text',
+          colorClass
+        )}
+      >
+        {value}
+      </dd>
     </div>
   );
 };
