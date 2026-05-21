@@ -347,7 +347,27 @@ const AccountingVATTab = () => {
                       : 'Value Added Products: None';
 
                   return (
-                    <TableRow key={d.id} className="hover:bg-muted/30">
+                    <TableRow
+                      key={d.id}
+                      className={cn(
+                        'hover:bg-muted/30 transition-opacity',
+                        d.application?.is_invoiced && 'opacity-50 text-zinc-500'
+                      )}
+                    >
+                      <TableCell>
+                        <Checkbox
+                          checked={!!d.application?.is_invoiced}
+                          disabled={!d.application?.id || toggleInvoiced.isPending}
+                          onCheckedChange={(checked) => {
+                            if (!d.application?.id) return;
+                            toggleInvoiced.mutate({
+                              appId: d.application.id,
+                              value: checked === true,
+                            });
+                          }}
+                          aria-label="Mark as invoiced"
+                        />
+                      </TableCell>
                       <TableCell className="text-sm whitespace-nowrap">{dateStr}</TableCell>
                       <TableCell>
                         <div className="font-medium text-sm">{clientName}</div>
@@ -406,11 +426,14 @@ const AccountingVATTab = () => {
               </TableBody>
             </Table>
           </div>
+            );
+          })()}
           <p className="text-xs text-muted-foreground italic mt-3">
             Partner Payout shown in red is a Cost of Sale — it is <strong>not</strong> deducted from Gross Revenue and must be paid out separately.
           </p>
         </CardContent>
       </Card>
+
     </div>
   );
 };
