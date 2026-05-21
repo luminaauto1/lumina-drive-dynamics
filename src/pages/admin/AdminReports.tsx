@@ -100,13 +100,12 @@ const useVehiclesForReports = () => {
   });
 };
 
-import { useAuth } from '@/contexts/AuthContext';
-
 const AdminReports = () => {
   const { isAccountant, isSuperAdmin } = useAuth();
   const accountantOnly = isAccountant && !isSuperAdmin;
   const { data: dealRecords = [], isLoading: dealsLoading } = useDealRecordsForReports();
   const { data: vehicles = [], isLoading: vehiclesLoading } = useVehiclesForReports();
+
 
   
   // Date range state - default last 30 days
