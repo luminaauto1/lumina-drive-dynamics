@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, subDays } from 'date-fns';
 import { Receipt, TrendingUp, Gift, Copy, User, Car, Package } from 'lucide-react';
 import { toast } from 'sonner';
@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -24,6 +26,7 @@ const fmtR = (val: number) =>
 
 interface AccountingDeal {
   id: string;
+  application_id: string | null;
   sale_date: string | null;
   created_at: string;
   sold_price: number | null;
@@ -45,6 +48,7 @@ interface AccountingDeal {
     registration_number: string | null;
   } | null;
   application?: {
+    id: string;
     first_name: string | null;
     last_name: string | null;
     full_name: string | null;
@@ -53,6 +57,7 @@ interface AccountingDeal {
     email: string | null;
     internal_status: string | null;
     status: string | null;
+    is_invoiced: boolean | null;
   } | null;
 }
 
@@ -63,14 +68,14 @@ const useAccountingDeals = () => {
       const { data, error } = await supabase
         .from('deal_records')
         .select(`
-          id, sale_date, created_at, sold_price, cost_price, recon_cost,
+          id, application_id, sale_date, created_at, sold_price, cost_price, recon_cost,
           dic_amount, partner_profit_amount, partner_capital_contribution,
           sales_rep_commission, referral_commission_amount,
           addons_data, aftersales_expenses, is_closed,
           vehicle:vehicles(make, model, year, vin, registration_number),
           application:finance_applications(
-            first_name, last_name, full_name, id_number, phone, email,
-            internal_status, status
+            id, first_name, last_name, full_name, id_number, phone, email,
+            internal_status, status, is_invoiced
           )
         `)
         .order('sale_date', { ascending: false });
@@ -100,6 +105,38 @@ const copyToClipboard = async (text: string, label: string) => {
 
 const AccountingVATTab = () => {
   const { data: deals = [], isLoading } = useAccountingDeals();
+  const queryClient = useQueryClient();
+  const [view, setView] = useState<'pending' | 'all'>('pending');
+
+  const toggleInvoiced = useMutation({
+    mutationFn: async ({ appId, value }: { appId: string; value: boolean }) => {
+      const { error } = await supabase
+        .from('finance_applications')
+        .update({ is_invoiced: value })
+        .eq('id', appId);
+      if (error) throw error;
+    },
+    onMutate: async ({ appId, value }) => {
+      await queryClient.cancelQueries({ queryKey: ['accounting-deals'] });
+      const prev = queryClient.getQueryData<AccountingDeal[]>(['accounting-deals']);
+      queryClient.setQueryData<AccountingDeal[]>(['accounting-deals'], (old) =>
+        (old || []).map((d) =>
+          d.application?.id === appId && d.application
+            ? { ...d, application: { ...d.application, is_invoiced: value } }
+            : d
+        )
+      );
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(['accounting-deals'], ctx.prev);
+      toast.error('Failed to update invoice status');
+    },
+    onSuccess: (_d, v) => {
+      toast.success(v.value ? 'Marked as invoiced' : 'Reopened as pending');
+    },
+  });
+
 
   // Finalized/Delivered filter: deal_records inherently represent finalized deals.
   // Strengthen by checking is_closed OR application status.
@@ -206,17 +243,51 @@ const AccountingVATTab = () => {
 
       {/* === LEDGER TABLE === */}
       <Card>
-        <CardHeader>
-          <CardTitle>Accounting Ledger</CardTitle>
-          <CardDescription>
-            Finalized / Delivered deals · One-click copy for external invoicing
-          </CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
+          <div>
+            <CardTitle>Accounting Ledger</CardTitle>
+            <CardDescription>
+              Finalized / Delivered deals · One-click copy for external invoicing
+            </CardDescription>
+          </div>
+          {/* Segmented control: Pending | All */}
+          <div className="inline-flex rounded-md border border-border bg-muted/30 p-0.5">
+            {(['pending', 'all'] as const).map((v) => {
+              const active = view === v;
+              const label = v === 'pending' ? `Pending Invoices` : 'All Deals';
+              const count =
+                v === 'pending'
+                  ? finalizedDeals.filter((d) => !d.application?.is_invoiced).length
+                  : finalizedDeals.length;
+              return (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={cn(
+                    'px-3 py-1.5 text-xs font-medium rounded-sm transition-colors',
+                    active
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  {label} <span className="opacity-60">({count})</span>
+                </button>
+              );
+            })}
+          </div>
         </CardHeader>
         <CardContent>
+          {(() => {
+            const visibleDeals =
+              view === 'pending'
+                ? finalizedDeals.filter((d) => !d.application?.is_invoiced)
+                : finalizedDeals;
+            return (
           <div className="overflow-x-auto rounded-lg border border-border">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/30">
+                  <TableHead className="font-semibold w-16">Status</TableHead>
                   <TableHead className="font-semibold">Date</TableHead>
                   <TableHead className="font-semibold">Client</TableHead>
                   <TableHead className="font-semibold">Vehicle</TableHead>
@@ -229,19 +300,20 @@ const AccountingVATTab = () => {
               <TableBody>
                 {isLoading && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                       Loading ledger…
                     </TableCell>
                   </TableRow>
                 )}
-                {!isLoading && finalizedDeals.length === 0 && (
+                {!isLoading && visibleDeals.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                      No finalized deals yet.
+                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                      {view === 'pending' ? 'No pending invoices — all clear.' : 'No finalized deals yet.'}
                     </TableCell>
                   </TableRow>
                 )}
-                {finalizedDeals.map((d) => {
+                {visibleDeals.map((d) => {
+
                   const app = d.application;
                   const v = d.vehicle;
                   const firstName =
@@ -275,7 +347,27 @@ const AccountingVATTab = () => {
                       : 'Value Added Products: None';
 
                   return (
-                    <TableRow key={d.id} className="hover:bg-muted/30">
+                    <TableRow
+                      key={d.id}
+                      className={cn(
+                        'hover:bg-muted/30 transition-opacity',
+                        d.application?.is_invoiced && 'opacity-50 text-zinc-500'
+                      )}
+                    >
+                      <TableCell>
+                        <Checkbox
+                          checked={!!d.application?.is_invoiced}
+                          disabled={!d.application?.id || toggleInvoiced.isPending}
+                          onCheckedChange={(checked) => {
+                            if (!d.application?.id) return;
+                            toggleInvoiced.mutate({
+                              appId: d.application.id,
+                              value: checked === true,
+                            });
+                          }}
+                          aria-label="Mark as invoiced"
+                        />
+                      </TableCell>
                       <TableCell className="text-sm whitespace-nowrap">{dateStr}</TableCell>
                       <TableCell>
                         <div className="font-medium text-sm">{clientName}</div>
@@ -334,11 +426,14 @@ const AccountingVATTab = () => {
               </TableBody>
             </Table>
           </div>
+            );
+          })()}
           <p className="text-xs text-muted-foreground italic mt-3">
             Partner Payout shown in red is a Cost of Sale — it is <strong>not</strong> deducted from Gross Revenue and must be paid out separately.
           </p>
         </CardContent>
       </Card>
+
     </div>
   );
 };

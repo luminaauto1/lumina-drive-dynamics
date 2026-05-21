@@ -549,6 +549,7 @@ export type Database = {
           id_type: string | null
           internal_status: string | null
           is_archived: boolean
+          is_invoiced: boolean
           job_title: string | null
           kin_contact: string | null
           kin_name: string | null
@@ -636,6 +637,7 @@ export type Database = {
           id_type?: string | null
           internal_status?: string | null
           is_archived?: boolean
+          is_invoiced?: boolean
           job_title?: string | null
           kin_contact?: string | null
           kin_name?: string | null
@@ -723,6 +725,7 @@ export type Database = {
           id_type?: string | null
           internal_status?: string | null
           is_archived?: boolean
+          is_invoiced?: boolean
           job_title?: string | null
           kin_contact?: string | null
           kin_name?: string | null
