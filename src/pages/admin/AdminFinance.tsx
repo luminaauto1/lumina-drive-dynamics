@@ -455,7 +455,7 @@ const AdminFinance = () => {
               if (counts[a.status] !== undefined) counts[a.status] += 1;
             }
           } else {
-            ['no_notes','updates_needed','info_updated','note_to_f_and_i','note_to_sales'].forEach(k => { counts[k] = 0; });
+            ['no_notes','note_to_admin','note_to_f_and_i','note_to_senior_f_and_i'].forEach(k => { counts[k] = 0; });
             for (const a of applications as any[]) {
               if (a.is_archived) continue;
               const norm = normalizeInternalStatus(a.internal_status) || 'no_notes';
@@ -464,7 +464,7 @@ const AdminFinance = () => {
             }
           }
 
-          const internalOrder: InternalStatus[] = ['updates_needed', 'info_updated', 'note_to_f_and_i', 'note_to_sales', 'no_notes'];
+          const internalOrder: InternalStatus[] = ['note_to_admin', 'note_to_f_and_i', 'note_to_senior_f_and_i', 'no_notes'];
           const headerLabel = isFAndIRole ? 'F&I Pipeline Overview' : 'Internal Status Overview';
 
           return (
