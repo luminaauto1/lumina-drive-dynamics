@@ -1357,7 +1357,7 @@ const AdminFinance = () => {
             })()}
             {(() => {
               const norm = normalizeInternalStatus((pendingApp as any)?.internal_status);
-              const eligible = (role === 'f_and_i' || role === 'senior_f_and_i') && (norm === 'info_updated' || norm === 'no_notes' || !norm);
+              const eligible = (role === 'f_and_i' || role === 'senior_f_and_i') && (norm === 'note_to_f_and_i' || norm === 'note_to_senior_f_and_i' || norm === 'no_notes' || !norm);
               const notAlreadySent = pendingApp?.status !== 'sent_to_banks';
               if (!eligible || !notAlreadySent) return null;
               const handleFinalize = async (
