@@ -1076,9 +1076,14 @@ const AdminFinance = () => {
                          const hasNotes = !!(app.notes && String(app.notes).trim().length > 0);
                          const normInt = normalizeInternalStatus((app as any).internal_status);
                          const isFAndIRow = (role === 'f_and_i' || role === 'senior_f_and_i');
-                         const alertSet = isFAndIRow
-                           ? new Set(['info_updated', 'note_to_f_and_i'])
-                           : new Set(['updates_needed', 'note_to_sales']);
+                         // Show ping only on notes directed at this role.
+                         // Standard F&I: only Note to F&I. Senior F&I: F&I + Senior F&I.
+                         // Admin / Sales: only Note to Admin.
+                         const alertSet = role === 'senior_f_and_i'
+                           ? new Set(['note_to_f_and_i', 'note_to_senior_f_and_i'])
+                           : role === 'f_and_i'
+                             ? new Set(['note_to_f_and_i'])
+                             : new Set(['note_to_admin']);
                          const showDot = !!normInt && normInt !== 'no_notes' && alertSet.has(normInt);
                          return (
                            <div className="flex items-center gap-2">
