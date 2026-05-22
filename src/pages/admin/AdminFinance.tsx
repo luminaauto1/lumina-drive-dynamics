@@ -550,17 +550,6 @@ const AdminFinance = () => {
                   <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 mr-1">View</span>
                   <button
                     type="button"
-                    onClick={() => setNotificationFilter('f_and_i')}
-                    className={`text-[11px] px-3 py-1 rounded-md transition-colors ${
-                      effectiveView === 'f_and_i'
-                        ? 'bg-emerald-900/40 text-emerald-400 border border-emerald-500/50'
-                        : 'bg-transparent text-zinc-500 border border-zinc-800 hover:text-zinc-300'
-                    }`}
-                  >
-                    F&I Notifications
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => setNotificationFilter('admin')}
                     className={`text-[11px] px-3 py-1 rounded-md transition-colors ${
                       effectiveView === 'admin'
@@ -569,6 +558,17 @@ const AdminFinance = () => {
                     }`}
                   >
                     Admin Notifications
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNotificationFilter('senior')}
+                    className={`text-[11px] px-3 py-1 rounded-md transition-colors ${
+                      effectiveView === 'senior'
+                        ? 'bg-sky-900/40 text-sky-400 border border-sky-500/50'
+                        : 'bg-transparent text-zinc-500 border border-zinc-800 hover:text-zinc-300'
+                    }`}
+                  >
+                    Senior F&I Notifications
                   </button>
                 </div>
               )}
