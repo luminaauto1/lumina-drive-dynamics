@@ -587,16 +587,21 @@ const AdminFinance = () => {
               </div>
               <div className="flex flex-col gap-1.5 mt-1">
                 {feed.map((app: any) => {
-                  const norm = normalizeInternalStatus(app.internal_status);
-                  const isGreen = norm === greenKey;
-                  const subLabel = isGreen
-                    ? (isFAndI ? 'General Note · For F&I' : 'General Note · For Sales')
-                    : (isFAndI ? 'Info Updated · Ready for Review' : 'Updates Needed · Action Required');
-                  const dotClass = isGreen ? 'bg-emerald-400' : 'bg-amber-300';
-                  const containerClass = isGreen
-                    ? 'border-emerald-500/40 hover:border-emerald-400 hover:bg-emerald-400/10'
-                    : 'border-zinc-800 hover:border-amber-300/40 hover:bg-amber-300/10';
-                  const textHover = isGreen ? 'group-hover:text-emerald-200' : 'group-hover:text-amber-200';
+                  // Color-code by which directed feed we're showing.
+                  const isAdminFeed = effectiveView === 'admin';
+                  const subLabel =
+                    effectiveView === 'admin' ? 'Note to Admin · Action Required'
+                    : effectiveView === 'senior' ? 'Note to Senior F&I · Action Required'
+                    : 'Note to F&I · Action Required';
+                  const dotClass = isAdminFeed ? 'bg-red-400' : (effectiveView === 'senior' ? 'bg-sky-400' : 'bg-emerald-400');
+                  const containerClass = isAdminFeed
+                    ? 'border-red-500/40 hover:border-red-400 hover:bg-red-400/10'
+                    : effectiveView === 'senior'
+                      ? 'border-sky-500/40 hover:border-sky-400 hover:bg-sky-400/10'
+                      : 'border-emerald-500/40 hover:border-emerald-400 hover:bg-emerald-400/10';
+                  const textHover = isAdminFeed
+                    ? 'group-hover:text-red-200'
+                    : effectiveView === 'senior' ? 'group-hover:text-sky-200' : 'group-hover:text-emerald-200';
                   const ts = app.status_updated_at || app.updated_at || app.created_at;
                   const formattedDate = ts
                     ? new Date(ts).toLocaleString('en-GB', {
