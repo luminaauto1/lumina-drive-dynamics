@@ -507,30 +507,38 @@ const AdminFinance = () => {
           );
         })()}
 
-        {/* Action Feed — role-aware mirrored notification banner */}
+        {/* Action Feed — directed-routing notification banner.
+            Admin → Note to Admin only.
+            Standard F&I → Note to F&I only (strictly isolated).
+            Senior F&I → toggle between Note to Admin and Note to Senior F&I. */}
         {(() => {
-          const canToggle = role === 'super_admin' || role === 'senior_f_and_i';
-          const roleDefaultFAndI = (role === 'f_and_i' || role === 'senior_f_and_i');
-          const effectiveView: 'f_and_i' | 'admin' =
-            canToggle && notificationFilter !== 'auto'
-              ? notificationFilter
-              : (roleDefaultFAndI ? 'f_and_i' : 'admin');
-          const isFAndI = effectiveView === 'f_and_i';
-          // Each role sees a "standard" alert (escalation loop) and a "general"
-          // green ping (passive note from the other side).
-          const standardKey = isFAndI ? 'info_updated' : 'updates_needed';
-          const greenKey = isFAndI ? 'note_to_f_and_i' : 'note_to_sales';
-          const targetSet = new Set([standardKey, greenKey]);
+          const canToggle = role === 'senior_f_and_i';
+          // Map effective view → the single internal_status this feed shows.
+          let effectiveView: 'admin' | 'f_and_i' | 'senior';
+          if (role === 'senior_f_and_i') {
+            effectiveView = notificationFilter === 'admin' ? 'admin' : 'senior';
+          } else if (role === 'f_and_i') {
+            effectiveView = 'f_and_i';
+          } else {
+            effectiveView = 'admin';
+          }
+          const targetStatus: InternalStatus =
+            effectiveView === 'admin' ? 'note_to_admin'
+            : effectiveView === 'f_and_i' ? 'note_to_f_and_i'
+            : 'note_to_senior_f_and_i';
           // Internal statuses persist permanently until manually cleared by staff —
           // no time-based expiration / auto-fade.
           const feed = applications.filter((a: any) => {
             if (a.is_archived) return false;
             const norm = normalizeInternalStatus(a.internal_status);
-            if (!norm || !targetSet.has(norm)) return false;
-            return true;
+            return norm === targetStatus;
           });
           if (feed.length === 0 && !canToggle) return null;
-          const headerLabel = isFAndI ? 'F&I Action Feed' : 'Sales Action Feed';
+          const isFAndI = effectiveView !== 'admin';
+          const headerLabel =
+            effectiveView === 'admin' ? 'Admin Action Feed'
+            : effectiveView === 'senior' ? 'Senior F&I Action Feed'
+            : 'F&I Action Feed';
           return (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
