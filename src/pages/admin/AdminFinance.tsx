@@ -80,7 +80,7 @@ const AdminFinance = () => {
   const [waModalOpen, setWaModalOpen] = useState(false);
   // Role-restricted notification feed filter (super_admin + senior_f_and_i only).
   // 'auto' = role-default behavior. 'f_and_i' or 'admin' = forced view.
-  const [notificationFilter, setNotificationFilter] = useState<'auto' | 'f_and_i' | 'admin'>('auto');
+  const [notificationFilter, setNotificationFilter] = useState<'auto' | 'admin' | 'senior'>('auto');
 
   // Universal Client Hub state
   const [hubOpen, setHubOpen] = useState(false);
@@ -262,18 +262,9 @@ const AdminFinance = () => {
         updatedNotes = updatedNotes ? `${newEntry}\n\n${updatedNotes}` : newEntry;
       }
 
-      // Auto-advance escalation loop based on role + current state.
-      // Sales/Admin replies to "Updates Needed" → flip to "Info Updated" (ping F&I).
-      // F&I replies to "Info Updated" → flip back to "Updates Needed" (ping Sales).
-      const currentInternal = normalizeInternalStatus(pendingApp.internal_status);
-      const isSalesOrAdmin = role === 'sales_agent' || role === 'super_admin';
-      const isFAndI = (role === 'f_and_i' || role === 'senior_f_and_i');
-      let effectiveStatus = pendingStatus;
-      if (isSalesOrAdmin && currentInternal === 'updates_needed' && pendingStatus !== 'no_notes') {
-        effectiveStatus = 'info_updated';
-      } else if (isFAndI && currentInternal === 'info_updated' && pendingStatus !== 'no_notes') {
-        effectiveStatus = 'updates_needed';
-      }
+      // Directed-routing model: the selected status is used as-is. No
+      // auto-escalation flips — Admin / F&I / Senior F&I notes are explicit.
+      const effectiveStatus = pendingStatus;
 
       const updatePayload: any = {
         internal_status: effectiveStatus,
@@ -464,7 +455,7 @@ const AdminFinance = () => {
               if (counts[a.status] !== undefined) counts[a.status] += 1;
             }
           } else {
-            ['no_notes','updates_needed','info_updated','note_to_f_and_i','note_to_sales'].forEach(k => { counts[k] = 0; });
+            ['no_notes','note_to_admin','note_to_f_and_i','note_to_senior_f_and_i'].forEach(k => { counts[k] = 0; });
             for (const a of applications as any[]) {
               if (a.is_archived) continue;
               const norm = normalizeInternalStatus(a.internal_status) || 'no_notes';
@@ -473,7 +464,7 @@ const AdminFinance = () => {
             }
           }
 
-          const internalOrder: InternalStatus[] = ['updates_needed', 'info_updated', 'note_to_f_and_i', 'note_to_sales', 'no_notes'];
+          const internalOrder: InternalStatus[] = ['note_to_admin', 'note_to_f_and_i', 'note_to_senior_f_and_i', 'no_notes'];
           const headerLabel = isFAndIRole ? 'F&I Pipeline Overview' : 'Internal Status Overview';
 
           return (
@@ -516,30 +507,38 @@ const AdminFinance = () => {
           );
         })()}
 
-        {/* Action Feed — role-aware mirrored notification banner */}
+        {/* Action Feed — directed-routing notification banner.
+            Admin → Note to Admin only.
+            Standard F&I → Note to F&I only (strictly isolated).
+            Senior F&I → toggle between Note to Admin and Note to Senior F&I. */}
         {(() => {
-          const canToggle = role === 'super_admin' || role === 'senior_f_and_i';
-          const roleDefaultFAndI = (role === 'f_and_i' || role === 'senior_f_and_i');
-          const effectiveView: 'f_and_i' | 'admin' =
-            canToggle && notificationFilter !== 'auto'
-              ? notificationFilter
-              : (roleDefaultFAndI ? 'f_and_i' : 'admin');
-          const isFAndI = effectiveView === 'f_and_i';
-          // Each role sees a "standard" alert (escalation loop) and a "general"
-          // green ping (passive note from the other side).
-          const standardKey = isFAndI ? 'info_updated' : 'updates_needed';
-          const greenKey = isFAndI ? 'note_to_f_and_i' : 'note_to_sales';
-          const targetSet = new Set([standardKey, greenKey]);
+          const canToggle = role === 'senior_f_and_i';
+          // Map effective view → the single internal_status this feed shows.
+          let effectiveView: 'admin' | 'f_and_i' | 'senior';
+          if (role === 'senior_f_and_i') {
+            effectiveView = notificationFilter === 'admin' ? 'admin' : 'senior';
+          } else if (role === 'f_and_i') {
+            effectiveView = 'f_and_i';
+          } else {
+            effectiveView = 'admin';
+          }
+          const targetStatus: InternalStatus =
+            effectiveView === 'admin' ? 'note_to_admin'
+            : effectiveView === 'f_and_i' ? 'note_to_f_and_i'
+            : 'note_to_senior_f_and_i';
           // Internal statuses persist permanently until manually cleared by staff —
           // no time-based expiration / auto-fade.
           const feed = applications.filter((a: any) => {
             if (a.is_archived) return false;
             const norm = normalizeInternalStatus(a.internal_status);
-            if (!norm || !targetSet.has(norm)) return false;
-            return true;
+            return norm === targetStatus;
           });
           if (feed.length === 0 && !canToggle) return null;
-          const headerLabel = isFAndI ? 'F&I Action Feed' : 'Sales Action Feed';
+          const isFAndI = effectiveView !== 'admin';
+          const headerLabel =
+            effectiveView === 'admin' ? 'Admin Action Feed'
+            : effectiveView === 'senior' ? 'Senior F&I Action Feed'
+            : 'F&I Action Feed';
           return (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
@@ -551,17 +550,6 @@ const AdminFinance = () => {
                   <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 mr-1">View</span>
                   <button
                     type="button"
-                    onClick={() => setNotificationFilter('f_and_i')}
-                    className={`text-[11px] px-3 py-1 rounded-md transition-colors ${
-                      effectiveView === 'f_and_i'
-                        ? 'bg-emerald-900/40 text-emerald-400 border border-emerald-500/50'
-                        : 'bg-transparent text-zinc-500 border border-zinc-800 hover:text-zinc-300'
-                    }`}
-                  >
-                    F&I Notifications
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => setNotificationFilter('admin')}
                     className={`text-[11px] px-3 py-1 rounded-md transition-colors ${
                       effectiveView === 'admin'
@@ -570,6 +558,17 @@ const AdminFinance = () => {
                     }`}
                   >
                     Admin Notifications
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNotificationFilter('senior')}
+                    className={`text-[11px] px-3 py-1 rounded-md transition-colors ${
+                      effectiveView === 'senior'
+                        ? 'bg-sky-900/40 text-sky-400 border border-sky-500/50'
+                        : 'bg-transparent text-zinc-500 border border-zinc-800 hover:text-zinc-300'
+                    }`}
+                  >
+                    Senior F&I Notifications
                   </button>
                 </div>
               )}
@@ -588,16 +587,21 @@ const AdminFinance = () => {
               </div>
               <div className="flex flex-col gap-1.5 mt-1">
                 {feed.map((app: any) => {
-                  const norm = normalizeInternalStatus(app.internal_status);
-                  const isGreen = norm === greenKey;
-                  const subLabel = isGreen
-                    ? (isFAndI ? 'General Note · For F&I' : 'General Note · For Sales')
-                    : (isFAndI ? 'Info Updated · Ready for Review' : 'Updates Needed · Action Required');
-                  const dotClass = isGreen ? 'bg-emerald-400' : 'bg-amber-300';
-                  const containerClass = isGreen
-                    ? 'border-emerald-500/40 hover:border-emerald-400 hover:bg-emerald-400/10'
-                    : 'border-zinc-800 hover:border-amber-300/40 hover:bg-amber-300/10';
-                  const textHover = isGreen ? 'group-hover:text-emerald-200' : 'group-hover:text-amber-200';
+                  // Color-code by which directed feed we're showing.
+                  const isAdminFeed = effectiveView === 'admin';
+                  const subLabel =
+                    effectiveView === 'admin' ? 'Note to Admin · Action Required'
+                    : effectiveView === 'senior' ? 'Note to Senior F&I · Action Required'
+                    : 'Note to F&I · Action Required';
+                  const dotClass = isAdminFeed ? 'bg-red-400' : (effectiveView === 'senior' ? 'bg-sky-400' : 'bg-emerald-400');
+                  const containerClass = isAdminFeed
+                    ? 'border-red-500/40 hover:border-red-400 hover:bg-red-400/10'
+                    : effectiveView === 'senior'
+                      ? 'border-sky-500/40 hover:border-sky-400 hover:bg-sky-400/10'
+                      : 'border-emerald-500/40 hover:border-emerald-400 hover:bg-emerald-400/10';
+                  const textHover = isAdminFeed
+                    ? 'group-hover:text-red-200'
+                    : effectiveView === 'senior' ? 'group-hover:text-sky-200' : 'group-hover:text-emerald-200';
                   const ts = app.status_updated_at || app.updated_at || app.created_at;
                   const formattedDate = ts
                     ? new Date(ts).toLocaleString('en-GB', {
@@ -1072,9 +1076,14 @@ const AdminFinance = () => {
                          const hasNotes = !!(app.notes && String(app.notes).trim().length > 0);
                          const normInt = normalizeInternalStatus((app as any).internal_status);
                          const isFAndIRow = (role === 'f_and_i' || role === 'senior_f_and_i');
-                         const alertSet = isFAndIRow
-                           ? new Set(['info_updated', 'note_to_f_and_i'])
-                           : new Set(['updates_needed', 'note_to_sales']);
+                         // Show ping only on notes directed at this role.
+                         // Standard F&I: only Note to F&I. Senior F&I: F&I + Senior F&I.
+                         // Admin / Sales: only Note to Admin.
+                         const alertSet = role === 'senior_f_and_i'
+                           ? new Set(['note_to_f_and_i', 'note_to_senior_f_and_i'])
+                           : role === 'f_and_i'
+                             ? new Set(['note_to_f_and_i'])
+                             : new Set(['note_to_admin']);
                          const showDot = !!normInt && normInt !== 'no_notes' && alertSet.has(normInt);
                          return (
                            <div className="flex items-center gap-2">
@@ -1315,7 +1324,7 @@ const AdminFinance = () => {
             </DialogHeader>
             {(() => {
               const norm = normalizeInternalStatus((pendingApp as any)?.internal_status);
-              if (norm !== 'note_to_f_and_i' && norm !== 'note_to_sales') return null;
+              if (norm !== 'note_to_admin' && norm !== 'note_to_f_and_i' && norm !== 'note_to_senior_f_and_i') return null;
               return (
                 <div className="pt-1 pb-2">
                   <Button
@@ -1353,7 +1362,7 @@ const AdminFinance = () => {
             })()}
             {(() => {
               const norm = normalizeInternalStatus((pendingApp as any)?.internal_status);
-              const eligible = (role === 'f_and_i' || role === 'senior_f_and_i') && (norm === 'info_updated' || norm === 'no_notes' || !norm);
+              const eligible = (role === 'f_and_i' || role === 'senior_f_and_i') && (norm === 'note_to_f_and_i' || norm === 'note_to_senior_f_and_i' || norm === 'no_notes' || !norm);
               const notAlreadySent = pendingApp?.status !== 'sent_to_banks';
               if (!eligible || !notAlreadySent) return null;
               const handleFinalize = async (
