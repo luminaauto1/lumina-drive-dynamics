@@ -592,15 +592,15 @@ const AdminFinance = () => {
                     effectiveView === 'admin' ? 'Note to Admin · Action Required'
                     : effectiveView === 'senior' ? 'Note to Senior F&I · Action Required'
                     : 'Note to F&I · Action Required';
-                  const dotClass = isAdminFeed ? 'bg-red-400' : (effectiveView === 'senior' ? 'bg-sky-400' : 'bg-emerald-400');
+                  const dotClass = isAdminFeed ? 'bg-red-400' : (effectiveView === 'senior' ? 'bg-purple-400' : 'bg-emerald-400');
                   const containerClass = isAdminFeed
                     ? 'border-red-500/40 hover:border-red-400 hover:bg-red-400/10'
                     : effectiveView === 'senior'
-                      ? 'border-sky-500/40 hover:border-sky-400 hover:bg-sky-400/10'
+                      ? 'border-purple-500/40 hover:border-purple-400 hover:bg-purple-400/10'
                       : 'border-emerald-500/40 hover:border-emerald-400 hover:bg-emerald-400/10';
                   const textHover = isAdminFeed
                     ? 'group-hover:text-red-200'
-                    : effectiveView === 'senior' ? 'group-hover:text-sky-200' : 'group-hover:text-emerald-200';
+                    : effectiveView === 'senior' ? 'group-hover:text-purple-200' : 'group-hover:text-emerald-200';
                   const ts = app.status_updated_at || app.updated_at || app.created_at;
                   const formattedDate = ts
                     ? new Date(ts).toLocaleString('en-GB', {
