@@ -512,11 +512,16 @@ const AdminFinance = () => {
             Standard F&I → Note to F&I only (strictly isolated).
             Senior F&I → toggle between Note to Admin and Note to Senior F&I. */}
         {(() => {
-          const canToggle = role === 'senior_f_and_i';
-          // Map effective view → the single internal_status this feed shows.
+          // 3-way oversight: Admin and Senior F&I can pivot across all three feeds.
+          // Standard F&I is strictly locked to their own Note to F&I feed.
+          const canToggle = role === 'super_admin' || role === 'senior_f_and_i';
           let effectiveView: 'admin' | 'f_and_i' | 'senior';
-          if (role === 'senior_f_and_i') {
-            effectiveView = notificationFilter === 'admin' ? 'admin' : 'senior';
+          if (canToggle) {
+            effectiveView = notificationFilter === 'admin'
+              ? 'admin'
+              : notificationFilter === 'senior'
+                ? 'senior'
+                : 'f_and_i';
           } else if (role === 'f_and_i') {
             effectiveView = 'f_and_i';
           } else {
@@ -539,6 +544,19 @@ const AdminFinance = () => {
             effectiveView === 'admin' ? 'Admin Action Feed'
             : effectiveView === 'senior' ? 'Senior F&I Action Feed'
             : 'F&I Action Feed';
+          const toggleBtn = (key: 'admin' | 'senior' | 'f_and_i', label: string, activeCls: string) => (
+            <button
+              type="button"
+              onClick={() => setNotificationFilter(key)}
+              className={`text-[11px] px-3 py-1 rounded-md transition-colors border ${
+                effectiveView === key
+                  ? activeCls
+                  : 'bg-transparent text-zinc-500 border-zinc-800 hover:text-zinc-300'
+              }`}
+            >
+              {label}
+            </button>
+          );
           return (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
@@ -548,28 +566,9 @@ const AdminFinance = () => {
               {canToggle && (
                 <div className="flex items-center gap-2 pb-2 mb-1 border-b border-zinc-800/80">
                   <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 mr-1">View</span>
-                  <button
-                    type="button"
-                    onClick={() => setNotificationFilter('admin')}
-                    className={`text-[11px] px-3 py-1 rounded-md transition-colors ${
-                      effectiveView === 'admin'
-                        ? 'bg-red-900/40 text-red-400 border border-red-500/50'
-                        : 'bg-transparent text-zinc-500 border border-zinc-800 hover:text-zinc-300'
-                    }`}
-                  >
-                    Admin Notifications
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNotificationFilter('senior')}
-                    className={`text-[11px] px-3 py-1 rounded-md transition-colors ${
-                      effectiveView === 'senior'
-                        ? 'bg-sky-900/40 text-sky-400 border border-sky-500/50'
-                        : 'bg-transparent text-zinc-500 border border-zinc-800 hover:text-zinc-300'
-                    }`}
-                  >
-                    Senior F&I Notifications
-                  </button>
+                  {toggleBtn('admin', 'Admin', 'bg-red-900/40 text-red-400 border-red-500/50')}
+                  {toggleBtn('senior', 'Senior F&I', 'bg-purple-900/40 text-purple-400 border-purple-500/50')}
+                  {toggleBtn('f_and_i', 'F&I Team', 'bg-emerald-900/40 text-emerald-400 border-emerald-500/50')}
                 </div>
               )}
               {feed.length === 0 ? (
