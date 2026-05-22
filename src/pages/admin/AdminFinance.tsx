@@ -1319,7 +1319,7 @@ const AdminFinance = () => {
             </DialogHeader>
             {(() => {
               const norm = normalizeInternalStatus((pendingApp as any)?.internal_status);
-              if (norm !== 'note_to_f_and_i' && norm !== 'note_to_sales') return null;
+              if (norm !== 'note_to_admin' && norm !== 'note_to_f_and_i' && norm !== 'note_to_senior_f_and_i') return null;
               return (
                 <div className="pt-1 pb-2">
                   <Button
