@@ -167,15 +167,29 @@ Deno.serve(async (req) => {
     return json({ challenge: payload.challenge }, 200);
   }
 
-  const formData = (payload.data as Record<string, unknown> | undefined)?.form_data;
-  const fields = extractLeadFields(formData);
+  // 1) Try flat root-level keys first (Make.com / generic webhook style)
+  let rawName: unknown =
+    payload.name ?? payload.full_name ?? payload.client_name ?? payload.customer_name ?? payload.lead_name;
+  let rawPhone: unknown =
+    payload.phone ?? payload.phone_number ?? payload.mobile ?? payload.mobile_number ?? payload.cell ?? payload.contact_number;
+  let rawBuyingPower: unknown =
+    payload.buying_power ?? payload.buyingPower ?? payload.bank_qualification ?? payload.qualification ?? payload.approved_amount ?? payload.budget;
 
-  const clientName = sanitizeText(fields.name, 120);
-  const clientPhone = sanitizePhone(fields.phone);
-  const buyingPower = sanitizeText(fields.buyingPower, 200);
+  // 2) Fallback to TikTok native nested form_data structure
+  if (!rawName || !rawPhone) {
+    const formData = (payload.data as Record<string, unknown> | undefined)?.form_data;
+    const fields = extractLeadFields(formData);
+    rawName = rawName ?? fields.name;
+    rawPhone = rawPhone ?? fields.phone;
+    rawBuyingPower = rawBuyingPower ?? fields.buyingPower;
+  }
+
+  const clientName = sanitizeText(rawName, 120);
+  const clientPhone = sanitizePhone(rawPhone);
+  const buyingPower = sanitizeText(rawBuyingPower, 200);
 
   if (!clientName || !clientPhone) {
-    return json({ error: "Missing required lead fields in payload.data.form_data" }, 400);
+    return json({ error: "Missing required lead fields (name, phone)" }, 400);
   }
 
   const notes = buyingPower ? `Bank qualification / buying power: ${buyingPower}` : null;
