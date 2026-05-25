@@ -35,18 +35,30 @@ Deno.serve(async (req) => {
     return json({ error: "Method not allowed" }, 405);
   }
 
-  let payload: Record<string, unknown>;
+  let payload: Record<string, any>;
   try {
     payload = await req.json();
   } catch {
+    console.error("DB_INSERT_ERROR: invalid JSON body");
     return json({ success: true, message: "Processed" }, 200);
   }
 
-  const clientName = sanitizeText(payload.clientName, 120);
-  const clientPhone = sanitizePhone(payload.clientPhone);
-  const buyingPower = sanitizeText(payload.buyingPower, 200);
+  console.log("[make-receiver] incoming payload:", JSON.stringify(payload));
+
+  // Accept multiple flat key shapes from Make.com / TikTok
+  const clientName = sanitizeText(
+    payload.clientName ?? payload.name ?? payload.full_name ?? payload.fullName,
+    120,
+  );
+  const clientPhone = sanitizePhone(
+    payload.clientPhone ?? payload.phone ?? payload.phone_number ?? payload.mobile,
+  );
+  const clientEmail = sanitizeText(payload.clientEmail ?? payload.email, 255);
+  const sourceRaw = sanitizeText(payload.source, 120) ?? "TikTok";
+  const buyingPower = sanitizeText(payload.buyingPower ?? payload.buying_power, 200);
 
   if (!clientName || !clientPhone) {
+    console.error("DB_INSERT_ERROR: missing required fields", { clientName, clientPhone });
     return json({ success: true, message: "Processed" }, 200);
   }
 
@@ -62,24 +74,28 @@ Deno.serve(async (req) => {
     const leadPayload = {
       client_name: clientName,
       client_phone: clientPhone,
+      client_email: clientEmail,
       phone_number: clientPhone,
-      source: "Make.com Integration",
-      status: "Lead/Inquiry",
+      source: sourceRaw,
+      status: "Lead Received",
       notes,
       platform: "make.com",
       origin: "make_webhook",
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase
+    const { data, error: dbError } = await supabase
       .from("leads")
-      .upsert(leadPayload, { onConflict: "phone_number" });
+      .upsert(leadPayload, { onConflict: "phone_number" })
+      .select();
 
-    if (error) {
-      console.error("DB Error:", error);
+    if (dbError) {
+      console.error("DB_RESPONSE_ERROR:", JSON.stringify(dbError));
+    } else {
+      console.log("[make-receiver] upsert ok:", JSON.stringify(data));
     }
   } catch (error) {
-    console.error("DB Error:", error);
+    console.error("DB_INSERT_ERROR:", error);
   }
 
   return new Response(
