@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { normalizeEmail, normalizePhone } from '@/lib/normalizeContact';
 
-export type ReferralStatus = 'Pending' | 'Fee Outstanding' | 'Paid';
+export type ReferralStatus = 'Pending' | 'In Progress' | 'Fee Outstanding' | 'Paid' | 'Declined';
 
 export interface Referral {
   id: string;
