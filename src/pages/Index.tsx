@@ -1,7 +1,7 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { ArrowRight, ChevronDown, Shield, Award, Clock, Car } from 'lucide-react';
+import { ArrowRight, ChevronDown, Shield, Award, Clock, Car, Sparkles } from 'lucide-react';
 import SEO from '@/components/seo/SEO';
 import { Button } from '@/components/ui/button';
 import KineticText from '@/components/KineticText';
@@ -9,6 +9,7 @@ import GolfGTIAnimation from '@/components/GolfGTIAnimation';
 import FacebookFeed from '@/components/FacebookFeed';
 import AftersalesBanner from '@/components/AftersalesBanner';
 import ExitIntentModal from '@/components/ExitIntentModal';
+import PublicReferralModal from '@/components/PublicReferralModal';
 import VehicleCard from '@/components/VehicleCard';
 import SkeletonCard from '@/components/SkeletonCard';
 import { usePublicVehicles } from '@/hooks/useVehicles';
