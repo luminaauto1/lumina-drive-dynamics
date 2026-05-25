@@ -84,6 +84,7 @@ const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const { isSuperAdmin, isAccountant } = useAuth();
+  const { data: outstandingRefs = 0 } = useOutstandingReferralCount();
 
   useEffect(() => {
     onCollapse?.(collapsed);
