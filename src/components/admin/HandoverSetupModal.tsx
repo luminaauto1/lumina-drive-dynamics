@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Upload, Copy, Gift, Trash2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { APP_DOMAIN } from "@/lib/appConfig";
+import { LogReferralModal } from "@/components/admin/LogReferralModal";
 
 interface HandoverSetupModalProps {
   dealId: string;
