@@ -69,3 +69,6 @@ verify_jwt = false
 [functions.tiktok-webhook]
 verify_jwt = false
 
+[functions.tiktok-receiver]
+verify_jwt = false
+
