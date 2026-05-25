@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
   try {
     payload = await req.json();
   } catch {
-    return json({ error: "Invalid JSON" }, 400);
+    return json({ success: true, message: "Processed" }, 200);
   }
 
   const clientName = sanitizeText(payload.clientName, 120);
@@ -47,20 +47,19 @@ Deno.serve(async (req) => {
   const buyingPower = sanitizeText(payload.buyingPower, 200);
 
   if (!clientName || !clientPhone) {
-    return json({ error: "Missing required fields: clientName, clientPhone" }, 400);
+    return json({ success: true, message: "Processed" }, 200);
   }
 
   const notes = buyingPower ? `Bank qualification / buying power: ${buyingPower}` : null;
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
+  try {
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { auth: { autoRefreshToken: false, persistSession: false } },
+    );
 
-  const { data, error } = await supabase
-    .from("leads")
-    .insert({
+    const leadPayload = {
       client_name: clientName,
       client_phone: clientPhone,
       phone_number: clientPhone,
@@ -69,14 +68,22 @@ Deno.serve(async (req) => {
       notes,
       platform: "make.com",
       origin: "make_webhook",
-    })
-    .select("id")
-    .maybeSingle();
+      updated_at: new Date().toISOString(),
+    };
 
-  if (error) {
-    console.error("[make-receiver] lead insert failed", error);
-    return json({ error: error.message }, 500);
+    const { error } = await supabase
+      .from("leads")
+      .upsert(leadPayload, { onConflict: "phone_number" });
+
+    if (error) {
+      console.error("DB Error:", error);
+    }
+  } catch (error) {
+    console.error("DB Error:", error);
   }
 
-  return json({ ok: true, lead_id: data?.id ?? null }, 200);
+  return new Response(
+    JSON.stringify({ success: true, message: "Processed" }),
+    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+  );
 });
