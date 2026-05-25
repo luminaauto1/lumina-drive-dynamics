@@ -26,6 +26,7 @@ export const HandoverSetupModal = ({ dealId, currentPhotos = [], clientName = ''
   const [nameFormat, setNameFormat] = useState('full');
   const [customName, setCustomName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [referralOpen, setReferralOpen] = useState(false);
 
   const getDisplayName = () => {
     if (nameFormat === 'first') return firstName || '';
