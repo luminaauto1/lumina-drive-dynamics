@@ -1,10 +1,23 @@
+// Consolidated TikTok webhook:
+//   1. Verify TikTok handshake (challenge)
+//   2. Parse + sanitize lead
+//   3. Insert into `leads` (source = 'TikTok')
+//   4. Return 200 OK to TikTok immediately
+//   5. Background: wait 10s, then dispatch EasySocial WhatsApp template
+//
+// Deployed with verify_jwt = false (TikTok cannot send Supabase JWTs).
+
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-verify-token, x-tiktok-signature",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-verify-token, x-tiktok-signature",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+const EASYSOCIAL_TEMPLATE_BASE =
+  "https://api.easysocial.in/api/v1/wa-templates/send/cmoiymj99b30ciyxpdvtndj6n/18909/4026/API";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -19,11 +32,14 @@ const sanitizeText = (raw: unknown, max = 255): string | null => {
   return value.slice(0, max);
 };
 
+// Strip spaces, +, (), dashes; convert local 0xxxxxxxxx -> 27xxxxxxxxx
 const sanitizePhone = (raw: unknown): string | null => {
   if (raw === null || raw === undefined) return null;
-  const digits = String(raw).replace(/\D/g, "");
-  if (digits.length < 6 || digits.length > 20) return null;
-  return digits;
+  let cleaned = String(raw).replace(/[\s()+\-]/g, "").replace(/\D/g, "");
+  if (!cleaned) return null;
+  if (cleaned.startsWith("0")) cleaned = "27" + cleaned.slice(1);
+  if (cleaned.length < 10 || cleaned.length > 15) return null;
+  return cleaned;
 };
 
 const FIELD_ALIASES = {
@@ -106,6 +122,30 @@ function extractLeadFields(formData: unknown) {
   return extracted;
 }
 
+async function dispatchWhatsAppAfterDelay(sanitizedNumber: string) {
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 10000));
+    const url = `${EASYSOCIAL_TEMPLATE_BASE}/${sanitizedNumber}?body1=1`;
+    console.log("[tiktok-receiver] dispatching WhatsApp →", url);
+    const res = await fetch(url, { method: "GET", headers: { Accept: "application/json" } });
+    const text = await res.text();
+    console.log("[tiktok-receiver] EasySocial status:", res.status, "body:", text.slice(0, 500));
+  } catch (err) {
+    console.error("[tiktok-receiver] background dispatch failed:", err);
+  }
+}
+
+function scheduleBackground(promise: Promise<unknown>) {
+  // @ts-ignore — EdgeRuntime is provided by Supabase Edge runtime
+  const ert: any = (globalThis as any).EdgeRuntime;
+  if (ert && typeof ert.waitUntil === "function") {
+    ert.waitUntil(promise);
+  } else {
+    // Fallback: fire-and-forget
+    promise.catch((e) => console.error("[tiktok-receiver] bg fallback err:", e));
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -122,6 +162,7 @@ Deno.serve(async (req) => {
     return json({ error: "Invalid JSON" }, 400);
   }
 
+  // TikTok verification handshake
   if (payload.challenge) {
     return json({ challenge: payload.challenge }, 200);
   }
@@ -165,5 +206,9 @@ Deno.serve(async (req) => {
     return json({ error: error.message }, 500);
   }
 
+  // Kick off the 10s delay + WhatsApp dispatch in the background.
+  scheduleBackground(dispatchWhatsAppAfterDelay(clientPhone));
+
+  // Respond to TikTok immediately
   return json({ ok: true, lead_id: data?.id ?? null }, 200);
 });
