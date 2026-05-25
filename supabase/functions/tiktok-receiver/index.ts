@@ -199,6 +199,7 @@ Deno.serve(async (req) => {
   };
 
   let leadId: string | null = null;
+
   try {
     const { data, error } = await supabase
       .from("leads")
@@ -207,17 +208,20 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (error) {
-      console.error("[tiktok-receiver] lead upsert error (non-fatal)", error);
-    } else {
-      leadId = data?.id ?? null;
+      throw error;
     }
-  } catch (err) {
-    console.error("[tiktok-receiver] lead upsert threw (non-fatal)", err);
+
+    leadId = data?.id ?? null;
+  } catch (dbError) {
+    console.error("Database insertion failed/duplicate:", dbError);
   }
 
   // Kick off the 10s delay + WhatsApp dispatch in the background — always.
   scheduleBackground(dispatchWhatsAppAfterDelay(clientPhone));
 
   // Always respond 200 OK so TikTok / Make.com don't enter retry loops.
-  return json({ ok: true, lead_id: leadId }, 200);
+  return new Response(JSON.stringify({ success: true, note: "Handled", lead_id: leadId }), {
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 });
