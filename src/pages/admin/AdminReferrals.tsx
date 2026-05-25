@@ -181,24 +181,53 @@ const AdminReferrals = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filtered.map((r: Referral) => (
-                    <TableRow key={r.id} className="border-zinc-800 hover:bg-zinc-900/40">
+                  filtered.map((r: Referral) => {
+                    const isRowPending = pendingId === r.id && markPaid.isPending;
+                    return (
+                    <TableRow key={r.id} className="border-zinc-800 hover:bg-zinc-900/40 align-top">
                       <TableCell className="select-text">
                         <div className="text-zinc-200 font-medium">{r.referrer_name}</div>
-                        <div className="text-xs text-zinc-500">{r.referrer_phone}</div>
+                        <div className="flex items-center gap-1.5 text-xs text-zinc-500 mt-0.5">
+                          <Phone className="h-3 w-3" /> {r.referrer_phone}
+                        </div>
                         {r.referrer_email && (
-                          <div className="text-xs text-zinc-500">{r.referrer_email}</div>
+                          <div className="flex items-center gap-1.5 text-xs text-zinc-500">
+                            <Mail className="h-3 w-3" /> {r.referrer_email}
+                          </div>
                         )}
                       </TableCell>
                       <TableCell className="select-text">
                         <div className="text-zinc-200 font-medium">{r.referee_name}</div>
-                        <div className="text-xs text-zinc-500">{r.referee_phone}</div>
+                        <div className="flex items-center gap-1.5 text-xs text-zinc-500 mt-0.5">
+                          <Phone className="h-3 w-3" /> {r.referee_phone}
+                        </div>
                         {r.referee_email && (
-                          <div className="text-xs text-zinc-500">{r.referee_email}</div>
+                          <div className="flex items-center gap-1.5 text-xs text-zinc-500">
+                            <Mail className="h-3 w-3" /> {r.referee_email}
+                          </div>
+                        )}
+                        {r.matched_application_id && (
+                          <Link
+                            to={`/admin/finance?app=${r.matched_application_id}`}
+                            className="inline-flex items-center gap-1 text-[11px] text-sky-400 hover:text-sky-300 mt-1"
+                          >
+                            <ExternalLink className="h-3 w-3" /> Open application
+                          </Link>
+                        )}
+                        {r.notes && (
+                          <div className="flex items-start gap-1.5 text-[11px] text-zinc-500 mt-1 max-w-xs">
+                            <StickyNote className="h-3 w-3 mt-0.5 shrink-0" />
+                            <span className="line-clamp-2">{r.notes}</span>
+                          </div>
                         )}
                       </TableCell>
-                      <TableCell className="text-xs text-zinc-500">
-                        {new Date(r.created_at).toLocaleDateString()}
+                      <TableCell className="text-xs text-zinc-500 whitespace-nowrap">
+                        <div>{new Date(r.created_at).toLocaleDateString()}</div>
+                        {r.updated_at && r.updated_at !== r.created_at && (
+                          <div className="text-[10px] text-zinc-600 mt-0.5">
+                            upd {new Date(r.updated_at).toLocaleDateString()}
+                          </div>
+                        )}
                       </TableCell>
                       {showLiveCol && (
                         <TableCell className="text-xs">
@@ -212,7 +241,7 @@ const AdminReferrals = () => {
                         </TableCell>
                       )}
                       <TableCell>
-                        <span className={cn('inline-flex items-center px-2 py-0.5 text-[11px] rounded border', statusBadge(r.status))}>
+                        <span className={cn('inline-flex items-center px-2 py-0.5 text-[11px] rounded border whitespace-nowrap', statusBadge(r.status))}>
                           {r.status}
                         </span>
                       </TableCell>
@@ -220,18 +249,27 @@ const AdminReferrals = () => {
                         {r.status === 'Fee Outstanding' ? (
                           <Button
                             size="sm"
-                            disabled={markPaid.isPending}
-                            onClick={() => markPaid.mutate(r.id)}
-                            className="bg-emerald-700 hover:bg-emerald-600 text-zinc-50 text-xs h-8"
+                            disabled={isRowPending}
+                            onClick={() => handleMarkPaid(r.id)}
+                            className="bg-emerald-700 hover:bg-emerald-600 text-zinc-50 text-xs h-8 min-w-[120px]"
                           >
-                            Mark as Paid
+                            {isRowPending ? (
+                              <>
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Marking…
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 className="h-3.5 w-3.5" /> Mark as Paid
+                              </>
+                            )}
                           </Button>
                         ) : (
                           <span className="text-xs text-zinc-600">—</span>
                         )}
                       </TableCell>
                     </TableRow>
-                  ))
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
