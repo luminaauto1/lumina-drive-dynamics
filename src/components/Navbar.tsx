@@ -66,10 +66,22 @@ const Navbar = () => {
             </div>
 
             {/* Right Side Actions */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 md:gap-4">
+              {/* Money Maker CTA — always visible */}
+              <button
+                onClick={() => setReferralOpen(true)}
+                className="group inline-flex items-center gap-1.5 rounded-full border border-zinc-700/80 hover:border-zinc-400 bg-zinc-950/70 hover:bg-zinc-900 px-3 md:px-4 py-1.5 text-[11px] md:text-xs font-medium uppercase tracking-wider text-zinc-100 transition-colors shadow-[0_0_28px_-10px_rgba(255,255,255,0.25)]"
+                aria-label="Refer and earn — Lumina Money Maker"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-zinc-300 group-hover:text-white transition-colors" />
+                <span className="hidden sm:inline">Money Maker</span>
+                <span className="sm:hidden">Refer</span>
+              </button>
+
               <Link to="/inventory" className="hidden md:flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
                 <Search className="w-5 h-5" />
               </Link>
+
 
               <Link to="/wishlist" className="relative flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
                 <Heart className="w-5 h-5" />
