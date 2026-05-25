@@ -145,12 +145,6 @@ Deno.serve(async (req) => {
     return json({ error: "Method not allowed" }, 405);
   }
 
-  const provided = tokenFromRequest(req, url);
-  if (provided !== VERIFY_TOKEN) {
-    console.warn("[tiktok-webhook] POST rejected: bad/missing verify token");
-    return json({ error: "Forbidden" }, 403);
-  }
-
   let payload: any;
   try {
     payload = await req.json();
@@ -158,7 +152,14 @@ Deno.serve(async (req) => {
     return json({ error: "Invalid JSON" }, 400);
   }
 
+  // TikTok webhook verification handshake (POST body contains "challenge")
+  if (payload && typeof payload === "object" && payload.challenge) {
+    console.log("[tiktok-webhook] challenge handshake via POST body");
+    return json({ challenge: payload.challenge }, 200);
+  }
+
   console.log("[tiktok-webhook] payload received:", JSON.stringify(payload).slice(0, 2000));
+
 
   const fields = extractFields(payload);
   const name = sanitizeText(fields.name, 120);
