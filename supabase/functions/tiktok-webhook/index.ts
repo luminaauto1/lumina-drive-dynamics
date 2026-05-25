@@ -152,7 +152,14 @@ Deno.serve(async (req) => {
     return json({ error: "Invalid JSON" }, 400);
   }
 
+  // TikTok webhook verification handshake (POST body contains "challenge")
+  if (payload && typeof payload === "object" && payload.challenge) {
+    console.log("[tiktok-webhook] challenge handshake via POST body");
+    return json({ challenge: payload.challenge }, 200);
+  }
+
   console.log("[tiktok-webhook] payload received:", JSON.stringify(payload).slice(0, 2000));
+
 
   const fields = extractFields(payload);
   const name = sanitizeText(fields.name, 120);
