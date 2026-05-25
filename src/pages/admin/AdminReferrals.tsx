@@ -76,6 +76,14 @@ const AdminReferrals = () => {
   const markPaid = useMarkReferralPaid();
   const [view, setView] = useState<ViewKey>('In Progress');
   const [open, setOpen] = useState(false);
+  const [pendingId, setPendingId] = useState<string | null>(null);
+
+  const handleMarkPaid = (id: string) => {
+    setPendingId(id);
+    markPaid.mutate(id, {
+      onSettled: () => setPendingId(null),
+    });
+  };
 
   const counts = useMemo(() => {
     const c: Record<ViewKey, number> = {
