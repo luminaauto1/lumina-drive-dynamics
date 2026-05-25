@@ -538,6 +538,7 @@ export type Database = {
           expenses_summary: string | null
           first_name: string | null
           follow_up_time: string | null
+          followup_sent: boolean
           full_name: string
           gender: string | null
           gross_salary: number | null
@@ -626,6 +627,7 @@ export type Database = {
           expenses_summary?: string | null
           first_name?: string | null
           follow_up_time?: string | null
+          followup_sent?: boolean
           full_name: string
           gender?: string | null
           gross_salary?: number | null
@@ -714,6 +716,7 @@ export type Database = {
           expenses_summary?: string | null
           first_name?: string | null
           follow_up_time?: string | null
+          followup_sent?: boolean
           full_name?: string
           gender?: string | null
           gross_salary?: number | null
