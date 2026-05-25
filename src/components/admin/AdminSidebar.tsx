@@ -45,6 +45,7 @@ const menuItems: MenuItem[] = [
   { title: 'Quote Generator', icon: Calculator, path: '/admin/quotes' },
   { title: 'Extra Incomes', icon: Banknote, path: '/admin/extra-incomes' },
   { title: 'Trade Network', icon: Briefcase, path: '/admin/network' },
+  { title: 'Referrals', icon: Gift, path: '/admin/referrals' },
   {
     title: 'Financials',
     icon: Package,
