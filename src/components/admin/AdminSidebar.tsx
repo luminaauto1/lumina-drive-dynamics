@@ -1,10 +1,11 @@
-import { LayoutDashboard, Car, Users, CreditCard, Settings, ChevronLeft, ChevronRight, ChevronDown, BarChart3, Package, Home, FileBarChart, Banknote, ShoppingCart, Calculator, Contact, Briefcase, TableProperties, Mail } from 'lucide-react';
+import { LayoutDashboard, Car, Users, CreditCard, Settings, ChevronLeft, ChevronRight, ChevronDown, BarChart3, Package, Home, FileBarChart, Banknote, ShoppingCart, Calculator, Contact, Briefcase, TableProperties, Mail, Gift } from 'lucide-react';
 import { NavLink, useLocation, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOutstandingReferralCount } from '@/hooks/useReferrals';
 
 interface NavGroup {
   title: string;
