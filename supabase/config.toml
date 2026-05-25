@@ -1,5 +1,8 @@
 project_id = "geovwgfbbfhhmommyasj"
 
+[functions.process-delayed-followups]
+verify_jwt = false
+
 [functions.send-finance-alert]
 verify_jwt = false
 
