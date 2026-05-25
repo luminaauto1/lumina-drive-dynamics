@@ -213,7 +213,18 @@ const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
               )}
             >
               <item.icon className="h-5 w-5 flex-shrink-0" />
-              {!collapsed && <span className="font-medium">{item.title}</span>}
+              {!collapsed && <span className="font-medium flex-1">{item.title}</span>}
+              {item.path === '/admin/referrals' && outstandingRefs > 0 && (
+                <span
+                  className={cn(
+                    'ml-auto inline-flex items-center justify-center rounded-full bg-amber-500/90 text-black text-[10px] font-semibold px-1.5 min-w-[1.25rem] h-5',
+                    collapsed && 'absolute right-1 top-1 px-1 min-w-[1rem] h-4 text-[9px]',
+                  )}
+                  title={`${outstandingRefs} referral fee${outstandingRefs === 1 ? '' : 's'} outstanding`}
+                >
+                  {outstandingRefs}
+                </span>
+              )}
             </NavLink>
           );
         })}
