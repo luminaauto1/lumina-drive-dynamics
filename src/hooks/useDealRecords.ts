@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { crossReferenceReferral } from '@/hooks/useReferrals';
 
 export interface AftersalesExpense {
   type: string;
@@ -142,6 +143,25 @@ export const useCreateDealRecord = () => {
             .eq('id', record.vehicleId);
         }
         // If hidden/client stock: DO NOT change status (keep hidden)
+      }
+
+      // Silent referral cross-reference — never blocks the deal flow.
+      try {
+        const { data: appData } = await (supabase as any)
+          .from('finance_applications')
+          .select('email, phone, user_id')
+          .eq('id', record.applicationId)
+          .maybeSingle();
+        if (appData) {
+          await crossReferenceReferral({
+            applicationId: record.applicationId,
+            clientId: appData.user_id,
+            email: appData.email,
+            phone: appData.phone,
+          });
+        }
+      } catch (e) {
+        console.warn('Referral cross-reference skipped:', e);
       }
 
       return data;

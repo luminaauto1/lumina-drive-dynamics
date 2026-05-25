@@ -1,10 +1,11 @@
-import { LayoutDashboard, Car, Users, CreditCard, Settings, ChevronLeft, ChevronRight, ChevronDown, BarChart3, Package, Home, FileBarChart, Banknote, ShoppingCart, Calculator, Contact, Briefcase, TableProperties, Mail } from 'lucide-react';
+import { LayoutDashboard, Car, Users, CreditCard, Settings, ChevronLeft, ChevronRight, ChevronDown, BarChart3, Package, Home, FileBarChart, Banknote, ShoppingCart, Calculator, Contact, Briefcase, TableProperties, Mail, Gift } from 'lucide-react';
 import { NavLink, useLocation, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOutstandingReferralCount } from '@/hooks/useReferrals';
 
 interface NavGroup {
   title: string;
@@ -44,6 +45,7 @@ const menuItems: MenuItem[] = [
   { title: 'Quote Generator', icon: Calculator, path: '/admin/quotes' },
   { title: 'Extra Incomes', icon: Banknote, path: '/admin/extra-incomes' },
   { title: 'Trade Network', icon: Briefcase, path: '/admin/network' },
+  { title: 'Referrals', icon: Gift, path: '/admin/referrals' },
   {
     title: 'Financials',
     icon: Package,
@@ -82,6 +84,7 @@ const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const { isSuperAdmin, isAccountant } = useAuth();
+  const { data: outstandingRefs = 0 } = useOutstandingReferralCount();
 
   useEffect(() => {
     onCollapse?.(collapsed);
@@ -203,14 +206,25 @@ const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
               to={item.path}
               onClick={onNavigate}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
+                'relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
                 active
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
               )}
             >
               <item.icon className="h-5 w-5 flex-shrink-0" />
-              {!collapsed && <span className="font-medium">{item.title}</span>}
+              {!collapsed && <span className="font-medium flex-1">{item.title}</span>}
+              {item.path === '/admin/referrals' && outstandingRefs > 0 && (
+                <span
+                  className={cn(
+                    'ml-auto inline-flex items-center justify-center rounded-full bg-amber-500/90 text-black text-[10px] font-semibold px-1.5 min-w-[1.25rem] h-5',
+                    collapsed && 'absolute right-1 top-1 px-1 min-w-[1rem] h-4 text-[9px]',
+                  )}
+                  title={`${outstandingRefs} referral fee${outstandingRefs === 1 ? '' : 's'} outstanding`}
+                >
+                  {outstandingRefs}
+                </span>
+              )}
             </NavLink>
           );
         })}

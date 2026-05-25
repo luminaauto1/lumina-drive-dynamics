@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Upload, Copy, Gift, Trash2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { APP_DOMAIN } from "@/lib/appConfig";
+import { LogReferralModal } from "@/components/admin/LogReferralModal";
 
 interface HandoverSetupModalProps {
   dealId: string;
@@ -25,6 +26,7 @@ export const HandoverSetupModal = ({ dealId, currentPhotos = [], clientName = ''
   const [nameFormat, setNameFormat] = useState('full');
   const [customName, setCustomName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [referralOpen, setReferralOpen] = useState(false);
 
   const getDisplayName = () => {
     if (nameFormat === 'first') return firstName || '';
@@ -214,7 +216,22 @@ export const HandoverSetupModal = ({ dealId, currentPhotos = [], clientName = ''
               {copied ? "Copied!" : "Copy"}
             </Button>
           </div>
+
+          {/* REFERRAL LOGGING */}
+          <Button
+            type="button"
+            onClick={() => setReferralOpen(true)}
+            className="w-full bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100"
+          >
+            <Gift className="w-3.5 h-3.5 mr-2" />
+            Log/Check Referral
+          </Button>
         </div>
+        <LogReferralModal
+          open={referralOpen}
+          onOpenChange={setReferralOpen}
+          defaultReferee={{ name: `${firstName} ${lastName}`.trim() || clientName }}
+        />
       </DialogContent>
     </Dialog>
   );

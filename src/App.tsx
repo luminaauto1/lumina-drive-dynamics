@@ -39,6 +39,7 @@ import AdminCarsToBuy from "./pages/admin/AdminCarsToBuy";
 import AdminPartnerPayout from "./pages/admin/AdminPartnerPayout";
 import AdminNetwork from "./pages/admin/AdminNetwork";
 import AdminContacts from "./pages/admin/AdminContacts";
+import AdminReferrals from "./pages/admin/AdminReferrals";
 import AdminEmailSettings from "./pages/admin/AdminEmailSettings";
 import CRMSheet from "./pages/admin/CRMSheet";
 import ClientProfile from "./pages/admin/ClientProfile";
@@ -112,6 +113,7 @@ const AppLayout = () => {
            <Route path="/admin/settings/email" element={<ProtectedRoute requireSuperAdmin><AdminEmailSettings /></ProtectedRoute>} />
           <Route path="/admin/reports/partner-payout/:dealId" element={<ProtectedRoute requireSuperAdmin><AdminPartnerPayout /></ProtectedRoute>} />
           <Route path="/admin/network" element={<ProtectedRoute requireSuperAdmin><AdminNetwork /></ProtectedRoute>} />
+          <Route path="/admin/referrals" element={<ProtectedRoute requireSuperAdmin><AdminReferrals /></ProtectedRoute>} />
           <Route path="/admin/clients/:id" element={<ProtectedRoute requireSuperAdmin><ClientProfile /></ProtectedRoute>} />
           <Route path="/admin/crm-sheet" element={<ProtectedRoute requireAdmin><CRMSheet /></ProtectedRoute>} />
           <Route path="/update-password" element={<UpdatePassword />} />
