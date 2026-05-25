@@ -1199,6 +1199,54 @@ export type Database = {
         }
         Relationships: []
       }
+      referrals: {
+        Row: {
+          created_at: string
+          id: string
+          matched_application_id: string | null
+          matched_client_id: string | null
+          notes: string | null
+          referee_email: string | null
+          referee_name: string
+          referee_phone: string
+          referrer_email: string | null
+          referrer_name: string
+          referrer_phone: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          matched_application_id?: string | null
+          matched_client_id?: string | null
+          notes?: string | null
+          referee_email?: string | null
+          referee_name: string
+          referee_phone: string
+          referrer_email?: string | null
+          referrer_name: string
+          referrer_phone: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          matched_application_id?: string | null
+          matched_client_id?: string | null
+          notes?: string | null
+          referee_email?: string | null
+          referee_name?: string
+          referee_phone?: string
+          referrer_email?: string | null
+          referrer_name?: string
+          referrer_phone?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       rental_logs: {
         Row: {
           amount: number
