@@ -145,12 +145,6 @@ Deno.serve(async (req) => {
     return json({ error: "Method not allowed" }, 405);
   }
 
-  const provided = tokenFromRequest(req, url);
-  if (provided !== VERIFY_TOKEN) {
-    console.warn("[tiktok-webhook] POST rejected: bad/missing verify token");
-    return json({ error: "Forbidden" }, 403);
-  }
-
   let payload: any;
   try {
     payload = await req.json();
