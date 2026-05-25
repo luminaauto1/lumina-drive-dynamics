@@ -216,7 +216,22 @@ export const HandoverSetupModal = ({ dealId, currentPhotos = [], clientName = ''
               {copied ? "Copied!" : "Copy"}
             </Button>
           </div>
+
+          {/* REFERRAL LOGGING */}
+          <Button
+            type="button"
+            onClick={() => setReferralOpen(true)}
+            className="w-full bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100"
+          >
+            <Gift className="w-3.5 h-3.5 mr-2" />
+            Log/Check Referral
+          </Button>
         </div>
+        <LogReferralModal
+          open={referralOpen}
+          onOpenChange={setReferralOpen}
+          defaultReferee={{ name: `${firstName} ${lastName}`.trim() || clientName }}
+        />
       </DialogContent>
     </Dialog>
   );
