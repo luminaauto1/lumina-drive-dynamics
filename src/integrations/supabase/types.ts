@@ -1921,6 +1921,7 @@ export type Database = {
         Returns: boolean
       }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
+      normalize_phone_last9: { Args: { p: string }; Returns: string }
     }
     Enums: {
       app_role:
