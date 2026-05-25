@@ -6,6 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+const EASYSOCIAL_TEMPLATE_BASE =
+  "https://api.easysocial.in/api/v1/wa-templates/send/cmoiymj99b30ciyxpdvtndj6n/18909/4026/API";
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -19,12 +22,38 @@ const sanitizeText = (raw: unknown, max = 255): string | null => {
   return value.slice(0, max);
 };
 
+// Strip non-digits; convert local 0xxxxxxxxx -> 27xxxxxxxxx (ZA)
 const sanitizePhone = (raw: unknown): string | null => {
   if (raw === null || raw === undefined) return null;
-  const digits = String(raw).replace(/\D/g, "");
-  if (digits.length < 6 || digits.length > 20) return null;
-  return digits;
+  let cleaned = String(raw).replace(/\D/g, "");
+  if (!cleaned) return null;
+  if (cleaned.startsWith("0")) cleaned = "27" + cleaned.slice(1);
+  if (cleaned.length < 10 || cleaned.length > 15) return null;
+  return cleaned;
 };
+
+async function dispatchWhatsAppAfterDelay(sanitizedNumber: string) {
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 10000));
+    const url = `${EASYSOCIAL_TEMPLATE_BASE}/${sanitizedNumber}?body1=1`;
+    console.log("[make-receiver] dispatching WhatsApp →", url);
+    const res = await fetch(url, { method: "GET", headers: { Accept: "application/json" } });
+    const text = await res.text();
+    console.log("[make-receiver] EasySocial status:", res.status, "body:", text.slice(0, 500));
+  } catch (err) {
+    console.error("[make-receiver] background dispatch failed:", err);
+  }
+}
+
+function scheduleBackground(promise: Promise<unknown>) {
+  // @ts-ignore EdgeRuntime provided by Supabase
+  const ert: any = (globalThis as any).EdgeRuntime;
+  if (ert && typeof ert.waitUntil === "function") {
+    ert.waitUntil(promise);
+  } else {
+    promise.catch((e) => console.error("[make-receiver] bg fallback err:", e));
+  }
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -45,24 +74,27 @@ Deno.serve(async (req) => {
 
   console.log("[make-receiver] incoming payload:", JSON.stringify(payload));
 
-  // Accept multiple flat key shapes from Make.com / TikTok
   const clientName = sanitizeText(
     payload.clientName ?? payload.name ?? payload.full_name ?? payload.fullName,
     120,
   );
-  const clientPhone = sanitizePhone(
+  const sanitizedPhone = sanitizePhone(
     payload.clientPhone ?? payload.phone ?? payload.phone_number ?? payload.mobile,
   );
   const clientEmail = sanitizeText(payload.clientEmail ?? payload.email, 255);
   const sourceRaw = sanitizeText(payload.source, 120) ?? "TikTok";
   const buyingPower = sanitizeText(payload.buyingPower ?? payload.buying_power, 200);
 
-  if (!clientName || !clientPhone) {
-    console.error("DB_INSERT_ERROR: missing required fields", { clientName, clientPhone });
+  if (!clientName || !sanitizedPhone) {
+    console.error("DB_INSERT_ERROR: missing required fields", { clientName, sanitizedPhone });
     return json({ success: true, message: "Processed" }, 200);
   }
 
   const notes = buyingPower ? `Bank qualification / buying power: ${buyingPower}` : null;
+
+  // Track whether the DB step completed without a fatal system crash.
+  // Duplicate-key / RLS / validation errors are non-fatal — we still dispatch WhatsApp.
+  let dbStepCompleted = false;
 
   try {
     const supabase = createClient(
@@ -73,9 +105,9 @@ Deno.serve(async (req) => {
 
     const leadPayload = {
       client_name: clientName,
-      client_phone: clientPhone,
+      client_phone: sanitizedPhone,
       client_email: clientEmail,
-      phone_number: clientPhone,
+      phone_number: sanitizedPhone,
       source: sourceRaw,
       status: "Lead Received",
       notes,
@@ -84,18 +116,29 @@ Deno.serve(async (req) => {
       updated_at: new Date().toISOString(),
     };
 
-    const { data, error: dbError } = await supabase
+    const { data: upsertData, error: upsertError } = await supabase
       .from("leads")
       .upsert(leadPayload, { onConflict: "phone_number" })
       .select();
 
-    if (dbError) {
-      console.error("DB_RESPONSE_ERROR:", JSON.stringify(dbError));
+    if (upsertError) {
+      // Log but DO NOT throw — allow execution to continue.
+      console.error("DB_RESPONSE_ERROR:", JSON.stringify(upsertError));
     } else {
-      console.log("[make-receiver] upsert ok:", JSON.stringify(data));
+      console.log("[make-receiver] upsert ok:", JSON.stringify(upsertData));
     }
+
+    dbStepCompleted = true;
   } catch (error) {
+    // Catastrophic failure (e.g. SDK init, network to DB). Swallow & log.
     console.error("DB_INSERT_ERROR:", error);
+  }
+
+  // TASK 3: Only dispatch WhatsApp if the DB step did not crash the function.
+  if (dbStepCompleted) {
+    scheduleBackground(dispatchWhatsAppAfterDelay(sanitizedPhone));
+  } else {
+    console.error("[make-receiver] skipping WhatsApp dispatch — DB step crashed");
   }
 
   return new Response(
