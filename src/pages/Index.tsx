@@ -1,7 +1,7 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { ArrowRight, ChevronDown, Shield, Award, Clock, Car } from 'lucide-react';
+import { ArrowRight, ChevronDown, Shield, Award, Clock, Car, Sparkles } from 'lucide-react';
 import SEO from '@/components/seo/SEO';
 import { Button } from '@/components/ui/button';
 import KineticText from '@/components/KineticText';
@@ -9,12 +9,14 @@ import GolfGTIAnimation from '@/components/GolfGTIAnimation';
 import FacebookFeed from '@/components/FacebookFeed';
 import AftersalesBanner from '@/components/AftersalesBanner';
 import ExitIntentModal from '@/components/ExitIntentModal';
+import PublicReferralModal from '@/components/PublicReferralModal';
 import VehicleCard from '@/components/VehicleCard';
 import SkeletonCard from '@/components/SkeletonCard';
 import { usePublicVehicles } from '@/hooks/useVehicles';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 const Index = () => {
   const heroRef = useRef<HTMLDivElement>(null);
+  const [referralOpen, setReferralOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const {
     data: settings
@@ -388,12 +390,53 @@ const Index = () => {
           </div>
         </motion.section>
 
+        {/* Lumina Money Maker — Referral CTA */}
+        <section className="relative py-24 bg-black overflow-hidden border-y border-zinc-900">
+          {/* cinematic glow */}
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[420px] w-[680px] rounded-full bg-zinc-100/[0.04] blur-[120px]" />
+            <div className="absolute left-1/2 top-0 -translate-x-1/2 h-px w-1/3 bg-gradient-to-r from-transparent via-zinc-700/60 to-transparent" />
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{ duration: 0.7, ease: 'easeOut' }}
+            className="relative z-10 max-w-3xl mx-auto px-6 text-center"
+          >
+            <div className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-zinc-500">
+              <Sparkles className="h-3 w-3" /> Lumina Money Maker
+            </div>
+            <h2 className="mt-5 text-4xl md:text-5xl font-light tracking-tight text-zinc-50">
+              Know a buyer? <span className="text-zinc-500">Get paid</span>.
+            </h2>
+            <p className="mt-4 text-zinc-400 text-base md:text-lg max-w-xl mx-auto leading-relaxed">
+              Refer someone shopping for a vehicle. When their deal closes with us,
+              you earn — quietly, transparently, on time.
+            </p>
+            <div className="mt-9">
+              <Button
+                size="lg"
+                onClick={() => setReferralOpen(true)}
+                className="h-12 px-8 bg-zinc-950 hover:bg-zinc-900 text-zinc-100 border border-zinc-700/80 hover:border-zinc-500 transition-colors rounded-md font-medium tracking-wide shadow-[0_0_40px_-10px_rgba(255,255,255,0.15)]"
+              >
+                Refer &amp; Earn <ArrowRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+            <p className="mt-5 text-[11px] text-zinc-600 tracking-wider uppercase">
+              Takes 30 seconds · No signup required
+            </p>
+          </motion.div>
+        </section>
+
         {/* Facebook Feed Section */}
         <FacebookFeed />
       </motion.div>
 
       {/* Exit Intent Modal */}
       <ExitIntentModal />
+      <PublicReferralModal open={referralOpen} onOpenChange={setReferralOpen} />
     </>;
 };
 export default Index;
