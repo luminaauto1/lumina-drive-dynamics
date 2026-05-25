@@ -206,7 +206,7 @@ const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
               to={item.path}
               onClick={onNavigate}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
+                'relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
                 active
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
