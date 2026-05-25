@@ -16,6 +16,7 @@ import { usePublicVehicles } from '@/hooks/useVehicles';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 const Index = () => {
   const heroRef = useRef<HTMLDivElement>(null);
+  const [referralOpen, setReferralOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const {
     data: settings
