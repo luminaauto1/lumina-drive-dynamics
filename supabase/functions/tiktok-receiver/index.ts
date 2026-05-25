@@ -186,29 +186,38 @@ Deno.serve(async (req) => {
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
 
-  const { data, error } = await supabase
-    .from("leads")
-    .insert({
-      client_name: clientName,
-      client_phone: clientPhone,
-      phone_number: clientPhone,
-      source: "TikTok",
-      status: "new",
-      notes,
-      platform: "tiktok",
-      origin: "tiktok_lead_ad",
-    })
-    .select("id")
-    .maybeSingle();
+  const leadData = {
+    client_name: clientName,
+    client_phone: clientPhone,
+    phone_number: clientPhone,
+    source: "TikTok",
+    status: "new",
+    notes,
+    platform: "tiktok",
+    origin: "tiktok_lead_ad",
+    updated_at: new Date().toISOString(),
+  };
 
-  if (error) {
-    console.error("[tiktok-receiver] lead insert failed", error);
-    return json({ error: error.message }, 500);
+  let leadId: string | null = null;
+  try {
+    const { data, error } = await supabase
+      .from("leads")
+      .upsert(leadData, { onConflict: "phone_number" })
+      .select("id")
+      .maybeSingle();
+
+    if (error) {
+      console.error("[tiktok-receiver] lead upsert error (non-fatal)", error);
+    } else {
+      leadId = data?.id ?? null;
+    }
+  } catch (err) {
+    console.error("[tiktok-receiver] lead upsert threw (non-fatal)", err);
   }
 
-  // Kick off the 10s delay + WhatsApp dispatch in the background.
+  // Kick off the 10s delay + WhatsApp dispatch in the background — always.
   scheduleBackground(dispatchWhatsAppAfterDelay(clientPhone));
 
-  // Respond to TikTok immediately
-  return json({ ok: true, lead_id: data?.id ?? null }, 200);
+  // Always respond 200 OK so TikTok / Make.com don't enter retry loops.
+  return json({ ok: true, lead_id: leadId }, 200);
 });
