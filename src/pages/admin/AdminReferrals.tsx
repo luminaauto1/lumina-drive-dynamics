@@ -2,10 +2,11 @@ import { useMemo, useState, useEffect } from 'react';
 import { useReferrals, useMarkReferralPaid, type Referral, type ReferralStatus } from '@/hooks/useReferrals';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Gift, CheckCircle2, Clock, AlertCircle, Activity, XCircle } from 'lucide-react';
+import { Plus, Gift, CheckCircle2, Clock, AlertCircle, Activity, XCircle, Loader2, Mail, Phone, StickyNote, ExternalLink } from 'lucide-react';
 import { LogReferralModal } from '@/components/admin/LogReferralModal';
 import { cn } from '@/lib/utils';
 import AdminLayout from '@/components/admin/AdminLayout';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { ADMIN_STATUS_LABELS, STATUS_OPTIONS } from '@/lib/statusConfig';
 
