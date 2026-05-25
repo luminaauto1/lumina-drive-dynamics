@@ -25,7 +25,6 @@ import Sourcing from "./pages/Sourcing";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminInventoryPage from "./pages/admin/AdminInventoryPage";
 import AdminLeads from "./pages/admin/AdminLeads";
-import AdminNewLeads from "./pages/admin/AdminNewLeads";
 import AdminFinance from "./pages/admin/AdminFinance";
 import AdminDealRoom from "./pages/admin/AdminDealRoom";
 import AdminSettings from "./pages/admin/AdminSettings";
@@ -99,7 +98,6 @@ const AppLayout = () => {
           <Route path="/admin" element={<ProtectedRoute requireSuperAdmin><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/inventory" element={<ProtectedRoute requireAdmin><AdminInventoryPage /></ProtectedRoute>} />
           <Route path="/admin/leads" element={<ProtectedRoute requireAdmin><AdminLeads /></ProtectedRoute>} />
-          <Route path="/admin/new-leads" element={<ProtectedRoute requireAdmin><AdminNewLeads /></ProtectedRoute>} />
           <Route path="/admin/contacts" element={<ProtectedRoute requireSuperAdmin><AdminContacts /></ProtectedRoute>} />
           <Route path="/admin/finance" element={<ProtectedRoute requireAdmin><AdminFinance /></ProtectedRoute>} />
           <Route path="/admin/finance/create" element={<ProtectedRoute requireAdmin><AdminCreateApplication /></ProtectedRoute>} />

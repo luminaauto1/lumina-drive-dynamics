@@ -1,4 +1,4 @@
-import { LayoutDashboard, Car, Users, CreditCard, Settings, ChevronLeft, ChevronRight, ChevronDown, BarChart3, Package, Home, FileBarChart, Banknote, ShoppingCart, Calculator, Contact, Briefcase, TableProperties, Mail, Gift, Inbox } from 'lucide-react';
+import { LayoutDashboard, Car, Users, CreditCard, Settings, ChevronLeft, ChevronRight, ChevronDown, BarChart3, Package, Home, FileBarChart, Banknote, ShoppingCart, Calculator, Contact, Briefcase, TableProperties, Mail, Gift } from 'lucide-react';
 import { NavLink, useLocation, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
@@ -37,7 +37,6 @@ const menuItems: MenuItem[] = [
     title: 'CRM',
     icon: Users,
     children: [
-      { title: 'New Leads', path: '/admin/new-leads' },
       { title: 'Pipeline', path: '/admin/leads' },
       { title: 'CRM Sheet', path: '/admin/crm-sheet' },
     ],
@@ -74,7 +73,6 @@ interface AdminSidebarProps {
 
 // Paths a sales_agent is allowed to see in the sidebar.
 const SALES_AGENT_ALLOWED_PATHS = new Set<string>([
-  '/admin/new-leads',
   '/admin/leads',
   '/admin/crm-sheet',
   '/admin/finance',
