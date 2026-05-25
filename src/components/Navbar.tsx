@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Heart, Search, User, Settings, CreditCard } from 'lucide-react';
+import { Menu, X, Heart, Search, User, Settings, CreditCard, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWishlist } from '@/hooks/useWishlist';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
+import PublicReferralModal from '@/components/PublicReferralModal';
 import luminaLogo from '@/assets/lumina-logo.png';
 
 const Navbar = () => {
