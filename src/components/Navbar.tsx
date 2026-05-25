@@ -12,6 +12,7 @@ import luminaLogo from '@/assets/lumina-logo.png';
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [referralOpen, setReferralOpen] = useState(false);
   const location = useLocation();
   const { wishlist } = useWishlist();
   const { user, isStaff, isSuperAdmin } = useAuth();
