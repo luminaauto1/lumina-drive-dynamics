@@ -1,37 +1,89 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useReferrals, useMarkReferralPaid, type Referral, type ReferralStatus } from '@/hooks/useReferrals';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Gift, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { Plus, Gift, CheckCircle2, Clock, AlertCircle, Activity, XCircle } from 'lucide-react';
 import { LogReferralModal } from '@/components/admin/LogReferralModal';
 import { cn } from '@/lib/utils';
 import AdminLayout from '@/components/admin/AdminLayout';
+import { supabase } from '@/integrations/supabase/client';
+import { ADMIN_STATUS_LABELS, STATUS_OPTIONS } from '@/lib/statusConfig';
 
-type ViewKey = 'Pending' | 'Fee Outstanding' | 'Paid';
+type ViewKey = 'Pending' | 'In Progress' | 'Fee Outstanding' | 'Paid' | 'Declined';
 
 const tabs: { key: ViewKey; label: string; icon: any; tone: string }[] = [
   { key: 'Pending', label: 'Pending', icon: Clock, tone: 'text-zinc-300' },
+  { key: 'In Progress', label: 'In Progress', icon: Activity, tone: 'text-sky-300' },
   { key: 'Fee Outstanding', label: 'Fees Outstanding', icon: AlertCircle, tone: 'text-amber-300' },
   { key: 'Paid', label: 'Paid', icon: CheckCircle2, tone: 'text-emerald-300' },
+  { key: 'Declined', label: 'Declined', icon: XCircle, tone: 'text-rose-300' },
 ];
 
 const statusBadge = (s: ReferralStatus) => {
   const map: Record<ReferralStatus, string> = {
     Pending: 'bg-zinc-800/60 text-zinc-300 border-zinc-700',
+    'In Progress': 'bg-sky-950/60 text-sky-300 border-sky-800/60',
     'Fee Outstanding': 'bg-amber-950/60 text-amber-300 border-amber-800/60',
     Paid: 'bg-emerald-950/60 text-emerald-300 border-emerald-800/60',
+    Declined: 'bg-rose-950/60 text-rose-300 border-rose-800/60',
   };
   return map[s];
+};
+
+const labelForStatus = (status?: string | null) => {
+  if (!status) return '—';
+  return (
+    ADMIN_STATUS_LABELS[status] ||
+    STATUS_OPTIONS.find((o) => o.value === status)?.label ||
+    status
+  );
+};
+
+const useLinkedAppStatuses = (ids: string[]) => {
+  const [map, setMap] = useState<Record<string, string>>({});
+  const key = ids.slice().sort().join(',');
+
+  useEffect(() => {
+    if (!ids.length) {
+      setMap({});
+      return;
+    }
+    let alive = true;
+    (async () => {
+      const { data } = await supabase
+        .from('finance_applications')
+        .select('id, status')
+        .in('id', ids);
+      if (!alive) return;
+      const next: Record<string, string> = {};
+      (data || []).forEach((r: any) => {
+        next[r.id] = r.status;
+      });
+      setMap(next);
+    })();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  return map;
 };
 
 const AdminReferrals = () => {
   const { data, isLoading } = useReferrals();
   const markPaid = useMarkReferralPaid();
-  const [view, setView] = useState<ViewKey>('Fee Outstanding');
+  const [view, setView] = useState<ViewKey>('In Progress');
   const [open, setOpen] = useState(false);
 
   const counts = useMemo(() => {
-    const c: Record<ViewKey, number> = { Pending: 0, 'Fee Outstanding': 0, Paid: 0 };
+    const c: Record<ViewKey, number> = {
+      Pending: 0,
+      'In Progress': 0,
+      'Fee Outstanding': 0,
+      Paid: 0,
+      Declined: 0,
+    };
     (data || []).forEach((r) => {
       if (r.status in c) c[r.status as ViewKey]++;
     });
@@ -39,6 +91,15 @@ const AdminReferrals = () => {
   }, [data]);
 
   const filtered = useMemo(() => (data || []).filter((r) => r.status === view), [data, view]);
+
+  // Live app statuses for In Progress rows (and any row with a linked app).
+  const linkedIds = useMemo(
+    () => Array.from(new Set(filtered.map((r) => r.matched_application_id).filter(Boolean) as string[])),
+    [filtered],
+  );
+  const liveStatuses = useLinkedAppStatuses(linkedIds);
+
+  const showLiveCol = view === 'In Progress';
 
   return (
     <AdminLayout>
@@ -51,7 +112,7 @@ const AdminReferrals = () => {
               </div>
               <h1 className="mt-2 text-3xl font-light text-zinc-100">Referrals</h1>
               <p className="text-sm text-zinc-500 mt-1">
-                Track who sent us business. Finalized deals auto-flag matching referees as fee-owed.
+                Track who sent us business. Linked applications auto-flag fees on delivery, and mirror declines.
               </p>
             </div>
             <Button
@@ -63,7 +124,7 @@ const AdminReferrals = () => {
           </header>
 
           {/* Segmented filter */}
-          <div className="inline-flex rounded-md border border-zinc-800 bg-zinc-950 p-1">
+          <div className="inline-flex flex-wrap rounded-md border border-zinc-800 bg-zinc-950 p-1">
             {tabs.map((t) => {
               const active = view === t.key;
               const Icon = t.icon;
@@ -73,9 +134,7 @@ const AdminReferrals = () => {
                   onClick={() => setView(t.key)}
                   className={cn(
                     'flex items-center gap-2 px-4 py-2 text-xs font-medium rounded transition-colors',
-                    active
-                      ? 'bg-zinc-800 text-zinc-100'
-                      : 'text-zinc-500 hover:text-zinc-300',
+                    active ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300',
                   )}
                 >
                   <Icon className={cn('h-3.5 w-3.5', active && t.tone)} />
@@ -94,6 +153,9 @@ const AdminReferrals = () => {
                   <TableHead className="text-zinc-500 text-xs uppercase tracking-wider">Referrer (Owed)</TableHead>
                   <TableHead className="text-zinc-500 text-xs uppercase tracking-wider">Referee (Buyer)</TableHead>
                   <TableHead className="text-zinc-500 text-xs uppercase tracking-wider">Created</TableHead>
+                  {showLiveCol && (
+                    <TableHead className="text-zinc-500 text-xs uppercase tracking-wider">Live App Status</TableHead>
+                  )}
                   <TableHead className="text-zinc-500 text-xs uppercase tracking-wider">Status</TableHead>
                   <TableHead className="text-right text-zinc-500 text-xs uppercase tracking-wider">Action</TableHead>
                 </TableRow>
@@ -101,11 +163,11 @@ const AdminReferrals = () => {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-zinc-500 py-12">Loading…</TableCell>
+                    <TableCell colSpan={showLiveCol ? 6 : 5} className="text-center text-zinc-500 py-12">Loading…</TableCell>
                   </TableRow>
                 ) : filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-zinc-600 py-16 text-sm">
+                    <TableCell colSpan={showLiveCol ? 6 : 5} className="text-center text-zinc-600 py-16 text-sm">
                       No referrals in this view.
                     </TableCell>
                   </TableRow>
@@ -129,6 +191,17 @@ const AdminReferrals = () => {
                       <TableCell className="text-xs text-zinc-500">
                         {new Date(r.created_at).toLocaleDateString()}
                       </TableCell>
+                      {showLiveCol && (
+                        <TableCell className="text-xs">
+                          {r.matched_application_id ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded border border-sky-800/60 bg-sky-950/40 text-sky-300">
+                              {labelForStatus(liveStatuses[r.matched_application_id])}
+                            </span>
+                          ) : (
+                            <span className="text-zinc-600">Not linked</span>
+                          )}
+                        </TableCell>
+                      )}
                       <TableCell>
                         <span className={cn('inline-flex items-center px-2 py-0.5 text-[11px] rounded border', statusBadge(r.status))}>
                           {r.status}
