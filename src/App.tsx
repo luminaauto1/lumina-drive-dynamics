@@ -113,6 +113,7 @@ const AppLayout = () => {
            <Route path="/admin/settings/email" element={<ProtectedRoute requireSuperAdmin><AdminEmailSettings /></ProtectedRoute>} />
           <Route path="/admin/reports/partner-payout/:dealId" element={<ProtectedRoute requireSuperAdmin><AdminPartnerPayout /></ProtectedRoute>} />
           <Route path="/admin/network" element={<ProtectedRoute requireSuperAdmin><AdminNetwork /></ProtectedRoute>} />
+          <Route path="/admin/referrals" element={<ProtectedRoute requireSuperAdmin><AdminReferrals /></ProtectedRoute>} />
           <Route path="/admin/clients/:id" element={<ProtectedRoute requireSuperAdmin><ClientProfile /></ProtectedRoute>} />
           <Route path="/admin/crm-sheet" element={<ProtectedRoute requireAdmin><CRMSheet /></ProtectedRoute>} />
           <Route path="/update-password" element={<UpdatePassword />} />
