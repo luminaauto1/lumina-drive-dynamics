@@ -886,6 +886,96 @@ export type Database = {
           },
         ]
       }
+      juristic_submissions: {
+        Row: {
+          access_token: string
+          application_id: string | null
+          associated_parties: Json
+          banking_details: Json
+          company_name: string | null
+          contact_email: string | null
+          contact_phone: string | null
+          created_at: string
+          created_by: string | null
+          entity_type: string | null
+          financial_details: Json
+          id: string
+          nature_of_business: string | null
+          popia_consent_accepted: boolean
+          postal_address: string | null
+          public_official_status: Json
+          registered_address: string | null
+          registration_number: string | null
+          signature_image_url: string | null
+          signer_capacity: string | null
+          signer_full_name: string | null
+          status: string
+          submitted_at: string | null
+          tax_number: string | null
+          trading_name: string | null
+          updated_at: string
+          vat_number: string | null
+        }
+        Insert: {
+          access_token?: string
+          application_id?: string | null
+          associated_parties?: Json
+          banking_details?: Json
+          company_name?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          entity_type?: string | null
+          financial_details?: Json
+          id?: string
+          nature_of_business?: string | null
+          popia_consent_accepted?: boolean
+          postal_address?: string | null
+          public_official_status?: Json
+          registered_address?: string | null
+          registration_number?: string | null
+          signature_image_url?: string | null
+          signer_capacity?: string | null
+          signer_full_name?: string | null
+          status?: string
+          submitted_at?: string | null
+          tax_number?: string | null
+          trading_name?: string | null
+          updated_at?: string
+          vat_number?: string | null
+        }
+        Update: {
+          access_token?: string
+          application_id?: string | null
+          associated_parties?: Json
+          banking_details?: Json
+          company_name?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          entity_type?: string | null
+          financial_details?: Json
+          id?: string
+          nature_of_business?: string | null
+          popia_consent_accepted?: boolean
+          postal_address?: string | null
+          public_official_status?: Json
+          registered_address?: string | null
+          registration_number?: string | null
+          signature_image_url?: string | null
+          signer_capacity?: string | null
+          signer_full_name?: string | null
+          status?: string
+          submitted_at?: string | null
+          tax_number?: string | null
+          trading_name?: string | null
+          updated_at?: string
+          vat_number?: string | null
+        }
+        Relationships: []
+      }
       lead_notes: {
         Row: {
           admin_id: string
