@@ -78,3 +78,6 @@ verify_jwt = false
 [functions.tiktok-whatsapp-welcome]
 verify_jwt = false
 
+
+[functions.generate-juristic-pdf]
+verify_jwt = false

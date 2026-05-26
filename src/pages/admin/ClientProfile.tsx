@@ -7,8 +7,9 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, User, Car, FileText, History, Loader2 } from "lucide-react";
+import { ArrowLeft, User, Car, FileText, History, Loader2, Building2 } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
+import JuristicPanel from "@/components/admin/JuristicPanel";
 
 const ClientProfile = () => {
   const { id } = useParams();
@@ -130,6 +131,9 @@ const ClientProfile = () => {
                 <TabsTrigger value="deal">
                   <User className="w-3.5 h-3.5 mr-1" /> Deal Info
                 </TabsTrigger>
+                <TabsTrigger value="juristic">
+                  <Building2 className="w-3.5 h-3.5 mr-1" /> Juristic
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="history" className="mt-4">
@@ -204,6 +208,10 @@ const ClientProfile = () => {
                     <p className="text-sm text-muted-foreground">No deal records yet.</p>
                   )}
                 </Card>
+              </TabsContent>
+
+              <TabsContent value="juristic" className="mt-4">
+                <JuristicPanel applicationId={client.id} />
               </TabsContent>
             </Tabs>
           </div>
