@@ -297,12 +297,20 @@ async function fillFicForm(
 
   const blocks = ["", "A", "B", "C", "D", "E"];
   const parties = Array.isArray(row.associated_parties) ? row.associated_parties : [];
+
   parties.slice(0, blocks.length).forEach((p: any, i: number) => {
     const sfx = blocks[i];
-    set(`Shareholder Information: 1${sfx}`, p.full_name);
-    set(`Shareholder Information: 2${sfx}`, p.id_number);
-    set(`Shareholder Information: 3${sfx}`, p.designation);
-    set(`Shareholder Information: 4${sfx}`, `${s(p.shareholding_percent)}%`);
+
+    // Split full name to properly fill the separate Name and Surname boxes
+    const nameParts = s(p.full_name).trim().split(" ");
+    const firstName = nameParts[0] || "";
+    const surname = nameParts.slice(1).join(" ") || "";
+
+    set(`Shareholder Information: 1${sfx}`, firstName); // Name
+    set(`Shareholder Information: 2${sfx}`, surname); // Surname
+    set(`Shareholder Information: 3${sfx}`, p.id_number); // Identity number
+    set(`Shareholder Information: 4${sfx}`, `${s(p.shareholding_percent)}`); // Share %
+
     set(`Shareholder Information: 8${sfx}`, p.address ?? "");
     set(`Shareholder Information: 9${sfx}`, p.contact ?? "");
   });
@@ -316,9 +324,8 @@ async function fillFicForm(
   const pages = pdf.getPages();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
 
-  // Manual fallback for FIC place signed and date to guarantee they print
   const lastPage = pages[pages.length - 1];
-  lastPage.drawText(s(row.signed_at), { x: 250, y: 110, size: 10, font }); // "Signed at"
+  lastPage.drawText(s(row.signed_at), { x: 250, y: 110, size: 10, font });
 
   if (sigBytes) {
     await drawSignatureScaled(pdf, lastPage, sigBytes, { x: 80, y: 80, width: 120, height: 40 });
