@@ -898,7 +898,6 @@ export type Database = {
           created_at: string
           created_by: string | null
           entity_type: string | null
-          financial_details: Json
           id: string
           nature_of_business: string | null
           popia_consent_accepted: boolean
@@ -927,7 +926,6 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           entity_type?: string | null
-          financial_details?: Json
           id?: string
           nature_of_business?: string | null
           popia_consent_accepted?: boolean
@@ -956,7 +954,6 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           entity_type?: string | null
-          financial_details?: Json
           id?: string
           nature_of_business?: string | null
           popia_consent_accepted?: boolean
