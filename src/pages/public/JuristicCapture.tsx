@@ -11,7 +11,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import SignaturePad from "@/components/SignaturePad";
-import { Loader2, Plus, Trash2, Building2, Users, Wallet, PenLine, Check } from "lucide-react";
+import { Loader2, Plus, Trash2, Building2, Users, PenLine, Check } from "lucide-react";
 import { toast } from "sonner";
 
 type Party = {
@@ -25,8 +25,7 @@ type Party = {
 const STEPS = [
   { id: 1, label: "Business",  icon: Building2 },
   { id: 2, label: "Ownership", icon: Users },
-  { id: 3, label: "Bank & Asset", icon: Wallet },
-  { id: 4, label: "Signature", icon: PenLine },
+  { id: 3, label: "Signature", icon: PenLine },
 ];
 
 const norm = (v: string) => v.replace(/\s+/g, "").trim();
@@ -51,12 +50,6 @@ const JuristicCapture = () => {
   const [parties, setParties] = useState<Party[]>([
     { full_name: "", id_number: "", designation: "Director", shareholding_percent: "" },
   ]);
-  const [bank, setBank] = useState({
-    banker: "", branch: "", branch_code: "", account_number: "", account_type: "Current",
-  });
-  const [finance, setFinance] = useState({
-    selling_price: "", deposit: "", term: "60", product_type: "Instalment Sale",
-  });
   const [sig, setSig] = useState<string | undefined>();
   const [signer, setSigner] = useState({ full_name: "", capacity: "Director" });
   const [popia, setPopia] = useState(false);
@@ -86,19 +79,8 @@ const JuristicCapture = () => {
           contact_email: data.contact_email ?? "",
         });
         if (Array.isArray(data.associated_parties) && data.associated_parties.length) {
-          setParties(data.associated_parties as Party[]);
+          setParties(data.associated_parties as unknown as Party[]);
         }
-        const bd: any = data.banking_details ?? {};
-        setBank({
-          banker: bd.banker ?? "", branch: bd.branch ?? "",
-          branch_code: bd.branch_code ?? "", account_number: bd.account_number ?? "",
-          account_type: bd.account_type ?? "Current",
-        });
-        const fd: any = data.financial_details ?? {};
-        setFinance({
-          selling_price: fd.selling_price ?? "", deposit: fd.deposit ?? "",
-          term: fd.term ?? "60", product_type: fd.product_type ?? "Instalment Sale",
-        });
         setSig(data.signature_image_url ?? undefined);
         setSigner({
           full_name: data.signer_full_name ?? "",
@@ -132,11 +114,9 @@ const JuristicCapture = () => {
     public_official_status: {
       any_public_official: parties.some(p => p.is_public_official),
     },
-    banking_details: { ...bank, account_number: normDigits(bank.account_number) },
-    financial_details: finance,
     signer_full_name: signer.full_name.trim(),
     signer_capacity: signer.capacity,
-  }), [biz, parties, bank, finance, signer]);
+  }), [biz, parties, signer]);
 
   const save = async (extra: Record<string, any> = {}) => {
     if (!id) return;
@@ -149,7 +129,7 @@ const JuristicCapture = () => {
     if (error) toast.error("Save failed: " + error.message);
   };
 
-  const next = async () => { await save(); setStep(s => Math.min(4, s + 1)); };
+  const next = async () => { await save(); setStep(s => Math.min(3, s + 1)); };
   const back = () => setStep(s => Math.max(1, s - 1));
 
   const submit = async () => {
@@ -352,37 +332,6 @@ const JuristicCapture = () => {
 
           {step === 3 && (
             <div className="space-y-4">
-              <h2 className="text-sm uppercase tracking-widest text-white/60">Banking & Asset</h2>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Banker *"><Input value={bank.banker} onChange={e => setBank({ ...bank, banker: e.target.value })} className="bg-black/40 border-white/10" /></Field>
-                <Field label="Branch"><Input value={bank.branch} onChange={e => setBank({ ...bank, branch: e.target.value })} className="bg-black/40 border-white/10" /></Field>
-                <Field label="Branch Code *"><Input value={bank.branch_code} onChange={e => setBank({ ...bank, branch_code: e.target.value })} className="bg-black/40 border-white/10" /></Field>
-                <Field label="Account Number *"><Input value={bank.account_number} onChange={e => setBank({ ...bank, account_number: e.target.value })} className="bg-black/40 border-white/10" /></Field>
-                <Field label="Account Type">
-                  <Select value={bank.account_type} onValueChange={v => setBank({ ...bank, account_type: v })}>
-                    <SelectTrigger className="bg-black/40 border-white/10"><SelectValue /></SelectTrigger>
-                    <SelectContent>{["Current","Cheque","Savings","Business"].map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
-                  </Select>
-                </Field>
-              </div>
-              <div className="h-px bg-white/5 my-2" />
-              <h3 className="text-xs uppercase tracking-widest text-white/40">Transaction Baseline</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Selling Price (R)"><Input value={finance.selling_price} onChange={e => setFinance({ ...finance, selling_price: e.target.value })} className="bg-black/40 border-white/10" /></Field>
-                <Field label="Deposit (R)"><Input value={finance.deposit} onChange={e => setFinance({ ...finance, deposit: e.target.value })} className="bg-black/40 border-white/10" /></Field>
-                <Field label="Term (months)"><Input value={finance.term} onChange={e => setFinance({ ...finance, term: e.target.value })} className="bg-black/40 border-white/10" /></Field>
-                <Field label="Product Type">
-                  <Select value={finance.product_type} onValueChange={v => setFinance({ ...finance, product_type: v })}>
-                    <SelectTrigger className="bg-black/40 border-white/10"><SelectValue /></SelectTrigger>
-                    <SelectContent>{["Instalment Sale","Lease","Rental","MFC Cost of Credit"].map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
-                  </Select>
-                </Field>
-              </div>
-            </div>
-          )}
-
-          {step === 4 && (
-            <div className="space-y-4">
               <h2 className="text-sm uppercase tracking-widest text-white/60">Digital Signature</h2>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Signer Full Name *"><Input value={signer.full_name} onChange={e => setSigner({ ...signer, full_name: e.target.value })} className="bg-black/40 border-white/10" /></Field>
@@ -412,7 +361,7 @@ const JuristicCapture = () => {
             <Button variant="outline" className="border-white/20 bg-transparent text-white hover:bg-white/10" disabled={step === 1} onClick={back}>
               Back
             </Button>
-            {step < 4 ? (
+            {step < 3 ? (
               <Button onClick={next} disabled={saving} className="bg-white text-black hover:bg-white/90">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Continue"}
               </Button>
