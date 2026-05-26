@@ -32,10 +32,10 @@ const sanitizePhone = (raw: unknown): string | null => {
   return cleaned;
 };
 
-async function dispatchWhatsAppAfterDelay(sanitizedNumber: string) {
+async function dispatchWhatsAppAfterDelay(sanitizedNumber: string, clientName: string) {
   try {
     await new Promise((resolve) => setTimeout(resolve, 10000));
-    const url = `${EASYSOCIAL_TEMPLATE_BASE}/${sanitizedNumber}?body1=1`;
+    const url = `${EASYSOCIAL_TEMPLATE_BASE}/${sanitizedNumber}?body1=${encodeURIComponent(clientName)}`;
     console.log("[make-receiver] dispatching WhatsApp →", url);
     const res = await fetch(url, { method: "GET", headers: { Accept: "application/json" } });
     const text = await res.text();
@@ -136,7 +136,7 @@ Deno.serve(async (req) => {
 
   // TASK 3: Only dispatch WhatsApp if the DB step did not crash the function.
   if (dbStepCompleted) {
-    scheduleBackground(dispatchWhatsAppAfterDelay(sanitizedPhone));
+    scheduleBackground(dispatchWhatsAppAfterDelay(sanitizedPhone, clientName));
   } else {
     console.error("[make-receiver] skipping WhatsApp dispatch — DB step crashed");
   }
