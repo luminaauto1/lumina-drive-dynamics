@@ -1,0 +1,1 @@
+ALTER TABLE public.juristic_submissions DROP COLUMN IF EXISTS financial_details;
