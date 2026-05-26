@@ -1,4 +1,4 @@
-import { LayoutDashboard, Car, Users, CreditCard, Settings, ChevronLeft, ChevronRight, ChevronDown, BarChart3, Package, Home, FileBarChart, Banknote, ShoppingCart, Calculator, Contact, Briefcase, TableProperties, Mail, Gift } from 'lucide-react';
+import { LayoutDashboard, Car, Users, CreditCard, Settings, ChevronLeft, ChevronRight, ChevronDown, BarChart3, Package, Home, FileBarChart, Banknote, ShoppingCart, Calculator, Contact, Briefcase, TableProperties, Mail, Gift, Building2 } from 'lucide-react';
 import { NavLink, useLocation, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
@@ -43,6 +43,7 @@ const menuItems: MenuItem[] = [
   },
   { title: 'Finance', icon: CreditCard, path: '/admin/finance' },
   { title: 'Quote Generator', icon: Calculator, path: '/admin/quotes' },
+  { title: 'Juristic Capture', icon: Building2, path: '/admin/juristic' },
   { title: 'Extra Incomes', icon: Banknote, path: '/admin/extra-incomes' },
   { title: 'Trade Network', icon: Briefcase, path: '/admin/network' },
   { title: 'Referrals', icon: Gift, path: '/admin/referrals' },

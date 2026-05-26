@@ -48,6 +48,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ClientHandover from "./pages/ClientHandover";
 import TermsOfService from "./pages/TermsOfService";
 import SystemFix from "./pages/admin/SystemFix";
+import AdminJuristic from "./pages/admin/AdminJuristic";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
@@ -116,6 +117,7 @@ const AppLayout = () => {
           <Route path="/admin/reports/partner-payout/:dealId" element={<ProtectedRoute requireSuperAdmin><AdminPartnerPayout /></ProtectedRoute>} />
           <Route path="/admin/network" element={<ProtectedRoute requireSuperAdmin><AdminNetwork /></ProtectedRoute>} />
           <Route path="/admin/referrals" element={<ProtectedRoute requireSuperAdmin><AdminReferrals /></ProtectedRoute>} />
+          <Route path="/admin/juristic" element={<ProtectedRoute requireSuperAdmin><AdminJuristic /></ProtectedRoute>} />
           <Route path="/admin/clients/:id" element={<ProtectedRoute requireSuperAdmin><ClientProfile /></ProtectedRoute>} />
           <Route path="/admin/crm-sheet" element={<ProtectedRoute requireAdmin><CRMSheet /></ProtectedRoute>} />
           <Route path="/update-password" element={<UpdatePassword />} />
