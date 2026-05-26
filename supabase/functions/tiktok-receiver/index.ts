@@ -122,10 +122,10 @@ function extractLeadFields(formData: unknown) {
   return extracted;
 }
 
-async function dispatchWhatsAppAfterDelay(sanitizedNumber: string) {
+async function dispatchWhatsAppAfterDelay(sanitizedNumber: string, clientName: string) {
   try {
     await new Promise((resolve) => setTimeout(resolve, 10000));
-    const url = `${EASYSOCIAL_TEMPLATE_BASE}/${sanitizedNumber}?body1=1`;
+    const url = `${EASYSOCIAL_TEMPLATE_BASE}/${sanitizedNumber}?body1=${encodeURIComponent(clientName)}`;
     console.log("[tiktok-receiver] dispatching WhatsApp →", url);
     const res = await fetch(url, { method: "GET", headers: { Accept: "application/json" } });
     const text = await res.text();
@@ -231,7 +231,7 @@ Deno.serve(async (req) => {
   }
 
   // Kick off the 10s delay + WhatsApp dispatch in the background — always.
-  scheduleBackground(dispatchWhatsAppAfterDelay(clientPhone));
+  scheduleBackground(dispatchWhatsAppAfterDelay(clientPhone, clientName));
 
   // Always respond 200 OK so TikTok / Make.com don't enter retry loops.
   return new Response(JSON.stringify({ success: true, note: "Handled", lead_id: leadId }), {
