@@ -52,6 +52,7 @@ import SystemFix from "./pages/admin/SystemFix";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 import SecureDocumentUpload from "./pages/public/SecureDocumentUpload";
+import JuristicCapture from "./pages/public/JuristicCapture";
 import { useUTMTracking } from "@/hooks/useUTMTracking";
 import { usePixelPageView } from "@/hooks/usePixelPageView";
 
@@ -61,7 +62,7 @@ const queryClient = new QueryClient();
 const AppLayout = () => {
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith('/admin');
-  const isPublicRoute = location.pathname.startsWith('/upload-documents') || location.pathname.startsWith('/handover');
+  const isPublicRoute = location.pathname.startsWith('/upload-documents') || location.pathname.startsWith('/handover') || location.pathname.startsWith('/juristic');
 
   // Global UTM capture — runs on every route change, persists to sessionStorage
   useUTMTracking();
@@ -94,6 +95,7 @@ const AppLayout = () => {
           {/* Public Routes */}
           <Route path="/upload-documents/:token" element={<SecureDocumentUpload />} />
           <Route path="/handover/:dealId" element={<ClientHandover />} />
+          <Route path="/juristic/:token" element={<JuristicCapture />} />
           {/* Admin Routes */}
           <Route path="/admin" element={<ProtectedRoute requireSuperAdmin><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/inventory" element={<ProtectedRoute requireAdmin><AdminInventoryPage /></ProtectedRoute>} />
