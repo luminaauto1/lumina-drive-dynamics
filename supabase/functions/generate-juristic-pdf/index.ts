@@ -29,6 +29,7 @@ type BankMap = {
   signature: SigCoord;
 };
 
+// Expanded to include ALL missing fields from the right-hand columns and place signed.
 type EntityKey =
   | "company_name"
   | "trading_name"
@@ -37,8 +38,10 @@ type EntityKey =
   | "tax_number"
   | "vat_number"
   | "nature_of_business"
+  | "years_in_business"
   | "registered_address"
   | "postal_address"
+  | "registered_office"
   | "contact_phone"
   | "contact_email"
   | "banker"
@@ -46,59 +49,63 @@ type EntityKey =
   | "branch_code"
   | "account_number"
   | "account_type"
+  | "auditor_name"
+  | "auditor_phone"
+  | "turnover"
   | "signer_full_name"
   | "signer_capacity"
-  | "signature_date";
+  | "signature_date"
+  | "signed_at";
 
-// ---------- CALIBRATED COORDINATE MAPPING DICTIONARIES ----------
+// ---------- COMPREHENSIVE COORDINATE MAPPING DICTIONARIES ----------
 
 const standardBankMap: BankMap = {
+  // Juristic Application for Finance
   fields: {
-    company_name: { x: 160, y: 680, size: 10 },
-    trading_name: { x: 160, y: 660, size: 10 },
-    registration_number: { x: 160, y: 640, size: 10 },
-    entity_type: { x: 160, y: 620, size: 10 },
-    tax_number: { x: 160, y: 600, size: 10 },
-    vat_number: { x: 160, y: 580, size: 10 },
-    nature_of_business: { x: 450, y: 680, size: 10 },
-    registered_address: { x: 160, y: 550, size: 9 },
-    postal_address: { x: 160, y: 520, size: 9 },
-    contact_phone: { x: 450, y: 660, size: 10 },
-    contact_email: { x: 450, y: 640, size: 10 },
-    banker: { x: 160, y: 300, size: 10 },
-    branch: { x: 160, y: 280, size: 10 },
-    branch_code: { x: 300, y: 280, size: 10 },
-    account_number: { x: 160, y: 260, size: 10 },
-    account_type: { x: 160, y: 240, size: 10 },
-    signer_full_name: { x: 160, y: 140, size: 10 },
-    signer_capacity: { x: 160, y: 120, size: 10 },
-    signature_date: { x: 430, y: 140, size: 10 },
+    // Left Column
+    company_name: { x: 160, y: 640, size: 10 },
+    registration_number: { x: 160, y: 660, size: 10 },
+    trading_name: { x: 160, y: 615, size: 10 },
+    tax_number: { x: 160, y: 590, size: 10 },
+    vat_number: { x: 300, y: 590, size: 10 },
+    registered_address: { x: 160, y: 510, size: 9 },
+    postal_address: { x: 160, y: 460, size: 9 },
+    banker: { x: 160, y: 320, size: 10 },
+    branch: { x: 160, y: 295, size: 10 },
+    branch_code: { x: 320, y: 295, size: 10 },
+    account_number: { x: 160, y: 270, size: 10 },
+    auditor_name: { x: 160, y: 245, size: 10 },
+    auditor_phone: { x: 320, y: 220, size: 10 },
+
+    // Right Column (Previously Missing)
+    registered_office: { x: 360, y: 640, size: 9 },
+    years_in_business: { x: 360, y: 590, size: 10 },
+    nature_of_business: { x: 450, y: 590, size: 10 },
+    contact_phone: { x: 360, y: 565, size: 10 },
+    contact_email: { x: 360, y: 540, size: 10 },
+
+    // Signatures
+    signer_full_name: { x: 160, y: 155, size: 10 },
+    signer_capacity: { x: 160, y: 135, size: 10 },
+    signature_date: { x: 430, y: 155, size: 10 },
   },
+  // Shifted to the Right-Hand Side Table "FULL Names & ID No"
   parties: {
-    y_start: 400,
-    y_step: -20,
-    name_x: 60,
-    id_x: 240,
-    role_x: 400,
-    share_x: 500,
-    size: 9,
+    y_start: 320,
+    y_step: -15,
+    name_x: 310,
+    id_x: 420,
+    share_x: 530,
+    size: 8,
     max_rows: 6,
   },
-  signature: { x: 380, y: 80, width: 120, height: 40 },
+  signature: { x: 380, y: 90, width: 120, height: 40 },
 };
 
 const absaMap: BankMap = {
   fields: {
     company_name: { x: 180, y: 495, size: 10, page: 0 },
     registration_number: { x: 180, y: 465, size: 10, page: 0 },
-    trading_name: { x: 180, y: 440, size: 10, page: 0 },
-    tax_number: { x: 180, y: 420, size: 10, page: 0 },
-    vat_number: { x: 180, y: 400, size: 10, page: 0 },
-    nature_of_business: { x: 180, y: 380, size: 10, page: 0 },
-    registered_address: { x: 180, y: 360, size: 9, page: 0 },
-    postal_address: { x: 180, y: 340, size: 9, page: 0 },
-    contact_phone: { x: 180, y: 320, size: 10, page: 0 },
-    contact_email: { x: 180, y: 300, size: 10, page: 0 },
     signer_full_name: { x: 150, y: 200, size: 10, page: 1 },
     signer_capacity: { x: 150, y: 180, size: 10, page: 1 },
     signature_date: { x: 430, y: 200, size: 10, page: 1 },
@@ -121,9 +128,6 @@ const mfcMap: BankMap = {
   fields: {
     company_name: { x: 160, y: 680, size: 10 },
     registration_number: { x: 160, y: 650, size: 10 },
-    trading_name: { x: 160, y: 630, size: 10 },
-    nature_of_business: { x: 160, y: 610, size: 10 },
-    registered_address: { x: 160, y: 590, size: 9 },
     signer_full_name: { x: 130, y: 130, size: 10 },
     signer_capacity: { x: 430, y: 130, size: 10 },
     signature_date: { x: 430, y: 110, size: 10 },
@@ -144,14 +148,10 @@ const wesbankMap: BankMap = {
   fields: {
     company_name: { x: 260, y: 660, size: 10 },
     registration_number: { x: 260, y: 635, size: 10 },
-    trading_name: { x: 260, y: 610, size: 10 },
-    nature_of_business: { x: 260, y: 585, size: 10 },
-    registered_address: { x: 260, y: 560, size: 9 },
-    contact_phone: { x: 260, y: 535, size: 10 },
-    contact_email: { x: 260, y: 510, size: 10 },
     signer_full_name: { x: 180, y: 140, size: 10 },
     signer_capacity: { x: 480, y: 140, size: 10 },
-    signature_date: { x: 700, y: 140, size: 10 },
+    signature_date: { x: 180, y: 160, size: 10 },
+    signed_at: { x: 400, y: 160, size: 10 }, // New: "Signed on ___ at ___"
   },
   parties: {
     y_start: 450,
@@ -313,14 +313,18 @@ async function fillFicForm(
     /* ignore */
   }
 
+  const pages = pdf.getPages();
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+
+  // Manual fallback for FIC place signed and date to guarantee they print
+  const lastPage = pages[pages.length - 1];
+  lastPage.drawText(s(row.signed_at), { x: 250, y: 110, size: 10, font }); // "Signed at"
+
   if (sigBytes) {
-    const pages = pdf.getPages();
-    const page = pages[pages.length - 1];
-    await drawSignatureScaled(pdf, page, sigBytes, { x: 80, y: 80, width: 120, height: 40 });
-    const font = await pdf.embedFont(StandardFonts.Helvetica);
-    page.drawText(s(row.signer_full_name), { x: 250, y: 95, size: 10, font });
-    page.drawText(s(row.signer_capacity), { x: 250, y: 80, size: 10, font });
-    page.drawText(new Date().toLocaleDateString("en-ZA"), { x: 450, y: 95, size: 10, font });
+    await drawSignatureScaled(pdf, lastPage, sigBytes, { x: 80, y: 80, width: 120, height: 40 });
+    lastPage.drawText(s(row.signer_full_name), { x: 250, y: 95, size: 10, font });
+    lastPage.drawText(s(row.signer_capacity), { x: 250, y: 80, size: 10, font });
+    lastPage.drawText(new Date().toLocaleDateString("en-ZA"), { x: 450, y: 95, size: 10, font });
   }
 
   return await pdf.save();
