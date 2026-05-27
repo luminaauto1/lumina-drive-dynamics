@@ -45,13 +45,14 @@ const JuristicCapture = () => {
     company_name: "", trading_name: "", registration_number: "",
     entity_type: "", tax_number: "", vat_number: "",
     nature_of_business: "", registered_address: "", postal_address: "",
+    registered_office: "", years_in_business: "",
     contact_phone: "", contact_email: "",
   });
   const [parties, setParties] = useState<Party[]>([
     { full_name: "", id_number: "", designation: "Director", shareholding_percent: "" },
   ]);
   const [sig, setSig] = useState<string | undefined>();
-  const [signer, setSigner] = useState({ full_name: "", capacity: "Director" });
+  const [signer, setSigner] = useState({ full_name: "", capacity: "Director", signed_at: "" });
   const [popia, setPopia] = useState(false);
 
   useEffect(() => {
@@ -75,6 +76,8 @@ const JuristicCapture = () => {
           nature_of_business: data.nature_of_business ?? "",
           registered_address: data.registered_address ?? "",
           postal_address: data.postal_address ?? "",
+          registered_office: (data as any).registered_office ?? "",
+          years_in_business: (data as any).years_in_business ?? "",
           contact_phone: data.contact_phone ?? "",
           contact_email: data.contact_email ?? "",
         });
@@ -85,6 +88,7 @@ const JuristicCapture = () => {
         setSigner({
           full_name: data.signer_full_name ?? "",
           capacity: data.signer_capacity ?? "Director",
+          signed_at: (data as any).signed_at ?? "",
         });
         setPopia(!!data.popia_consent_accepted);
       }
@@ -102,6 +106,8 @@ const JuristicCapture = () => {
     nature_of_business: biz.nature_of_business.trim(),
     registered_address: biz.registered_address.trim(),
     postal_address: biz.postal_address.trim() || biz.registered_address.trim(),
+    registered_office: biz.registered_office.trim() || biz.registered_address.trim(),
+    years_in_business: biz.years_in_business.trim(),
     contact_phone: normDigits(biz.contact_phone),
     contact_email: biz.contact_email.trim().toLowerCase(),
     associated_parties: parties.map(p => ({
@@ -116,6 +122,7 @@ const JuristicCapture = () => {
     },
     signer_full_name: signer.full_name.trim(),
     signer_capacity: signer.capacity,
+    signed_at: signer.signed_at.trim(),
   }), [biz, parties, signer]);
 
   const save = async (extra: Record<string, any> = {}) => {
@@ -268,6 +275,14 @@ const JuristicCapture = () => {
                 <Textarea rows={2} value={biz.postal_address} onChange={e => setBiz({ ...biz, postal_address: e.target.value })} className="bg-black/40 border-white/10" />
               </Field>
               <div className="grid grid-cols-2 gap-3">
+                <Field label="Registered Office (City / Town)">
+                  <Input value={biz.registered_office} onChange={e => setBiz({ ...biz, registered_office: e.target.value })} className="bg-black/40 border-white/10" />
+                </Field>
+                <Field label="Years in Business">
+                  <Input value={biz.years_in_business} onChange={e => setBiz({ ...biz, years_in_business: e.target.value })} className="bg-black/40 border-white/10" />
+                </Field>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
                 <Field label="Contact Phone *">
                   <Input value={biz.contact_phone} onChange={e => setBiz({ ...biz, contact_phone: e.target.value })} className="bg-black/40 border-white/10" />
                 </Field>
@@ -342,6 +357,9 @@ const JuristicCapture = () => {
                   </Select>
                 </Field>
               </div>
+              <Field label="Signed At (City / Town)">
+                <Input value={signer.signed_at} onChange={e => setSigner({ ...signer, signed_at: e.target.value })} className="bg-black/40 border-white/10" placeholder="e.g. Johannesburg" />
+              </Field>
               <div>
                 <Label className="text-xs text-white/60 mb-2 block">Signature</Label>
                 <SignaturePad existingSignature={sig} onSave={setSig} />
