@@ -37,7 +37,8 @@ serve(async (req) => {
     const firstName = name ? String(name).trim().split(/\s+/)[0] : "there";
     const b1 = encodeURIComponent(firstName);
 
-    const apiUrl = `https://api.easysocial.in/api/v1/wa-templates/send/${CAMPAIGN_ID}/${TEMPLATE_ID}/${ACCOUNT_ID}/API/${cleanPhone}?body1=${b1}`;
+    const apiKey = Deno.env.get("EASYSOCIAL_API_KEY") || Deno.env.get("EASYSOCIAL_BEARER_TOKEN") || "";
+    const apiUrl = `https://api.easysocial.in/api/v1/wa-templates/send/${CAMPAIGN_ID}/${TEMPLATE_ID}/${ACCOUNT_ID}/${apiKey}/${cleanPhone}?body1=${b1}`;
 
     const resp = await fetch(apiUrl, { headers: { Accept: "application/json" } });
     const raw = await resp.text();

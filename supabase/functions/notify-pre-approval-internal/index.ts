@@ -35,8 +35,9 @@ serve(async (req) => {
     const b4 = encodeURIComponent(refCode);
 
     // Parallel execution to prevent sequential blocking
+    const apiKey = Deno.env.get("EASYSOCIAL_API_KEY") || Deno.env.get("EASYSOCIAL_BEARER_TOKEN") || "";
     const dispatchPromises = STAFF_NUMBERS.map(async (phone) => {
-      const apiUrl = `https://api.easysocial.in/api/v1/wa-templates/send/${CAMPAIGN_ID}/${TEMPLATE_ID}/${ACCOUNT_ID}/API/${phone}?body1=${b1}&body2=${b2}&body3=${b3}&body4=${b4}`;
+      const apiUrl = `https://api.easysocial.in/api/v1/wa-templates/send/${CAMPAIGN_ID}/${TEMPLATE_ID}/${ACCOUNT_ID}/${apiKey}/${phone}?body1=${b1}&body2=${b2}&body3=${b3}&body4=${b4}`;
       try {
         const resp = await fetch(apiUrl, { headers: { Accept: "application/json" } });
         const raw = await resp.text();
