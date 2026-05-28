@@ -126,6 +126,8 @@ export const ADMIN_STATUS_LABELS: Record<string, string> = {
   archived: 'Archived',
   needs_revision: '⚠️ Needs Revision',
   revision_submitted: 'Revision Submitted',
+  client_cancelled: 'Client Cancelled / Ghosted',
+
 };
 
 // Steps for the visual stepper component
