@@ -72,6 +72,8 @@ export const USER_STATUS_LABELS: Record<string, string> = {
   archived: 'Archived',
   needs_revision: '⚠️ Revision Required - Please Update Your Details',
   revision_submitted: 'Revision Submitted - Under Review',
+  client_cancelled: 'Application Closed',
+
 };
 
 // Badge styling with distinct colors for each step
