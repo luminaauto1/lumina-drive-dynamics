@@ -45,6 +45,8 @@ export const STATUS_STEP_ORDER: Record<string, number> = {
   finalized: 8, // Same as delivered
   needs_revision: 0, // Sent back for revision
   revision_submitted: 1, // Re-submitted after revision
+  client_cancelled: -1, // Exception state - client ghosted/cancelled
+
 };
 
 // What the USER sees - strategic "hook" messaging
