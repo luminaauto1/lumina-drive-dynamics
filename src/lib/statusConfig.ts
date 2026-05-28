@@ -20,6 +20,7 @@ export const STATUS_OPTIONS = [
   { value: 'needs_revision', label: 'Needs Revision' },
   { value: 'revision_submitted', label: 'Revision Submitted' },
   { value: 'finalized', label: 'Finalized / Delivered' },
+  { value: 'client_cancelled', label: 'Client Cancelled / Ghosted' },
   { value: 'archived', label: 'Archived' },
 ];
 
@@ -44,6 +45,8 @@ export const STATUS_STEP_ORDER: Record<string, number> = {
   finalized: 8, // Same as delivered
   needs_revision: 0, // Sent back for revision
   revision_submitted: 1, // Re-submitted after revision
+  client_cancelled: -1, // Exception state - client ghosted/cancelled
+
 };
 
 // What the USER sees - strategic "hook" messaging
@@ -69,6 +72,8 @@ export const USER_STATUS_LABELS: Record<string, string> = {
   archived: 'Archived',
   needs_revision: '⚠️ Revision Required - Please Update Your Details',
   revision_submitted: 'Revision Submitted - Under Review',
+  client_cancelled: 'Application Closed',
+
 };
 
 // Badge styling with distinct colors for each step
@@ -94,6 +99,8 @@ export const STATUS_STYLES: Record<string, string> = {
   archived: 'bg-gray-600/20 text-gray-500 border-gray-600/30',
   needs_revision: 'bg-pink-500/20 text-pink-400 border-pink-500/30 animate-pulse',
   revision_submitted: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
+  client_cancelled: 'bg-gray-600/20 text-gray-500 border-gray-600/30',
+
 };
 
 // Admin labels (internal view)
@@ -119,6 +126,8 @@ export const ADMIN_STATUS_LABELS: Record<string, string> = {
   archived: 'Archived',
   needs_revision: '⚠️ Needs Revision',
   revision_submitted: 'Revision Submitted',
+  client_cancelled: 'Client Cancelled / Ghosted',
+
 };
 
 // Steps for the visual stepper component
