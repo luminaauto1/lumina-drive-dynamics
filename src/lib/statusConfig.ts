@@ -99,6 +99,8 @@ export const STATUS_STYLES: Record<string, string> = {
   archived: 'bg-gray-600/20 text-gray-500 border-gray-600/30',
   needs_revision: 'bg-pink-500/20 text-pink-400 border-pink-500/30 animate-pulse',
   revision_submitted: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
+  client_cancelled: 'bg-gray-600/20 text-gray-500 border-gray-600/30',
+
 };
 
 // Admin labels (internal view)
