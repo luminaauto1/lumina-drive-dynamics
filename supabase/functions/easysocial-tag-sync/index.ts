@@ -142,12 +142,6 @@ const planForStatus = (status: string): PlanStep => {
         add: [],
         remove: [...MASTER_PIPELINE_TAGS],
       };
-    case 'client_cancelled':
-      // Wipes active pipeline tags (safelist protected automatically) and re-adds New Lead
-      return {
-        add: [PHASE.NEW_LEAD],
-        remove: [...MASTER_PIPELINE_TAGS],
-      };
     default:
       return { add: [], remove: [] };
   }
