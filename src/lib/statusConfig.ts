@@ -20,6 +20,7 @@ export const STATUS_OPTIONS = [
   { value: 'needs_revision', label: 'Needs Revision' },
   { value: 'revision_submitted', label: 'Revision Submitted' },
   { value: 'finalized', label: 'Finalized / Delivered' },
+  { value: 'client_cancelled', label: 'Client Cancelled / Ghosted' },
   { value: 'archived', label: 'Archived' },
 ];
 
