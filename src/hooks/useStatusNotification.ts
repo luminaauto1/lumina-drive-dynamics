@@ -19,17 +19,15 @@ export const sendStatusNotification = async ({
   accessToken,
   vehicleName,
 }: SendNotificationParams): Promise<boolean> => {
-  try {
-    // Fire-and-forget cancelled WhatsApp notification (does not block email flow)
+    // Trigger isolated WhatsApp dispatch if cancelled
     if (newStatus === 'client_cancelled') {
       supabase.functions
         .invoke('notify-client-cancelled', {
           headers: publicApiHeaders(),
-          body: { applicationId },
+          body: { application_id: applicationId },
         })
-        .then(({ error: waError }) => {
-          if (waError) console.error('notify-client-cancelled failed:', waError);
-        });
+        .catch((err) => console.error('Cancelled webhook failed:', err));
+    }
     }
 
     const { data, error } = await supabase.functions.invoke('send-status-notification', {
