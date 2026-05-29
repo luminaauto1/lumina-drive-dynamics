@@ -142,6 +142,13 @@ const planForStatus = (status: string): PlanStep => {
         add: [],
         remove: [...MASTER_PIPELINE_TAGS],
       };
+    case 'client_cancelled':
+      // Client cancelled/ghosted — reset to New Lead, wipe all pipeline tags.
+      // NEVER add a "Client Cancelled" tag to EasySocial.
+      return {
+        add: [PHASE.NEW_LEAD],
+        remove: [...MASTER_PIPELINE_TAGS],
+      };
     default:
       return { add: [], remove: [] };
   }
