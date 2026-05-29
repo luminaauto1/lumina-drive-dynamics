@@ -20,6 +20,18 @@ export const sendStatusNotification = async ({
   vehicleName,
 }: SendNotificationParams): Promise<boolean> => {
   try {
+    // Fire-and-forget cancelled WhatsApp notification (does not block email flow)
+    if (newStatus === 'client_cancelled') {
+      supabase.functions
+        .invoke('notify-client-cancelled', {
+          headers: publicApiHeaders(),
+          body: { applicationId },
+        })
+        .then(({ error: waError }) => {
+          if (waError) console.error('notify-client-cancelled failed:', waError);
+        });
+    }
+
     const { data, error } = await supabase.functions.invoke('send-status-notification', {
       headers: publicApiHeaders(),
       body: {
