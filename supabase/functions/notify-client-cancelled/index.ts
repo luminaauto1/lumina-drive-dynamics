@@ -1,76 +1,53 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
-import { buildCorsHeaders, checkInternalKey } from "../_shared/publicGuard.ts";
-
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-// Format SA phone number to international format: 27XXXXXXXXX
-function sanitizePhoneSA(raw: string | null | undefined): string | null {
-  if (!raw) return null;
-  let d = String(raw).replace(/\D/g, "");
-  if (!d) return null;
-  if (d.startsWith("0")) d = "27" + d.slice(1);
-  if (d.length < 10 || d.length > 15) return null;
-  return d;
-}
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { buildCorsHeaders } from "../_shared/publicGuard.ts";
 
 serve(async (req) => {
   const cors = buildCorsHeaders(req.headers.get("origin"));
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
-  const guard = checkInternalKey(req);
-  if (guard) return guard;
-
   try {
-    const { applicationId } = await req.json();
-    if (!applicationId) {
-      return new Response(JSON.stringify({ error: "applicationId required" }), {
-        status: 400, headers: { ...cors, "Content-Type": "application/json" },
-      });
+    const body = await req.json();
+    let { application_id, phone_number, client_phone, client_name, full_name } = body;
+
+    let finalPhone = phone_number || client_phone;
+    let finalName = client_name || full_name;
+
+    // If phone wasn't passed in the request body, fetch the entire row from the DB
+    if (!finalPhone && application_id) {
+        const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+        const { data, error } = await supabase.from('finance_applications').select('*').eq('id', application_id).maybeSingle();
+        
+        if (data) {
+            // Intelligently check all possible column names for the phone number and name
+            finalPhone = data.client_phone || data.phone_number || data.phone || data.mobile;
+            finalName = data.client_name || data.full_name || data.first_name || data.name;
+        }
     }
 
-    const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const { data: app, error } = await sb
-      .from("finance_applications")
-      .select("first_name, full_name, phone")
-      .eq("id", applicationId)
-      .maybeSingle();
+    if (!finalPhone) throw new Error("No phone number could be found in the payload or database.");
 
-    if (error || !app) {
-      return new Response(JSON.stringify({ error: "application not found", detail: error?.message }), {
-        status: 404, headers: { ...cors, "Content-Type": "application/json" },
-      });
-    }
+    // Sanitize and format for South Africa (+27)
+    let sanitizedPhone = String(finalPhone).replace(/[\s\-+()]/g, "").replace(/\D/g, "");
+    if (sanitizedPhone.startsWith("0")) sanitizedPhone = "27" + sanitizedPhone.substring(1);
 
-    const phone = sanitizePhoneSA(app.phone);
-    if (!phone) {
-      return new Response(JSON.stringify({ error: "invalid phone" }), {
-        status: 400, headers: { ...cors, "Content-Type": "application/json" },
-      });
-    }
+    // Extract first name
+    const firstName = finalName ? String(finalName).trim().split(/\s+/)[0] : "Client";
+    
+    // The exact API endpoint
+    const apiUrl = `https://api.easysocial.in/api/v1/wa-templates/send/cmpp930hx0ciqbvxp4exrg7t4/19768/4026/API/${sanitizedPhone}?body1=${encodeURIComponent(firstName)}`;
+    
+    console.log("Dispatching to EasySocial:", apiUrl);
 
-    let firstName = (app.first_name || "").toString().trim();
-    if (!firstName && app.full_name) {
-      firstName = String(app.full_name).trim().split(/\s+/)[0] || "";
-    }
-    if (!firstName) firstName = "there";
+    // Execute GET request
+    const response = await fetch(apiUrl, { method: "GET", headers: { Accept: "application/json" } });
+    const rawText = await response.text();
+    
+    console.log("EasySocial Response:", rawText);
 
-    const url = `https://api.easysocial.in/api/v1/wa-templates/send/cmpp930hx0ciqbvxp4exrg7t4/19768/4026/API/${phone}?body1=${encodeURIComponent(firstName)}`;
-    console.log("[notify-client-cancelled] GET", url);
-
-    const resp = await fetch(url, { headers: { Accept: "application/json" } });
-    const raw = await resp.text();
-    let body: any; try { body = JSON.parse(raw); } catch { body = { raw }; }
-
-    return new Response(
-      JSON.stringify({ success: resp.ok, status: resp.status, body, phone, firstName }),
-      { status: resp.ok ? 200 : 502, headers: { ...cors, "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ success: response.ok, response: rawText, dispatched_url: apiUrl }), { status: 200, headers: { ...cors, "Content-Type": "application/json" } });
   } catch (error: any) {
-    console.error("[notify-client-cancelled] error", error);
-    return new Response(JSON.stringify({ error: error?.message || String(error) }), {
-      status: 500, headers: { ...cors, "Content-Type": "application/json" },
-    });
+    console.error("notify-client-cancelled error:", error.message);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
   }
 });
