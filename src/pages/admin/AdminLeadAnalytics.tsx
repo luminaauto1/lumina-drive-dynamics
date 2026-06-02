@@ -434,6 +434,49 @@ const AdminLeadAnalytics = () => {
     return Object.entries(counts).map(([k, v]) => ({ name: labels[k] || k, value: v }));
   }, [apps]);
 
+  // ── TikTok Campaign Performance (read-only aggregation) ─────────────────
+  const tiktokStats = useMemo(() => {
+    const isTikTok = (v: any) =>
+      typeof v === 'string' && v.toLowerCase().includes('tiktok');
+    const leadIsTikTok = (l: any) =>
+      isTikTok(l.source) || isTikTok(l.utm_source) || isTikTok(l.utm_medium) ||
+      isTikTok(l.utm_campaign) || isTikTok(l.platform) || isTikTok(l.origin) ||
+      isTikTok(l.traffic_source);
+    const appIsTikTok = (a: any) => isTikTok(a.utm_source);
+
+    const ttLeads = enrichedLeads.filter(leadIsTikTok);
+    const ttApps = apps.filter(appIsTikTok);
+
+    // Submitted = leads matched to an app OR direct TikTok apps
+    const submittedCount = Math.max(
+      ttLeads.filter((l: any) => l._submitted).length,
+      ttApps.length,
+    );
+    const totalLeadsTT = Math.max(ttLeads.length, submittedCount);
+    const conversionRate = totalLeadsTT > 0 ? (submittedCount / totalLeadsTT) * 100 : 0;
+
+    const statusOf = (a: any) => String(a.status || '').toLowerCase().trim();
+    const credit = (a: any) => String(a.credit_score_status || '').toLowerCase().trim();
+    const declined = ttApps.filter((a) => statusOf(a) === 'declined').length;
+    const blacklisted = ttApps.filter((a) =>
+      statusOf(a) === 'blacklisted' || credit(a) === 'blacklisted'
+    ).length;
+    const badCredit = ttApps.filter((a) =>
+      ['defaults_arrears', 'judgements', 'debt_review'].includes(credit(a))
+    ).length;
+    const cancelled = ttApps.filter((a) => statusOf(a) === 'client_cancelled').length;
+
+    return {
+      totalLeads: totalLeadsTT,
+      submittedCount,
+      conversionRate,
+      declined,
+      blacklisted,
+      badCredit,
+      cancelled,
+    };
+  }, [enrichedLeads, apps]);
+
   // Traffic source: submitted vs abandoned by source.
   // Prefer EasySocial CRM platform/origin, then traffic_source tag, UTM, then internal source.
   const trafficSourceData = useMemo(() => {
@@ -778,7 +821,9 @@ const AdminLeadAnalytics = () => {
               ))}
             </SelectContent>
           </Select>
-        </div>
+            </div>
+
+
 
         {loading ? (
           <div className="flex items-center justify-center py-32 text-muted-foreground">
@@ -809,6 +854,71 @@ const AdminLeadAnalytics = () => {
                 value={`${(apps.length > 0 ? (apps.filter(a => String(a.status) === 'declined').length / apps.length) * 100 : 0).toFixed(1)}%`}
               />
             </div>
+
+            {/* ── TikTok Campaign Performance ────────────────────────── */}
+            <section className="space-y-4">
+              <div className="flex items-end justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold tracking-tight text-white">
+                    TikTok Campaign Performance
+                  </h2>
+                  <p className="text-xs text-white/50 mt-1">
+                    Lead acquisition & quality from TikTok-sourced traffic
+                  </p>
+                </div>
+                <span className="text-[10px] uppercase tracking-widest text-white/40">
+                  Live · Read-only
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {[
+                  { label: 'Total TikTok Leads', value: tiktokStats.totalLeads },
+                  { label: 'Applications Submitted', value: tiktokStats.submittedCount },
+                  { label: 'Conversion Rate', value: `${tiktokStats.conversionRate.toFixed(1)}%` },
+                ].map((m) => (
+                  <div
+                    key={m.label}
+                    className="rounded-xl bg-black/40 border border-white/10 p-5 backdrop-blur-sm hover:border-white/20 transition-colors"
+                  >
+                    <p className="text-[11px] uppercase tracking-wider text-white/60">
+                      {m.label}
+                    </p>
+                    <p className="text-3xl font-semibold text-white mt-2 tabular-nums [text-shadow:0_0_24px_rgba(255,255,255,0.15)]">
+                      {m.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <p className="text-[11px] uppercase tracking-widest text-white/40 mb-2">
+                  Lead Quality Breakdown
+                </p>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[
+                    { label: 'Declined', value: tiktokStats.declined },
+                    { label: 'Blacklisted', value: tiktokStats.blacklisted },
+                    { label: 'Bad Credit', value: tiktokStats.badCredit },
+                    { label: 'Client Cancelled', value: tiktokStats.cancelled },
+                  ].map((m) => (
+                    <div
+                      key={m.label}
+                      className="rounded-xl bg-black/40 border border-white/10 p-4 backdrop-blur-sm"
+                    >
+                      <p className="text-[11px] uppercase tracking-wider text-white/60">
+                        {m.label}
+                      </p>
+                      <p className="text-2xl font-semibold text-white mt-1.5 tabular-nums">
+                        {m.value}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+
 
             {/* Application Outcome Breakdown — Submitted vs Pre-Approved vs Declined/Blacklisted */}
             <ChartCard
