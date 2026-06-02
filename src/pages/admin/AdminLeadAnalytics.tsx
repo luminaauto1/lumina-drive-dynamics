@@ -682,27 +682,32 @@ const AdminLeadAnalytics = () => {
     const SUBMITTED = new Set(['pending', 'application_submitted', 'sent_to_banks', 'validations_pending', 'revision_submitted', 'documents_received', 'validations_complete']);
     const PRE_APPROVED = new Set(['pre_approved', 'approved', 'vehicle_selected', 'contract_sent', 'contract_signed', 'vehicle_delivered', 'finalized', 'delivered']);
     const DECLINED = new Set(['declined', 'declined_conditional', 'blacklisted']);
+    const CANCELLED = new Set(['client_cancelled']);
 
-    let submitted = 0, preApproved = 0, declined = 0;
+    let submitted = 0, preApproved = 0, declined = 0, cancelled = 0;
     apps.forEach((a) => {
       const s = String(a.status || '').toLowerCase().trim();
       if (PRE_APPROVED.has(s)) preApproved += 1;
       else if (DECLINED.has(s)) declined += 1;
+      else if (CANCELLED.has(s)) cancelled += 1;
       else if (SUBMITTED.has(s)) submitted += 1;
     });
-    const total = submitted + preApproved + declined;
+    const total = submitted + preApproved + declined + cancelled;
     return {
       total,
       submitted,
       preApproved,
       declined,
+      cancelled,
       data: [
         { name: 'Apps Submitted', value: submitted, fill: VIBRANT.electricBlue },
         { name: 'Pre-Approved', value: preApproved, fill: VIBRANT.neonGreen },
         { name: 'Declined / Blacklisted', value: declined, fill: VIBRANT.crimson },
+        { name: 'Client Cancelled', value: cancelled, fill: VIBRANT.amber },
       ],
     };
   }, [apps]);
+
 
   // Daily Pipeline Velocity (last 14 days) — moved from AdminAnalytics
   const pipelineVelocity = useMemo(() => {
@@ -726,7 +731,9 @@ const AdminLeadAnalytics = () => {
         validations_complete: 0,
         active: 0,
         declined: 0,
+        cancelled: 0,
       } as any;
+
     });
     const activeStatuses = new Set([
       'sent_to_banks', 'documents_received', 'contract_sent', 'contract_signed',
@@ -746,8 +753,10 @@ const AdminLeadAnalytics = () => {
       else if (s === 'pre_approved') b.pre_approved += 1;
       else if (s === 'validations_pending') b.validations_pending += 1;
       else if (s === 'validations_complete') b.validations_complete += 1;
-      else if (s === 'declined' || s === 'blacklisted') b.declined += 1;
+      else if (s === 'declined' || s === 'blacklisted' || s === 'declined_conditional') b.declined += 1;
+      else if (s === 'client_cancelled') b.cancelled += 1;
       else if (activeStatuses.has(s)) b.active += 1;
+
     });
     return buckets;
   }, [apps]);
@@ -832,7 +841,8 @@ const AdminLeadAnalytics = () => {
         ) : (
           <>
             {/* Headline KPI strip — high-contrast, premium minimal */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+
               <KpiCard icon={MessageCircle} label="Total Messages" value={messageCount.toLocaleString()} accent />
               <KpiCard icon={Users} label="Unique Contacts (Messaged)" value={uniqueContactCount.toLocaleString()} accent />
               <KpiCard
@@ -843,16 +853,23 @@ const AdminLeadAnalytics = () => {
               <KpiCard icon={Users} label="Total New Leads" value={totalLeads.toLocaleString()} />
               <KpiCard icon={FileCheck2} label="Total Applications" value={totalApps.toLocaleString()} />
               <KpiCard icon={Percent} label="Lead → App Conversion" value={`${conversion.toFixed(1)}%`} />
-              <KpiCard
-                icon={TrendingUp}
-                label="Approval Rate"
-                value={`${(apps.length > 0 ? (apps.filter(a => ['approved','vehicle_selected'].includes(String(a.status))).length / apps.length) * 100 : 0).toFixed(1)}%`}
-              />
-              <KpiCard
-                icon={ShieldAlert}
-                label="Decline Rate"
-                value={`${(apps.length > 0 ? (apps.filter(a => String(a.status) === 'declined').length / apps.length) * 100 : 0).toFixed(1)}%`}
-              />
+              {(() => {
+                const APPROVED_SET = new Set(['pre_approved','approved','vehicle_selected','contract_sent','contract_signed','vehicle_delivered','finalized','delivered']);
+                const DECLINED_SET = new Set(['declined','declined_conditional','blacklisted']);
+                const denom = apps.length;
+                const approvedCount = apps.filter(a => APPROVED_SET.has(String(a.status || '').toLowerCase().trim())).length;
+                const declinedCount = apps.filter(a => DECLINED_SET.has(String(a.status || '').toLowerCase().trim())).length;
+                const cancelledCount = apps.filter(a => String(a.status || '').toLowerCase().trim() === 'client_cancelled').length;
+                const safePct = (n: number) => denom > 0 ? ((n / denom) * 100).toFixed(1) : '0.0';
+                return (
+                  <>
+                    <KpiCard icon={TrendingUp} label="Approval Rate" value={`${safePct(approvedCount)}%`} />
+                    <KpiCard icon={ShieldAlert} label="Decline Rate" value={`${safePct(declinedCount)}%`} />
+                    <KpiCard icon={AlertTriangle} label="Client Cancelled" value={`${cancelledCount.toLocaleString()} · ${safePct(cancelledCount)}%`} />
+                  </>
+                );
+              })()}
+
             </div>
 
             {/* ── TikTok Campaign Performance ────────────────────────── */}
@@ -1016,23 +1033,28 @@ const AdminLeadAnalytics = () => {
               </ChartCard>
 
               <ChartCard icon={Activity} title="Lead Velocity" subtitle={`Volume over ${RANGE_LABELS[range].toLowerCase()}`}>
-                <ResponsiveContainer width="100%" height={280}>
-                  <LineChart data={velocityData} margin={{ top: 10, right: 16, left: -8, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
-                    <XAxis dataKey="label" stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                    <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} />
-                    <Line
-                      type="monotone"
-                      dataKey="Leads"
-                      stroke={VIBRANT.neonGreen}
-                      strokeWidth={2.5}
-                      dot={{ r: 3, fill: VIBRANT.neonGreen, stroke: VIBRANT.neonGreen }}
-                      activeDot={{ r: 6, fill: VIBRANT.neonGreen }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                {velocityData.length === 0 ? (
+                  <EmptyState />
+                ) : (
+                  <ResponsiveContainer width="100%" height={280}>
+                    <LineChart data={velocityData} margin={{ top: 10, right: 16, left: -8, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
+                      <XAxis dataKey="label" stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} />
+                      <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                      <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} />
+                      <Line
+                        type="monotone"
+                        dataKey="Leads"
+                        stroke={VIBRANT.neonGreen}
+                        strokeWidth={2.5}
+                        dot={{ r: 3, fill: VIBRANT.neonGreen, stroke: VIBRANT.neonGreen }}
+                        activeDot={{ r: 6, fill: VIBRANT.neonGreen }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
               </ChartCard>
+
             </div>
 
             {/* Application Funnel KPIs */}
@@ -1351,7 +1373,9 @@ const AdminLeadAnalytics = () => {
                   <Bar dataKey="validations_pending" stackId="v" name="Vals Submitted" fill="#3b82f6" />
                   <Bar dataKey="validations_complete" stackId="v" name="Vals Complete" fill="#06b6d4" />
                   <Bar dataKey="active" stackId="v" name="Active" fill="#22c55e" />
-                  <Bar dataKey="declined" stackId="v" name="Declined" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="declined" stackId="v" name="Declined" fill="#ef4444" />
+                  <Bar dataKey="cancelled" stackId="v" name="Cancelled" fill="#fbbf24" radius={[4, 4, 0, 0]} />
+
                 </BarChart>
               </ResponsiveContainer>
             </ChartCard>
