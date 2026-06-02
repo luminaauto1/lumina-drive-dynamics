@@ -1033,23 +1033,28 @@ const AdminLeadAnalytics = () => {
               </ChartCard>
 
               <ChartCard icon={Activity} title="Lead Velocity" subtitle={`Volume over ${RANGE_LABELS[range].toLowerCase()}`}>
-                <ResponsiveContainer width="100%" height={280}>
-                  <LineChart data={velocityData} margin={{ top: 10, right: 16, left: -8, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
-                    <XAxis dataKey="label" stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                    <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} />
-                    <Line
-                      type="monotone"
-                      dataKey="Leads"
-                      stroke={VIBRANT.neonGreen}
-                      strokeWidth={2.5}
-                      dot={{ r: 3, fill: VIBRANT.neonGreen, stroke: VIBRANT.neonGreen }}
-                      activeDot={{ r: 6, fill: VIBRANT.neonGreen }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                {velocityData.length === 0 ? (
+                  <EmptyState />
+                ) : (
+                  <ResponsiveContainer width="100%" height={280}>
+                    <LineChart data={velocityData} margin={{ top: 10, right: 16, left: -8, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" vertical={false} />
+                      <XAxis dataKey="label" stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} />
+                      <YAxis stroke={MUTED} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                      <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} />
+                      <Line
+                        type="monotone"
+                        dataKey="Leads"
+                        stroke={VIBRANT.neonGreen}
+                        strokeWidth={2.5}
+                        dot={{ r: 3, fill: VIBRANT.neonGreen, stroke: VIBRANT.neonGreen }}
+                        activeDot={{ r: 6, fill: VIBRANT.neonGreen }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
               </ChartCard>
+
             </div>
 
             {/* Application Funnel KPIs */}
