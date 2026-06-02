@@ -843,16 +843,23 @@ const AdminLeadAnalytics = () => {
               <KpiCard icon={Users} label="Total New Leads" value={totalLeads.toLocaleString()} />
               <KpiCard icon={FileCheck2} label="Total Applications" value={totalApps.toLocaleString()} />
               <KpiCard icon={Percent} label="Lead → App Conversion" value={`${conversion.toFixed(1)}%`} />
-              <KpiCard
-                icon={TrendingUp}
-                label="Approval Rate"
-                value={`${(apps.length > 0 ? (apps.filter(a => ['approved','vehicle_selected'].includes(String(a.status))).length / apps.length) * 100 : 0).toFixed(1)}%`}
-              />
-              <KpiCard
-                icon={ShieldAlert}
-                label="Decline Rate"
-                value={`${(apps.length > 0 ? (apps.filter(a => String(a.status) === 'declined').length / apps.length) * 100 : 0).toFixed(1)}%`}
-              />
+              {(() => {
+                const APPROVED_SET = new Set(['pre_approved','approved','vehicle_selected','contract_sent','contract_signed','vehicle_delivered','finalized','delivered']);
+                const DECLINED_SET = new Set(['declined','declined_conditional','blacklisted']);
+                const denom = apps.length;
+                const approvedCount = apps.filter(a => APPROVED_SET.has(String(a.status || '').toLowerCase().trim())).length;
+                const declinedCount = apps.filter(a => DECLINED_SET.has(String(a.status || '').toLowerCase().trim())).length;
+                const cancelledCount = apps.filter(a => String(a.status || '').toLowerCase().trim() === 'client_cancelled').length;
+                const safePct = (n: number) => denom > 0 ? ((n / denom) * 100).toFixed(1) : '0.0';
+                return (
+                  <>
+                    <KpiCard icon={TrendingUp} label="Approval Rate" value={`${safePct(approvedCount)}%`} />
+                    <KpiCard icon={ShieldAlert} label="Decline Rate" value={`${safePct(declinedCount)}%`} />
+                    <KpiCard icon={AlertTriangle} label="Client Cancelled" value={`${cancelledCount.toLocaleString()} · ${safePct(cancelledCount)}%`} />
+                  </>
+                );
+              })()}
+
             </div>
 
             {/* ── TikTok Campaign Performance ────────────────────────── */}
