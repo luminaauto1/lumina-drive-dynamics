@@ -731,7 +731,9 @@ const AdminLeadAnalytics = () => {
         validations_complete: 0,
         active: 0,
         declined: 0,
+        cancelled: 0,
       } as any;
+
     });
     const activeStatuses = new Set([
       'sent_to_banks', 'documents_received', 'contract_sent', 'contract_signed',
