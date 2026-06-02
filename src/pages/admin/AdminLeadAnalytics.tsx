@@ -1368,7 +1368,9 @@ const AdminLeadAnalytics = () => {
                   <Bar dataKey="validations_pending" stackId="v" name="Vals Submitted" fill="#3b82f6" />
                   <Bar dataKey="validations_complete" stackId="v" name="Vals Complete" fill="#06b6d4" />
                   <Bar dataKey="active" stackId="v" name="Active" fill="#22c55e" />
-                  <Bar dataKey="declined" stackId="v" name="Declined" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="declined" stackId="v" name="Declined" fill="#ef4444" />
+                  <Bar dataKey="cancelled" stackId="v" name="Cancelled" fill="#fbbf24" radius={[4, 4, 0, 0]} />
+
                 </BarChart>
               </ResponsiveContainer>
             </ChartCard>
