@@ -682,27 +682,32 @@ const AdminLeadAnalytics = () => {
     const SUBMITTED = new Set(['pending', 'application_submitted', 'sent_to_banks', 'validations_pending', 'revision_submitted', 'documents_received', 'validations_complete']);
     const PRE_APPROVED = new Set(['pre_approved', 'approved', 'vehicle_selected', 'contract_sent', 'contract_signed', 'vehicle_delivered', 'finalized', 'delivered']);
     const DECLINED = new Set(['declined', 'declined_conditional', 'blacklisted']);
+    const CANCELLED = new Set(['client_cancelled']);
 
-    let submitted = 0, preApproved = 0, declined = 0;
+    let submitted = 0, preApproved = 0, declined = 0, cancelled = 0;
     apps.forEach((a) => {
       const s = String(a.status || '').toLowerCase().trim();
       if (PRE_APPROVED.has(s)) preApproved += 1;
       else if (DECLINED.has(s)) declined += 1;
+      else if (CANCELLED.has(s)) cancelled += 1;
       else if (SUBMITTED.has(s)) submitted += 1;
     });
-    const total = submitted + preApproved + declined;
+    const total = submitted + preApproved + declined + cancelled;
     return {
       total,
       submitted,
       preApproved,
       declined,
+      cancelled,
       data: [
         { name: 'Apps Submitted', value: submitted, fill: VIBRANT.electricBlue },
         { name: 'Pre-Approved', value: preApproved, fill: VIBRANT.neonGreen },
         { name: 'Declined / Blacklisted', value: declined, fill: VIBRANT.crimson },
+        { name: 'Client Cancelled', value: cancelled, fill: VIBRANT.amber },
       ],
     };
   }, [apps]);
+
 
   // Daily Pipeline Velocity (last 14 days) — moved from AdminAnalytics
   const pipelineVelocity = useMemo(() => {
