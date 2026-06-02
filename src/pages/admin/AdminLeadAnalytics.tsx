@@ -832,7 +832,8 @@ const AdminLeadAnalytics = () => {
         ) : (
           <>
             {/* Headline KPI strip — high-contrast, premium minimal */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+
               <KpiCard icon={MessageCircle} label="Total Messages" value={messageCount.toLocaleString()} accent />
               <KpiCard icon={Users} label="Unique Contacts (Messaged)" value={uniqueContactCount.toLocaleString()} accent />
               <KpiCard
