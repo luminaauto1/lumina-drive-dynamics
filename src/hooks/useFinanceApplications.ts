@@ -157,6 +157,23 @@ export const useUpdateFinanceApplication = () => {
       const statusActuallyChanged =
         !!newStatus && !!currentApp && newStatus !== currentApp.status;
 
+      // WhatsApp "Client Cancelled / Ghosted" notification — fires when the
+      // main finance status update path moves into `client_cancelled`.
+      if (statusActuallyChanged && newStatus === 'client_cancelled') {
+        try {
+          const { publicApiHeaders } = await import('@/lib/publicApi');
+          supabase.functions.invoke('notify-client-cancelled', {
+            headers: publicApiHeaders(),
+            body: { application_id: id },
+          }).then(({ error: waErr }) => {
+            if (waErr) console.error('[notify-client-cancelled] error:', waErr);
+            else console.log('[notify-client-cancelled] dispatched for application', id);
+          });
+        } catch (waEx) {
+          console.error('[notify-client-cancelled] failed to invoke:', waEx);
+        }
+      }
+
       if (
         statusActuallyChanged &&
         currentApp.email &&
