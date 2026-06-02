@@ -821,7 +821,72 @@ const AdminLeadAnalytics = () => {
               ))}
             </SelectContent>
           </Select>
-        </div>
+            </div>
+
+            {/* ── TikTok Campaign Performance ────────────────────────── */}
+            <section className="space-y-4">
+              <div className="flex items-end justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold tracking-tight text-white">
+                    TikTok Campaign Performance
+                  </h2>
+                  <p className="text-xs text-white/50 mt-1">
+                    Lead acquisition & quality from TikTok-sourced traffic
+                  </p>
+                </div>
+                <span className="text-[10px] uppercase tracking-widest text-white/40">
+                  Live · Read-only
+                </span>
+              </div>
+
+              {/* Acquisition row */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {[
+                  { label: 'Total TikTok Leads', value: tiktokStats.totalLeads },
+                  { label: 'Applications Submitted', value: tiktokStats.submittedCount },
+                  { label: 'Conversion Rate', value: `${tiktokStats.conversionRate.toFixed(1)}%` },
+                ].map((m) => (
+                  <div
+                    key={m.label}
+                    className="rounded-xl bg-black/40 border border-white/10 p-5 backdrop-blur-sm hover:border-white/20 transition-colors"
+                  >
+                    <p className="text-[11px] uppercase tracking-wider text-white/60">
+                      {m.label}
+                    </p>
+                    <p className="text-3xl font-semibold text-white mt-2 tabular-nums [text-shadow:0_0_24px_rgba(255,255,255,0.15)]">
+                      {m.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Lead quality breakdown */}
+              <div>
+                <p className="text-[11px] uppercase tracking-widest text-white/40 mb-2">
+                  Lead Quality Breakdown
+                </p>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[
+                    { label: 'Declined', value: tiktokStats.declined },
+                    { label: 'Blacklisted', value: tiktokStats.blacklisted },
+                    { label: 'Bad Credit', value: tiktokStats.badCredit },
+                    { label: 'Client Cancelled', value: tiktokStats.cancelled },
+                  ].map((m) => (
+                    <div
+                      key={m.label}
+                      className="rounded-xl bg-black/40 border border-white/10 p-4 backdrop-blur-sm"
+                    >
+                      <p className="text-[11px] uppercase tracking-wider text-white/60">
+                        {m.label}
+                      </p>
+                      <p className="text-2xl font-semibold text-white mt-1.5 tabular-nums">
+                        {m.value}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
 
         {loading ? (
           <div className="flex items-center justify-center py-32 text-muted-foreground">
