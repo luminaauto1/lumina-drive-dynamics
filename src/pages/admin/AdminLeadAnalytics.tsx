@@ -753,8 +753,10 @@ const AdminLeadAnalytics = () => {
       else if (s === 'pre_approved') b.pre_approved += 1;
       else if (s === 'validations_pending') b.validations_pending += 1;
       else if (s === 'validations_complete') b.validations_complete += 1;
-      else if (s === 'declined' || s === 'blacklisted') b.declined += 1;
+      else if (s === 'declined' || s === 'blacklisted' || s === 'declined_conditional') b.declined += 1;
+      else if (s === 'client_cancelled') b.cancelled += 1;
       else if (activeStatuses.has(s)) b.active += 1;
+
     });
     return buckets;
   }, [apps]);
