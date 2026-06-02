@@ -434,6 +434,49 @@ const AdminLeadAnalytics = () => {
     return Object.entries(counts).map(([k, v]) => ({ name: labels[k] || k, value: v }));
   }, [apps]);
 
+  // ── TikTok Campaign Performance (read-only aggregation) ─────────────────
+  const tiktokStats = useMemo(() => {
+    const isTikTok = (v: any) =>
+      typeof v === 'string' && v.toLowerCase().includes('tiktok');
+    const leadIsTikTok = (l: any) =>
+      isTikTok(l.source) || isTikTok(l.utm_source) || isTikTok(l.utm_medium) ||
+      isTikTok(l.utm_campaign) || isTikTok(l.platform) || isTikTok(l.origin) ||
+      isTikTok(l.traffic_source);
+    const appIsTikTok = (a: any) => isTikTok(a.utm_source);
+
+    const ttLeads = enrichedLeads.filter(leadIsTikTok);
+    const ttApps = apps.filter(appIsTikTok);
+
+    // Submitted = leads matched to an app OR direct TikTok apps
+    const submittedCount = Math.max(
+      ttLeads.filter((l: any) => l._submitted).length,
+      ttApps.length,
+    );
+    const totalLeadsTT = Math.max(ttLeads.length, submittedCount);
+    const conversionRate = totalLeadsTT > 0 ? (submittedCount / totalLeadsTT) * 100 : 0;
+
+    const statusOf = (a: any) => String(a.status || '').toLowerCase().trim();
+    const credit = (a: any) => String(a.credit_score_status || '').toLowerCase().trim();
+    const declined = ttApps.filter((a) => statusOf(a) === 'declined').length;
+    const blacklisted = ttApps.filter((a) =>
+      statusOf(a) === 'blacklisted' || credit(a) === 'blacklisted'
+    ).length;
+    const badCredit = ttApps.filter((a) =>
+      ['defaults_arrears', 'judgements', 'debt_review'].includes(credit(a))
+    ).length;
+    const cancelled = ttApps.filter((a) => statusOf(a) === 'client_cancelled').length;
+
+    return {
+      totalLeads: totalLeadsTT,
+      submittedCount,
+      conversionRate,
+      declined,
+      blacklisted,
+      badCredit,
+      cancelled,
+    };
+  }, [enrichedLeads, apps]);
+
   // Traffic source: submitted vs abandoned by source.
   // Prefer EasySocial CRM platform/origin, then traffic_source tag, UTM, then internal source.
   const trafficSourceData = useMemo(() => {
