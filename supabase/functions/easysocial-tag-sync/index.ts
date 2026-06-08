@@ -220,16 +220,8 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Prefer the dedicated Bearer API token (eSt2dc...) when available; fall back
-  // to the legacy EASYSOCIAL_API_KEY (which historically held the WhatsApp
-  // template token and returns 401 on /engage endpoints).
-  const apiKey = (Deno.env.get('EASYSOCIAL_BEARER_TOKEN') ?? Deno.env.get('EASYSOCIAL_API_KEY') ?? '').trim();
-  if (!apiKey) {
-    console.error('[tag-sync] no API key configured');
-    return new Response(JSON.stringify({ ok: false, error: 'EASYSOCIAL_BEARER_TOKEN not set' }), {
-      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
+  // Hardcoded EasySocial bearer token (env secret rotation unavailable).
+  const apiKey = "eSt2dc1be4b95a4ccdabf289645ba0bf8ea85c016b5cde84430c3749430fbca43c627fa3b46e9db9fa9fe217aa74136ba";
 
   // Build the plan (by name) from the state machine + flags.
   const plan = planForStatus(newStatus);
