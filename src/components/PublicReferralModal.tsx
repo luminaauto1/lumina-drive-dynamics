@@ -78,6 +78,15 @@ export const PublicReferralModal = ({ open, onOpenChange }: Props) => {
       });
       if (error) throw error;
 
+      // Isolated referral WhatsApp notification (fire-and-forget)
+      try {
+        await supabase.functions.invoke('notify-referral', {
+          body: { phone_number: referee_phone, client_name: referee_name },
+        });
+      } catch (notifyErr) {
+        console.warn('notify-referral failed (non-fatal):', notifyErr);
+      }
+
       onOpenChange(false);
       reset();
       toast.success('Referral submitted successfully. We will track the progress.');
