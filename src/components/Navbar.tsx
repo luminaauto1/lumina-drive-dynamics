@@ -74,7 +74,7 @@ const Navbar = () => {
                 className="group inline-flex items-center gap-1.5 rounded-full border border-zinc-700/80 hover:border-zinc-400 bg-zinc-950/70 hover:bg-zinc-900 px-3 md:px-4 py-1.5 text-[11px] md:text-xs font-medium uppercase tracking-wider text-zinc-100 transition-colors shadow-[0_0_28px_-10px_rgba(255,255,255,0.25)]"
                 aria-label="Refer and earn — Lumina Money Maker"
               >
-                <Sparkles className="h-3.5 w-3.5 text-zinc-300 group-hover:text-white transition-colors" />
+                <img src={moneyMakerIcon.url} alt="" className="h-3.5 w-3.5 object-contain invert opacity-90 group-hover:opacity-100 transition-opacity" />
                 <span className="hidden sm:inline">Money Maker</span>
                 <span className="sm:hidden">Refer</span>
               </button>
