@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, Heart, Search, User, Settings, CreditCard } from 'lucide-react';
-import moneyMakerIcon from '@/assets/money-maker.png.asset.json';
+import moneyMakerIcon from '@/assets/money-maker-dollar.png.asset.json';
 import { Button } from '@/components/ui/button';
 import { useWishlist } from '@/hooks/useWishlist';
 import { useAuth } from '@/contexts/AuthContext';
@@ -72,7 +72,7 @@ const Navbar = () => {
                 className="group inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-zinc-700/80 hover:border-zinc-400 bg-zinc-950/70 hover:bg-zinc-900 px-2.5 py-1 sm:px-3 sm:py-1.5 md:px-4 text-[10px] md:text-xs font-medium uppercase tracking-wider text-zinc-100 transition-colors shadow-[0_0_28px_-10px_rgba(255,255,255,0.25)]"
                 aria-label="Refer and earn — Lumina Money Maker"
               >
-                <img src={moneyMakerIcon.url} alt="" className="h-3 w-3 md:h-3.5 md:w-3.5 object-contain invert opacity-90 group-hover:opacity-100 transition-opacity" />
+                <img src={moneyMakerIcon.url} alt="" className="h-4 w-4 md:h-[18px] md:w-[18px] object-contain opacity-100 transition-opacity" />
                 <span>Money Maker</span>
               </Link>
 
