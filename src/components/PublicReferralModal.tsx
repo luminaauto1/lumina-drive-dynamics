@@ -3,7 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Sparkles, User, UserPlus } from 'lucide-react';
+import { Loader2, User, UserPlus } from 'lucide-react';
+import moneyMakerIcon from '@/assets/money-maker.png.asset.json';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
