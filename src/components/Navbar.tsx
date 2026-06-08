@@ -7,13 +7,11 @@ import { Button } from '@/components/ui/button';
 import { useWishlist } from '@/hooks/useWishlist';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
-import PublicReferralModal from '@/components/PublicReferralModal';
 import luminaLogo from '@/assets/lumina-logo.png';
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [referralOpen, setReferralOpen] = useState(false);
   const location = useLocation();
   const { wishlist } = useWishlist();
   const { user, isStaff, isSuperAdmin } = useAuth();
@@ -69,15 +67,15 @@ const Navbar = () => {
             {/* Right Side Actions */}
             <div className="flex items-center gap-3 md:gap-4">
               {/* Money Maker CTA — always visible */}
-              <button
-                onClick={() => setReferralOpen(true)}
+              <Link
+                to="/refer"
                 className="group inline-flex items-center gap-1.5 rounded-full border border-zinc-700/80 hover:border-zinc-400 bg-zinc-950/70 hover:bg-zinc-900 px-3 md:px-4 py-1.5 text-[11px] md:text-xs font-medium uppercase tracking-wider text-zinc-100 transition-colors shadow-[0_0_28px_-10px_rgba(255,255,255,0.25)]"
                 aria-label="Refer and earn — Lumina Money Maker"
               >
                 <img src={moneyMakerIcon.url} alt="" className="h-3.5 w-3.5 object-contain invert opacity-90 group-hover:opacity-100 transition-opacity" />
                 <span className="hidden sm:inline">Money Maker</span>
                 <span className="sm:hidden">Refer</span>
-              </button>
+              </Link>
 
               <Link to="/inventory" className="hidden md:flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
                 <Search className="w-5 h-5" />
@@ -186,8 +184,6 @@ const Navbar = () => {
             </div>
           </motion.div>}
       </AnimatePresence>
-
-      <PublicReferralModal open={referralOpen} onOpenChange={setReferralOpen} />
     </>;
 };
 export default Navbar;
