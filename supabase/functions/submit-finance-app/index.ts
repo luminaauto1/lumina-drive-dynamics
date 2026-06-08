@@ -68,24 +68,34 @@ serve(async (req) => {
     if (error) throw error;
 
     // Fire-and-log: notify client via WhatsApp + sync EasySocial tag.
+    // Use direct fetch to functions URL so we can guarantee x-lumina-key header is forwarded.
     const internalKey = Deno.env.get("LUMINA_INTERNAL_API_KEY") ?? "";
-    try {
-      const { data: notifyData, error: notifyErr } = await supabaseAdmin.functions.invoke("notify-app-submitted", {
-        body: { phone_number: safe.phone, client_name: safe.full_name },
-        headers: { "x-lumina-key": internalKey },
-      });
-      console.log("[submit-finance-app] notify-app-submitted result:", notifyErr ? notifyErr.message : notifyData);
-    } catch (e: any) {
-      console.error("[submit-finance-app] notify-app-submitted invoke failed:", e?.message || e);
-    }
-    try {
-      const { data: tagData, error: tagErr } = await supabaseAdmin.functions.invoke("easysocial-tag-sync", {
-        body: { phone_number: safe.phone, new_status: "application_submitted" },
-      });
-      console.log("[submit-finance-app] easysocial-tag-sync result:", tagErr ? tagErr.message : tagData);
-    } catch (e: any) {
-      console.error("[submit-finance-app] easysocial-tag-sync invoke failed:", e?.message || e);
-    }
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+    const funcsBase = `${supabaseUrl}/functions/v1`;
+
+    const callFn = async (name: string, body: Record<string, unknown>) => {
+      try {
+        const res = await fetch(`${funcsBase}/${name}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-lumina-key": internalKey,
+            "Authorization": `Bearer ${anonKey}`,
+            "apikey": anonKey,
+          },
+          body: JSON.stringify(body),
+        });
+        const text = await res.text();
+        console.log(`[submit-finance-app] ${name} status=${res.status} body=${text.slice(0, 300)}`);
+      } catch (e: any) {
+        console.error(`[submit-finance-app] ${name} invoke failed:`, e?.message || e);
+      }
+    };
+
+    console.log("[submit-finance-app] dispatching follow-ups for", safe.phone, safe.full_name);
+    await callFn("notify-app-submitted", { phone_number: safe.phone, client_name: safe.full_name });
+    await callFn("easysocial-tag-sync", { phone_number: safe.phone, new_status: "application_submitted" });
 
     return new Response(JSON.stringify({ success: true, data }), {
       headers: { ...cors, "Content-Type": "application/json" },
