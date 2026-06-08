@@ -16,7 +16,7 @@ const corsHeaders = {
 };
 
 const TEMPLATE_URL_PREFIX =
-  "https://api.easysocial.in/api/v1/wa-templates/send/cmpdvm23v0bzs78xpcv0qgov0/19514/4026/API/";
+  "https://api.easysocial.in/api/v1/wa-templates/send/cmq5465hx17dtk8xp4t4o0juf/20020/4026/API/";
 
 const sanitizePhone = (raw: unknown): string | null => {
   if (raw === null || raw === undefined) return null;

@@ -30,7 +30,7 @@ serve(async (req) => {
     const firstName = client_name ? String(client_name).trim().split(/\s+/)[0] : "Client";
 
     // EXACT API LINK PROVIDED BY ADMIN
-    const apiUrl = `https://api.easysocial.in/api/v1/wa-templates/send/cmpp930hx0ciqbvxp4exrg7t4/19768/4026/API/${sanitizedPhone}?body1=${encodeURIComponent(firstName)}`;
+    const apiUrl = `https://api.easysocial.in/api/v1/wa-templates/send/cmq507pmz2b8ck9xp4rto6u2c/20016/4026/API/${sanitizedPhone}?body1=${encodeURIComponent(firstName)}`;
     
     // Execute pure GET request
     const response = await fetch(apiUrl, { method: "GET" });

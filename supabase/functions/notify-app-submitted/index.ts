@@ -27,7 +27,7 @@ serve(async (req) => {
 
     // EasySocial logs showed the env token returning 404, so dispatch with the
     // documented Lumina account token first and only use env as a secondary retry.
-    const documentedToken = "cmoqxck4q0zsyezxpayafg220";
+    const documentedToken = "cmq54c79e19lik8xp2rr341ge";
     const envToken = Deno.env.get("EASYSOCIAL_API_KEY")?.trim();
     const tokens = [...new Set([documentedToken, envToken].filter(Boolean))];
 
@@ -36,7 +36,7 @@ serve(async (req) => {
     let dispatchedUrl = "";
 
     for (const token of tokens) {
-      const apiUrl = `https://api.easysocial.in/api/v1/wa-templates/send/${token}/19069/4026/API/${sanitizedPhone}?body1=${encodeURIComponent(firstName)}`;
+      const apiUrl = `https://api.easysocial.in/api/v1/wa-templates/send/${token}/20022/4026/API/${sanitizedPhone}?body1=${encodeURIComponent(firstName)}`;
       dispatchedUrl = apiUrl;
       console.log("Dispatching to EasySocial:", apiUrl);
 
