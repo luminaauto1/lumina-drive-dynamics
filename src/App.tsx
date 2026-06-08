@@ -49,6 +49,7 @@ import ClientHandover from "./pages/ClientHandover";
 import TermsOfService from "./pages/TermsOfService";
 import SystemFix from "./pages/admin/SystemFix";
 import AdminJuristic from "./pages/admin/AdminJuristic";
+import Refer from "./pages/Refer";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
@@ -92,6 +93,7 @@ const AppLayout = () => {
           <Route path="/sourcing" element={<Sourcing />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/refer" element={<Refer />} />
           
           {/* Public Routes */}
           <Route path="/upload-documents/:token" element={<SecureDocumentUpload />} />
