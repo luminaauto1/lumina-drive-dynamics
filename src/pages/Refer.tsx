@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, User, UserPlus, Coins, ShieldCheck, Sparkles } from 'lucide-react';
-import moneyMakerIcon from '@/assets/money-maker.png.asset.json';
+import moneyMakerIcon from '@/assets/money-maker-dollar.png.asset.json';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import SEO from '@/components/seo/SEO';
@@ -109,7 +109,7 @@ const Refer = () => {
             className="text-center mb-16"
           >
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-zinc-700/80 bg-zinc-950/70 text-[10px] uppercase tracking-[0.25em] text-zinc-400 mb-6">
-              <img src={moneyMakerIcon.url} alt="" className="h-3 w-3 object-contain invert" />
+              <img src={moneyMakerIcon.url} alt="" className="h-4 w-4 object-contain" />
               Lumina Money Maker
             </div>
             <h1 className="font-display text-5xl md:text-7xl font-light tracking-tight mb-6">
