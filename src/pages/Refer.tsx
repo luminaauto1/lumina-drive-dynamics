@@ -97,7 +97,7 @@ const Refer = () => {
       <SEO
         title="Money Maker — Refer & Earn | Lumina Auto"
         description="Refer someone shopping for a vehicle to Lumina Auto and earn a referral fee when the deal closes."
-        canonical="https://luminaauto.co.za/refer"
+        url="/refer"
       />
       <div className="min-h-screen bg-background text-foreground pt-28 pb-20">
         <div className="container mx-auto px-6 max-w-6xl">
