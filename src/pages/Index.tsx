@@ -54,7 +54,7 @@ const Index = () => {
     : vehicles.filter(v => v.status === 'available').slice(0, 4);
 
   // Finance-first hero copy
-  const heroHeadline = settings?.hero_headline || 'Drive the Car You Deserve. Get Bank-Approved in Minutes.';
+  const heroHeadline = settings?.hero_headline || 'Drive the Car You Deserve. Check How You Qualify in Minutes.';
   const heroSubheadline = settings?.hero_subheadline || "Premium vehicles tailored to your budget. Experience Pretoria's most trusted, hassle-free finance process.";
   const whatsappNumber = settings?.whatsapp_number || '27686017462';
 
@@ -207,17 +207,17 @@ const Index = () => {
 
             <motion.h1 variants={itemVariants} className="font-display text-4xl md:text-6xl lg:text-7xl font-bold mb-6 max-w-5xl mx-auto leading-tight">
               Drive the Car You Deserve.<br />
-              <span className="gradient-text">Get Bank-Approved in Minutes.</span>
+              <span className="gradient-text">Check How You Qualify in Minutes.</span>
             </motion.h1>
 
             <motion.p variants={itemVariants} className="text-muted-foreground text-lg md:text-xl max-w-2xl mx-auto mb-10">
-              Experience South Africas's most trusted, hassle-free finance process. We specialize in vehicle sourcing, bank-approved financing, and premium quality new & pre-owned sales.
+              Experience South Africas's most trusted, hassle-free finance process. We specialize in vehicle sourcing, bank-backed financing, and premium quality new & pre-owned sales.
             </motion.p>
 
             <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link to="/finance-application">
                 <Button size="lg" className="bg-foreground text-background hover:bg-foreground/90 group shadow-xl">
-                  Check My Approval
+                  Check How You Qualify
                   <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
