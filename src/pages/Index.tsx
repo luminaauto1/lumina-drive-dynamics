@@ -54,7 +54,7 @@ const Index = () => {
     : vehicles.filter(v => v.status === 'available').slice(0, 4);
 
   // Finance-first hero copy
-  const heroHeadline = settings?.hero_headline || 'Drive the Car You Deserve. Get Bank-Approved in Minutes.';
+  const heroHeadline = settings?.hero_headline || 'Drive the Car You Deserve. Check How You Qualify in Minutes.';
   const heroSubheadline = settings?.hero_subheadline || "Premium vehicles tailored to your budget. Experience Pretoria's most trusted, hassle-free finance process.";
   const whatsappNumber = settings?.whatsapp_number || '27686017462';
 
