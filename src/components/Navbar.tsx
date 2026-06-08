@@ -52,8 +52,8 @@ const Navbar = () => {
         <div className="container mx-auto px-6">
           <div className="flex items-center justify-between h-20">
             {/* Logo */}
-            <Link to="/" className="flex items-center ml-6 md:ml-8">
-              <img alt="Lumina Auto" className="h-20 md:h-20 w-auto object-contain" src={luminaLogo} />
+            <Link to="/" className="flex items-center ml-2 md:ml-8">
+              <img alt="Lumina Auto" className="h-14 md:h-20 w-auto object-contain" src={luminaLogo} />
             </Link>
 
             {/* Desktop Navigation */}
@@ -69,12 +69,11 @@ const Navbar = () => {
               {/* Money Maker CTA — always visible */}
               <Link
                 to="/refer"
-                className="group inline-flex items-center gap-1.5 rounded-full border border-zinc-700/80 hover:border-zinc-400 bg-zinc-950/70 hover:bg-zinc-900 px-3 md:px-4 py-1.5 text-[11px] md:text-xs font-medium uppercase tracking-wider text-zinc-100 transition-colors shadow-[0_0_28px_-10px_rgba(255,255,255,0.25)]"
+                className="group inline-flex items-center gap-1.5 rounded-full border border-zinc-700/80 hover:border-zinc-400 bg-zinc-950/70 hover:bg-zinc-900 p-2 sm:px-3 md:px-4 sm:py-1.5 text-[11px] md:text-xs font-medium uppercase tracking-wider text-zinc-100 transition-colors shadow-[0_0_28px_-10px_rgba(255,255,255,0.25)]"
                 aria-label="Refer and earn — Lumina Money Maker"
               >
-                <img src={moneyMakerIcon.url} alt="" className="h-3.5 w-3.5 object-contain invert opacity-90 group-hover:opacity-100 transition-opacity" />
+                <img src={moneyMakerIcon.url} alt="" className="h-4 w-4 sm:h-3.5 sm:w-3.5 object-contain invert opacity-90 group-hover:opacity-100 transition-opacity" />
                 <span className="hidden sm:inline">Money Maker</span>
-                <span className="sm:hidden">Refer</span>
               </Link>
 
               <Link to="/inventory" className="hidden md:flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
