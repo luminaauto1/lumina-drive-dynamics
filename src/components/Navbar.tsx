@@ -69,10 +69,10 @@ const Navbar = () => {
               {/* Money Maker CTA — always visible */}
               <Link
                 to="/refer"
-                className="group inline-flex items-center gap-1.5 rounded-full border border-zinc-700/80 hover:border-zinc-400 bg-zinc-950/70 hover:bg-zinc-900 px-2.5 py-1.5 sm:px-3 md:px-4 text-[11px] md:text-xs font-medium uppercase tracking-wider text-zinc-100 transition-colors shadow-[0_0_28px_-10px_rgba(255,255,255,0.25)]"
+                className="group inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-zinc-700/80 hover:border-zinc-400 bg-zinc-950/70 hover:bg-zinc-900 px-2.5 py-1 sm:px-3 sm:py-1.5 md:px-4 text-[10px] md:text-xs font-medium uppercase tracking-wider text-zinc-100 transition-colors shadow-[0_0_28px_-10px_rgba(255,255,255,0.25)]"
                 aria-label="Refer and earn — Lumina Money Maker"
               >
-                <img src={moneyMakerIcon.url} alt="" className="h-3.5 w-3.5 object-contain invert opacity-90 group-hover:opacity-100 transition-opacity" />
+                <img src={moneyMakerIcon.url} alt="" className="h-3 w-3 md:h-3.5 md:w-3.5 object-contain invert opacity-90 group-hover:opacity-100 transition-opacity" />
                 <span>Money Maker</span>
               </Link>
 
