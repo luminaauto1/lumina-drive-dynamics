@@ -184,8 +184,6 @@ const Navbar = () => {
             </div>
           </motion.div>}
       </AnimatePresence>
-
-      <PublicReferralModal open={referralOpen} onOpenChange={setReferralOpen} />
     </>;
 };
 export default Navbar;
