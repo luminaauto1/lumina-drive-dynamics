@@ -80,6 +80,16 @@ export const useCreateReferral = () => {
         .select()
         .maybeSingle();
       if (error) throw error;
+
+      // Isolated referral WhatsApp notification (fire-and-forget)
+      try {
+        await supabase.functions.invoke('notify-referral', {
+          body: { phone_number: payload.referee_phone, client_name: payload.referee_name },
+        });
+      } catch (notifyErr) {
+        console.warn('notify-referral failed (non-fatal):', notifyErr);
+      }
+
       return data as Referral;
     },
     onSuccess: () => {
