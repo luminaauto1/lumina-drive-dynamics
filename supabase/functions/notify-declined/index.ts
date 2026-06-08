@@ -23,7 +23,7 @@ serve(async (req) => {
 
     const firstName = String(client_name).trim().split(/\s+/)[0] || "Client";
 
-    const documentedToken = "cmotxzg9y0m1zv1xph74v0u0u";
+    const documentedToken = "cmq548783185dk8xpb963fs5n";
     const envToken = Deno.env.get("EASYSOCIAL_API_KEY")?.trim();
     const tokens = [...new Set([documentedToken, envToken].filter(Boolean))];
 
@@ -32,7 +32,7 @@ serve(async (req) => {
     let dispatchedUrl = "";
 
     for (const token of tokens) {
-      const apiUrl = `https://api.easysocial.in/api/v1/wa-templates/send/${token}/19115/4026/API/${sanitizedPhone}?body1=${encodeURIComponent(firstName)}`;
+      const apiUrl = `https://api.easysocial.in/api/v1/wa-templates/send/${token}/20021/4026/API/${sanitizedPhone}?body1=${encodeURIComponent(firstName)}`;
       dispatchedUrl = apiUrl;
       console.log("Dispatching to EasySocial (declined):", apiUrl);
 
