@@ -67,6 +67,26 @@ serve(async (req) => {
 
     if (error) throw error;
 
+    // Fire-and-log: notify client via WhatsApp + sync EasySocial tag.
+    const internalKey = Deno.env.get("LUMINA_INTERNAL_API_KEY") ?? "";
+    try {
+      const { data: notifyData, error: notifyErr } = await supabaseAdmin.functions.invoke("notify-app-submitted", {
+        body: { phone_number: safe.phone, client_name: safe.full_name },
+        headers: { "x-lumina-key": internalKey },
+      });
+      console.log("[submit-finance-app] notify-app-submitted result:", notifyErr ? notifyErr.message : notifyData);
+    } catch (e: any) {
+      console.error("[submit-finance-app] notify-app-submitted invoke failed:", e?.message || e);
+    }
+    try {
+      const { data: tagData, error: tagErr } = await supabaseAdmin.functions.invoke("easysocial-tag-sync", {
+        body: { phone_number: safe.phone, new_status: "application_submitted" },
+      });
+      console.log("[submit-finance-app] easysocial-tag-sync result:", tagErr ? tagErr.message : tagData);
+    } catch (e: any) {
+      console.error("[submit-finance-app] easysocial-tag-sync invoke failed:", e?.message || e);
+    }
+
     return new Response(JSON.stringify({ success: true, data }), {
       headers: { ...cors, "Content-Type": "application/json" },
     });
