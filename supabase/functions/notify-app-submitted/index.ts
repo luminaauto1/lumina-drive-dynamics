@@ -9,7 +9,9 @@ serve(async (req) => {
   if (guard) return guard;
 
   try {
-    const { phone_number, client_name } = await req.json();
+    const rawBody = await req.json();
+    console.log("[notify-app-submitted] incoming payload:", JSON.stringify(rawBody));
+    const { phone_number, client_name } = rawBody;
     if (!phone_number) throw new Error("No phone_number provided.");
     if (!client_name) throw new Error("No client_name provided.");
 
@@ -25,10 +27,9 @@ serve(async (req) => {
     // Task 2: Extract first name + URL-encode
     const firstName = String(client_name).trim().split(/\s+/)[0] || "Client";
 
-    // EasySocial logs showed the env token returning 404, so dispatch with the
-    // documented Lumina account token first and only use env as a secondary retry.
+    // Hardcoded EasySocial campaign token with env fallback.
     const documentedToken = "cmq54c79e19lik8xp2rr341ge";
-    const envToken = Deno.env.get("EASYSOCIAL_API_KEY")?.trim();
+    const envToken = Deno.env.get("EASYSOCIAL_API_KEY")?.trim() || "eSt2dc1be4b95a4ccdabf289645ba0bf8ea85c016b5cde84430c3749430fbca43c627fa3b46e9db9fa9fe217aa74136ba";
     const tokens = [...new Set([documentedToken, envToken].filter(Boolean))];
 
     let responseStatus = 0;
