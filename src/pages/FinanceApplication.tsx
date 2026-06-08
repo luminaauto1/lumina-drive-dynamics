@@ -1086,6 +1086,21 @@ const FinanceApplication = () => {
             if (error) console.error("WhatsApp Edge Function error:", error);
           });
 
+          // App Submitted WhatsApp template — confirms receipt of application.
+          const clientFirstName = formData.first_name?.trim() || 'Client';
+          console.log('[notify-app-submitted] invoking', { phone: formData.phone, name: clientFirstName });
+          supabase.functions.invoke('notify-app-submitted', {
+            body: { phone_number: formData.phone, client_name: clientFirstName },
+            headers: publicApiHeaders(),
+          }).then(({ data, error }) => {
+            if (error) console.error("[notify-app-submitted] invoke error:", error);
+            else console.log('[notify-app-submitted] response', data);
+          }).catch((err) => {
+            console.error("[notify-app-submitted] thrown error:", err);
+          });
+
+
+
           // Parallel: tag-sync state machine.
           // 'pending' → adds 'Application Received', removes 'New Lead'.
           try {
