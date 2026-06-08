@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Heart, Search, User, Settings, CreditCard, Sparkles } from 'lucide-react';
+import { Menu, X, Heart, Search, User, Settings, CreditCard } from 'lucide-react';
+import moneyMakerIcon from '@/assets/money-maker.png.asset.json';
 import { Button } from '@/components/ui/button';
 import { useWishlist } from '@/hooks/useWishlist';
 import { useAuth } from '@/contexts/AuthContext';
