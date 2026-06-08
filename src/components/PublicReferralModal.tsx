@@ -3,7 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Sparkles, User, UserPlus } from 'lucide-react';
+import { Loader2, User, UserPlus } from 'lucide-react';
+import moneyMakerIcon from '@/assets/money-maker.png.asset.json';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -103,7 +104,7 @@ export const PublicReferralModal = ({ open, onOpenChange }: Props) => {
       <DialogContent className="sm:max-w-md bg-zinc-950 border border-zinc-800 text-zinc-100">
         <DialogHeader className="space-y-2">
           <div className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-zinc-500">
-            <Sparkles className="h-3 w-3" /> Lumina Money Maker
+            <img src={moneyMakerIcon.url} alt="" className="h-3 w-3 object-contain invert" /> Lumina Money Maker
           </div>
           <DialogTitle className="text-2xl font-light tracking-tight text-zinc-50">
             Refer &amp; Earn
