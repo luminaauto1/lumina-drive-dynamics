@@ -210,10 +210,12 @@ const AdminFinance = () => {
     
     const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
 
-    // F&I ownership filter (user-selectable for all staff)
+    // F&I ownership filter. Normal F&I can ONLY see their own apps.
     const owner = (app as any).assigned_f_and_i as string | null | undefined;
-    let matchesFni = true;
-    if (fniFilter === 'all') {
+    let matchesFni: boolean;
+    if (role === 'f_and_i') {
+      matchesFni = owner === user?.id;
+    } else if (fniFilter === 'all') {
       matchesFni = true;
     } else if (fniFilter === 'self') {
       matchesFni = owner === user?.id;
