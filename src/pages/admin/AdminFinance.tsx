@@ -900,17 +900,51 @@ const AdminFinance = () => {
                         )}
                         {(() => {
                           const src = (app as any).submission_source;
-                          let label: string | null = null;
-                          if (src === 'whatsapp_parser') label = 'WhatsApp PDF';
-                          else if (src === 'website') label = 'Website';
-                          else if (src && String(src).trim() !== '') label = String(src);
-                          else label = 'Legacy';
+                          let icon: JSX.Element;
+                          let label: string;
+                          if (src === 'whatsapp_parser') {
+                            icon = <MessageCircle className="w-3 h-3" />;
+                            label = 'WhatsApp PDF';
+                          } else if (src === 'website') {
+                            icon = <Globe className="w-3 h-3" />;
+                            label = 'Website';
+                          } else if (src && String(src).trim() !== '') {
+                            icon = <FileText className="w-3 h-3" />;
+                            label = String(src);
+                          } else {
+                            icon = <FileText className="w-3 h-3" />;
+                            label = 'Legacy';
+                          }
                           return (
                             <span
-                              className="px-1.5 py-0.5 text-[10px] uppercase tracking-wider rounded border border-white/10 bg-white/5 text-white/60"
+                              className="inline-flex items-center justify-center p-1 rounded border border-white/10 bg-white/5 text-white/60"
                               title={`Source: ${label}`}
+                              aria-label={`Source: ${label}`}
                             >
-                              {label}
+                              {icon}
+                            </span>
+                          );
+                        })()}
+                        {(() => {
+                          const dEmail = !!(app as any).docs_email;
+                          const dWa = !!(app as any).docs_whatsapp;
+                          if (!dEmail && !dWa) {
+                            return (
+                              <span
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] uppercase tracking-wider rounded border border-red-500/30 bg-red-500/10 text-red-400"
+                                title="No documents received yet"
+                              >
+                                <FileX className="w-3 h-3" /> No Docs
+                              </span>
+                            );
+                          }
+                          return (
+                            <span
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                              title={`Docs received via ${[dEmail && 'Email', dWa && 'WhatsApp'].filter(Boolean).join(' & ')}`}
+                            >
+                              {dEmail && <Mail className="w-3 h-3" />}
+                              {dWa && <MessageCircle className="w-3 h-3" />}
                             </span>
                           );
                         })()}
