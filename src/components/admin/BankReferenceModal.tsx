@@ -95,7 +95,14 @@ const BankReferenceModal = ({
                   </SelectItem>
                   {fniUsers.map((u) => (
                     <SelectItem key={u.id} value={u.id}>
-                      {u.name}
+                      <span className="inline-flex items-center gap-2">
+                        {u.name}
+                        {u.role === 'senior_f_and_i' && (
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                            Senior
+                          </span>
+                        )}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
