@@ -33,6 +33,7 @@ import { getUploadLink } from '@/lib/appConfig';
 import DeliveryChecklistModal from '@/components/admin/DeliveryChecklistModal';
 import QuickCashDealModal from '@/components/admin/QuickCashDealModal';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFAndIUsers } from '@/hooks/useFAndIUsers';
 const FINANCE_INFO_REQUEST_TEMPLATE = `*Lumina Auto | Finance Application Request*
 
 Hi, to assist you with your finance application manually, please reply with the following details:
