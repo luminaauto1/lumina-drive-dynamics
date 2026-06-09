@@ -69,7 +69,7 @@ const CreditCheckReportModal = ({ open, onOpenChange }: Props) => {
         <DialogHeader>
           <DialogTitle className="font-light tracking-wide text-xl">Credit Check Report</DialogTitle>
           <DialogDescription className="text-white/50 text-sm">
-            Billable bureau pulls — total counts for the selected window. Counts are based on the application's last update time.
+            Billable bureau pulls — counted once per application at the time of the first credit check. Toggling passed ↔ failed afterwards never re-counts.
           </DialogDescription>
         </DialogHeader>
 
