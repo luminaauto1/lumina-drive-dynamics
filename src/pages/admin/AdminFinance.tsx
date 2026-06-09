@@ -436,7 +436,8 @@ const AdminFinance = () => {
 
         {/* Status Counter Strip — F&I sees finance pipeline; Admin/Sales see internal-note overview */}
         {(() => {
-          const isFAndIRole = (role === 'f_and_i' || role === 'senior_f_and_i');
+          // Admins see the full F&I pipeline view as well (parity — admin has access to all features).
+          const isFAndIRole = (role === 'f_and_i' || role === 'senior_f_and_i' || role === 'super_admin');
 
           // F&I-relevant pipeline statuses (workflow stages F&I owns)
           const FNI_PIPELINE: { key: string; label: string; color: string }[] = [
