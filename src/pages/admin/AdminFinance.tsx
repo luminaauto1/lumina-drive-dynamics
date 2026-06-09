@@ -125,6 +125,8 @@ const AdminFinance = () => {
   const [bankRefModalOpen, setBankRefModalOpen] = useState(false);
   const [bankRefApp, setBankRefApp] = useState<FinanceApplication | null>(null);
   const [bankRefTargetStatus, setBankRefTargetStatus] = useState<string>('application_submitted');
+  const [editBankRefApp, setEditBankRefApp] = useState<FinanceApplication | null>(null);
+  const [editBankRefOpen, setEditBankRefOpen] = useState(false);
 
   // Action Feed → row scroll/highlight
   const [highlightedAppId, setHighlightedAppId] = useState<string | null>(null);
