@@ -28,16 +28,26 @@ export const useFAndIUsers = () => {
         .select('user_id, full_name, email')
         .in('user_id', ids);
       const byId = new Map((profs || []).map((p: any) => [p.user_id, p]));
-      return (roles || []).map((r: any) => {
+      // Collapse to one row per user; promote to senior if they hold that role.
+      const seen = new Map<string, FAndIUser>();
+      for (const r of (roles || []) as any[]) {
         const p: any = byId.get(r.user_id) || {};
-        return {
+        const existing = seen.get(r.user_id);
+        const role = r.role as 'f_and_i' | 'senior_f_and_i';
+        if (existing) {
+          if (role === 'senior_f_and_i') existing.role = 'senior_f_and_i';
+          continue;
+        }
+        seen.set(r.user_id, {
           id: r.user_id,
           name: (p.full_name || p.email || 'Unnamed F&I') as string,
           email: p.email || null,
-          role: r.role,
-        };
-      }).sort((a, b) => a.name.localeCompare(b.name));
+          role,
+        });
+      }
+      return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
     },
     staleTime: 5 * 60 * 1000,
   });
 };
+
