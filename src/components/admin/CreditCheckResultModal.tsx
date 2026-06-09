@@ -29,6 +29,7 @@ const FAIL_OPTIONS = [
 ];
 
 const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, onSaved }: Props) => {
+  const updateApp = useUpdateFinanceApplication();
   const [mainStatus, setMainStatus] = useState<string>('');
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
