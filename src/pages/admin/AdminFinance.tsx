@@ -210,22 +210,17 @@ const AdminFinance = () => {
     
     const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
 
-    // F&I ownership filter
+    // F&I ownership filter (user-selectable for all staff)
     const owner = (app as any).assigned_f_and_i as string | null | undefined;
     let matchesFni = true;
-    if (isFAndI && !isSeniorFAndI) {
-      // Normal F&I: only their own
-      matchesFni = owner === user?.id;
-    } else if (fniFilter === 'mine') {
-      matchesFni = !owner || owner === user?.id;
-    } else if (fniFilter === 'unassigned') {
-      matchesFni = !owner;
-    } else if (fniFilter === 'all') {
+    if (fniFilter === 'all') {
       matchesFni = true;
-    } else if (fniFilter && fniFilter !== 'self') {
-      matchesFni = owner === fniFilter;
     } else if (fniFilter === 'self') {
       matchesFni = owner === user?.id;
+    } else if (fniFilter === 'unassigned') {
+      matchesFni = !owner;
+    } else {
+      matchesFni = owner === fniFilter;
     }
 
     // Filter by active/archived. For F&I, terminal success statuses and 'archived'
