@@ -174,6 +174,27 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
             </Select>
           </div>
 
+          {mainStatus === 'declined_conditional' && (
+            <div className="space-y-2">
+              <Label className="text-white/70 text-xs uppercase tracking-wider">
+                F&amp;I Comment <span className="text-amber-400 normal-case tracking-normal">— required, goes to admin inbox</span>
+              </Label>
+              <Textarea
+                value={conditionalComment}
+                onChange={(e) => setConditionalComment(e.target.value)}
+                placeholder="e.g. Recommend a cheaper vehicle under R250k, or larger deposit required…"
+                rows={3}
+                className="bg-black/60 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-white/30"
+                maxLength={1000}
+              />
+              <p className="text-[11px] text-white/40">
+                This note will be timestamped and prepended to the application's internal notes.
+              </p>
+            </div>
+          )}
+
+
+
           <div className="space-y-2">
             <Label className="text-white/70 text-xs uppercase tracking-wider">
               Screenshot (optional) — paste (Ctrl/Cmd+V) or upload
