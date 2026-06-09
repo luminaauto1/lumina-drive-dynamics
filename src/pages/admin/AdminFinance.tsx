@@ -907,7 +907,9 @@ const AdminFinance = () => {
                             {(app as any).bank_reference && (
                               <BankReferenceBadge
                                 reference={(app as any).bank_reference}
-                                onEdit={() => { setEditBankRefApp(app); setEditBankRefOpen(true); }}
+                                onEdit={(role === 'super_admin' || role === 'senior_f_and_i')
+                                  ? () => { setEditBankRefApp(app); setEditBankRefOpen(true); }
+                                  : undefined}
                               />
                             )}
                             <span>{app.first_name} {app.last_name}</span>
