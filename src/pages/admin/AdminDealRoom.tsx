@@ -61,6 +61,8 @@ const AdminDealRoom = () => {
   const [contractSentModalOpen, setContractSentModalOpen] = useState(false);
   const [bankRefModalOpen, setBankRefModalOpen] = useState(false);
   const [editBankRefOpen, setEditBankRefOpen] = useState(false);
+  const [creditCheckModalOpen, setCreditCheckModalOpen] = useState(false);
+  const [creditCheckOutcome, setCreditCheckOutcome] = useState<CreditCheckOutcome>('passed');
 
   const { data: vehicles = [], refetch: refetchVehicles } = useVehicles();
   const { data: matches = [], isLoading: matchesLoading, refetch: refetchMatches } = useApplicationMatches(id || '');
