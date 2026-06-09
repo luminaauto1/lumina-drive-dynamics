@@ -83,18 +83,18 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
       toast.error('Select a main status');
       return;
     }
-    if (!file) {
-      toast.error('Attach a screenshot (paste or upload)');
-      return;
-    }
     setSubmitting(true);
     try {
-      const ext = (file.name.split('.').pop() || 'png').toLowerCase();
-      const path = `${applicationId}/${outcome}-${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage
-        .from('credit-check-screenshots')
-        .upload(path, file, { contentType: file.type, upsert: false });
-      if (upErr) throw upErr;
+      let path: string | null = null;
+      if (file) {
+        const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+        path = `${applicationId}/${outcome}-${Date.now()}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from('credit-check-screenshots')
+          .upload(path, file, { contentType: file.type, upsert: false });
+        if (upErr) throw upErr;
+      }
+
 
       // Route through the central mutation so ALL status-driven side effects fire:
       // auto-mailer template, notify-pre-approval-internal / notify-declined /
@@ -154,7 +154,7 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
 
           <div className="space-y-2">
             <Label className="text-white/70 text-xs uppercase tracking-wider">
-              Screenshot — paste (Ctrl/Cmd+V) or upload
+              Screenshot (optional) — paste (Ctrl/Cmd+V) or upload
             </Label>
             <div
               ref={dropRef}
@@ -206,7 +206,7 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
           </Button>
           <Button
             onClick={onSave}
-            disabled={submitting || !mainStatus || !file}
+            disabled={submitting || !mainStatus}
             className="bg-white text-black hover:bg-white/90 font-medium"
           >
             {submitting ? 'Saving…' : 'Save'}
