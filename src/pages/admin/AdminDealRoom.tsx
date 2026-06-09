@@ -1574,14 +1574,18 @@ const AdminDealRoom = () => {
         open={bankRefModalOpen}
         onOpenChange={setBankRefModalOpen}
         defaultValue={(application as any)?.bank_reference || ''}
-        onConfirm={async (reference) => {
+        showFAndIAssignment
+        defaultFAndIId={(application as any)?.assigned_f_and_i || null}
+        onConfirm={async (reference, fniId) => {
           if (!application) return;
           try {
-            await updateApplication.mutateAsync({
-              id: application.id,
-              updates: { status: 'application_submitted', bank_reference: reference },
-            });
-            setApplication(prev => prev ? ({ ...prev, status: 'application_submitted', bank_reference: reference } as any) : null);
+            const updates: any = { status: 'application_submitted', bank_reference: reference };
+            if (fniId !== undefined) {
+              updates.assigned_f_and_i = fniId;
+              updates.assigned_f_and_i_at = fniId ? new Date().toISOString() : null;
+            }
+            await updateApplication.mutateAsync({ id: application.id, updates });
+            setApplication(prev => prev ? ({ ...prev, ...updates } as any) : null);
             const vehicleName = activeVehicle
               ? `${activeVehicle.year} ${activeVehicle.make} ${activeVehicle.model}`
               : undefined;
@@ -1620,6 +1624,23 @@ const AdminDealRoom = () => {
           }
         }}
       />
+
+      {/* Credit Check Pass/Fail Modal */}
+      <CreditCheckResultModal
+        open={creditCheckModalOpen}
+        onOpenChange={setCreditCheckModalOpen}
+        outcome={creditCheckOutcome}
+        applicationId={application.id}
+        onSaved={(u) => {
+          setApplication(prev => prev ? ({ ...prev, ...u } as any) : null);
+          queryClient.invalidateQueries({ queryKey: ['finance-applications'] });
+        }}
+      />
+    </AdminLayout>
+  );
+};
+
+export default AdminDealRoom;
     </AdminLayout>
   );
 };
