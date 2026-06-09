@@ -522,6 +522,7 @@ export type Database = {
           contract_url: string | null
           created_at: string
           created_by: string | null
+          credit_check_status: string | null
           credit_score_status: string | null
           deal_type: string | null
           declined_reason: string | null
@@ -580,6 +581,7 @@ export type Database = {
           spouse_surname: string | null
           status: string
           status_history: Json
+          status_screenshot_url: string | null
           status_updated_at: string | null
           street_address: string | null
           submission_source: string
@@ -613,6 +615,7 @@ export type Database = {
           contract_url?: string | null
           created_at?: string
           created_by?: string | null
+          credit_check_status?: string | null
           credit_score_status?: string | null
           deal_type?: string | null
           declined_reason?: string | null
@@ -671,6 +674,7 @@ export type Database = {
           spouse_surname?: string | null
           status?: string
           status_history?: Json
+          status_screenshot_url?: string | null
           status_updated_at?: string | null
           street_address?: string | null
           submission_source?: string
@@ -704,6 +708,7 @@ export type Database = {
           contract_url?: string | null
           created_at?: string
           created_by?: string | null
+          credit_check_status?: string | null
           credit_score_status?: string | null
           deal_type?: string | null
           declined_reason?: string | null
@@ -762,6 +767,7 @@ export type Database = {
           spouse_surname?: string | null
           status?: string
           status_history?: Json
+          status_screenshot_url?: string | null
           status_updated_at?: string | null
           street_address?: string | null
           submission_source?: string

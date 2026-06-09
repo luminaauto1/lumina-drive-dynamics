@@ -866,7 +866,7 @@ const AdminFinance = () => {
                                 ? String(fni.full_name).trim().split(/\s+/)[0]
                                 : String(fni.email).split('@')[0];
                               return (
-                                <span className="ml-1 text-[10px] uppercase tracking-wider text-pink-400 font-medium border border-pink-500/30 bg-pink-500/10 px-1.5 py-0.5 rounded">
+                                <span className="ml-1 text-[10px] uppercase tracking-wider font-medium border border-white/10 bg-zinc-800 text-white px-1.5 py-0.5 rounded">
                                   F&amp;I: {fniFirst}
                                 </span>
                               );
@@ -1610,13 +1610,17 @@ const AdminFinance = () => {
         open={bankRefModalOpen}
         onOpenChange={(o) => { setBankRefModalOpen(o); if (!o) setBankRefApp(null); }}
         defaultValue={(bankRefApp as any)?.bank_reference || ''}
-        onConfirm={async (reference) => {
+        requireFni
+        defaultFniId={(bankRefApp as any)?.assigned_f_and_i || null}
+        onConfirm={async (reference, assignedFniId) => {
           if (!bankRefApp) return;
           try {
-            await updateApplication.mutateAsync({
-              id: bankRefApp.id,
-              updates: { status: bankRefTargetStatus, bank_reference: reference },
-            });
+            const updates: any = { status: bankRefTargetStatus, bank_reference: reference };
+            if (assignedFniId) {
+              updates.assigned_f_and_i = assignedFniId;
+              updates.assigned_f_and_i_at = new Date().toISOString();
+            }
+            await updateApplication.mutateAsync({ id: bankRefApp.id, updates });
           } catch (err) {
             // error toast handled by hook
           }
