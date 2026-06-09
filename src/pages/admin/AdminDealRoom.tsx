@@ -1609,14 +1609,21 @@ const AdminDealRoom = () => {
         open={editBankRefOpen}
         onOpenChange={setEditBankRefOpen}
         defaultValue={(application as any)?.bank_reference || ''}
-        onConfirm={async (reference) => {
+        showFAndIAssignment
+        defaultFAndIId={(application as any)?.assigned_f_and_i || null}
+        onConfirm={async (reference, fniId) => {
           if (!application) return;
           try {
+            const updates: any = { bank_reference: reference };
+            if (fniId !== undefined) {
+              updates.assigned_f_and_i = fniId;
+              updates.assigned_f_and_i_at = fniId ? new Date().toISOString() : null;
+            }
             await updateApplication.mutateAsync({
               id: application.id,
-              updates: { bank_reference: reference },
+              updates,
             });
-            setApplication(prev => prev ? ({ ...prev, bank_reference: reference } as any) : null);
+            setApplication(prev => prev ? ({ ...prev, ...updates } as any) : null);
             toast.success('Bank reference updated');
           } catch (err) {
             console.error('Bank ref update failed:', err);
