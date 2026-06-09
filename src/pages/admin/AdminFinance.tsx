@@ -810,6 +810,7 @@ const AdminFinance = () => {
                   <TableHead className="text-muted-foreground">Mobile</TableHead>
                   <TableHead className="text-muted-foreground">Net Salary</TableHead>
                   <TableHead className="text-muted-foreground">Status</TableHead>
+                  <TableHead className="text-muted-foreground">Credit Check</TableHead>
                   <TableHead className="text-muted-foreground">Internal</TableHead>
                   <TableHead className="text-muted-foreground">Date</TableHead>
                   <TableHead className="text-muted-foreground text-right">Actions</TableHead>
