@@ -126,6 +126,7 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
           credit_check_status: outcome,
           status: mainStatus,
           status_screenshot_url: path,
+          ...(updatedNotes !== undefined ? { notes: updatedNotes } : {}),
         },
       });
 
