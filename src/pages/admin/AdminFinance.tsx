@@ -210,17 +210,24 @@ const AdminFinance = () => {
     
     const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
 
-    // F&I ownership filter. Normal F&I can ONLY see their own apps.
+    // F&I ownership filter. Apps assigned to a NORMAL f&i are private to that
+    // user (and admin/senior). Unassigned apps and apps "assigned" to a senior
+    // f&i (whose name only reflects that they captured the app) remain visible
+    // to everyone.
     const owner = (app as any).assigned_f_and_i as string | null | undefined;
+    const ownerIsSenior = !!owner && fniUsers.some(u => u.id === owner && u.role === 'senior_f_and_i');
+    const ownerIsNormalFni = !!owner && fniUsers.some(u => u.id === owner && u.role === 'f_and_i');
+    const effectivelyUnassigned = !owner || ownerIsSenior;
+
     let matchesFni: boolean;
     if (role === 'f_and_i') {
-      matchesFni = owner === user?.id;
+      matchesFni = effectivelyUnassigned || owner === user?.id;
     } else if (fniFilter === 'all') {
       matchesFni = true;
     } else if (fniFilter === 'self') {
       matchesFni = owner === user?.id;
     } else if (fniFilter === 'unassigned') {
-      matchesFni = !owner;
+      matchesFni = effectivelyUnassigned;
     } else {
       matchesFni = owner === fniFilter;
     }
