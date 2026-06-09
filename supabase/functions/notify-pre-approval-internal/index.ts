@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { buildCorsHeaders, checkInternalKey } from "../_shared/publicGuard.ts";
 
-const STAFF_NUMBERS = ["27836117792", "27716196071", "27827766057"];
+const STAFF_NUMBERS = ["27836117792", "27716196071"];
 const CAMPAIGN_ID = "cmq6u7szu234vhfxp8s1c7igi";
 const TEMPLATE_ID = "20060";
 const ACCOUNT_ID = "4026";
