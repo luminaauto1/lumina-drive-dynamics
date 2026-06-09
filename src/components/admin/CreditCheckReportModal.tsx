@@ -18,7 +18,7 @@ const CreditCheckReportModal = ({ open, onOpenChange }: Props) => {
   const [from, setFrom] = useState<string>(toIso(firstOfMonth));
   const [to, setTo] = useState<string>(toIso(today));
   const [loading, setLoading] = useState(false);
-  const [rows, setRows] = useState<Array<{ status: string; updated_at: string; full_name: string | null; first_name: string | null; last_name: string | null }>>([]);
+  const [rows, setRows] = useState<Array<{ status: string; resulting_status: string | null; updated_at: string; full_name: string | null; first_name: string | null; last_name: string | null }>>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -31,7 +31,7 @@ const CreditCheckReportModal = ({ open, onOpenChange }: Props) => {
         const end = new Date(`${to}T23:59:59.999Z`).toISOString();
         const { data, error } = await supabase
           .from('finance_applications')
-          .select('credit_check_status, credit_check_first_checked_at, full_name, first_name, last_name')
+          .select('credit_check_status, credit_check_first_checked_at, status, full_name, first_name, last_name')
           .in('credit_check_status', ['passed', 'failed'])
           .not('credit_check_first_checked_at', 'is', null)
           .gte('credit_check_first_checked_at', start)
@@ -42,6 +42,7 @@ const CreditCheckReportModal = ({ open, onOpenChange }: Props) => {
           setRows(
             (data || []).map((r: any) => ({
               status: r.credit_check_status,
+              resulting_status: r.status ?? null,
               updated_at: r.credit_check_first_checked_at,
               full_name: r.full_name,
               first_name: r.first_name,
