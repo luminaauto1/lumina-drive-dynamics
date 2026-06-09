@@ -522,6 +522,7 @@ export type Database = {
           contract_url: string | null
           created_at: string
           created_by: string | null
+          credit_check_first_checked_at: string | null
           credit_check_status: string | null
           credit_score_status: string | null
           deal_type: string | null
@@ -615,6 +616,7 @@ export type Database = {
           contract_url?: string | null
           created_at?: string
           created_by?: string | null
+          credit_check_first_checked_at?: string | null
           credit_check_status?: string | null
           credit_score_status?: string | null
           deal_type?: string | null
@@ -708,6 +710,7 @@ export type Database = {
           contract_url?: string | null
           created_at?: string
           created_by?: string | null
+          credit_check_first_checked_at?: string | null
           credit_check_status?: string | null
           credit_score_status?: string | null
           deal_type?: string | null
