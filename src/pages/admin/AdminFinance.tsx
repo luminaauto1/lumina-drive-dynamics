@@ -411,6 +411,10 @@ const AdminFinance = () => {
               <Copy className="w-4 h-4 mr-2" />
               Copy Info Request
             </Button>
+            <Button variant="outline" onClick={() => setCreditReportOpen(true)} className="w-fit">
+              <BarChart3 className="w-4 h-4 mr-2 text-amber-400" />
+              Credit Report
+            </Button>
             <Button variant="outline" onClick={() => setCashDealModalOpen(true)} className="w-fit">
               <Banknote className="w-4 h-4 mr-2" />
               Cash Deal
