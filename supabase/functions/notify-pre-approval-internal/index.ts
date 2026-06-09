@@ -21,6 +21,8 @@ const OPERATIONAL_TAG_NAMES = [
   "Blacklisted",
 ];
 
+type JsonRecord = Record<string, unknown>;
+
 const sanitizePhone = (raw: unknown): string | null => {
   let digits = String(raw || "").replace(/\D/g, "");
   if (!digits) return null;
@@ -33,15 +35,18 @@ const fetchTagDictionary = async (apiKey: string): Promise<Record<string, number
     headers: { Authorization: `Bearer ${apiKey}`, Accept: "application/json" },
   });
   if (!res.ok) return {};
-  const parsed = await res.json();
-  const list: any[] = Array.isArray(parsed)
+  const parsed = await res.json() as JsonRecord | JsonRecord[];
+  const payload = !Array.isArray(parsed) && typeof parsed.payload === "object" && parsed.payload !== null
+    ? parsed.payload as JsonRecord
+    : null;
+  const list: JsonRecord[] = Array.isArray(parsed)
     ? parsed
-    : Array.isArray(parsed?.data) ? parsed.data
-    : Array.isArray(parsed?.tags) ? parsed.tags
-    : Array.isArray(parsed?.payload) ? parsed.payload
-    : Array.isArray(parsed?.payload?.data) ? parsed.payload.data
+    : Array.isArray(parsed.data) ? parsed.data as JsonRecord[]
+    : Array.isArray(parsed.tags) ? parsed.tags as JsonRecord[]
+    : Array.isArray(parsed.payload) ? parsed.payload as JsonRecord[]
+    : Array.isArray(payload?.data) ? payload.data as JsonRecord[]
     : [];
-  return list.reduce((acc: Record<string, number>, tag: any) => {
+  return list.reduce((acc: Record<string, number>, tag) => {
     const name = tag?.name ?? tag?.tag_name ?? tag?.title;
     const id = tag?.id ?? tag?.tag_id;
     if (typeof name === "string" && (typeof id === "number" || /^\d+$/.test(String(id)))) acc[name] = Number(id);
@@ -67,15 +72,16 @@ const removeOperationalTagsFromStaff = async () => {
         body: JSON.stringify({ remove_tags: removeTags, add_tags: [] }),
       });
       const text = await resp.text();
-      let body: any;
+      let body: unknown;
       try { body = JSON.parse(text); } catch { body = { raw: text }; }
       return { phone: clean, ok: resp.ok, status: resp.status, body };
     }));
 
     return { remove_tags: removeTags, results };
-  } catch (error: any) {
-    console.error("staff tag cleanup failed:", error?.message || error);
-    return { ok: false, error: error?.message || String(error) };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("staff tag cleanup failed:", message);
+    return { ok: false, error: message };
   }
 };
 
@@ -113,11 +119,12 @@ serve(async (req) => {
       try {
         const resp = await fetch(apiUrl, { headers: { Accept: "application/json" } });
         const raw = await resp.text();
-        let body;
+        let body: unknown;
         try { body = JSON.parse(raw); } catch { body = { raw }; }
-        return { phone, status: resp.status, body, ok: resp.ok && body?.success !== false };
-      } catch (err: any) {
-        return { phone, status: 500, error: err.message, ok: false };
+        const success = typeof body === "object" && body !== null && "success" in body ? (body as JsonRecord).success : undefined;
+        return { phone, status: resp.status, body, ok: resp.ok && success !== false };
+      } catch (err: unknown) {
+        return { phone, status: 500, error: err instanceof Error ? err.message : String(err), ok: false };
       }
     });
 
@@ -129,7 +136,8 @@ serve(async (req) => {
       JSON.stringify({ success: allOk, results, staffTagCleanup, payload: { body1: derivedFirst, body2: derivedLast, body3: phoneForBody, body4: refCode } }),
       { status: allOk ? 200 : 207, headers: { ...cors, "Content-Type": "application/json" } },
     );
-  } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    return new Response(JSON.stringify({ error: message }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
   }
 });
