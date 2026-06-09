@@ -50,7 +50,7 @@ const GolfGTIAnimation = () => {
   }, []);
 
   return (
-    <div ref={wrapperRef} className="relative h-[100vh] bg-background w-screen left-1/2 -translate-x-1/2">
+    <div ref={wrapperRef} className="relative h-[70vh] bg-background w-screen left-1/2 -translate-x-1/2">
       <div
         ref={stickyRef}
         className="sticky top-16 md:top-0 h-[50vh] sm:h-[60vh] md:h-screen w-full overflow-hidden"
