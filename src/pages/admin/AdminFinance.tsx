@@ -209,7 +209,25 @@ const AdminFinance = () => {
       (app as any).bank_reference?.toLowerCase().includes(searchLower);
     
     const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
-    
+
+    // F&I ownership filter
+    const owner = (app as any).assigned_f_and_i as string | null | undefined;
+    let matchesFni = true;
+    if (isFAndI && !isSeniorFAndI) {
+      // Normal F&I: only their own
+      matchesFni = owner === user?.id;
+    } else if (fniFilter === 'mine') {
+      matchesFni = !owner || owner === user?.id;
+    } else if (fniFilter === 'unassigned') {
+      matchesFni = !owner;
+    } else if (fniFilter === 'all') {
+      matchesFni = true;
+    } else if (fniFilter && fniFilter !== 'self') {
+      matchesFni = owner === fniFilter;
+    } else if (fniFilter === 'self') {
+      matchesFni = owner === user?.id;
+    }
+
     // Filter by active/archived. For F&I, terminal success statuses and 'archived'
     // go to the Archive tab. Declined/Blacklisted stay in Active. All other roles
     // keep the legacy auto-archive behaviour.
@@ -224,7 +242,7 @@ const AdminFinance = () => {
     }
     const matchesViewMode = viewMode === 'archived' ? isArchived : !isArchived;
 
-    return matchesSearch && matchesStatus && matchesViewMode;
+    return matchesSearch && matchesStatus && matchesFni && matchesViewMode;
   });
 
   const handleStatusDropdownChange = (app: any, newStatus: string) => {
