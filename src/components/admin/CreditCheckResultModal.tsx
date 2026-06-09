@@ -4,6 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
+import { publicApiHeaders } from '@/lib/publicApi';
 import { toast } from 'sonner';
 import { ImageIcon, Upload, X } from 'lucide-react';
 
@@ -94,6 +95,14 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
         .upload(path, file, { contentType: file.type, upsert: false });
       if (upErr) throw upErr;
 
+      // Read current app first so we know if status actually changes + have payload for WA dispatch.
+      const { data: currentAppData } = await supabase
+        .from('finance_applications')
+        .select('*')
+        .eq('id', applicationId)
+        .maybeSingle();
+      const currentApp = currentAppData as any;
+
       // Private bucket — store the storage path; signed URLs are minted on read.
       const { error: dbErr } = await supabase
         .from('finance_applications')
@@ -104,6 +113,48 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
         } as any)
         .eq('id', applicationId);
       if (dbErr) throw dbErr;
+
+      // Fire staff WhatsApp dispatches mirroring useFinanceApplications.updateStatus.
+      const statusChanged = currentApp?.status !== mainStatus;
+      const clientName =
+        (currentApp as any)?.full_name ||
+        [currentApp?.first_name, currentApp?.last_name].filter(Boolean).join(' ').trim() ||
+        'Unknown Client';
+
+      if (statusChanged && mainStatus === 'pre_approved') {
+        supabase.functions.invoke('notify-pre-approval-internal', {
+          headers: publicApiHeaders(),
+          body: {
+            client_name: clientName,
+            first_name: currentApp?.first_name || null,
+            last_name: currentApp?.last_name || null,
+            client_phone: currentApp?.phone || null,
+            bank_reference_code: (currentApp as any)?.bank_reference_code || null,
+            fni_notes: (currentApp as any)?.notes || null,
+          },
+        }).then(({ error }) => {
+          if (error) console.error('[notify-pre-approval-internal] error:', error);
+          else console.log('[notify-pre-approval-internal] dispatched for', clientName);
+        });
+      }
+
+      if (statusChanged && mainStatus === 'declined' && currentApp?.phone) {
+        supabase.functions.invoke('notify-declined', {
+          headers: publicApiHeaders(),
+          body: { phone_number: currentApp.phone, client_name: currentApp.first_name || clientName },
+        }).then(({ error }) => {
+          if (error) console.error('[notify-declined] error:', error);
+        });
+      }
+
+      if (statusChanged && mainStatus === 'blacklisted' && currentApp?.phone) {
+        supabase.functions.invoke('notify-blacklisted', {
+          headers: publicApiHeaders(),
+          body: { phone_number: currentApp.phone, client_name: currentApp.first_name || clientName },
+        }).then(({ error }) => {
+          if (error) console.error('[notify-blacklisted] error:', error);
+        });
+      }
 
       toast.success(`Credit check ${outcome === 'passed' ? 'passed' : 'failed'} recorded`);
       onSaved?.({ credit_check_status: outcome, status: mainStatus, status_screenshot_url: path });
