@@ -873,32 +873,17 @@ const AdminFinance = () => {
                             <span>{app.first_name} {app.last_name}</span>
                             {(() => {
                               const fni = (app as any).fni_owner;
-                              const hasFni = !!(fni?.full_name || fni?.email);
-                              if (hasFni) {
-                                const fniFirst = fni.full_name
-                                  ? String(fni.full_name).trim().split(/\s+/)[0]
-                                  : String(fni.email).split('@')[0];
-                                return (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditBankRefApp(app); setEditBankRefOpen(true); }}
-                                    title="Click to reassign F&I"
-                                    className="ml-1 text-[10px] uppercase tracking-wider text-pink-300 font-semibold border border-pink-500/50 bg-pink-500/15 px-1.5 py-0.5 rounded shadow-[0_0_8px_-2px_rgba(236,72,153,0.5)] hover:bg-pink-500/25 transition-colors"
-                                  >
-                                    F&amp;I: {fniFirst}
-                                  </button>
-                                );
-                              }
-                              // No F&I assigned yet — make it obvious + clickable.
+                              if (!fni?.full_name && !fni?.email) return null;
+                              const fniFirst = fni.full_name
+                                ? String(fni.full_name).trim().split(/\s+/)[0]
+                                : String(fni.email).split('@')[0];
                               return (
-                                <button
-                                  type="button"
-                                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditBankRefApp(app); setEditBankRefOpen(true); }}
-                                  title="No F&I assigned — click to assign"
-                                  className="ml-1 text-[10px] uppercase tracking-wider text-amber-300/90 font-medium border border-dashed border-amber-500/40 bg-amber-500/5 px-1.5 py-0.5 rounded hover:bg-amber-500/15 transition-colors"
+                                <span
+                                  className="ml-1 text-[10px] uppercase tracking-wider text-pink-300 font-semibold border border-pink-500/50 bg-pink-500/15 px-1.5 py-0.5 rounded shadow-[0_0_8px_-2px_rgba(236,72,153,0.5)]"
+                                  title={`Assigned F&I: ${fni.full_name || fni.email}`}
                                 >
-                                  + Assign F&amp;I
-                                </button>
+                                  F&amp;I: {fniFirst}
+                                </span>
                               );
                             })()}
                           </p>
