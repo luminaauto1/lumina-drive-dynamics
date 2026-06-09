@@ -14,7 +14,9 @@ serve(async (req) => {
   if (guard) return guard;
 
   try {
-    const { client_name, first_name, last_name, client_phone, bank_reference_code } = await req.json();
+    const payload = await req.json();
+    console.log("[notify-pre-approval-internal] incoming payload:", JSON.stringify(payload));
+    const { client_name, first_name, last_name, client_phone, bank_reference_code } = payload;
 
     let derivedFirst = (first_name || "").toString().trim();
     let derivedLast = (last_name || "").toString().trim();
@@ -37,24 +39,29 @@ serve(async (req) => {
     // Parallel execution to prevent sequential blocking
     const dispatchPromises = STAFF_NUMBERS.map(async (phone) => {
       const apiUrl = `https://api.easysocial.in/api/v1/wa-templates/send/${CAMPAIGN_ID}/${TEMPLATE_ID}/${ACCOUNT_ID}/API/${phone}?body1=${b1}&body2=${b2}&body3=${b3}&body4=${b4}`;
+      console.log("[notify-pre-approval-internal] dispatching to", phone, "url:", apiUrl);
       try {
         const resp = await fetch(apiUrl, { headers: { Accept: "application/json" } });
         const raw = await resp.text();
         let body;
         try { body = JSON.parse(raw); } catch { body = { raw }; }
+        console.log("[notify-pre-approval-internal] response", phone, "status:", resp.status, "body:", raw);
         return { phone, status: resp.status, body, ok: resp.ok && body?.success !== false };
       } catch (err: any) {
+        console.error("[notify-pre-approval-internal] fetch error", phone, err.message);
         return { phone, status: 500, error: err.message, ok: false };
       }
     });
 
     const results = await Promise.all(dispatchPromises);
     const allOk = results.every((r) => r.ok);
+    console.log("[notify-pre-approval-internal] FINAL allOk:", allOk, "results:", JSON.stringify(results));
 
     return new Response(
       JSON.stringify({ success: allOk, results, payload: { body1: derivedFirst, body2: derivedLast, body3: phoneForBody, body4: refCode } }),
       { status: allOk ? 200 : 207, headers: { ...cors, "Content-Type": "application/json" } },
     );
+
   } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
   }
