@@ -154,7 +154,7 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
 
           <div className="space-y-2">
             <Label className="text-white/70 text-xs uppercase tracking-wider">
-              Screenshot — paste (Ctrl/Cmd+V) or upload
+              Screenshot (optional) — paste (Ctrl/Cmd+V) or upload
             </Label>
             <div
               ref={dropRef}
