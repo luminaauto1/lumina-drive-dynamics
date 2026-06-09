@@ -31,17 +31,18 @@ const CreditCheckReportModal = ({ open, onOpenChange }: Props) => {
         const end = new Date(`${to}T23:59:59.999Z`).toISOString();
         const { data, error } = await supabase
           .from('finance_applications')
-          .select('credit_check_status, updated_at, full_name, first_name, last_name')
+          .select('credit_check_status, credit_check_first_checked_at, full_name, first_name, last_name')
           .in('credit_check_status', ['passed', 'failed'])
-          .gte('updated_at', start)
-          .lte('updated_at', end)
-          .order('updated_at', { ascending: false });
+          .not('credit_check_first_checked_at', 'is', null)
+          .gte('credit_check_first_checked_at', start)
+          .lte('credit_check_first_checked_at', end)
+          .order('credit_check_first_checked_at', { ascending: false });
         if (error) throw error;
         if (!cancelled) {
           setRows(
             (data || []).map((r: any) => ({
               status: r.credit_check_status,
-              updated_at: r.updated_at,
+              updated_at: r.credit_check_first_checked_at,
               full_name: r.full_name,
               first_name: r.first_name,
               last_name: r.last_name,
