@@ -33,6 +33,7 @@ const FAIL_OPTIONS = [
 const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, onSaved }: Props) => {
   const updateApp = useUpdateFinanceApplication();
   const [mainStatus, setMainStatus] = useState<string>('');
+  const [conditionalComment, setConditionalComment] = useState<string>('');
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -43,6 +44,7 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
   useEffect(() => {
     if (open) {
       setMainStatus('');
+      setConditionalComment('');
       setFile(null);
       setPreviewUrl(null);
     }
