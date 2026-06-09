@@ -301,10 +301,11 @@ const AdminFinance = () => {
         attention_updated_at: new Date().toISOString(),
         notes: updatedNotes,
       };
-      if ((role === 'f_and_i' || role === 'senior_f_and_i') && actingUser?.id) {
+      if (role === 'f_and_i' && actingUser?.id) {
         updatePayload.assigned_f_and_i = actingUser.id;
         updatePayload.assigned_f_and_i_at = new Date().toISOString();
       }
+
       // 20-hour auto-reset enforcement: if the docs-contacted tick is older than
       // 20h, flush it back to false on the next save so the DB matches the UI.
       const dca = (pendingApp as any)?.docs_contacted_at;
