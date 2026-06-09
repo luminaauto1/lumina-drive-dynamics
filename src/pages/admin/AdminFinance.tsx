@@ -76,11 +76,11 @@ const AdminFinance = () => {
   const { isSuperAdmin, isSeniorFAndI, isFAndI, role, user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  // F&I owner filter. 'mine' = unassigned + mine (default for admin/senior).
-  // 'all' = every app. 'unassigned' = no owner. Any UUID = that specific F&I.
-  // Normal f_and_i users are forced to 'self' (only their own assignments).
-  const canPickFniFilter = isSuperAdmin || isSeniorFAndI;
-  const [fniFilter, setFniFilter] = useState<string>(canPickFniFilter ? 'mine' : 'self');
+  // F&I owner filter. Everyone can change it.
+  // Defaults: admin/senior → 'all'; normal F&I → 'self' (their own apps).
+  // Values: 'all' | 'self' | 'unassigned' | <fni user uuid>
+  const defaultFniFilter = (isSuperAdmin || isSeniorFAndI) ? 'all' : 'self';
+  const [fniFilter, setFniFilter] = useState<string>(defaultFniFilter);
   const { data: fniUsers = [] } = useFAndIUsers();
   const [viewMode, setViewMode] = useState<'active' | 'archived'>('active');
   const [deliveryModalOpen, setDeliveryModalOpen] = useState(false);
@@ -210,22 +210,17 @@ const AdminFinance = () => {
     
     const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
 
-    // F&I ownership filter
+    // F&I ownership filter (user-selectable for all staff)
     const owner = (app as any).assigned_f_and_i as string | null | undefined;
     let matchesFni = true;
-    if (isFAndI && !isSeniorFAndI) {
-      // Normal F&I: only their own
-      matchesFni = owner === user?.id;
-    } else if (fniFilter === 'mine') {
-      matchesFni = !owner || owner === user?.id;
-    } else if (fniFilter === 'unassigned') {
-      matchesFni = !owner;
-    } else if (fniFilter === 'all') {
+    if (fniFilter === 'all') {
       matchesFni = true;
-    } else if (fniFilter && fniFilter !== 'self') {
-      matchesFni = owner === fniFilter;
     } else if (fniFilter === 'self') {
       matchesFni = owner === user?.id;
+    } else if (fniFilter === 'unassigned') {
+      matchesFni = !owner;
+    } else {
+      matchesFni = owner === fniFilter;
     }
 
     // Filter by active/archived. For F&I, terminal success statuses and 'archived'
@@ -718,23 +713,21 @@ const AdminFinance = () => {
               ))}
             </SelectContent>
           </Select>
-          {canPickFniFilter && (
-            <Select value={fniFilter} onValueChange={setFniFilter}>
-              <SelectTrigger className="w-56">
-                <SelectValue placeholder="Filter by F&I" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="mine">My Queue (Unassigned + Mine)</SelectItem>
-                <SelectItem value="all">All Applications</SelectItem>
-                <SelectItem value="unassigned">Unassigned</SelectItem>
-                {fniUsers.map(u => (
-                  <SelectItem key={u.id} value={u.id}>
-                    {u.name}{u.role === 'senior_f_and_i' ? ' (Senior)' : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <Select value={fniFilter} onValueChange={setFniFilter}>
+            <SelectTrigger className="w-56">
+              <SelectValue placeholder="Filter by F&I" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Applications</SelectItem>
+              <SelectItem value="self">My Applications</SelectItem>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
+              {fniUsers.map(u => (
+                <SelectItem key={u.id} value={u.id}>
+                  {u.name}{u.role === 'senior_f_and_i' ? ' (Senior)' : ''}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </motion.div>
 
         {/* Stats */}
