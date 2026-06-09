@@ -808,7 +808,7 @@ const AdminFinance = () => {
                 <TableRow className="border-white/10 hover:bg-white/5">
                   <TableHead className="text-muted-foreground">Name</TableHead>
                   <TableHead className="text-muted-foreground">Mobile</TableHead>
-                  <TableHead className="text-muted-foreground">Net Salary</TableHead>
+                  
                   <TableHead className="text-muted-foreground">Status</TableHead>
                   <TableHead className="text-muted-foreground">Credit Check</TableHead>
                   <TableHead className="text-muted-foreground">Internal</TableHead>
@@ -822,7 +822,7 @@ const AdminFinance = () => {
                   const whatsAppPhone = cleanedPhone.startsWith('0') ? `27${cleanedPhone.slice(1)}` : cleanedPhone;
                   
                   // Warning conditions
-                  const lowSalary = app.net_salary && app.net_salary < 8500;
+                  
                   const noLicense = (app as any).has_drivers_license === false;
                   const cs = ((app as any).credit_score_status || '') as string;
                   const HIGH_RISK_CREDIT_LABELS: Record<string, string> = {
@@ -982,11 +982,6 @@ const AdminFinance = () => {
                       ) : (
                         <span className="text-muted-foreground text-sm">N/A</span>
                       )}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      <span className={lowSalary ? 'text-red-400 font-medium' : ''}>
-                        {app.net_salary ? formatPrice(app.net_salary) : 'N/A'}
-                      </span>
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Select
