@@ -206,7 +206,7 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
           </Button>
           <Button
             onClick={onSave}
-            disabled={submitting || !mainStatus || !file}
+            disabled={submitting || !mainStatus}
             className="bg-white text-black hover:bg-white/90 font-medium"
           >
             {submitting ? 'Saving…' : 'Save'}
