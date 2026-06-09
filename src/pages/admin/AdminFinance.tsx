@@ -1616,18 +1616,25 @@ const AdminFinance = () => {
         open={bankRefModalOpen}
         onOpenChange={(o) => { setBankRefModalOpen(o); if (!o) setBankRefApp(null); }}
         defaultValue={(bankRefApp as any)?.bank_reference || ''}
-        onConfirm={async (reference) => {
+        showFAndIAssignment
+        defaultFAndIId={(bankRefApp as any)?.assigned_f_and_i || null}
+        onConfirm={async (reference, fniId) => {
           if (!bankRefApp) return;
           try {
-            await updateApplication.mutateAsync({
-              id: bankRefApp.id,
-              updates: { status: bankRefTargetStatus, bank_reference: reference },
-            });
+            const updates: any = { status: bankRefTargetStatus, bank_reference: reference };
+            // Honor explicit manual assignment from the popup. `null` => unassign.
+            if (fniId !== undefined) {
+              updates.assigned_f_and_i = fniId;
+              updates.assigned_f_and_i_at = fniId ? new Date().toISOString() : null;
+            }
+            await updateApplication.mutateAsync({ id: bankRefApp.id, updates });
           } catch (err) {
             // error toast handled by hook
           }
         }}
       />
+
+      <CreditCheckReportModal open={creditReportOpen} onOpenChange={setCreditReportOpen} />
     </AdminLayout>
   );
 };
