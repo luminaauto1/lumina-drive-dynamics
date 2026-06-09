@@ -1131,10 +1131,11 @@ const AdminFinance = () => {
                                   .from('finance_applications')
                                   .update({
                                     notes: merged,
-                                    ...((role === 'f_and_i' || role === 'senior_f_and_i') && actingUser?.id ? {
+                                    ...(role === 'f_and_i' && actingUser?.id ? {
                                       assigned_f_and_i: actingUser.id,
                                       assigned_f_and_i_at: new Date().toISOString(),
                                     } : {}),
+
                                   })
                                   .eq('id', app.id);
                                 await supabase.from('client_audit_logs').insert([{
