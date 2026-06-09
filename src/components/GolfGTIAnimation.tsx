@@ -47,8 +47,8 @@ const GolfGTIAnimation = () => {
   }, []);
 
   return (
-    <div ref={wrapperRef} className="relative h-[180vh] bg-background">
-      <div className="sticky top-0 h-screen w-screen overflow-hidden -mx-[calc((100vw-100%)/2)]">
+    <div ref={wrapperRef} className="relative h-[180vh] bg-background w-screen left-1/2 -translate-x-1/2">
+      <div className="sticky top-0 h-screen w-full overflow-hidden">
         <video
           ref={videoRef}
           src={videoAsset.url}
