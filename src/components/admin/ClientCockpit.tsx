@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react';
-import { Phone, Copy, Check, Car, Wallet, CalendarClock, AlertOctagon, Mail, MessageCircle } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { Phone, Copy, Check, Car, Wallet, CalendarClock, AlertOctagon, Mail, MessageCircle, ImageIcon, ExternalLink } from 'lucide-react';
+
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Checkbox } from '@/components/ui/checkbox';
