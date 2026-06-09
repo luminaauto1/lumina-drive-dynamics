@@ -436,7 +436,8 @@ const AdminFinance = () => {
 
         {/* Status Counter Strip — F&I sees finance pipeline; Admin/Sales see internal-note overview */}
         {(() => {
-          const isFAndIRole = (role === 'f_and_i' || role === 'senior_f_and_i');
+          // Admins see the full F&I pipeline view as well (parity — admin has access to all features).
+          const isFAndIRole = (role === 'f_and_i' || role === 'senior_f_and_i' || role === 'super_admin');
 
           // F&I-relevant pipeline statuses (workflow stages F&I owns)
           const FNI_PIPELINE: { key: string; label: string; color: string }[] = [
@@ -1598,12 +1599,19 @@ const AdminFinance = () => {
         open={editBankRefOpen}
         onOpenChange={(o) => { setEditBankRefOpen(o); if (!o) setEditBankRefApp(null); }}
         defaultValue={(editBankRefApp as any)?.bank_reference || ''}
-        onConfirm={async (reference) => {
+        showFAndIAssignment
+        defaultFAndIId={(editBankRefApp as any)?.assigned_f_and_i || null}
+        onConfirm={async (reference, fniId) => {
           if (!editBankRefApp) return;
           try {
+            const updates: any = { bank_reference: reference };
+            if (fniId !== undefined) {
+              updates.assigned_f_and_i = fniId;
+              updates.assigned_f_and_i_at = fniId ? new Date().toISOString() : null;
+            }
             await updateApplication.mutateAsync({
               id: editBankRefApp.id,
-              updates: { bank_reference: reference },
+              updates,
             });
             refetch();
           } catch (err) {
