@@ -715,21 +715,23 @@ const AdminFinance = () => {
               ))}
             </SelectContent>
           </Select>
-          <Select value={fniFilter} onValueChange={setFniFilter}>
-            <SelectTrigger className="w-56">
-              <SelectValue placeholder="Filter by F&I" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Applications</SelectItem>
-              <SelectItem value="self">My Applications</SelectItem>
-              <SelectItem value="unassigned">Unassigned</SelectItem>
-              {fniUsers.map(u => (
-                <SelectItem key={u.id} value={u.id}>
-                  {u.name}{u.role === 'senior_f_and_i' ? ' (Senior)' : ''}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {role !== 'f_and_i' && (
+            <Select value={fniFilter} onValueChange={setFniFilter}>
+              <SelectTrigger className="w-56">
+                <SelectValue placeholder="Filter by F&I" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Applications</SelectItem>
+                <SelectItem value="self">My Applications</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {fniUsers.map(u => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.name}{u.role === 'senior_f_and_i' ? ' (Senior)' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </motion.div>
 
         {/* Stats */}
