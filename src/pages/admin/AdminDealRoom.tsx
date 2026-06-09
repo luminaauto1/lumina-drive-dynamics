@@ -1105,20 +1105,61 @@ const AdminDealRoom = () => {
                 </span>
               </div>
 
-              <Label className="text-sm text-muted-foreground mb-2 block">Change Status</Label>
-              <Select 
-                value={application.status} 
-                onValueChange={handleStatusChange}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {filterStatusOptionsForRole(STATUS_OPTIONS, role, application.status).map(opt => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-sm text-muted-foreground mb-2 block">Change Status</Label>
+                  <Select
+                    value={application.status}
+                    onValueChange={handleStatusChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filterStatusOptionsForRole(STATUS_OPTIONS, role, application.status).map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-sm text-muted-foreground mb-2 block">Credit Check</Label>
+                  <Select
+                    value={((application as any).credit_check_status || 'pending') as string}
+                    onValueChange={async (v) => {
+                      if (v === 'pending') {
+                        try {
+                          await updateApplication.mutateAsync({
+                            id: application.id,
+                            updates: { credit_check_status: 'pending' } as any,
+                          });
+                          setApplication(prev => prev ? ({ ...prev, credit_check_status: 'pending' } as any) : null);
+                        } catch (e) { /* hook toasts */ }
+                        return;
+                      }
+                      setCreditCheckOutcome(v as CreditCheckOutcome);
+                      setCreditCheckModalOpen(true);
+                    }}
+                  >
+                    <SelectTrigger
+                      className={
+                        (application as any).credit_check_status === 'passed'
+                          ? 'border-emerald-500/40 text-emerald-300'
+                          : (application as any).credit_check_status === 'failed'
+                            ? 'border-red-500/40 text-red-300'
+                            : ''
+                      }
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="passed">Passed</SelectItem>
+                      <SelectItem value="failed">Failed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
               {application.status === 'declined' && application.declined_reason && (
                 <Alert variant="destructive" className="mt-4 bg-red-500/10 border-red-500/30">
