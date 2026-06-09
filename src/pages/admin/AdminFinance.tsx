@@ -301,10 +301,11 @@ const AdminFinance = () => {
         attention_updated_at: new Date().toISOString(),
         notes: updatedNotes,
       };
-      if ((role === 'f_and_i' || role === 'senior_f_and_i') && actingUser?.id) {
+      if (role === 'f_and_i' && actingUser?.id) {
         updatePayload.assigned_f_and_i = actingUser.id;
         updatePayload.assigned_f_and_i_at = new Date().toISOString();
       }
+
       // 20-hour auto-reset enforcement: if the docs-contacted tick is older than
       // 20h, flush it back to false on the next save so the DB matches the UI.
       const dca = (pendingApp as any)?.docs_contacted_at;
@@ -1130,10 +1131,11 @@ const AdminFinance = () => {
                                   .from('finance_applications')
                                   .update({
                                     notes: merged,
-                                    ...((role === 'f_and_i' || role === 'senior_f_and_i') && actingUser?.id ? {
+                                    ...(role === 'f_and_i' && actingUser?.id ? {
                                       assigned_f_and_i: actingUser.id,
                                       assigned_f_and_i_at: new Date().toISOString(),
                                     } : {}),
+
                                   })
                                   .eq('id', app.id);
                                 await supabase.from('client_audit_logs').insert([{
@@ -1479,10 +1481,11 @@ const AdminFinance = () => {
                           .update({
                             internal_status: 'no_notes',
                             attention_updated_at: new Date().toISOString(),
-                            ...((role === 'f_and_i' || role === 'senior_f_and_i') && user?.id ? {
+                            ...(role === 'f_and_i' && user?.id ? {
                               assigned_f_and_i: user.id,
                               assigned_f_and_i_at: new Date().toISOString(),
                             } : {}),
+
                           })
                           .eq('id', pendingApp.id);
                         if (error) throw error;
@@ -1520,10 +1523,11 @@ const AdminFinance = () => {
                       status: targetStatus,
                       internal_status: 'no_notes',
                       attention_updated_at: new Date().toISOString(),
-                      ...(user?.id ? {
+                      ...(role === 'f_and_i' && user?.id ? {
                         assigned_f_and_i: user.id,
                         assigned_f_and_i_at: new Date().toISOString(),
                       } : {}),
+
                     })
                     .eq('id', pendingApp.id);
                   if (error) throw error;
