@@ -121,7 +121,7 @@ const AppLayout = () => {
           <Route path="/admin/referrals" element={<ProtectedRoute requireSuperAdmin><AdminReferrals /></ProtectedRoute>} />
           <Route path="/admin/juristic" element={<ProtectedRoute requireSuperAdmin><AdminJuristic /></ProtectedRoute>} />
           <Route path="/admin/clients/:id" element={<ProtectedRoute requireSuperAdmin><ClientProfile /></ProtectedRoute>} />
-          <Route path="/admin/crm-sheet" element={<ProtectedRoute requireAdmin><CRMSheet /></ProtectedRoute>} />
+          <Route path="/admin/crm-sheet" element={<ProtectedRoute requireAdmin blockStandardFAndI><CRMSheet /></ProtectedRoute>} />
           <Route path="/update-password" element={<UpdatePassword />} />
           <Route path="/system-fix" element={<ProtectedRoute requireSuperAdmin><SystemFix /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
