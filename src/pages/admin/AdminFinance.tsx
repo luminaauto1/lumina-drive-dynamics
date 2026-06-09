@@ -8,10 +8,11 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import { isToday } from 'date-fns';
-import { Search, MessageCircle, ExternalLink, Trash2, Archive, UserPlus, User, Copy, Link, ClipboardList, Banknote, Calculator, MailWarning, MessageSquare, Globe, FileText, Mail, FileX } from 'lucide-react';
+import { Search, MessageCircle, ExternalLink, Trash2, Archive, UserPlus, User, Copy, Link, ClipboardList, Banknote, Calculator, MailWarning, MessageSquare, Globe, FileText, Mail, FileX, BarChart3 } from 'lucide-react';
 import WhatsAppParserModal from '@/components/admin/WhatsAppParserModal';
 import BankReferenceModal from '@/components/admin/BankReferenceModal';
 import BankReferenceBadge from '@/components/admin/BankReferenceBadge';
+import CreditCheckReportModal from '@/components/admin/CreditCheckReportModal';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -78,6 +79,7 @@ const AdminFinance = () => {
   const [selectedAppForDelivery, setSelectedAppForDelivery] = useState<FinanceApplication | null>(null);
   const [cashDealModalOpen, setCashDealModalOpen] = useState(false);
   const [waModalOpen, setWaModalOpen] = useState(false);
+  const [creditReportOpen, setCreditReportOpen] = useState(false);
   // Role-restricted notification feed filter (super_admin + senior_f_and_i only).
   // 'auto' = role-default behavior. 'f_and_i' or 'admin' = forced view.
   const [notificationFilter, setNotificationFilter] = useState<'admin' | 'senior' | 'f_and_i'>('admin');
@@ -408,6 +410,10 @@ const AdminFinance = () => {
             <Button variant="outline" onClick={copyInfoRequestTemplate} className="w-fit">
               <Copy className="w-4 h-4 mr-2" />
               Copy Info Request
+            </Button>
+            <Button variant="outline" onClick={() => setCreditReportOpen(true)} className="w-fit">
+              <BarChart3 className="w-4 h-4 mr-2 text-amber-400" />
+              Credit Report
             </Button>
             <Button variant="outline" onClick={() => setCashDealModalOpen(true)} className="w-fit">
               <Banknote className="w-4 h-4 mr-2" />
@@ -1610,18 +1616,25 @@ const AdminFinance = () => {
         open={bankRefModalOpen}
         onOpenChange={(o) => { setBankRefModalOpen(o); if (!o) setBankRefApp(null); }}
         defaultValue={(bankRefApp as any)?.bank_reference || ''}
-        onConfirm={async (reference) => {
+        showFAndIAssignment
+        defaultFAndIId={(bankRefApp as any)?.assigned_f_and_i || null}
+        onConfirm={async (reference, fniId) => {
           if (!bankRefApp) return;
           try {
-            await updateApplication.mutateAsync({
-              id: bankRefApp.id,
-              updates: { status: bankRefTargetStatus, bank_reference: reference },
-            });
+            const updates: any = { status: bankRefTargetStatus, bank_reference: reference };
+            // Honor explicit manual assignment from the popup. `null` => unassign.
+            if (fniId !== undefined) {
+              updates.assigned_f_and_i = fniId;
+              updates.assigned_f_and_i_at = fniId ? new Date().toISOString() : null;
+            }
+            await updateApplication.mutateAsync({ id: bankRefApp.id, updates });
           } catch (err) {
             // error toast handled by hook
           }
         }}
       />
+
+      <CreditCheckReportModal open={creditReportOpen} onOpenChange={setCreditReportOpen} />
     </AdminLayout>
   );
 };

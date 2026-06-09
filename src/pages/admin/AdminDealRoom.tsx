@@ -16,6 +16,7 @@ import ClientDocumentViewer from '@/components/admin/ClientDocumentViewer';
 import ContractSentModal from '@/components/admin/ContractSentModal';
 import BankReferenceModal from '@/components/admin/BankReferenceModal';
 import BankReferenceBadge from '@/components/admin/BankReferenceBadge';
+import CreditCheckResultModal, { type CreditCheckOutcome } from '@/components/admin/CreditCheckResultModal';
 import ClientCockpit from '@/components/admin/ClientCockpit';
 import ClientCallTimeline from '@/components/admin/ClientCallTimeline';
 import { Button } from '@/components/ui/button';
@@ -60,6 +61,8 @@ const AdminDealRoom = () => {
   const [contractSentModalOpen, setContractSentModalOpen] = useState(false);
   const [bankRefModalOpen, setBankRefModalOpen] = useState(false);
   const [editBankRefOpen, setEditBankRefOpen] = useState(false);
+  const [creditCheckModalOpen, setCreditCheckModalOpen] = useState(false);
+  const [creditCheckOutcome, setCreditCheckOutcome] = useState<CreditCheckOutcome>('passed');
 
   const { data: vehicles = [], refetch: refetchVehicles } = useVehicles();
   const { data: matches = [], isLoading: matchesLoading, refetch: refetchMatches } = useApplicationMatches(id || '');
@@ -1102,20 +1105,61 @@ const AdminDealRoom = () => {
                 </span>
               </div>
 
-              <Label className="text-sm text-muted-foreground mb-2 block">Change Status</Label>
-              <Select 
-                value={application.status} 
-                onValueChange={handleStatusChange}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {filterStatusOptionsForRole(STATUS_OPTIONS, role, application.status).map(opt => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-sm text-muted-foreground mb-2 block">Change Status</Label>
+                  <Select
+                    value={application.status}
+                    onValueChange={handleStatusChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filterStatusOptionsForRole(STATUS_OPTIONS, role, application.status).map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-sm text-muted-foreground mb-2 block">Credit Check</Label>
+                  <Select
+                    value={((application as any).credit_check_status || 'pending') as string}
+                    onValueChange={async (v) => {
+                      if (v === 'pending') {
+                        try {
+                          await updateApplication.mutateAsync({
+                            id: application.id,
+                            updates: { credit_check_status: 'pending' } as any,
+                          });
+                          setApplication(prev => prev ? ({ ...prev, credit_check_status: 'pending' } as any) : null);
+                        } catch (e) { /* hook toasts */ }
+                        return;
+                      }
+                      setCreditCheckOutcome(v as CreditCheckOutcome);
+                      setCreditCheckModalOpen(true);
+                    }}
+                  >
+                    <SelectTrigger
+                      className={
+                        (application as any).credit_check_status === 'passed'
+                          ? 'border-emerald-500/40 text-emerald-300'
+                          : (application as any).credit_check_status === 'failed'
+                            ? 'border-red-500/40 text-red-300'
+                            : ''
+                      }
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="passed">Passed</SelectItem>
+                      <SelectItem value="failed">Failed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
               {application.status === 'declined' && application.declined_reason && (
                 <Alert variant="destructive" className="mt-4 bg-red-500/10 border-red-500/30">
@@ -1530,14 +1574,18 @@ const AdminDealRoom = () => {
         open={bankRefModalOpen}
         onOpenChange={setBankRefModalOpen}
         defaultValue={(application as any)?.bank_reference || ''}
-        onConfirm={async (reference) => {
+        showFAndIAssignment
+        defaultFAndIId={(application as any)?.assigned_f_and_i || null}
+        onConfirm={async (reference, fniId) => {
           if (!application) return;
           try {
-            await updateApplication.mutateAsync({
-              id: application.id,
-              updates: { status: 'application_submitted', bank_reference: reference },
-            });
-            setApplication(prev => prev ? ({ ...prev, status: 'application_submitted', bank_reference: reference } as any) : null);
+            const updates: any = { status: 'application_submitted', bank_reference: reference };
+            if (fniId !== undefined) {
+              updates.assigned_f_and_i = fniId;
+              updates.assigned_f_and_i_at = fniId ? new Date().toISOString() : null;
+            }
+            await updateApplication.mutateAsync({ id: application.id, updates });
+            setApplication(prev => prev ? ({ ...prev, ...updates } as any) : null);
             const vehicleName = activeVehicle
               ? `${activeVehicle.year} ${activeVehicle.make} ${activeVehicle.model}`
               : undefined;
@@ -1574,6 +1622,18 @@ const AdminDealRoom = () => {
             console.error('Bank ref update failed:', err);
             toast.error('Failed to update bank reference');
           }
+        }}
+      />
+
+      {/* Credit Check Pass/Fail Modal */}
+      <CreditCheckResultModal
+        open={creditCheckModalOpen}
+        onOpenChange={setCreditCheckModalOpen}
+        outcome={creditCheckOutcome}
+        applicationId={application.id}
+        onSaved={(u) => {
+          setApplication(prev => prev ? ({ ...prev, ...u } as any) : null);
+          queryClient.invalidateQueries({ queryKey: ['finance-applications'] });
         }}
       />
     </AdminLayout>
