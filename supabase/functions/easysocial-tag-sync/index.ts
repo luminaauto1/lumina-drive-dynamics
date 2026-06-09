@@ -20,6 +20,10 @@ const ES_BASE = 'https://client-api.e-so.in';
 const ES_TAGS_ENDPOINT = `${ES_BASE}/engage/v1/tags`;
 const ES_LEAD_UPDATE = (phone: string) => `${ES_BASE}/api/v1/leads/${phone}/update`;
 
+// Internal staff numbers may receive operational WhatsApp alerts, but must never
+// be treated as finance applicants for CRM pipeline tag updates.
+const STAFF_NUMBER_DENYLIST = new Set(['27836117792', '27716196071']);
+
 // Permanent tags that must NEVER be removed (traffic sources, ops markers).
 const SAFE_TAG_NAMES = [
   'TikTok Ads Lead',
@@ -217,6 +221,13 @@ Deno.serve(async (req) => {
     console.warn('[tag-sync] rejecting: missing phone or status');
     return new Response(JSON.stringify({ error: 'missing or invalid phone_number / new_status' }), {
       status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  if (STAFF_NUMBER_DENYLIST.has(phone)) {
+    console.warn('[tag-sync] staff number blocked from tag mutation', { phone, newStatus });
+    return new Response(JSON.stringify({ ok: true, skipped: 'staff_number_blocked', phone, status: newStatus }), {
+      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
