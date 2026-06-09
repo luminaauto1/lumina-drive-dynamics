@@ -13,6 +13,7 @@ import WhatsAppParserModal from '@/components/admin/WhatsAppParserModal';
 import BankReferenceModal from '@/components/admin/BankReferenceModal';
 import BankReferenceBadge from '@/components/admin/BankReferenceBadge';
 import CreditCheckReportModal from '@/components/admin/CreditCheckReportModal';
+import CreditCheckResultModal, { type CreditCheckOutcome } from '@/components/admin/CreditCheckResultModal';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
