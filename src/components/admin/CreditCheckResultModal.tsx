@@ -21,6 +21,7 @@ interface Props {
 
 const PASS_OPTIONS = [
   { value: 'declined', label: 'Declined' },
+  { value: 'declined_conditional', label: 'Conditionally Declined' },
   { value: 'pre_approved', label: 'Pre-Approved' },
 ];
 const FAIL_OPTIONS = [
