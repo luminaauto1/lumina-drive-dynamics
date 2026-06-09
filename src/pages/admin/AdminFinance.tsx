@@ -73,9 +73,15 @@ Please also send clear photos/PDFs of:
 const AdminFinance = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { isSuperAdmin, role, user } = useAuth();
+  const { isSuperAdmin, isSeniorFAndI, isFAndI, role, user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  // F&I owner filter. 'mine' = unassigned + mine (default for admin/senior).
+  // 'all' = every app. 'unassigned' = no owner. Any UUID = that specific F&I.
+  // Normal f_and_i users are forced to 'self' (only their own assignments).
+  const canPickFniFilter = isSuperAdmin || isSeniorFAndI;
+  const [fniFilter, setFniFilter] = useState<string>(canPickFniFilter ? 'mine' : 'self');
+  const { data: fniUsers = [] } = useFAndIUsers();
   const [viewMode, setViewMode] = useState<'active' | 'archived'>('active');
   const [deliveryModalOpen, setDeliveryModalOpen] = useState(false);
   const [selectedAppForDelivery, setSelectedAppForDelivery] = useState<FinanceApplication | null>(null);
