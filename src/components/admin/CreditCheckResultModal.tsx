@@ -105,17 +105,24 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
 
       // Build updated notes with prepended audit entry for conditional decline comment
       let updatedNotes: string | undefined;
+      // Fetch current notes + first-checked timestamp in one go.
+      const { data: existing } = await supabase
+        .from('finance_applications')
+        .select('notes, credit_check_first_checked_at')
+        .eq('id', applicationId)
+        .maybeSingle();
+
       if (mainStatus === 'declined_conditional') {
-        const { data: existing } = await supabase
-          .from('finance_applications')
-          .select('notes')
-          .eq('id', applicationId)
-          .maybeSingle();
         const ts = new Date().toLocaleString('en-ZA', { hour12: false });
         const entry = `[${ts}] CONDITIONAL DECLINE (F&I): ${conditionalComment.trim()}`;
         updatedNotes = existing?.notes ? `${entry}\n\n${existing.notes}` : entry;
       }
 
+      // Stamp first-check time exactly once per application — toggling passed↔failed never changes it,
+      // so the Credit Check Report counts each app a single time regardless of subsequent edits.
+      const firstCheckedAt = (existing as any)?.credit_check_first_checked_at
+        ? null
+        : new Date().toISOString();
 
       // Route through the central mutation so ALL status-driven side effects fire:
       // auto-mailer template, notify-pre-approval-internal / notify-declined /
@@ -127,7 +134,8 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
           status: mainStatus,
           status_screenshot_url: path,
           ...(updatedNotes !== undefined ? { notes: updatedNotes } : {}),
-        },
+          ...(firstCheckedAt ? { credit_check_first_checked_at: firstCheckedAt } : {}),
+        } as any,
       });
 
       toast.success(`Credit check ${outcome === 'passed' ? 'passed' : 'failed'} recorded`);
