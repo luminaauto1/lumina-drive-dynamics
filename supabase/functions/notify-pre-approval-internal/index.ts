@@ -36,7 +36,7 @@ serve(async (req) => {
 
     // Parallel execution to prevent sequential blocking
     const dispatchPromises = STAFF_NUMBERS.map(async (phone) => {
-      const apiUrl = `https://api.easysocial.in/api/v1/wa-templates/send/${CAMPAIGN_ID}/${TEMPLATE_ID}/${ACCOUNT_ID}/API/${phone}?body1=${b1}&body2=${encodeURIComponent(phoneForBody)}`;
+      const apiUrl = `https://api.easysocial.in/api/v1/wa-templates/send/${CAMPAIGN_ID}/${TEMPLATE_ID}/${ACCOUNT_ID}/API/${phone}?body1=${b1}&body2=${b2}&body3=${b3}&body4=${b4}`;
       try {
         const resp = await fetch(apiUrl, { headers: { Accept: "application/json" } });
         const raw = await resp.text();
