@@ -1449,7 +1449,9 @@ const AdminFinance = () => {
                   {(pendingApp as any)?.bank_reference && (
                     <BankReferenceBadge
                       reference={(pendingApp as any).bank_reference}
-                      onEdit={() => { setEditBankRefApp(pendingApp); setEditBankRefOpen(true); }}
+                      onEdit={(role === 'super_admin' || role === 'senior_f_and_i')
+                        ? () => { setEditBankRefApp(pendingApp); setEditBankRefOpen(true); }
+                        : undefined}
                     />
                   )}
                   {pendingApp?.id && (
