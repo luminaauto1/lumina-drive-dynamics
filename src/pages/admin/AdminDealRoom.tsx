@@ -16,6 +16,7 @@ import ClientDocumentViewer from '@/components/admin/ClientDocumentViewer';
 import ContractSentModal from '@/components/admin/ContractSentModal';
 import BankReferenceModal from '@/components/admin/BankReferenceModal';
 import BankReferenceBadge from '@/components/admin/BankReferenceBadge';
+import CreditCheckResultModal, { type CreditCheckOutcome } from '@/components/admin/CreditCheckResultModal';
 import ClientCockpit from '@/components/admin/ClientCockpit';
 import ClientCallTimeline from '@/components/admin/ClientCallTimeline';
 import { Button } from '@/components/ui/button';
