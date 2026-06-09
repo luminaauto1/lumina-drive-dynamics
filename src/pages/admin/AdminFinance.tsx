@@ -76,11 +76,11 @@ const AdminFinance = () => {
   const { isSuperAdmin, isSeniorFAndI, isFAndI, role, user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  // F&I owner filter. 'mine' = unassigned + mine (default for admin/senior).
-  // 'all' = every app. 'unassigned' = no owner. Any UUID = that specific F&I.
-  // Normal f_and_i users are forced to 'self' (only their own assignments).
-  const canPickFniFilter = isSuperAdmin || isSeniorFAndI;
-  const [fniFilter, setFniFilter] = useState<string>(canPickFniFilter ? 'mine' : 'self');
+  // F&I owner filter. Everyone can change it.
+  // Defaults: admin/senior → 'all'; normal F&I → 'self' (their own apps).
+  // Values: 'all' | 'self' | 'unassigned' | <fni user uuid>
+  const defaultFniFilter = (isSuperAdmin || isSeniorFAndI) ? 'all' : 'self';
+  const [fniFilter, setFniFilter] = useState<string>(defaultFniFilter);
   const { data: fniUsers = [] } = useFAndIUsers();
   const [viewMode, setViewMode] = useState<'active' | 'archived'>('active');
   const [deliveryModalOpen, setDeliveryModalOpen] = useState(false);
