@@ -5,7 +5,7 @@ export interface FAndIUser {
   id: string;
   name: string;
   email: string | null;
-  role: 'f_and_i';
+  role: 'f_and_i' | 'senior_f_and_i';
 }
 
 /**
