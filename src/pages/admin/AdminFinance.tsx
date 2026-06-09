@@ -1610,13 +1610,17 @@ const AdminFinance = () => {
         open={bankRefModalOpen}
         onOpenChange={(o) => { setBankRefModalOpen(o); if (!o) setBankRefApp(null); }}
         defaultValue={(bankRefApp as any)?.bank_reference || ''}
-        onConfirm={async (reference) => {
+        requireFni
+        defaultFniId={(bankRefApp as any)?.assigned_f_and_i || null}
+        onConfirm={async (reference, assignedFniId) => {
           if (!bankRefApp) return;
           try {
-            await updateApplication.mutateAsync({
-              id: bankRefApp.id,
-              updates: { status: bankRefTargetStatus, bank_reference: reference },
-            });
+            const updates: any = { status: bankRefTargetStatus, bank_reference: reference };
+            if (assignedFniId) {
+              updates.assigned_f_and_i = assignedFniId;
+              updates.assigned_f_and_i_at = new Date().toISOString();
+            }
+            await updateApplication.mutateAsync({ id: bankRefApp.id, updates });
           } catch (err) {
             // error toast handled by hook
           }
