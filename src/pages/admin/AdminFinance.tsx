@@ -33,6 +33,7 @@ import { getUploadLink } from '@/lib/appConfig';
 import DeliveryChecklistModal from '@/components/admin/DeliveryChecklistModal';
 import QuickCashDealModal from '@/components/admin/QuickCashDealModal';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFAndIUsers } from '@/hooks/useFAndIUsers';
 const FINANCE_INFO_REQUEST_TEMPLATE = `*Lumina Auto | Finance Application Request*
 
 Hi, to assist you with your finance application manually, please reply with the following details:
@@ -72,9 +73,15 @@ Please also send clear photos/PDFs of:
 const AdminFinance = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { isSuperAdmin, role, user } = useAuth();
+  const { isSuperAdmin, isSeniorFAndI, isFAndI, role, user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  // F&I owner filter. 'mine' = unassigned + mine (default for admin/senior).
+  // 'all' = every app. 'unassigned' = no owner. Any UUID = that specific F&I.
+  // Normal f_and_i users are forced to 'self' (only their own assignments).
+  const canPickFniFilter = isSuperAdmin || isSeniorFAndI;
+  const [fniFilter, setFniFilter] = useState<string>(canPickFniFilter ? 'mine' : 'self');
+  const { data: fniUsers = [] } = useFAndIUsers();
   const [viewMode, setViewMode] = useState<'active' | 'archived'>('active');
   const [deliveryModalOpen, setDeliveryModalOpen] = useState(false);
   const [selectedAppForDelivery, setSelectedAppForDelivery] = useState<FinanceApplication | null>(null);
@@ -202,7 +209,25 @@ const AdminFinance = () => {
       (app as any).bank_reference?.toLowerCase().includes(searchLower);
     
     const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
-    
+
+    // F&I ownership filter
+    const owner = (app as any).assigned_f_and_i as string | null | undefined;
+    let matchesFni = true;
+    if (isFAndI && !isSeniorFAndI) {
+      // Normal F&I: only their own
+      matchesFni = owner === user?.id;
+    } else if (fniFilter === 'mine') {
+      matchesFni = !owner || owner === user?.id;
+    } else if (fniFilter === 'unassigned') {
+      matchesFni = !owner;
+    } else if (fniFilter === 'all') {
+      matchesFni = true;
+    } else if (fniFilter && fniFilter !== 'self') {
+      matchesFni = owner === fniFilter;
+    } else if (fniFilter === 'self') {
+      matchesFni = owner === user?.id;
+    }
+
     // Filter by active/archived. For F&I, terminal success statuses and 'archived'
     // go to the Archive tab. Declined/Blacklisted stay in Active. All other roles
     // keep the legacy auto-archive behaviour.
@@ -217,7 +242,7 @@ const AdminFinance = () => {
     }
     const matchesViewMode = viewMode === 'archived' ? isArchived : !isArchived;
 
-    return matchesSearch && matchesStatus && matchesViewMode;
+    return matchesSearch && matchesStatus && matchesFni && matchesViewMode;
   });
 
   const handleStatusDropdownChange = (app: any, newStatus: string) => {
@@ -693,6 +718,23 @@ const AdminFinance = () => {
               ))}
             </SelectContent>
           </Select>
+          {canPickFniFilter && (
+            <Select value={fniFilter} onValueChange={setFniFilter}>
+              <SelectTrigger className="w-56">
+                <SelectValue placeholder="Filter by F&I" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mine">My Queue (Unassigned + Mine)</SelectItem>
+                <SelectItem value="all">All Applications</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {fniUsers.map(u => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.name}{u.role === 'senior_f_and_i' ? ' (Senior)' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </motion.div>
 
         {/* Stats */}
