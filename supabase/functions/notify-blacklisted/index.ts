@@ -24,8 +24,8 @@ serve(async (req) => {
 
     const firstName = String(client_name).trim().split(/\s+/)[0] || "Client";
 
-    // Updated EasySocial blacklisted template route (2026-06-09).
-    const documentedToken = "cmq6s2jnf1px2hfxp6tah7s03";
+    // Mirror notify-app-submitted's request format/security, but use the blacklisted template route.
+    const documentedToken = "cmot25o7s6fg2awxpduliagep";
     const envToken = Deno.env.get("EASYSOCIAL_API_KEY")?.trim();
     const tokens = [...new Set([documentedToken, envToken].filter(Boolean))];
 
@@ -34,7 +34,7 @@ serve(async (req) => {
     let dispatchedUrl = "";
 
     for (const token of tokens) {
-      const apiUrl = `https://api.easysocial.in/api/v1/wa-templates/send/${token}/20059/4026/API/${sanitizedPhone}?body1=${encodeURIComponent(firstName)}`;
+      const apiUrl = `https://api.easysocial.in/api/v1/wa-templates/send/${token}/19097/4026/API/${sanitizedPhone}?body1=${encodeURIComponent(firstName)}`;
       dispatchedUrl = apiUrl;
       console.log("Dispatching to EasySocial (blacklisted):", apiUrl);
 
