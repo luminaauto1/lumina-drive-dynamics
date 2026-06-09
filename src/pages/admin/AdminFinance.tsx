@@ -125,6 +125,8 @@ const AdminFinance = () => {
   const [bankRefModalOpen, setBankRefModalOpen] = useState(false);
   const [bankRefApp, setBankRefApp] = useState<FinanceApplication | null>(null);
   const [bankRefTargetStatus, setBankRefTargetStatus] = useState<string>('application_submitted');
+  const [editBankRefApp, setEditBankRefApp] = useState<FinanceApplication | null>(null);
+  const [editBankRefOpen, setEditBankRefOpen] = useState(false);
 
   // Action Feed → row scroll/highlight
   const [highlightedAppId, setHighlightedAppId] = useState<string | null>(null);
@@ -851,7 +853,10 @@ const AdminFinance = () => {
                         >
                           <p className="font-medium flex items-center gap-2 flex-wrap">
                             {(app as any).bank_reference && (
-                              <BankReferenceBadge reference={(app as any).bank_reference} />
+                              <BankReferenceBadge
+                                reference={(app as any).bank_reference}
+                                onEdit={() => { setEditBankRefApp(app); setEditBankRefOpen(true); }}
+                              />
                             )}
                             <span>{app.first_name} {app.last_name}</span>
                             {(() => {
@@ -1336,7 +1341,10 @@ const AdminFinance = () => {
                 )}
                 <div className="flex items-center gap-2 self-center">
                   {(pendingApp as any)?.bank_reference && (
-                    <BankReferenceBadge reference={(pendingApp as any).bank_reference} />
+                    <BankReferenceBadge
+                      reference={(pendingApp as any).bank_reference}
+                      onEdit={() => { setEditBankRefApp(pendingApp); setEditBankRefOpen(true); }}
+                    />
                   )}
                   {pendingApp?.id && (
                     <button
@@ -1579,6 +1587,24 @@ const AdminFinance = () => {
         clientPhone={selectedPhone}
       />
       <WhatsAppParserModal open={waModalOpen} onOpenChange={setWaModalOpen} />
+
+      <BankReferenceModal
+        open={editBankRefOpen}
+        onOpenChange={(o) => { setEditBankRefOpen(o); if (!o) setEditBankRefApp(null); }}
+        defaultValue={(editBankRefApp as any)?.bank_reference || ''}
+        onConfirm={async (reference) => {
+          if (!editBankRefApp) return;
+          try {
+            await updateApplication.mutateAsync({
+              id: editBankRefApp.id,
+              updates: { bank_reference: reference },
+            });
+            refetch();
+          } catch (err) {
+            // error toast handled by hook
+          }
+        }}
+      />
 
       <BankReferenceModal
         open={bankRefModalOpen}
