@@ -96,11 +96,12 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
       if (upErr) throw upErr;
 
       // Read current app first so we know if status actually changes + have payload for WA dispatch.
-      const { data: currentApp } = await supabase
+      const { data: currentAppData } = await supabase
         .from('finance_applications')
-        .select('id, first_name, last_name, full_name, phone, status, bank_reference_code, notes')
+        .select('*')
         .eq('id', applicationId)
         .maybeSingle();
+      const currentApp = currentAppData as any;
 
       // Private bucket — store the storage path; signed URLs are minted on read.
       const { error: dbErr } = await supabase
