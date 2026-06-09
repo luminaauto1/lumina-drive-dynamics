@@ -13,6 +13,7 @@ import WhatsAppParserModal from '@/components/admin/WhatsAppParserModal';
 import BankReferenceModal from '@/components/admin/BankReferenceModal';
 import BankReferenceBadge from '@/components/admin/BankReferenceBadge';
 import CreditCheckReportModal from '@/components/admin/CreditCheckReportModal';
+import CreditCheckResultModal, { type CreditCheckOutcome } from '@/components/admin/CreditCheckResultModal';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -80,6 +81,9 @@ const AdminFinance = () => {
   const [cashDealModalOpen, setCashDealModalOpen] = useState(false);
   const [waModalOpen, setWaModalOpen] = useState(false);
   const [creditReportOpen, setCreditReportOpen] = useState(false);
+  const [creditCheckOpen, setCreditCheckOpen] = useState(false);
+  const [creditCheckApp, setCreditCheckApp] = useState<FinanceApplication | null>(null);
+  const [creditCheckOutcome, setCreditCheckOutcome] = useState<CreditCheckOutcome>('passed');
   // Role-restricted notification feed filter (super_admin + senior_f_and_i only).
   // 'auto' = role-default behavior. 'f_and_i' or 'admin' = forced view.
   const [notificationFilter, setNotificationFilter] = useState<'admin' | 'senior' | 'f_and_i'>('admin');
@@ -806,6 +810,7 @@ const AdminFinance = () => {
                   <TableHead className="text-muted-foreground">Mobile</TableHead>
                   <TableHead className="text-muted-foreground">Net Salary</TableHead>
                   <TableHead className="text-muted-foreground">Status</TableHead>
+                  <TableHead className="text-muted-foreground">Credit Check</TableHead>
                   <TableHead className="text-muted-foreground">Internal</TableHead>
                   <TableHead className="text-muted-foreground">Date</TableHead>
                   <TableHead className="text-muted-foreground text-right">Actions</TableHead>
@@ -1113,8 +1118,37 @@ const AdminFinance = () => {
                           ))}
                         </SelectContent>
                       </Select>
-                    </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
+                     </TableCell>
+                     <TableCell onClick={(e) => e.stopPropagation()}>
+                       {(() => {
+                         const cc = (app as any).credit_check_status as 'passed' | 'failed' | null | undefined;
+                         const ccStyle =
+                           cc === 'passed'
+                             ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                             : cc === 'failed'
+                               ? 'bg-red-500/10 text-red-400 border-red-500/30'
+                               : 'bg-zinc-900 text-zinc-400 border-white/10';
+                         return (
+                           <Select
+                             value={cc || ''}
+                             onValueChange={(v) => {
+                               setCreditCheckApp(app);
+                               setCreditCheckOutcome(v as CreditCheckOutcome);
+                               setCreditCheckOpen(true);
+                             }}
+                           >
+                             <SelectTrigger className={`w-[130px] h-7 text-xs uppercase tracking-wider border ${ccStyle}`}>
+                               <SelectValue placeholder="Not Run" />
+                             </SelectTrigger>
+                             <SelectContent>
+                               <SelectItem value="passed" className="text-xs">Passed</SelectItem>
+                               <SelectItem value="failed" className="text-xs">Failed</SelectItem>
+                             </SelectContent>
+                           </Select>
+                         );
+                       })()}
+                     </TableCell>
+                     <TableCell onClick={(e) => e.stopPropagation()}>
                        {(() => {
                          const safeStatusKey = getDisplayStatus(app);
                          const statusConfig = INTERNAL_STATUSES[safeStatusKey as keyof typeof INTERNAL_STATUSES] || INTERNAL_STATUSES.no_notes;
@@ -1643,6 +1677,15 @@ const AdminFinance = () => {
       />
 
       <CreditCheckReportModal open={creditReportOpen} onOpenChange={setCreditReportOpen} />
+
+      {creditCheckApp && (
+        <CreditCheckResultModal
+          open={creditCheckOpen}
+          onOpenChange={(o) => { setCreditCheckOpen(o); if (!o) setCreditCheckApp(null); }}
+          outcome={creditCheckOutcome}
+          applicationId={creditCheckApp.id}
+        />
+      )}
     </AdminLayout>
   );
 };
