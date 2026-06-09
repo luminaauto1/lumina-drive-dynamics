@@ -13,6 +13,8 @@ const GolfGTIAnimation = () => {
     const sticky = stickyRef.current;
     if (!video || !wrapper || !sticky) return;
 
+    let isVisible = false;
+
     const update = () => {
       rafRef.current = null;
       const duration = video.duration;
@@ -29,10 +31,26 @@ const GolfGTIAnimation = () => {
     };
 
     const onScroll = () => {
+      if (!isVisible) return;
       if (rafRef.current == null) {
         rafRef.current = requestAnimationFrame(update);
       }
     };
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          isVisible = entry.isIntersecting;
+          if (isVisible) {
+            // Upgrade preload once approaching viewport
+            if (video.preload !== 'auto') video.preload = 'auto';
+            update();
+          }
+        }
+      },
+      { rootMargin: '200px 0px' }
+    );
+    io.observe(wrapper);
 
     const onReady = () => update();
     if (video.readyState >= 1) onReady();
@@ -42,6 +60,7 @@ const GolfGTIAnimation = () => {
     window.addEventListener('resize', onScroll);
 
     return () => {
+      io.disconnect();
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
       video.removeEventListener('loadedmetadata', onReady);
@@ -50,17 +69,21 @@ const GolfGTIAnimation = () => {
   }, []);
 
   return (
-    <div ref={wrapperRef} className="relative h-[70vh] bg-background w-screen left-1/2 -translate-x-1/2">
+    <div
+      ref={wrapperRef}
+      className="relative bg-background w-screen left-1/2 -translate-x-1/2"
+      style={{ height: 'calc(56.25vw + 40vh)' }}
+    >
       <div
         ref={stickyRef}
-        className="sticky top-16 md:top-0 h-[50vh] sm:h-[60vh] md:h-screen w-full overflow-hidden"
+        className="sticky top-16 md:top-0 w-full aspect-video md:h-screen md:aspect-auto overflow-hidden"
       >
         <video
           ref={videoRef}
           src={videoAsset.url}
           muted
           playsInline
-          preload="auto"
+          preload="metadata"
           disablePictureInPicture
           className="w-full h-full object-contain md:object-cover bg-background"
         />
