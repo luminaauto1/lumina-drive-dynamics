@@ -19,7 +19,7 @@ export const useFAndIUsers = () => {
       const { data: roles, error } = await supabase
         .from('user_roles')
         .select('user_id, role')
-        .in('role', ['f_and_i', 'senior_f_and_i'] as any);
+        .eq('role', 'f_and_i');
       if (error) throw error;
       const ids = Array.from(new Set((roles || []).map((r: any) => r.user_id)));
       if (!ids.length) return [];
