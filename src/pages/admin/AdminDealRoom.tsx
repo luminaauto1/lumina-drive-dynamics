@@ -17,6 +17,7 @@ import ContractSentModal from '@/components/admin/ContractSentModal';
 import BankReferenceModal from '@/components/admin/BankReferenceModal';
 import BankReferenceBadge from '@/components/admin/BankReferenceBadge';
 import ClientCockpit from '@/components/admin/ClientCockpit';
+import CreditCheckPanel from '@/components/admin/CreditCheckPanel';
 import ClientCallTimeline from '@/components/admin/ClientCallTimeline';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -914,6 +915,15 @@ const AdminDealRoom = () => {
           onChange={(patch) => setApplication((prev) => (prev ? ({ ...prev, ...patch } as any) : prev))}
         />
 
+        {/* Credit Check workflow (pre bank-submission only) */}
+        <CreditCheckPanel
+          applicationId={application.id}
+          status={application.status}
+          creditCheckStatus={(application as any).credit_check_status}
+          statusScreenshotUrl={(application as any).status_screenshot_url}
+          onUpdated={(patch) => setApplication((prev) => (prev ? ({ ...prev, ...patch } as any) : prev))}
+        />
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Client Profile */}
           <motion.div
@@ -1530,14 +1540,18 @@ const AdminDealRoom = () => {
         open={bankRefModalOpen}
         onOpenChange={setBankRefModalOpen}
         defaultValue={(application as any)?.bank_reference || ''}
-        onConfirm={async (reference) => {
+        requireFni
+        defaultFniId={(application as any)?.assigned_f_and_i || null}
+        onConfirm={async (reference, assignedFniId) => {
           if (!application) return;
           try {
-            await updateApplication.mutateAsync({
-              id: application.id,
-              updates: { status: 'application_submitted', bank_reference: reference },
-            });
-            setApplication(prev => prev ? ({ ...prev, status: 'application_submitted', bank_reference: reference } as any) : null);
+            const updates: any = { status: 'application_submitted', bank_reference: reference };
+            if (assignedFniId) {
+              updates.assigned_f_and_i = assignedFniId;
+              updates.assigned_f_and_i_at = new Date().toISOString();
+            }
+            await updateApplication.mutateAsync({ id: application.id, updates });
+            setApplication(prev => prev ? ({ ...prev, ...updates } as any) : null);
             const vehicleName = activeVehicle
               ? `${activeVehicle.year} ${activeVehicle.make} ${activeVehicle.model}`
               : undefined;
