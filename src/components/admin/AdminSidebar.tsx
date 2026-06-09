@@ -84,7 +84,7 @@ const SALES_AGENT_ALLOWED_PATHS = new Set<string>([
 const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const { isSuperAdmin, isAccountant } = useAuth();
+  const { isSuperAdmin, isAccountant, isFAndI, isSeniorFAndI, role } = useAuth();
   const { data: outstandingRefs = 0 } = useOutstandingReferralCount();
 
   useEffect(() => {
@@ -99,13 +99,28 @@ const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
 
   // Accountants only see the Reports entry (Accounting & VAT ledger lives there).
   const ACCOUNTANT_ALLOWED_PATHS = new Set<string>(['/admin/reports']);
+  // Standard F&I: finance page only.
+  const STANDARD_FNI_ALLOWED_PATHS = new Set<string>(['/admin/finance']);
+  // Senior F&I: finance + CRM access.
+  const SENIOR_FNI_ALLOWED_PATHS = new Set<string>([
+    '/admin/finance',
+    '/admin/leads',
+    '/admin/crm-sheet',
+    '/admin/quotes',
+  ]);
 
   // Filter menu by role.
   const visibleMenuItems = isSuperAdmin
     ? menuItems
     : menuItems
         .map((item) => {
-          const allowed = isAccountant ? ACCOUNTANT_ALLOWED_PATHS : SALES_AGENT_ALLOWED_PATHS;
+          const allowed = isAccountant
+            ? ACCOUNTANT_ALLOWED_PATHS
+            : role === 'f_and_i'
+              ? STANDARD_FNI_ALLOWED_PATHS
+              : isSeniorFAndI
+                ? SENIOR_FNI_ALLOWED_PATHS
+                : SALES_AGENT_ALLOWED_PATHS;
           if (isGroup(item)) {
             const allowedChildren = item.children.filter(c => allowed.has(c.path));
             if (allowedChildren.length === 0) return null;
