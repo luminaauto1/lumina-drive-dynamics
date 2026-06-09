@@ -19,10 +19,11 @@ const GolfGTIAnimation = () => {
       if (!duration || isNaN(duration)) return;
 
       const rect = wrapper.getBoundingClientRect();
-      const scrollable = rect.height - sticky.offsetHeight;
+      const vh = window.innerHeight;
+      const total = rect.height + vh;
       const progress = Math.min(
         1,
-        Math.max(0, -rect.top / Math.max(1, scrollable))
+        Math.max(0, (vh - rect.top) / Math.max(1, total))
       );
       video.currentTime = progress * duration;
     };
