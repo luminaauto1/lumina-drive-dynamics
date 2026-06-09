@@ -50,28 +50,33 @@ const fetchTagDictionary = async (apiKey: string): Promise<Record<string, number
 };
 
 const removeOperationalTagsFromStaff = async () => {
-  const apiKey = Deno.env.get("EASYSOCIAL_BEARER_TOKEN")?.trim() || Deno.env.get("EASYSOCIAL_API_KEY")?.trim();
-  if (!apiKey) return { skipped: "missing_easysocial_token" };
+  try {
+    const apiKey = Deno.env.get("EASYSOCIAL_BEARER_TOKEN")?.trim() || Deno.env.get("EASYSOCIAL_API_KEY")?.trim();
+    if (!apiKey) return { skipped: "missing_easysocial_token" };
 
-  const tagDict = await fetchTagDictionary(apiKey);
-  const removeTags = OPERATIONAL_TAG_NAMES.map((name) => tagDict[name]).filter((id): id is number => typeof id === "number");
-  if (!removeTags.length) return { skipped: "no_operational_tags_resolved" };
+    const tagDict = await fetchTagDictionary(apiKey);
+    const removeTags = OPERATIONAL_TAG_NAMES.map((name) => tagDict[name]).filter((id): id is number => typeof id === "number");
+    if (!removeTags.length) return { skipped: "no_operational_tags_resolved" };
 
-  const results = await Promise.all(STAFF_NUMBERS.map(async (phone) => {
-    const clean = sanitizePhone(phone);
-    if (!clean) return { phone, ok: false, error: "invalid_phone" };
-    const resp = await fetch(`${ES_BEARER_BASE}/${clean}/update`, {
-      method: "PUT",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ remove_tags: removeTags, add_tags: [] }),
-    });
-    const text = await resp.text();
-    let body: any;
-    try { body = JSON.parse(text); } catch { body = { raw: text }; }
-    return { phone: clean, ok: resp.ok, status: resp.status, body };
-  }));
+    const results = await Promise.all(STAFF_NUMBERS.map(async (phone) => {
+      const clean = sanitizePhone(phone);
+      if (!clean) return { phone, ok: false, error: "invalid_phone" };
+      const resp = await fetch(`${ES_BEARER_BASE}/${clean}/update`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ remove_tags: removeTags, add_tags: [] }),
+      });
+      const text = await resp.text();
+      let body: any;
+      try { body = JSON.parse(text); } catch { body = { raw: text }; }
+      return { phone: clean, ok: resp.ok, status: resp.status, body };
+    }));
 
-  return { remove_tags: removeTags, results };
+    return { remove_tags: removeTags, results };
+  } catch (error: any) {
+    console.error("staff tag cleanup failed:", error?.message || error);
+    return { ok: false, error: error?.message || String(error) };
+  }
 };
 
 serve(async (req) => {
