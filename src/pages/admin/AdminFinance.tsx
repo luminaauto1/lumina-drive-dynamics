@@ -718,23 +718,21 @@ const AdminFinance = () => {
               ))}
             </SelectContent>
           </Select>
-          {canPickFniFilter && (
-            <Select value={fniFilter} onValueChange={setFniFilter}>
-              <SelectTrigger className="w-56">
-                <SelectValue placeholder="Filter by F&I" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="mine">My Queue (Unassigned + Mine)</SelectItem>
-                <SelectItem value="all">All Applications</SelectItem>
-                <SelectItem value="unassigned">Unassigned</SelectItem>
-                {fniUsers.map(u => (
-                  <SelectItem key={u.id} value={u.id}>
-                    {u.name}{u.role === 'senior_f_and_i' ? ' (Senior)' : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <Select value={fniFilter} onValueChange={setFniFilter}>
+            <SelectTrigger className="w-56">
+              <SelectValue placeholder="Filter by F&I" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Applications</SelectItem>
+              <SelectItem value="self">My Applications</SelectItem>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
+              {fniUsers.map(u => (
+                <SelectItem key={u.id} value={u.id}>
+                  {u.name}{u.role === 'senior_f_and_i' ? ' (Senior)' : ''}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </motion.div>
 
         {/* Stats */}
