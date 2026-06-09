@@ -1641,8 +1641,3 @@ const AdminDealRoom = () => {
 };
 
 export default AdminDealRoom;
-    </AdminLayout>
-  );
-};
-
-export default AdminDealRoom;
