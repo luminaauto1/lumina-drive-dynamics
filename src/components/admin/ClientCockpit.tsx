@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react';
-import { Phone, Copy, Check, Car, Wallet, CalendarClock, AlertOctagon, Mail, MessageCircle } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { Phone, Copy, Check, Car, Wallet, CalendarClock, AlertOctagon, Mail, MessageCircle, ImageIcon, ExternalLink } from 'lucide-react';
+
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -230,7 +231,60 @@ export default function ClientCockpit({ application, onChange }: Props) {
             })}
           </div>
         </div>
+
+        {/* Credit Check Screenshot viewer */}
+        <CreditCheckScreenshot path={application.status_screenshot_url} outcome={application.credit_check_status} />
       </div>
     </div>
   );
 }
+
+function CreditCheckScreenshot({ path, outcome }: { path?: string | null; outcome?: string | null }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!path) { setUrl(null); return; }
+    setLoading(true);
+    supabase.storage.from('credit-check-screenshots').createSignedUrl(path, 60 * 60).then(({ data, error }) => {
+      if (cancelled) return;
+      setLoading(false);
+      if (error) { toast.error('Could not load screenshot'); return; }
+      setUrl(data?.signedUrl || null);
+    });
+    return () => { cancelled = true; };
+  }, [path]);
+
+  if (!path) return null;
+
+  const accent = outcome === 'passed' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
+              : outcome === 'failed' ? 'text-red-400 border-red-500/30 bg-red-500/10'
+              : 'text-muted-foreground border-zinc-700/50 bg-zinc-800/40';
+
+  return (
+    <div className="mt-4 pt-4 border-t border-zinc-800/60">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5">
+          <ImageIcon className="w-3 h-3" /> Credit Check Screenshot
+        </p>
+        <span className={`text-[10px] uppercase tracking-wider border rounded px-2 py-0.5 ${accent}`}>
+          {outcome || 'unknown'}
+        </span>
+      </div>
+      {loading ? (
+        <p className="text-xs text-muted-foreground">Loading…</p>
+      ) : url ? (
+        <a href={url} target="_blank" rel="noopener noreferrer" className="block group">
+          <img src={url} alt="Credit check screenshot" className="max-h-[260px] w-full object-contain rounded border border-zinc-800 bg-black/40" />
+          <span className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted-foreground group-hover:text-foreground">
+            <ExternalLink className="w-3 h-3" /> Open full size
+          </span>
+        </a>
+      ) : (
+        <p className="text-xs text-muted-foreground">Could not load.</p>
+      )}
+    </div>
+  );
+}
+
