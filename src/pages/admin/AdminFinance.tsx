@@ -853,7 +853,10 @@ const AdminFinance = () => {
                         >
                           <p className="font-medium flex items-center gap-2 flex-wrap">
                             {(app as any).bank_reference && (
-                              <BankReferenceBadge reference={(app as any).bank_reference} />
+                              <BankReferenceBadge
+                                reference={(app as any).bank_reference}
+                                onEdit={() => { setEditBankRefApp(app); setEditBankRefOpen(true); }}
+                              />
                             )}
                             <span>{app.first_name} {app.last_name}</span>
                             {(() => {
@@ -1338,7 +1341,10 @@ const AdminFinance = () => {
                 )}
                 <div className="flex items-center gap-2 self-center">
                   {(pendingApp as any)?.bank_reference && (
-                    <BankReferenceBadge reference={(pendingApp as any).bank_reference} />
+                    <BankReferenceBadge
+                      reference={(pendingApp as any).bank_reference}
+                      onEdit={() => { setEditBankRefApp(pendingApp); setEditBankRefOpen(true); }}
+                    />
                   )}
                   {pendingApp?.id && (
                     <button
