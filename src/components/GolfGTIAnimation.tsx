@@ -71,12 +71,11 @@ const GolfGTIAnimation = () => {
   return (
     <div
       ref={wrapperRef}
-      className="relative bg-background w-screen left-1/2 -translate-x-1/2"
-      style={{ height: 'calc(56.25vw + 40vh)' }}
+      className="relative bg-background w-screen left-1/2 -translate-x-1/2 h-[56.25vw] md:h-[140vh]"
     >
       <div
         ref={stickyRef}
-        className="sticky top-16 md:top-0 w-full aspect-video md:h-screen md:aspect-auto overflow-hidden"
+        className="relative md:sticky md:top-0 w-full aspect-video md:h-screen md:aspect-auto overflow-hidden"
       >
         <video
           ref={videoRef}
