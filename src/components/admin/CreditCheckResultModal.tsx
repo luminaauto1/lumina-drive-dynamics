@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { useUpdateFinanceApplication } from '@/hooks/useFinanceApplications';
 import { toast } from 'sonner';
@@ -32,6 +33,7 @@ const FAIL_OPTIONS = [
 const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, onSaved }: Props) => {
   const updateApp = useUpdateFinanceApplication();
   const [mainStatus, setMainStatus] = useState<string>('');
+  const [conditionalComment, setConditionalComment] = useState<string>('');
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -42,6 +44,7 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
   useEffect(() => {
     if (open) {
       setMainStatus('');
+      setConditionalComment('');
       setFile(null);
       setPreviewUrl(null);
     }
@@ -84,6 +87,10 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
       toast.error('Select a main status');
       return;
     }
+    if (mainStatus === 'declined_conditional' && !conditionalComment.trim()) {
+      toast.error('Please add a comment explaining the conditional decline');
+      return;
+    }
     setSubmitting(true);
     try {
       let path: string | null = null;
@@ -96,6 +103,19 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
         if (upErr) throw upErr;
       }
 
+      // Build updated notes with prepended audit entry for conditional decline comment
+      let updatedNotes: string | undefined;
+      if (mainStatus === 'declined_conditional') {
+        const { data: existing } = await supabase
+          .from('finance_applications')
+          .select('notes')
+          .eq('id', applicationId)
+          .maybeSingle();
+        const ts = new Date().toLocaleString('en-ZA', { hour12: false });
+        const entry = `[${ts}] CONDITIONAL DECLINE (F&I): ${conditionalComment.trim()}`;
+        updatedNotes = existing?.notes ? `${entry}\n\n${existing.notes}` : entry;
+      }
+
 
       // Route through the central mutation so ALL status-driven side effects fire:
       // auto-mailer template, notify-pre-approval-internal / notify-declined /
@@ -106,6 +126,7 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
           credit_check_status: outcome,
           status: mainStatus,
           status_screenshot_url: path,
+          ...(updatedNotes !== undefined ? { notes: updatedNotes } : {}),
         },
       });
 
@@ -152,6 +173,27 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
               </SelectContent>
             </Select>
           </div>
+
+          {mainStatus === 'declined_conditional' && (
+            <div className="space-y-2">
+              <Label className="text-white/70 text-xs uppercase tracking-wider">
+                F&amp;I Comment <span className="text-amber-400 normal-case tracking-normal">— required, goes to admin inbox</span>
+              </Label>
+              <Textarea
+                value={conditionalComment}
+                onChange={(e) => setConditionalComment(e.target.value)}
+                placeholder="e.g. Recommend a cheaper vehicle under R250k, or larger deposit required…"
+                rows={3}
+                className="bg-black/60 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-white/30"
+                maxLength={1000}
+              />
+              <p className="text-[11px] text-white/40">
+                This note will be timestamped and prepended to the application's internal notes.
+              </p>
+            </div>
+          )}
+
+
 
           <div className="space-y-2">
             <Label className="text-white/70 text-xs uppercase tracking-wider">
