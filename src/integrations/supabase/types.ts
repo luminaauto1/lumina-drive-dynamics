@@ -528,6 +528,8 @@ export type Database = {
           deposit_amount: number | null
           docs_contacted: boolean
           docs_contacted_at: string | null
+          docs_email: boolean
+          docs_whatsapp: boolean
           email: string
           employer_address: string | null
           employer_name: string | null
@@ -617,6 +619,8 @@ export type Database = {
           deposit_amount?: number | null
           docs_contacted?: boolean
           docs_contacted_at?: string | null
+          docs_email?: boolean
+          docs_whatsapp?: boolean
           email: string
           employer_address?: string | null
           employer_name?: string | null
@@ -706,6 +710,8 @@ export type Database = {
           deposit_amount?: number | null
           docs_contacted?: boolean
           docs_contacted_at?: string | null
+          docs_email?: boolean
+          docs_whatsapp?: boolean
           email?: string
           employer_address?: string | null
           employer_name?: string | null
