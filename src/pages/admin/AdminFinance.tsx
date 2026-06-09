@@ -210,10 +210,12 @@ const AdminFinance = () => {
     
     const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
 
-    // F&I ownership filter (user-selectable for all staff)
+    // F&I ownership filter. Normal F&I can ONLY see their own apps.
     const owner = (app as any).assigned_f_and_i as string | null | undefined;
-    let matchesFni = true;
-    if (fniFilter === 'all') {
+    let matchesFni: boolean;
+    if (role === 'f_and_i') {
+      matchesFni = owner === user?.id;
+    } else if (fniFilter === 'all') {
       matchesFni = true;
     } else if (fniFilter === 'self') {
       matchesFni = owner === user?.id;
@@ -713,21 +715,23 @@ const AdminFinance = () => {
               ))}
             </SelectContent>
           </Select>
-          <Select value={fniFilter} onValueChange={setFniFilter}>
-            <SelectTrigger className="w-56">
-              <SelectValue placeholder="Filter by F&I" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Applications</SelectItem>
-              <SelectItem value="self">My Applications</SelectItem>
-              <SelectItem value="unassigned">Unassigned</SelectItem>
-              {fniUsers.map(u => (
-                <SelectItem key={u.id} value={u.id}>
-                  {u.name}{u.role === 'senior_f_and_i' ? ' (Senior)' : ''}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {role !== 'f_and_i' && (
+            <Select value={fniFilter} onValueChange={setFniFilter}>
+              <SelectTrigger className="w-56">
+                <SelectValue placeholder="Filter by F&I" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Applications</SelectItem>
+                <SelectItem value="self">My Applications</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {fniUsers.map(u => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.name}{u.role === 'senior_f_and_i' ? ' (Senior)' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </motion.div>
 
         {/* Stats */}
