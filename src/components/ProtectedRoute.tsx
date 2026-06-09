@@ -12,10 +12,12 @@ interface ProtectedRouteProps {
   allowFAndI?: boolean;
   /** When combined with requireSuperAdmin, also allows the accountant role. */
   allowAccountant?: boolean;
+  /** Block normal f_and_i (standard, non-senior) from this route. */
+  blockStandardFAndI?: boolean;
 }
 
-const ProtectedRoute = ({ children, requireAdmin = false, requireSuperAdmin = false, allowFAndI = false, allowAccountant = false }: ProtectedRouteProps) => {
-  const { user, loading, isAdmin, isStaff, isFAndI, isAccountant } = useAuth();
+const ProtectedRoute = ({ children, requireAdmin = false, requireSuperAdmin = false, allowFAndI = false, allowAccountant = false, blockStandardFAndI = false }: ProtectedRouteProps) => {
+  const { user, loading, isAdmin, isStaff, isFAndI, isSeniorFAndI, isAccountant, role } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -40,6 +42,11 @@ const ProtectedRoute = ({ children, requireAdmin = false, requireSuperAdmin = fa
   // since most existing routes were intended for staff use.
   if (requireAdmin && !isStaff) {
     return <Navigate to="/" replace />;
+  }
+
+  // Standard F&I (non-senior) is blocked from CRM-style routes.
+  if (blockStandardFAndI && role === 'f_and_i') {
+    return <Navigate to="/admin/finance" replace />;
   }
 
   return <>{children}</>;
