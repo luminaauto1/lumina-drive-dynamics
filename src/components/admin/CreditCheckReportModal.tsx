@@ -64,6 +64,34 @@ const CreditCheckReportModal = ({ open, onOpenChange }: Props) => {
   const failed = rows.filter(r => r.status === 'failed').length;
   const total = passed + failed;
 
+  const STATUS_LABELS: Record<string, string> = {
+    pre_approved: 'Pre-Approved',
+    declined: 'Declined',
+    declined_conditional: 'Conditionally Declined',
+    blacklisted: 'Blacklisted',
+    approved: 'Approved',
+    finalized: 'Finalized',
+    delivered: 'Delivered',
+    vehicle_delivered: 'Vehicle Delivered',
+  };
+  const prettify = (s: string | null) => {
+    if (!s) return 'Unset';
+    return STATUS_LABELS[s] || s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  };
+
+  const buildBreakdown = (outcome: 'passed' | 'failed') => {
+    const map = new Map<string, number>();
+    rows.filter(r => r.status === outcome).forEach(r => {
+      const key = r.resulting_status || '__unset__';
+      map.set(key, (map.get(key) || 0) + 1);
+    });
+    return Array.from(map.entries())
+      .map(([k, v]) => ({ key: k === '__unset__' ? null : k, count: v }))
+      .sort((a, b) => b.count - a.count);
+  };
+  const passedBreakdown = buildBreakdown('passed');
+  const failedBreakdown = buildBreakdown('failed');
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-zinc-950 border border-white/10 text-white max-w-2xl">
