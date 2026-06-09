@@ -912,19 +912,43 @@ const AdminFinance = () => {
                             <span>{app.first_name} {app.last_name}</span>
                             {(() => {
                               const fni = (app as any).fni_owner;
-                              if (!fni?.full_name && !fni?.email) return null;
+                              const canReassign = role === 'super_admin' || role === 'senior_f_and_i';
+                              if (!fni?.full_name && !fni?.email) {
+                                if (!canReassign) return null;
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditBankRefApp(app); setEditBankRefOpen(true); }}
+                                    className="ml-1 text-[10px] uppercase tracking-wider text-amber-300 font-semibold border border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 px-1.5 py-0.5 rounded"
+                                    title="Assign F&I"
+                                  >
+                                    + Assign F&amp;I
+                                  </button>
+                                );
+                              }
                               const fniFirst = fni.full_name
                                 ? String(fni.full_name).trim().split(/\s+/)[0]
                                 : String(fni.email).split('@')[0];
+                              const baseCls = "ml-1 text-[10px] uppercase tracking-wider text-pink-300 font-semibold border border-pink-500/50 bg-pink-500/15 px-1.5 py-0.5 rounded shadow-[0_0_8px_-2px_rgba(236,72,153,0.5)]";
+                              if (canReassign) {
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditBankRefApp(app); setEditBankRefOpen(true); }}
+                                    className={`${baseCls} hover:bg-pink-500/25 cursor-pointer`}
+                                    title={`Reassign F&I (current: ${fni.full_name || fni.email})`}
+                                  >
+                                    F&amp;I: {fniFirst}
+                                  </button>
+                                );
+                              }
                               return (
-                                <span
-                                  className="ml-1 text-[10px] uppercase tracking-wider text-pink-300 font-semibold border border-pink-500/50 bg-pink-500/15 px-1.5 py-0.5 rounded shadow-[0_0_8px_-2px_rgba(236,72,153,0.5)]"
-                                  title={`Assigned F&I: ${fni.full_name || fni.email}`}
-                                >
+                                <span className={baseCls} title={`Assigned F&I: ${fni.full_name || fni.email}`}>
                                   F&amp;I: {fniFirst}
                                 </span>
                               );
                             })()}
+
                           </p>
                           <p className="text-xs text-muted-foreground">{app.email}</p>
                           {(() => {
