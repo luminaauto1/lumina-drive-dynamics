@@ -47,19 +47,20 @@ const GolfGTIAnimation = () => {
   }, []);
 
   return (
-    <div ref={wrapperRef} className="relative min-h-[300vh] bg-background">
-      <div className="sticky top-0 h-screen w-full overflow-hidden">
+    <div ref={wrapperRef} className="relative h-[180vh] bg-background">
+      <div className="sticky top-0 h-screen w-screen overflow-hidden -mx-[calc((100vw-100%)/2)]">
         <video
           ref={videoRef}
           src={videoAsset.url}
           muted
           playsInline
           preload="auto"
+          disablePictureInPicture
           className="absolute inset-0 h-full w-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-transparent to-background/80 pointer-events-none" />
-        <div className="absolute top-[15%] left-1/2 -translate-x-1/2 text-center px-6">
-          <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">
+        <div className="absolute top-[10%] left-1/2 -translate-x-1/2 text-center px-6 w-full">
+          <p className="text-xs md:text-sm uppercase tracking-[0.3em] text-muted-foreground">
             The New Era of Vehicle Sourcing
           </p>
         </div>
