@@ -59,6 +59,7 @@ const AdminDealRoom = () => {
   const [otpModalOpen, setOtpModalOpen] = useState(false);
   const [contractSentModalOpen, setContractSentModalOpen] = useState(false);
   const [bankRefModalOpen, setBankRefModalOpen] = useState(false);
+  const [editBankRefOpen, setEditBankRefOpen] = useState(false);
 
   const { data: vehicles = [], refetch: refetchVehicles } = useVehicles();
   const { data: matches = [], isLoading: matchesLoading, refetch: refetchMatches } = useApplicationMatches(id || '');
@@ -1091,7 +1092,10 @@ const AdminDealRoom = () => {
               
               <div className="mb-4 flex items-center gap-2 flex-wrap">
                 {(application as any).bank_reference && (
-                  <BankReferenceBadge reference={(application as any).bank_reference} />
+                  <BankReferenceBadge
+                    reference={(application as any).bank_reference}
+                    onEdit={() => setEditBankRefOpen(true)}
+                  />
                 )}
                 <span className={`px-3 py-1.5 text-sm uppercase tracking-wider rounded border ${STATUS_STYLES[application.status] || STATUS_STYLES.pending}`}>
                   {ADMIN_STATUS_LABELS[application.status] || application.status}
@@ -1548,6 +1552,27 @@ const AdminDealRoom = () => {
             toast.success('Application submitted to bank');
           } catch (err) {
             console.error('Bank ref submission failed:', err);
+          }
+        }}
+      />
+
+      {/* Standalone Bank Reference Editor */}
+      <BankReferenceModal
+        open={editBankRefOpen}
+        onOpenChange={setEditBankRefOpen}
+        defaultValue={(application as any)?.bank_reference || ''}
+        onConfirm={async (reference) => {
+          if (!application) return;
+          try {
+            await updateApplication.mutateAsync({
+              id: application.id,
+              updates: { bank_reference: reference },
+            });
+            setApplication(prev => prev ? ({ ...prev, bank_reference: reference } as any) : null);
+            toast.success('Bank reference updated');
+          } catch (err) {
+            console.error('Bank ref update failed:', err);
+            toast.error('Failed to update bank reference');
           }
         }}
       />
