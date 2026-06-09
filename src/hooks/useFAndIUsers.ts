@@ -5,7 +5,7 @@ export interface FAndIUser {
   id: string;
   name: string;
   email: string | null;
-  role: 'f_and_i';
+  role: 'f_and_i' | 'senior_f_and_i';
 }
 
 /**
@@ -19,7 +19,7 @@ export const useFAndIUsers = () => {
       const { data: roles, error } = await supabase
         .from('user_roles')
         .select('user_id, role')
-        .eq('role', 'f_and_i');
+        .in('role', ['f_and_i', 'senior_f_and_i'] as any);
       if (error) throw error;
       const ids = Array.from(new Set((roles || []).map((r: any) => r.user_id)));
       if (!ids.length) return [];
@@ -31,12 +31,18 @@ export const useFAndIUsers = () => {
       const seen = new Map<string, FAndIUser>();
       for (const r of (roles || []) as any[]) {
         const p: any = byId.get(r.user_id) || {};
-        if (seen.has(r.user_id)) continue;
+        if (seen.has(r.user_id)) {
+          const existing = seen.get(r.user_id)!;
+          if (r.role === 'senior_f_and_i') {
+            existing.role = 'senior_f_and_i';
+          }
+          continue;
+        }
         seen.set(r.user_id, {
           id: r.user_id,
           name: (p.full_name || p.email || 'Unnamed F&I') as string,
           email: p.email || null,
-          role: 'f_and_i',
+          role: r.role === 'senior_f_and_i' ? 'senior_f_and_i' : 'f_and_i',
         });
       }
       return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
