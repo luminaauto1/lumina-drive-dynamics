@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Phone, Copy, Check, Car, Wallet, CalendarClock, AlertOctagon } from 'lucide-react';
+import { Phone, Copy, Check, Car, Wallet, CalendarClock, AlertOctagon, Mail, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -190,6 +190,44 @@ export default function ClientCockpit({ application, onChange }: Props) {
                 Past scheduled time — call the client.
               </p>
             )}
+          </div>
+        </div>
+
+        {/* Document Source indicators */}
+        <div className="mt-4 pt-4 border-t border-zinc-800/60">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Document Source</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {([
+              { key: 'docs_email', label: 'Docs Received via Email', Icon: Mail },
+              { key: 'docs_whatsapp', label: 'Docs Received via WhatsApp', Icon: MessageCircle },
+            ] as const).map(({ key, label, Icon }) => {
+              const active = !!application[key];
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => {
+                    const next = !active;
+                    onChange({ [key]: next });
+                    supabase.from('finance_applications').update({ [key]: next }).eq('id', application.id).then(({ error }) => {
+                      if (error) {
+                        toast.error('Failed to save');
+                        onChange({ [key]: active });
+                      }
+                    });
+                  }}
+                  className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border text-left transition-all ${
+                    active
+                      ? 'bg-zinc-100 border-zinc-100 text-zinc-900'
+                      : 'bg-zinc-800/40 border-zinc-700/50 text-muted-foreground hover:bg-zinc-800/70 hover:text-foreground'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5 shrink-0" />
+                  <span className="text-xs font-medium flex-1">{label}</span>
+                  {active && <Check className="w-3.5 h-3.5 shrink-0" />}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
