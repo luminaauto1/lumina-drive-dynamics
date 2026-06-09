@@ -87,6 +87,10 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
       toast.error('Select a main status');
       return;
     }
+    if (mainStatus === 'declined_conditional' && !conditionalComment.trim()) {
+      toast.error('Please add a comment explaining the conditional decline');
+      return;
+    }
     setSubmitting(true);
     try {
       let path: string | null = null;
@@ -97,6 +101,19 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
           .from('credit-check-screenshots')
           .upload(path, file, { contentType: file.type, upsert: false });
         if (upErr) throw upErr;
+      }
+
+      // Build updated notes with prepended audit entry for conditional decline comment
+      let updatedNotes: string | undefined;
+      if (mainStatus === 'declined_conditional') {
+        const { data: existing } = await supabase
+          .from('finance_applications')
+          .select('notes')
+          .eq('id', applicationId)
+          .maybeSingle();
+        const ts = new Date().toLocaleString('en-ZA', { hour12: false });
+        const entry = `[${ts}] CONDITIONAL DECLINE (F&I): ${conditionalComment.trim()}`;
+        updatedNotes = existing?.notes ? `${entry}\n\n${existing.notes}` : entry;
       }
 
 
