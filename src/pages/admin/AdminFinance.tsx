@@ -1523,10 +1523,11 @@ const AdminFinance = () => {
                       status: targetStatus,
                       internal_status: 'no_notes',
                       attention_updated_at: new Date().toISOString(),
-                      ...(user?.id ? {
+                      ...(role === 'f_and_i' && user?.id ? {
                         assigned_f_and_i: user.id,
                         assigned_f_and_i_at: new Date().toISOString(),
                       } : {}),
+
                     })
                     .eq('id', pendingApp.id);
                   if (error) throw error;
