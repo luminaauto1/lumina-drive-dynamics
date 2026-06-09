@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import { isToday } from 'date-fns';
-import { Search, MessageCircle, ExternalLink, Trash2, Archive, UserPlus, User, Copy, Link, ClipboardList, Banknote, Calculator, MailWarning, MessageSquare } from 'lucide-react';
+import { Search, MessageCircle, ExternalLink, Trash2, Archive, UserPlus, User, Copy, Link, ClipboardList, Banknote, Calculator, MailWarning, MessageSquare, Globe, FileText, Mail, FileX } from 'lucide-react';
 import WhatsAppParserModal from '@/components/admin/WhatsAppParserModal';
 import BankReferenceModal from '@/components/admin/BankReferenceModal';
 import BankReferenceBadge from '@/components/admin/BankReferenceBadge';
