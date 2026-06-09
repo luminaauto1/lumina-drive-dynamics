@@ -128,21 +128,59 @@ const CreditCheckReportModal = ({ open, onOpenChange }: Props) => {
           </div>
         </div>
 
+        <div className="grid grid-cols-2 gap-3 pt-1">
+          <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
+            <div className="text-[11px] uppercase tracking-wider text-emerald-300/80 mb-2">Passed — resulting status</div>
+            {loading ? (
+              <div className="text-white/40 text-sm">—</div>
+            ) : passedBreakdown.length === 0 ? (
+              <div className="text-white/40 text-sm">No records.</div>
+            ) : (
+              <ul className="space-y-1">
+                {passedBreakdown.map((b, i) => (
+                  <li key={i} className="flex items-center justify-between text-sm">
+                    <span className="text-white/75">{prettify(b.key)}</span>
+                    <span className="text-emerald-300 font-light tabular-nums">{b.count}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3">
+            <div className="text-[11px] uppercase tracking-wider text-red-300/80 mb-2">Failed — resulting status</div>
+            {loading ? (
+              <div className="text-white/40 text-sm">—</div>
+            ) : failedBreakdown.length === 0 ? (
+              <div className="text-white/40 text-sm">No records.</div>
+            ) : (
+              <ul className="space-y-1">
+                {failedBreakdown.map((b, i) => (
+                  <li key={i} className="flex items-center justify-between text-sm">
+                    <span className="text-white/75">{prettify(b.key)}</span>
+                    <span className="text-red-300 font-light tabular-nums">{b.count}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+
         <div className="mt-2 max-h-[260px] overflow-auto rounded-lg border border-white/10">
           <table className="w-full text-sm">
             <thead className="bg-white/5 text-white/60 text-[11px] uppercase tracking-wider">
               <tr>
                 <th className="text-left px-3 py-2">Client</th>
                 <th className="text-left px-3 py-2">Outcome</th>
+                <th className="text-left px-3 py-2">Resulting status</th>
                 <th className="text-left px-3 py-2">Date</th>
               </tr>
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={3} className="px-3 py-4 text-white/50">Loading…</td></tr>
+                <tr><td colSpan={4} className="px-3 py-4 text-white/50">Loading…</td></tr>
               )}
               {!loading && rows.length === 0 && (
-                <tr><td colSpan={3} className="px-3 py-4 text-white/50">No credit checks recorded for this period.</td></tr>
+                <tr><td colSpan={4} className="px-3 py-4 text-white/50">No credit checks recorded for this period.</td></tr>
               )}
               {!loading && rows.map((r, i) => (
                 <tr key={i} className="border-t border-white/5">
@@ -152,12 +190,14 @@ const CreditCheckReportModal = ({ open, onOpenChange }: Props) => {
                       {r.status}
                     </span>
                   </td>
+                  <td className="px-3 py-2 text-white/70">{prettify(r.resulting_status)}</td>
                   <td className="px-3 py-2 text-white/70">{new Date(r.updated_at).toLocaleString('en-ZA', { hour12: false })}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)} className="text-white/60 hover:text-white hover:bg-white/5">
