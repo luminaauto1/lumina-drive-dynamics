@@ -1677,6 +1677,15 @@ const AdminFinance = () => {
       />
 
       <CreditCheckReportModal open={creditReportOpen} onOpenChange={setCreditReportOpen} />
+
+      {creditCheckApp && (
+        <CreditCheckResultModal
+          open={creditCheckOpen}
+          onOpenChange={(o) => { setCreditCheckOpen(o); if (!o) setCreditCheckApp(null); }}
+          outcome={creditCheckOutcome}
+          applicationId={creditCheckApp.id}
+        />
+      )}
     </AdminLayout>
   );
 };
