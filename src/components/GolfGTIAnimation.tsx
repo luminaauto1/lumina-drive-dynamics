@@ -79,9 +79,9 @@ const GolfGTIAnimation = () => {
     const computeTarget = () => {
       const rect = wrapper.getBoundingClientRect();
       const vh = window.innerHeight;
-      // Scrub across the sticky range (wrapper taller than viewport)
-      const scrubRange = Math.max(1, rect.height - vh);
-      const progress = Math.min(1, Math.max(0, -rect.top / scrubRange));
+      // Start scrubbing as the section enters the viewport and finish as it leaves
+      const scrubRange = Math.max(1, rect.height);
+      const progress = Math.min(1, Math.max(0, (vh - rect.top) / scrubRange));
       targetFrameRef.current = Math.round(progress * (FRAME_COUNT - 1));
     };
 
