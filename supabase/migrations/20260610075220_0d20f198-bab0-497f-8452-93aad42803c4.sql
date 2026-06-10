@@ -1,0 +1,1 @@
+CREATE POLICY "F&I staff can view staff profiles" ON public.profiles FOR SELECT TO authenticated USING (has_role(auth.uid(), 'f_and_i'::app_role) OR has_role(auth.uid(), 'senior_f_and_i'::app_role) OR has_role(auth.uid(), 'accountant'::app_role));
