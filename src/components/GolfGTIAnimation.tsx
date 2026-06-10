@@ -121,9 +121,9 @@ const GolfGTIAnimation = () => {
   return (
     <div
       ref={wrapperRef}
-      className="relative bg-background w-screen left-1/2 -translate-x-1/2 h-[250vh] md:h-[300vh]"
+      className="relative bg-background w-screen left-1/2 -translate-x-1/2 h-[200vh] md:h-[300vh]"
     >
-      <div className="sticky top-0 w-full aspect-video md:h-screen md:aspect-auto overflow-hidden">
+      <div className="sticky top-0 w-full h-screen overflow-hidden">
         <canvas
           ref={canvasRef}
           className="w-full h-full block bg-background"
