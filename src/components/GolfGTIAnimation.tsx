@@ -6,7 +6,7 @@ const FRAME_PREFIX = 'Lumina Auto Video_';
 const FRAME_EXT = 'jpg';
 
 const getFrameSrc = (index: number) => {
-  const n = String(index + 1).padStart(3, '0');
+  const n = String(index).padStart(3, '0');
   return `${FRAME_PATH}/${encodeURIComponent(`${FRAME_PREFIX}${n}.${FRAME_EXT}`)}`;
 };
 
