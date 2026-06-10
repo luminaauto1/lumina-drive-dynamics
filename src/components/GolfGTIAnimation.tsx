@@ -2,12 +2,12 @@ import { useRef, useEffect } from 'react';
 
 const FRAME_COUNT = 100;
 const FRAME_PATH = '/scroll-frames';
-const FRAME_PREFIX = 'Lumina Auto Video_';
+const FRAME_PREFIX = 'lumina-auto-video-';
 const FRAME_EXT = 'jpg';
 
 const getFrameSrc = (index: number) => {
   const n = String(index).padStart(3, '0');
-  return `${FRAME_PATH}/${encodeURIComponent(`${FRAME_PREFIX}${n}.${FRAME_EXT}`)}`;
+  return `${FRAME_PATH}/${FRAME_PREFIX}${n}.${FRAME_EXT}`;
 };
 
 const GolfGTIAnimation = () => {
