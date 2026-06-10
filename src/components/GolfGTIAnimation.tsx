@@ -121,24 +121,22 @@ const GolfGTIAnimation = () => {
   return (
     <div
       ref={wrapperRef}
-      className="relative bg-background w-screen left-1/2 -translate-x-1/2 h-[200vh] md:h-[300vh]"
+      className="relative bg-background w-screen left-1/2 -translate-x-1/2 aspect-video md:h-screen md:aspect-auto overflow-hidden"
     >
-      <div className="sticky top-0 w-full h-screen overflow-hidden">
-        <canvas
-          ref={canvasRef}
-          className="w-full h-full block bg-background"
-          style={{
-            transform: 'translateZ(0)',
-            willChange: 'transform',
-            backfaceVisibility: 'hidden',
-          }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-transparent to-background/70 pointer-events-none" />
-        <div className="absolute top-4 md:top-[10%] left-1/2 -translate-x-1/2 text-center px-6 w-full">
-          <p className="text-xs md:text-sm uppercase tracking-[0.3em] text-muted-foreground">
-            The New Era of Vehicle Sourcing
-          </p>
-        </div>
+      <canvas
+        ref={canvasRef}
+        className="w-full h-full block bg-background"
+        style={{
+          transform: 'translateZ(0)',
+          willChange: 'transform',
+          backfaceVisibility: 'hidden',
+        }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-transparent to-background/70 pointer-events-none" />
+      <div className="absolute top-4 md:top-[10%] left-1/2 -translate-x-1/2 text-center px-6 w-full">
+        <p className="text-xs md:text-sm uppercase tracking-[0.3em] text-muted-foreground">
+          The New Era of Vehicle Sourcing
+        </p>
       </div>
     </div>
   );
