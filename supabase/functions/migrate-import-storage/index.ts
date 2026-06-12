@@ -6,10 +6,12 @@
 // bucket/path here using this project's auto-injected service role key.
 //
 // Security:
-//   - Guarded by a one-time secret stored in the private table
-//     `_migration.secret` (created by the migration orchestrator). Fail-closed.
+//   - Guarded by a one-time secret stored in the RLS-locked table
+//     `public._migration_secret` (no policies — only service role can read it;
+//     PostgREST does not expose custom schemas, hence a public-schema table).
+//     Fail-closed.
 //   - Only downloads from URLs on the configured source host.
-//   - DELETE THIS FUNCTION (and the _migration schema) after migration.
+//   - DELETE THIS FUNCTION (and the _migration_secret table) after migration.
 //
 // Request (POST JSON):
 //   { key, sourceHost, bucket, objects: [{ path, signedUrl }] }
@@ -41,10 +43,9 @@ Deno.serve(async (req) => {
     return json({ error: "Invalid JSON body" }, 400);
   }
 
-  // Fail-closed: secret must exist in the private migration table and match.
+  // Fail-closed: secret must exist in the RLS-locked migration table and match.
   const { data: secretRow, error: secretErr } = await admin
-    .schema("_migration")
-    .from("secret")
+    .from("_migration_secret")
     .select("value")
     .limit(1)
     .maybeSingle();
