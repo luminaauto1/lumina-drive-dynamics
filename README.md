@@ -1,73 +1,50 @@
-# Welcome to your Lovable project
+# Lumina Drive Dynamics
 
-## Project info
+Dealer management & CRM platform for Lumina Auto — public vehicle showroom,
+lead capture, finance applications, CRM sheet, deal/expense tracking, and
+aftersales, built on:
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+- **Frontend**: Vite + React 18 + TypeScript + Tailwind + shadcn/ui, hosted on **Vercel**
+- **Backend**: **Supabase** — Postgres (with RLS), Auth, Storage, and ~30 Deno edge functions
+- **Migrated from Lovable** — see [`docs/MIGRATION.md`](docs/MIGRATION.md) for the full runbook
 
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+## Quick start
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+npm ci
+cp .env.example .env          # fill in Supabase URL + anon key (Dashboard -> Settings -> API)
+npm run test:connection       # smoke-test Supabase REST/Auth/Storage/edge functions
+npm run dev                   # http://localhost:8080
 ```
 
-**Edit a file directly in GitHub**
+## Scripts
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+| Command | Purpose |
+|---|---|
+| `npm run dev` | Local dev server |
+| `npm run build` | Production build (what Vercel runs) |
+| `npm run lint` | ESLint |
+| `npm run test:connection` | Verify frontend ↔ Supabase ↔ edge functions connectivity |
 
-**Use GitHub Codespaces**
+## Deployment
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Pushing to `main` deploys to production via Vercel; PRs get preview URLs.
+Edge functions deploy separately with `supabase functions deploy`; database
+changes go through `supabase/migrations/` + `supabase db push`.
 
-## What technologies are used for this project?
+Environment variables are documented in [`.env.example`](.env.example)
+(frontend / Vercel) and
+[`supabase/functions/.env.example`](supabase/functions/.env.example)
+(edge-function secrets). Never put server secrets in `VITE_*` variables —
+they are inlined into the public JS bundle.
 
-This project is built with:
+## Repository map
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+```
+src/pages/admin/        CRM sheet, leads, finance, expenses, reports, settings
+src/pages/              public site: showroom, sell-your-car, finance application
+src/integrations/supabase/  typed Supabase client (connection module)
+supabase/functions/     Deno edge functions (notifications, webhooks, AI tools)
+supabase/migrations/    SQL schema history
+docs/MIGRATION.md       Lovable -> Vercel migration runbook
+```

@@ -2,9 +2,16 @@
 // Validates an internal shared API key + origin to rate-raise abuse without
 // breaking unauthenticated public flows (finance applications, sell-car, etc.)
 
+// MIGRATION NOTE (Lovable -> Vercel): the new Vercel production domain MUST be
+// listed here, otherwise approved-origin reflection falls back to "*" for the
+// public lead-capture / finance / sell-car endpoints. Update the vercel.app
+// entry below if your Vercel project name differs, then redeploy the edge
+// functions (supabase functions deploy). The lovable.app entry can be removed
+// once the Lovable site is retired.
 const ALLOWED_ORIGINS = [
   "https://luminaauto.co.za",
   "https://www.luminaauto.co.za",
+  "https://lumina-drive-dynamics.vercel.app",
   "https://lumina-auto.lovable.app",
 ];
 
