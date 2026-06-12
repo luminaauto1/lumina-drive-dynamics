@@ -88,3 +88,8 @@ verify_jwt = false
 [functions.notify-referral]
 verify_jwt = false
 
+# TEMPORARY migration bridge (Lovable Cloud -> self-owned Supabase).
+# Guarded by the LUMINA_INTERNAL_API_KEY shared secret; remove after cutover.
+[functions.migrate-export]
+verify_jwt = false
+
