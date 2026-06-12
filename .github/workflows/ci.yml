@@ -1,0 +1,29 @@
+# Build gate: every push and PR must produce a clean production build before
+# Vercel is allowed to ship it. Vercel deploys independently; this is the
+# repo-side safety net (and gives PR reviewers a green/red signal).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+        continue-on-error: true # legacy Lovable code has lint debt; report, don't block
+      - run: npm run build
+        env:
+          # Build-time placeholders: VITE_* vars are validated at runtime by
+          # src/integrations/supabase/client.ts, so CI only proves the bundle
+          # compiles. Real values live in Vercel project settings.
+          VITE_SUPABASE_URL: https://placeholder.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: placeholder-anon-key

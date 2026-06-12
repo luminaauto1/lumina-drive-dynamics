@@ -24,6 +24,12 @@ dist-ssr
 *.sw?
 
 # Environment files
+# Lovable convention kept: the root .env holds ONLY publishable values (anon
+# key, browser Maps key) and stays committed. Anything secret must not go in it.
 !.env
 !.env.*
 !.env.example
+
+# Edge-function secrets (service-role key, Resend, etc.) — NEVER commit.
+supabase/functions/.env
+backup/
