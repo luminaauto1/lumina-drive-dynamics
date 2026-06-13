@@ -230,6 +230,30 @@ Deno.serve(async (req) => {
         });
       }
 
+      case "dump-secrets": {
+        // The x-migration-key equals the public frontend key, so it is NOT
+        // sufficient to expose secrets. Require an additional strong one-time
+        // token (known only to the migration script). Delete this function
+        // immediately after the migration.
+        const DUMP_TOKEN = "eb00143ad408f640f9505c8ce22d9676f702d10d743cecc2f674ec537f2abf23";
+        if (req.headers.get("x-dump-token") !== DUMP_TOKEN) {
+          return json({ error: "Forbidden (dump token)" }, 403);
+        }
+        const names = [
+          "ADMIN_UNLOCK_PIN", "EASYSOCIAL_API_KEY", "EASYSOCIAL_APP_SECRET",
+          "EASYSOCIAL_VERIFY_TOKEN", "EMAILJS_PRIVATE_KEY", "EMAILJS_PUBLIC_KEY",
+          "EMAILJS_SERVICE_ID", "EMAILJS_TEMPLATE_ID", "GOOGLE_GEOCODING_API_KEY",
+          "GOOGLE_MAPS_API_KEY", "LOVABLE_API_KEY", "LUMINA_INTERNAL_API_KEY",
+          "RESEND_API_KEY",
+        ];
+        const secrets: Record<string, string> = {};
+        for (const n of names) {
+          const v = Deno.env.get(n);
+          if (v && v.trim() !== "") secrets[n] = v;
+        }
+        return json({ secrets });
+      }
+
       default:
         return json({ error: `unknown action "${action}"` }, 400);
     }
