@@ -408,14 +408,34 @@ const AdminDealRoom = () => {
       return;
     }
     
+    // CRITICAL PATH (atomic): finalize the application AND move the vehicle to
+    // 'sold' inventory in a single DB transaction (finalize_deal_atomic). The
+    // ledger row was already created by the modal; bundling the status + the
+    // inventory flip server-side means a single failing write can no longer
+    // half-finalize a deal (previously a status_updated_at error aborted the
+    // whole JS sequence and left the vehicle un-sold).
     try {
-      // Update status to finalized
-      await updateApplication.mutateAsync({ 
-        id: application.id, 
-        updates: { status: 'finalized' } 
+      const { error: rpcError } = await (supabase as any).rpc('finalize_deal_atomic', {
+        p_application_id: application.id,
+        p_vehicle_id: finalVehicleId,
       });
+      if (rpcError) throw rpcError;
 
-      // Create aftersales record
+      setApplication(prev => prev ? { ...prev, status: 'finalized' } : null);
+      // Keep list views / dashboards in sync (the RPC bypasses the mutation hook).
+      queryClient.invalidateQueries({ queryKey: ['finance-applications'] });
+      queryClient.invalidateQueries({ queryKey: ['application-matches', application.id] });
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+    } catch (error) {
+      console.error('Error finalizing deal (critical path):', error);
+      toast.error('Failed to finalize deal — application and vehicle were not updated.');
+      return; // Critical path failed: do not run non-critical side-effects.
+    }
+
+    // NON-CRITICAL: create the aftersales record. A failure here must NOT roll
+    // back or hide the finalized deal above — just warn so it can be added
+    // manually.
+    try {
       await createAftersalesRecord.mutateAsync({
         vehicleId: finalVehicleId,
         customerId: application.user_id,
@@ -424,18 +444,11 @@ const AdminDealRoom = () => {
         customerPhone: application.phone,
         financeApplicationId: application.id,
       });
-
-      // Update vehicle status to sold
-      await supabase
-        .from('vehicles')
-        .update({ status: 'sold' })
-        .eq('id', finalVehicleId);
-
-      setApplication(prev => prev ? { ...prev, status: 'finalized' } : null);
       toast.success('Deal finalized! Aftersales record created.');
     } catch (error) {
-      console.error('Error finalizing deal:', error);
-      toast.error('Failed to finalize deal');
+      console.error('Aftersales record creation failed (non-critical):', error);
+      toast.success('Deal finalized & vehicle marked sold.');
+      toast.warning('Aftersales record could not be created automatically — please add it manually.');
     }
   };
 
