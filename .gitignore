@@ -33,3 +33,7 @@ dist-ssr
 # Edge-function secrets (service-role key, Resend, etc.) — NEVER commit.
 supabase/functions/.env
 backup/
+
+# Local-only env overrides (re-ignored after the !.env.* rule above) — never commit.
+.env.local
+.env.*.local
