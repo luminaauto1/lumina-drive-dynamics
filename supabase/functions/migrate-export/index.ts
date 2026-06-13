@@ -19,6 +19,11 @@
 //   {action:"dump-table", table, offset?, limit?} -> {rows:[...], done:bool}
 //   {action:"dump-auth",  offset?, limit?}        -> {users:[...], identities:[...]}
 //   {action:"list-storage", bucket, offset?, limit?} -> {objects:[{path, signedUrl, ...}]}
+//   {action:"push-storage", bucket, targetUrl, targetKey, offset?, limit?}
+//        -> downloads each file from THIS (source) bucket and re-uploads it to
+//           the target project's storage REST API. targetKey is the target's
+//           PUBLISHABLE/anon key (public, safe to pass), relying on a temporary
+//           anon-insert policy on the target. Source is still only ever read.
 // ============================================================================
 import { createClient } from "npm:@supabase/supabase-js@2";
 import postgres from "npm:postgres@3.4.5";
@@ -156,6 +161,73 @@ Deno.serve(async (req) => {
           result.push({ path, size: o.metadata?.size ?? null, contentType: o.metadata?.mimetype ?? null, signedUrl: signed?.signedUrl ?? null });
         }
         return json({ objects: result, done: listed.length < limit });
+      }
+
+      case "push-storage": {
+        if (!supabaseUrl || !serviceKey) return json({ error: "service credentials unavailable" }, 500);
+        const bucket = String(body.bucket ?? "");
+        const targetUrl = String(body.targetUrl ?? "").replace(/\/+$/, "");
+        const targetKey = String(body.targetKey ?? "");
+        if (!bucket || !targetUrl || !targetKey) {
+          return json({ error: "bucket, targetUrl, targetKey are required" }, 400);
+        }
+        const admin = createClient(supabaseUrl, serviceKey);
+
+        // Recursively flatten every file path in the bucket (folders have id=null).
+        async function walk(prefix: string): Promise<string[]> {
+          const out: string[] = [];
+          let off = 0;
+          const page = 100;
+          for (;;) {
+            const { data, error } = await admin.storage.from(bucket).list(prefix, {
+              limit: page, offset: off, sortBy: { column: "name", order: "asc" },
+            });
+            if (error) throw new Error(`list "${prefix}": ${error.message}`);
+            const items = data ?? [];
+            for (const o of items) {
+              const p = prefix ? `${prefix}/${o.name}` : o.name;
+              if (o.id === null) out.push(...await walk(p));
+              else out.push(p);
+            }
+            if (items.length < page) break;
+            off += page;
+          }
+          return out;
+        }
+
+        const all = await walk("");
+        const slice = all.slice(offset, offset + limit);
+        const results: { path: string; ok: boolean; error?: string; size?: number }[] = [];
+        for (const path of slice) {
+          try {
+            const { data: blob, error: dErr } = await admin.storage.from(bucket).download(path);
+            if (dErr || !blob) throw new Error(`download: ${dErr?.message ?? "no data"}`);
+            const bytes = new Uint8Array(await blob.arrayBuffer());
+            const encPath = path.split("/").map(encodeURIComponent).join("/");
+            const up = await fetch(`${targetUrl}/storage/v1/object/${bucket}/${encPath}`, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${targetKey}`,
+                apikey: targetKey,
+                "x-upsert": "true",
+                "Content-Type": (blob as Blob).type || "application/octet-stream",
+              },
+              body: bytes,
+            });
+            if (!up.ok) throw new Error(`upload HTTP ${up.status}: ${(await up.text()).slice(0, 150)}`);
+            results.push({ path, ok: true, size: bytes.byteLength });
+          } catch (e) {
+            results.push({ path, ok: false, error: e instanceof Error ? e.message : String(e) });
+          }
+        }
+        return json({
+          bucket,
+          total: all.length,
+          processed: offset + slice.length,
+          done: offset + slice.length >= all.length,
+          copied: results.filter((r) => r.ok).length,
+          failed: results.filter((r) => !r.ok),
+        });
       }
 
       default:
