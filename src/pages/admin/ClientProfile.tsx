@@ -17,16 +17,36 @@ const ClientProfile = () => {
   const navigate = useNavigate();
   const [client, setClient] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchClient = async () => {
-      const { data, error } = await supabase
+      // Join the vehicle via BOTH foreign keys — the admin app writes vehicle_id,
+      // while older code read selected_vehicle_id (which is rarely set), so the
+      // Linked Vehicle card was almost always empty. Coalesce the two below.
+      const { data } = await supabase
         .from('finance_applications')
-        .select('*, selected_vehicle:vehicles!finance_applications_selected_vehicle_id_fkey(*), deal_records(*)')
+        .select('*, selected_vehicle:vehicles!finance_applications_selected_vehicle_id_fkey(*), linked_vehicle:vehicles!finance_applications_vehicle_id_fkey(*), deal_records(*)')
         .eq('id', id)
         .maybeSingle();
 
-      if (data) setClient(data);
+      if (data) {
+        setClient(data);
+        // Real client timeline: notes/calls/status changes logged from the Client
+        // Hub & Lead Cockpit land in client_audit_logs, keyed by email/phone.
+        const filters: string[] = [];
+        if (data.email) filters.push(`client_email.eq.${data.email}`);
+        if (data.phone) filters.push(`client_phone.eq.${data.phone}`);
+        if (filters.length) {
+          const { data: logs } = await supabase
+            .from('client_audit_logs')
+            .select('*')
+            .or(filters.join(','))
+            .order('created_at', { ascending: false })
+            .limit(100);
+          if (logs) setAuditLogs(logs);
+        }
+      }
       setLoading(false);
     };
     fetchClient();
@@ -54,6 +74,8 @@ const ClientProfile = () => {
       </AdminLayout>
     );
   }
+
+  const linkedVehicle = client.selected_vehicle || client.linked_vehicle;
 
   const statusColors: Record<string, string> = {
     pending: 'bg-muted text-muted-foreground',
@@ -103,15 +125,15 @@ const ClientProfile = () => {
             <h3 className="text-sm font-semibold flex items-center gap-2">
               <Car className="w-4 h-4" /> Linked Vehicle
             </h3>
-            {client.selected_vehicle ? (
+            {linkedVehicle ? (
               <div className="space-y-2">
                 <p className="font-medium">
-                  {client.selected_vehicle.year} {client.selected_vehicle.make} {client.selected_vehicle.model}
+                  {linkedVehicle.year} {linkedVehicle.make} {linkedVehicle.model}
                 </p>
                 <div className="space-y-1 text-xs text-muted-foreground">
-                  <p>VIN: {client.selected_vehicle.vin || 'N/A'}</p>
-                  <p>Reg: {client.selected_vehicle.registration_number || 'N/A'}</p>
-                  {client.selected_vehicle.color && <p>Color: {client.selected_vehicle.color}</p>}
+                  <p>VIN: {linkedVehicle.vin || 'N/A'}</p>
+                  <p>Reg: {linkedVehicle.registration_number || 'N/A'}</p>
+                  {linkedVehicle.color && <p>Color: {linkedVehicle.color}</p>}
                 </div>
               </div>
             ) : (
@@ -140,20 +162,22 @@ const ClientProfile = () => {
               <TabsContent value="history" className="mt-4">
                 <Card className="p-5 space-y-4">
                   <div className="border-l-2 border-border pl-4 space-y-4">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Today</p>
-                      <p className="text-sm font-medium">Profile Accessed</p>
-                      <p className="text-xs text-muted-foreground">Admin viewed file</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(client.created_at).toLocaleDateString()}
-                      </p>
-                      <p className="text-sm font-medium">Application Created</p>
-                      <p className="text-xs text-muted-foreground">
-                        Status: {client.status?.replace(/_/g, ' ')}
-                      </p>
-                    </div>
+                    {/* Real activity logged from the Client Hub / Lead Cockpit */}
+                    {auditLogs.map((log) => (
+                      <div key={log.id}>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(log.created_at).toLocaleString()}
+                          {log.author_name ? ` • ${log.author_name}` : ''}
+                        </p>
+                        <p className="text-sm font-medium capitalize">
+                          {(log.action_type || 'note').replace(/_/g, ' ')}
+                        </p>
+                        {log.note && (
+                          <p className="text-xs text-muted-foreground whitespace-pre-wrap">{log.note}</p>
+                        )}
+                      </div>
+                    ))}
+
                     {client.deal_records && client.deal_records.length > 0 && (
                       <div>
                         <p className="text-xs text-muted-foreground">
@@ -164,6 +188,22 @@ const ClientProfile = () => {
                         <p className="text-sm font-medium">Vehicle Sold</p>
                         <p className="text-xs text-muted-foreground">Deal finalized</p>
                       </div>
+                    )}
+
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(client.created_at).toLocaleDateString()}
+                      </p>
+                      <p className="text-sm font-medium">Application Created</p>
+                      <p className="text-xs text-muted-foreground">
+                        Status: {client.status?.replace(/_/g, ' ')}
+                      </p>
+                    </div>
+
+                    {auditLogs.length === 0 && (
+                      <p className="text-xs text-muted-foreground italic">
+                        No notes or calls logged yet — log activity from the Pipeline (Lead Cockpit) or Client Hub.
+                      </p>
                     )}
                   </div>
                 </Card>

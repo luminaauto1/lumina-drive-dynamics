@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { ArrowRight, TrendingUp, AlertCircle, Car, DollarSign, Calculator, Search, BarChart3, UserPlus, FileCheck2, Activity } from "lucide-react";
 import { format, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
 import { Helmet } from "react-helmet-async";
+import { isFinalizedDeal, dealNetProfit, dealReportDateObj } from "@/lib/dealMetrics";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -26,8 +27,6 @@ const AdminDashboard = () => {
     const fetchDashboardData = async () => {
       setLoading(true);
       const now = new Date();
-      const start = startOfMonth(now).toISOString();
-      const end = endOfMonth(now).toISOString();
 
       // 1. Settings
       const { data: settings } = await supabase
@@ -36,41 +35,32 @@ const AdminDashboard = () => {
         .single();
       const monthlyTarget = (settings as any)?.monthly_sales_target || 10;
 
-      // 2. Monthly Deals
+      // 2. Monthly Deals — use the stored gross_profit (true net, already includes
+      // DIC/referral/VAP and the REAL per-deal partner split). Re-deriving with a
+      // hardcoded 0.60 split + wrong addon keys (the old code) was materially wrong
+      // and disagreed with the Aftersales/Reports figures. Bucket by SALE date.
       const { data: deals } = await supabase
         .from("deal_records")
         .select("*")
-        .gte("created_at", start)
-        .lte("created_at", end);
+        .limit(20000);
 
-      let totalMetalProfit = 0;
-      let totalExtrasProfit = 0;
-      let totalTurnover = 0;
-
-      (deals || []).forEach((deal: any) => {
-        const sellPrice = Number(deal.sold_price || 0);
-        const metalProfit =
-          sellPrice -
-          Number(deal.cost_price || 0) -
-          Number(deal.recon_cost || 0);
-        totalMetalProfit += metalProfit;
-
-        let extras =
-          Number(deal.dic_amount || 0) +
-          Number(deal.external_admin_fee || 0) +
-          Number(deal.referral_income_amount || 0);
-
-        const addons = deal.addons_data || [];
-        addons.forEach((a: any) => {
-          extras += Number(a.selling_price || 0) - Number(a.cost_price || 0);
-        });
-        totalExtrasProfit += extras;
-        totalTurnover += sellPrice;
+      const monthStart = startOfMonth(now);
+      const monthEnd = endOfMonth(now);
+      const monthlyDeals = (deals || []).filter((deal: any) => {
+        if (!isFinalizedDeal(deal)) return false;
+        const dt = dealReportDateObj(deal);
+        return dt ? dt >= monthStart && dt <= monthEnd : false;
       });
 
-      const units = deals?.length || 0;
+      let luminaNet = 0;
+      let totalTurnover = 0;
+      monthlyDeals.forEach((deal: any) => {
+        luminaNet += dealNetProfit(deal);
+        totalTurnover += Number(deal.sold_price || 0);
+      });
+
+      const units = monthlyDeals.length;
       const target = monthlyTarget;
-      const luminaNet = (totalMetalProfit * 0.60) + totalExtrasProfit;
 
       setMetrics({
         luminaNetProfit: luminaNet,
