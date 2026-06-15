@@ -24,6 +24,7 @@ import {
 } from '@dnd-kit/sortable';
 import AdminLayout from '@/components/admin/AdminLayout';
 import SortableImage from '@/components/admin/SortableImage';
+import CoverImageButton from '@/components/admin/CoverImageButton';
 import VehicleOperationsTab from '@/components/admin/VehicleOperationsTab';
 import StockInModal from '@/components/admin/StockInModal';
 import { AddHiddenStockModal } from '@/components/admin/AddHiddenStockModal';
@@ -1205,6 +1206,10 @@ const AdminInventoryPage = () => {
                       Drag images to reorder. First image is the cover photo.
                     </p>
                   </DndContext>
+                )}
+
+                {images.length > 0 && (
+                  <CoverImageButton images={images} onChange={setImages} />
                 )}
 
                 <FormField

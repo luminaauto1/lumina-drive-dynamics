@@ -30,6 +30,7 @@ import {
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import SortableImage from '@/components/admin/SortableImage';
+import CoverImageButton from '@/components/admin/CoverImageButton';
 
 interface StockInModalProps {
   vehicle: Vehicle;
@@ -674,6 +675,10 @@ const StockInModal = ({ vehicle, isOpen, onClose }: StockInModalProps) => {
                 </DndContext>
               )}
               
+              {images.length > 0 && (
+                <CoverImageButton images={images} onChange={setImages} />
+              )}
+
               <p className="text-xs text-muted-foreground">
                 Drag images to reorder. First image becomes the cover photo.
               </p>
