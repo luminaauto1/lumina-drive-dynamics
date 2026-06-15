@@ -255,125 +255,124 @@ const CRMSheet = () => {
 
       <div className="flex flex-col h-[calc(100vh-4rem)]">
         {/* Header */}
-        <div className="px-4 py-2 border-b border-border flex items-center justify-between">
+        <div className="px-6 py-3 border-b border-border flex items-center justify-between shrink-0">
           <div>
             <div className="flex items-center gap-2">
-              <Sheet className="w-4 h-4 text-primary" />
-              <h1 className="text-sm font-bold text-foreground">CRM Spreadsheet</h1>
+              <Sheet className="w-5 h-5 text-primary" />
+              <h1 className="text-lg font-bold text-foreground">CRM Spreadsheet</h1>
+              <span className="text-xs font-medium bg-muted text-muted-foreground rounded-full px-2 py-0.5">{gridData.length}</span>
             </div>
-            <p className="text-[10px] text-muted-foreground">High-density overview and rapid triage.</p>
+            <p className="text-xs text-muted-foreground mt-0.5">High-density overview and rapid triage. Click a row to open the client.</p>
           </div>
-          <Button size="sm" onClick={() => setAddLeadOpen(true)} className="bg-primary hover:bg-primary/90 text-xs h-8">
-            <Plus className="w-3 h-3 mr-1" /> Add Lead
+          <Button size="sm" onClick={() => setAddLeadOpen(true)} className="bg-primary hover:bg-primary/90">
+            <Plus className="w-4 h-4 mr-1" /> Add Lead
           </Button>
         </div>
 
-        {/* Data Grid - horizontal scroll with expanded min-width */}
+        {/* Data Grid */}
         <div className="flex-1 overflow-auto">
-          <div className="min-w-[900px]">
-            <Table>
-              <TableHeader>
-                <TableRow className="h-7">
-                  <TableHead className="text-[10px] py-1 px-2">Name</TableHead>
-                  <TableHead className="text-[10px] py-1 px-2">Surname</TableHead>
-                  <TableHead className="text-[10px] py-1 px-2">Cell No.</TableHead>
-                  <TableHead className="text-[10px] py-1 px-2">Date</TableHead>
-                  <TableHead className="text-[10px] py-1 px-2">Status</TableHead>
-                  <TableHead className="text-[10px] py-1 px-2">Comments</TableHead>
-                  <TableHead className="text-[10px] py-1 px-2 w-10">Act.</TableHead>
+          <Table>
+            <TableHeader className="sticky top-0 z-10 bg-card shadow-sm">
+              <TableRow className="hover:bg-transparent border-b border-border">
+                <TableHead className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground py-2.5 px-3 whitespace-nowrap">Name</TableHead>
+                <TableHead className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground py-2.5 px-3 whitespace-nowrap">Surname</TableHead>
+                <TableHead className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground py-2.5 px-3 whitespace-nowrap">Cell No.</TableHead>
+                <TableHead className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground py-2.5 px-3 whitespace-nowrap">Date</TableHead>
+                <TableHead className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground py-2.5 px-3 whitespace-nowrap">Status</TableHead>
+                <TableHead className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground py-2.5 px-3 w-full">Comments</TableHead>
+                <TableHead className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground py-2.5 px-3 text-right whitespace-nowrap">Act.</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {gridData.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-10 text-sm">
+                    No records found.
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {gridData.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-6 text-xs">
-                      No records found.
+              ) : (
+                gridData.map((row) => (
+                  <TableRow key={row.id} className={`border-l-4 ${getRowBorderColor(row.status)} even:bg-white/[0.02] hover:bg-primary/5 cursor-pointer transition-colors`} onClick={() => openClientHub(undefined, row.phone)}>
+                    <TableCell className="py-2 px-3 text-sm font-medium whitespace-nowrap">
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); openClientHub(undefined, row.phone); }}
+                        className="hover:text-emerald-400 hover:underline cursor-pointer text-left focus:outline-none truncate"
+                      >
+                        {row.firstName}
+                      </button>
+                    </TableCell>
+                    <TableCell className="py-2 px-3 text-sm whitespace-nowrap">
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); openClientHub(undefined, row.phone); }}
+                        className="hover:text-emerald-400 hover:underline cursor-pointer text-left focus:outline-none truncate"
+                      >
+                        {row.lastName}
+                      </button>
+                    </TableCell>
+                    <TableCell className="py-2 px-3 text-sm font-mono whitespace-nowrap">{row.phone}</TableCell>
+                    <TableCell className={`py-2 px-3 text-xs whitespace-nowrap ${getThermalAgeColor(row.createdAt)}`}>
+                      {row.createdAt ? format(new Date(row.createdAt), 'dd MMM') : 'N/A'}
+                    </TableCell>
+                    <TableCell className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
+                      <Select value={row.status} onValueChange={(val) => handleStatusChange(row.id, row.type, val, row.status)}>
+                        <SelectTrigger className={`h-8 text-xs w-[150px] rounded-md border px-2 ${getStatusColor(row.status)}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(row.type === 'finance'
+                            ? filterStatusOptionsForRole(row.options, role, row.status)
+                            : row.options
+                          ).map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="py-2 px-3 w-full" onClick={(e) => e.stopPropagation()}>
+                      <Input
+                        key={row.id}
+                        defaultValue={row.notes}
+                        onBlur={(e) => {
+                          if (e.target.value !== (row.notes || '')) {
+                            handleNotesChange(row.id, row.type, e.target.value);
+                          }
+                        }}
+                        className="h-8 text-xs bg-transparent border-transparent hover:border-muted focus:border-primary px-2 w-full rounded-md"
+                        placeholder="Add comment..."
+                      />
+                    </TableCell>
+                    <TableCell className="py-2 px-3 text-right" onClick={(e) => e.stopPropagation()}>
+                      {row.type === 'lead' && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          title="Convert to Finance Application"
+                          onClick={() => navigate('/admin/finance/create', { state: { prefillName: `${row.firstName} ${row.lastName}`.trim(), prefillPhone: row.phone && row.phone !== 'N/A' ? row.phone : '' } })}
+                        >
+                          <ArrowRightLeft className="w-4 h-4" />
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
-                ) : (
-                  gridData.map((row) => (
-                    <TableRow key={row.id} className={`h-7 border-l-2 ${getRowBorderColor(row.status)} even:bg-white/[0.02] odd:bg-transparent`} onClick={() => openClientHub(undefined, row.phone)}>
-                      <TableCell className="py-0.5 px-2 text-[11px] font-medium">
-                        <button
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); openClientHub(undefined, row.phone); }}
-                          className="hover:text-emerald-400 hover:underline cursor-pointer text-left focus:outline-none w-full truncate"
-                        >
-                          {row.firstName}
-                        </button>
-                      </TableCell>
-                      <TableCell className="py-0.5 px-2 text-[11px]">
-                        <button
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); openClientHub(undefined, row.phone); }}
-                          className="hover:text-emerald-400 hover:underline cursor-pointer text-left focus:outline-none w-full truncate"
-                        >
-                          {row.lastName}
-                        </button>
-                      </TableCell>
-                      <TableCell className="py-0.5 px-2 text-[11px] font-mono">{row.phone}</TableCell>
-                      <TableCell className={`py-0.5 px-2 text-[10px] ${getThermalAgeColor(row.createdAt)}`}>
-                        {row.createdAt ? format(new Date(row.createdAt), 'dd MMM') : 'N/A'}
-                      </TableCell>
-                      <TableCell className="py-0.5 px-2">
-                        <Select value={row.status} onValueChange={(val) => handleStatusChange(row.id, row.type, val, row.status)}>
-                          <SelectTrigger className={`h-6 text-[10px] w-[130px] rounded-md border px-2 ${getStatusColor(row.status)}`}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(row.type === 'finance'
-                              ? filterStatusOptionsForRole(row.options, role, row.status)
-                              : row.options
-                            ).map((opt) => (
-                              <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                                {opt.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell className="py-0.5 px-2">
-                        <Input
-                          key={row.id}
-                          defaultValue={row.notes}
-                          onBlur={(e) => {
-                            if (e.target.value !== (row.notes || '')) {
-                              handleNotesChange(row.id, row.type, e.target.value);
-                            }
-                          }}
-                          className="h-6 text-[10px] bg-transparent border-transparent hover:border-muted focus:border-primary px-1 w-full rounded-none"
-                          placeholder="Add comment..."
-                        />
-                      </TableCell>
-                      <TableCell className="py-0.5 px-2">
-                        {row.type === 'lead' && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-5 w-5"
-                            title="Convert to Finance Application"
-                            onClick={() => navigate('/admin/finance/create', { state: { prefillName: `${row.firstName} ${row.lastName}`.trim(), prefillPhone: row.phone && row.phone !== 'N/A' ? row.phone : '' } })}
-                          >
-                            <ArrowRightLeft className="w-3 h-3" />
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </div>
 
         {/* Bottom Tabs */}
-        <div className="border-t border-border px-2 py-1 bg-card">
+        <div className="border-t border-border px-3 py-1.5 bg-card shrink-0">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="w-full justify-start overflow-x-auto h-8">
-              <TabsTrigger value="leads" className="text-[10px] py-1 px-2">Leads</TabsTrigger>
-              <TabsTrigger value="apps_received" className="text-[10px] py-1 px-2">Apps Received</TabsTrigger>
-              <TabsTrigger value="pre_approved" className="text-[10px] py-1 px-2">Pre-Approved & Docs</TabsTrigger>
-              <TabsTrigger value="validated" className="text-[10px] py-1 px-2">Validated & Contracts</TabsTrigger>
-              <TabsTrigger value="finalized" className="text-[10px] py-1 px-2 data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400">Finalized Deals</TabsTrigger>
-              <TabsTrigger value="declined" className="text-[10px] py-1 px-2">Lost & Declined</TabsTrigger>
+            <TabsList className="w-full justify-start overflow-x-auto h-9">
+              <TabsTrigger value="leads" className="text-xs py-1 px-3">Leads</TabsTrigger>
+              <TabsTrigger value="apps_received" className="text-xs py-1 px-3">Apps Received</TabsTrigger>
+              <TabsTrigger value="pre_approved" className="text-xs py-1 px-3">Pre-Approved & Docs</TabsTrigger>
+              <TabsTrigger value="validated" className="text-xs py-1 px-3">Validated & Contracts</TabsTrigger>
+              <TabsTrigger value="finalized" className="text-xs py-1 px-3 data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400">Finalized Deals</TabsTrigger>
+              <TabsTrigger value="declined" className="text-xs py-1 px-3">Lost & Declined</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
