@@ -332,9 +332,10 @@ const CRMSheet = () => {
                       </TableCell>
                       <TableCell className="py-0.5 px-2">
                         <Input
-                          defaultValue=""
+                          key={row.id}
+                          defaultValue={row.notes}
                           onBlur={(e) => {
-                            if (e.target.value !== row.notes) {
+                            if (e.target.value !== (row.notes || '')) {
                               handleNotesChange(row.id, row.type, e.target.value);
                             }
                           }}
@@ -349,7 +350,7 @@ const CRMSheet = () => {
                             size="icon"
                             className="h-5 w-5"
                             title="Convert to Finance Application"
-                            onClick={() => navigate(`/admin/finance/create?leadId=${row.id}`)}
+                            onClick={() => navigate('/admin/finance/create', { state: { prefillName: `${row.firstName} ${row.lastName}`.trim(), prefillPhone: row.phone && row.phone !== 'N/A' ? row.phone : '' } })}
                           >
                             <ArrowRightLeft className="w-3 h-3" />
                           </Button>
