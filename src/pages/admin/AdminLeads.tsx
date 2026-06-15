@@ -116,6 +116,16 @@ const AdminLeads = () => {
     setHubOpen(true);
   };
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+
+  // Clicking a lead card opens the per-lead Cockpit (status, call/reminder log, deal calc).
+  // Virtual leads have no row in the `leads` table yet, so fall back to the client-360 hub.
+  const openLead = (lead: MergedLead) => {
+    if (lead.isVirtual) {
+      handleCardClick(lead.client_email || undefined, lead.client_phone || undefined);
+    } else {
+      setSelectedLeadId(lead.id);
+    }
+  };
   const [newAccounts, setNewAccounts] = useState<any[]>([]);
 
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -494,7 +504,7 @@ const AdminLeads = () => {
                   </div>
                 ) : (
                   visibleAccounts.map(acc => (
-                    <Card key={acc.id} className="p-3 border-l-4 border-l-blue-600 bg-card hover:bg-accent/50 transition-all">
+                    <Card key={acc.id} onClick={() => handleCardClick(acc.email || undefined, acc.phone || undefined)} className="p-3 border-l-4 border-l-blue-600 bg-card hover:bg-accent/50 transition-all cursor-pointer">
                       <p className="font-semibold text-sm truncate">{acc.full_name || 'Unknown'}</p>
                       <p className="text-xs text-muted-foreground truncate mt-0.5">{acc.email}</p>
                       {acc.phone && <p className="text-xs text-muted-foreground font-mono mt-0.5">{acc.phone}</p>}
@@ -553,7 +563,7 @@ const AdminLeads = () => {
                                     <Card
                                       ref={provided.innerRef}
                                       {...provided.draggableProps}
-                                      onClick={() => handleCardClick(lead.client_email || undefined, lead.client_phone || undefined)}
+                                      onClick={() => openLead(lead)}
                                       className={`lead-card p-3 relative group transition-all cursor-pointer border-l-4 ${col.color.replace('border-', 'border-l-')} bg-card hover:bg-accent/50 ${snapshot.isDragging ? 'shadow-lg ring-2 ring-primary/30' : ''}`}
                                     >
                                       <div {...provided.dragHandleProps} className="absolute top-2 left-1 opacity-0 group-hover:opacity-50 transition-opacity">
