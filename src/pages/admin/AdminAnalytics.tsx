@@ -9,6 +9,7 @@ import {
 } from "recharts";
 import { startOfMonth, subMonths, format, parseISO } from "date-fns";
 import { Helmet } from "react-helmet-async";
+import { isFinalizedDeal, dealNetProfit, dealReportDate } from "@/lib/dealMetrics";
 
 const AdminAnalytics = () => {
   const [loading, setLoading] = useState(true);
@@ -28,28 +29,27 @@ const AdminAnalytics = () => {
       setLoading(true);
 
       const [{ data: leads }, { data: deals }] = await Promise.all([
-        supabase.from("leads").select("id, pipeline_stage, created_at, is_archived"),
-        supabase.from("deal_records").select("*"),
+        // Explicit high limit — PostREST defaults to 1000 rows and silently truncates.
+        supabase.from("leads").select("id, pipeline_stage, created_at, is_archived").limit(20000),
+        supabase.from("deal_records").select("*").limit(20000),
       ]);
 
       if (leads && deals) {
+        // Only finalized deals (with a sale date / closed) count toward money figures.
+        const finalizedDeals = deals.filter(isFinalizedDeal);
+
         // KPI calculations
         const active = leads.filter(l => !l.is_archived && l.pipeline_stage !== 'cold').length;
-        const conversion = leads.length > 0 ? (deals.length / leads.length) * 100 : 0;
+        const conversion = leads.length > 0 ? (finalizedDeals.length / leads.length) * 100 : 0;
 
-        let profit = 0;
-        deals.forEach(deal => {
-          // Use the master formula columns from deal_records
-          const grossProfit = Number(deal.gross_profit || 0);
-          const dic = Number(deal.dic_amount || 0);
-          const referralIncome = Number(deal.referral_income_amount || 0);
-          profit += grossProfit + dic + referralIncome;
-        });
+        // Net profit = the stored gross_profit column. It is ALREADY net of all
+        // costs and already includes DIC + referral income — never add them again.
+        const profit = finalizedDeals.reduce((sum, deal) => sum + dealNetProfit(deal), 0);
 
         setStats({
           totalLeads: leads.length,
           activeLeads: active,
-          totalDeals: deals.length,
+          totalDeals: finalizedDeals.length,
           conversionRate: conversion,
           totalProfit: profit,
         });
@@ -75,12 +75,13 @@ const AdminAnalytics = () => {
           return { month: format(d, "MMM yy"), rawDate: startOfMonth(d), profit: 0, deals: 0 };
         }).reverse();
 
-        deals.forEach(deal => {
-          if (!deal.created_at) return;
-          const dealMonth = startOfMonth(parseISO(deal.created_at));
+        finalizedDeals.forEach(deal => {
+          const reportDate = dealReportDate(deal);
+          if (!reportDate) return;
+          const dealMonth = startOfMonth(parseISO(reportDate));
           const bucket = last6.find(m => m.rawDate.getTime() === dealMonth.getTime());
           if (bucket) {
-            bucket.profit += Number(deal.gross_profit || 0) + Number(deal.dic_amount || 0);
+            bucket.profit += dealNetProfit(deal);
             bucket.deals += 1;
           }
         });
@@ -105,9 +106,9 @@ const AdminAnalytics = () => {
 
   const kpis = [
     { label: "Total Leads", value: stats.totalLeads.toString(), sub: `${stats.activeLeads} currently active`, icon: Users, color: "text-blue-400" },
-    { label: "Deals Closed", value: stats.totalDeals.toString(), sub: "All-time delivered vehicles", icon: Target, color: "text-emerald-400" },
-    { label: "Conversion Rate", value: `${stats.conversionRate.toFixed(1)}%`, sub: "Leads → Deals ratio", icon: TrendingUp, color: "text-amber-400" },
-    { label: "Gross Profit", value: `R ${stats.totalProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, sub: "All-time gross revenue", icon: DollarSign, color: "text-green-400" },
+    { label: "Deals Closed", value: stats.totalDeals.toString(), sub: "All-time finalized deals", icon: Target, color: "text-emerald-400" },
+    { label: "Conversion Rate", value: `${stats.conversionRate.toFixed(1)}%`, sub: "Finalized deals ÷ total leads", icon: TrendingUp, color: "text-amber-400" },
+    { label: "Net Profit", value: `R ${stats.totalProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, sub: "All-time net (after costs & splits)", icon: DollarSign, color: "text-green-400" },
   ];
 
   return (

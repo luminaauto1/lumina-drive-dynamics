@@ -21,6 +21,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatPrice } from '@/hooks/useVehicles';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { isFinalizedDeal, dealNetProfit, dealReportDateObj } from '@/lib/dealMetrics';
 
 
 interface DealRecord {
@@ -36,6 +37,8 @@ interface DealRecord {
   sales_rep_commission: number | null;
   referral_commission_amount: number | null;
   referral_income_amount: number | null;
+  total_financed_amount: number | null;
+  is_closed: boolean | null;
   addons_data: any[] | null;
   aftersales_expenses: Array<{ type: string; amount: number }> | null;
   vehicle?: {
@@ -74,7 +77,8 @@ const useDealRecordsForReports = () => {
           vehicle:vehicles(id, make, model, year, created_at, status),
           application:finance_applications(buyer_type)
         `)
-        .order('sale_date', { ascending: false });
+        .order('sale_date', { ascending: false })
+        .limit(20000);
 
       if (error) throw error;
       return (data || []).map(record => ({
@@ -94,7 +98,8 @@ const useVehiclesForReports = () => {
       const { data, error } = await supabase
         .from('vehicles')
         .select('id, make, model, year, price, status, created_at')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(20000);
 
       if (error) throw error;
       return data as Vehicle[];
@@ -116,47 +121,56 @@ const AdminReports = () => {
     to: new Date(),
   });
 
-  // Filter deals by date range
+  // Filter to FINALIZED deals within the date range (excludes draft/unfinished
+  // deal_records so totals match the Accounting tab). Dates parsed in local time.
   const filteredDeals = useMemo(() => {
     return dealRecords.filter(deal => {
-      const saleDate = deal.sale_date ? new Date(deal.sale_date) : new Date(deal.created_at);
-      return isWithinInterval(saleDate, { start: dateRange.from, end: dateRange.to });
+      if (!isFinalizedDeal(deal)) return false;
+      const saleDate = dealReportDateObj(deal);
+      return saleDate ? isWithinInterval(saleDate, { start: dateRange.from, end: dateRange.to }) : false;
     });
   }, [dealRecords, dateRange]);
 
   // === FINANCIAL HEALTH METRICS ===
   const financialMetrics = useMemo(() => {
-    const netProfit = filteredDeals.reduce((sum, d) => sum + (d.gross_profit || 0), 0);
+    // Net profit = stored gross_profit (already net of all costs & splits).
+    const netProfit = filteredDeals.reduce((sum, d) => sum + dealNetProfit(d), 0);
     const grossRevenue = filteredDeals.reduce((sum, d) => sum + (d.sold_price || 0), 0);
-    const totalCosts = filteredDeals.reduce((sum, d) => sum + (d.cost_price || 0) + (d.recon_cost || 0), 0);
-    const totalExpenses = filteredDeals.reduce((sum, d) => {
+    // Cost of Sales = vehicle cost + reconditioning + aftersales expenses.
+    const costOfSales = filteredDeals.reduce((sum, d) => {
       const aftersales = (d.aftersales_expenses || []).reduce((s, e) => s + (e.amount || 0), 0);
-      return sum + aftersales;
+      return sum + (d.cost_price || 0) + (d.recon_cost || 0) + aftersales;
     }, 0);
-    const commissionPayouts = filteredDeals.reduce((sum, d) => 
-      sum + (d.sales_rep_commission || 0) + (d.referral_commission_amount || 0), 0);
+    // Rep commission is NOT inside net profit (tracked separately) — referral
+    // commission already is, so don't add it here or it double-counts.
+    const repCommission = filteredDeals.reduce((sum, d) => sum + (d.sales_rep_commission || 0), 0);
 
-    return { netProfit, grossRevenue, totalCosts, totalExpenses, commissionPayouts };
+    return { netProfit, grossRevenue, costOfSales, repCommission };
   }, [filteredDeals]);
 
   // Chart data: Profit vs Expenses by week/day
   const profitExpenseChartData = useMemo(() => {
-    const groupedData: Record<string, { date: string; profit: number; expenses: number }> = {};
-    
+    const groupedData: Record<string, { date: string; sortKey: number; profit: number; expenses: number }> = {};
+
     filteredDeals.forEach(deal => {
-      const saleDate = deal.sale_date ? new Date(deal.sale_date) : new Date(deal.created_at);
+      const saleDate = dealReportDateObj(deal);
+      if (!saleDate) return;
       const dateKey = format(saleDate, 'dd MMM');
-      
+
       if (!groupedData[dateKey]) {
-        groupedData[dateKey] = { date: dateKey, profit: 0, expenses: 0 };
+        groupedData[dateKey] = { date: dateKey, sortKey: saleDate.getTime(), profit: 0, expenses: 0 };
       }
-      
-      groupedData[dateKey].profit += deal.gross_profit || 0;
+
+      groupedData[dateKey].profit += dealNetProfit(deal);
       const aftersales = (deal.aftersales_expenses || []).reduce((s, e) => s + (e.amount || 0), 0);
-      groupedData[dateKey].expenses += (deal.recon_cost || 0) + aftersales;
+      groupedData[dateKey].expenses += (deal.cost_price || 0) + (deal.recon_cost || 0) + aftersales;
     });
 
-    return Object.values(groupedData).slice(-14); // Last 14 data points
+    // Sort chronologically, then keep the most recent 14 days.
+    return Object.values(groupedData)
+      .sort((a, b) => a.sortKey - b.sortKey)
+      .slice(-14)
+      .map(({ date, profit, expenses }) => ({ date, profit, expenses }));
   }, [filteredDeals]);
 
   // === INVENTORY VELOCITY METRICS ===
@@ -192,11 +206,11 @@ const AdminReports = () => {
 
   // === DEAL INSIGHTS METRICS ===
   const dealInsights = useMemo(() => {
-    // Finance penetration
-    const financeDeals = filteredDeals.filter(d => d.application?.buyer_type === 'finance').length;
-    const cashDeals = filteredDeals.filter(d => d.application?.buyer_type === 'cash').length;
-    const totalWithType = financeDeals + cashDeals;
-    const financePenetration = totalWithType > 0 ? ((financeDeals / totalWithType) * 100).toFixed(1) : '0';
+    // Finance penetration. Cash deals usually have NO finance_applications row,
+    // so buyer_type is unreliable — derive from whether the deal was financed.
+    const financeDeals = filteredDeals.filter(d => Number(d.total_financed_amount || 0) > 0).length;
+    const cashDeals = filteredDeals.length - financeDeals;
+    const financePenetration = filteredDeals.length > 0 ? ((financeDeals / filteredDeals.length) * 100).toFixed(1) : '0';
 
     // Average discount given
     const dealsWithDiscount = filteredDeals.filter(d => d.discount_amount && d.discount_amount > 0);
@@ -358,22 +372,24 @@ const AdminReports = () => {
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                     <BarChart3 className="w-4 h-4 text-orange-400" />
-                    Total Expenses
+                    Cost of Sales
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold text-orange-400">{formatPrice(financialMetrics.totalExpenses)}</p>
+                  <p className="text-2xl font-bold text-orange-400">{formatPrice(financialMetrics.costOfSales)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Vehicle cost + recon + aftersales</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                     <DollarSign className="w-4 h-4 text-purple-400" />
-                    Commission Payouts
+                    Rep Commission
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold text-purple-400">{formatPrice(financialMetrics.commissionPayouts)}</p>
+                  <p className="text-2xl font-bold text-purple-400">{formatPrice(financialMetrics.repCommission)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Still payable (not in net profit)</p>
                 </CardContent>
               </Card>
             </div>
@@ -616,8 +632,9 @@ const AdminReports = () => {
 const InvestorReport = ({ deals, dateRange }: { deals: DealRecord[]; dateRange: { from: Date; to: Date } }) => {
   const filteredDeals = useMemo(() => {
     return deals.filter(d => {
-      const saleDate = d.sale_date ? new Date(d.sale_date) : new Date(d.created_at);
-      return isWithinInterval(saleDate, { start: dateRange.from, end: dateRange.to });
+      if (!isFinalizedDeal(d)) return false;
+      const saleDate = dealReportDateObj(d);
+      return saleDate ? isWithinInterval(saleDate, { start: dateRange.from, end: dateRange.to }) : false;
     });
   }, [deals, dateRange]);
 
@@ -632,14 +649,11 @@ const InvestorReport = ({ deals, dateRange }: { deals: DealRecord[]; dateRange: 
       const reconCost = Number(deal.recon_cost || 0);
       const margin = soldPrice - costPrice - reconCost;
 
-      const dicAmount = Number(deal.dic_amount || 0);
-      const referralIncome = Number(deal.referral_income_amount || 0);
-      const addons = Array.isArray(deal.addons_data) ? (deal.addons_data as any[]) : [];
-      const vapProfit = addons.reduce((s: number, a: any) => s + ((Number(a.price) || 0) - (Number(a.cost) || 0)), 0);
-
       turnover += soldPrice;
       totalVehicleMargin += margin;
-      totalNetProfit += (margin + dicAmount + referralIncome + vapProfit);
+      // True net profit = the stored gross_profit column (already includes DIC,
+      // referral income and VAP, already net of all costs & partner splits).
+      totalNetProfit += dealNetProfit(deal);
     });
 
     return {
