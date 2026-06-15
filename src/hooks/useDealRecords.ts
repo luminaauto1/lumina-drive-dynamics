@@ -135,14 +135,15 @@ export const useCreateDealRecord = () => {
             .from('vehicles')
             .update({ sourced_count: ((vehicleData as any)?.sourced_count || 0) + 1 })
             .eq('id', record.vehicleId);
-        } else if (vehicleData.status === 'available' || vehicleData.status === 'reserved' || vehicleData.status === 'incoming') {
-          // Real stock (available, reserved, incoming): mark as sold
+        } else if (['available', 'reserved', 'incoming', 'hidden'].includes(vehicleData.status)) {
+          // Real stock (available, reserved, incoming) AND hidden client stock:
+          // mark as sold. A hidden car was bought for this specific client, so on
+          // finalize it must move to Sold stock (not stay hidden forever).
           await supabase
             .from('vehicles')
             .update({ status: 'sold' })
             .eq('id', record.vehicleId);
         }
-        // If hidden/client stock: DO NOT change status (keep hidden)
       }
 
       // Silent referral cross-reference — never blocks the deal flow.
