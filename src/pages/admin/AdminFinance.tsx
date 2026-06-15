@@ -449,10 +449,12 @@ const AdminFinance = () => {
               <BarChart3 className="w-4 h-4 mr-2 text-amber-400" />
               Credit Report
             </Button>
-            <Button variant="outline" onClick={() => setCashDealModalOpen(true)} className="w-fit">
-              <Banknote className="w-4 h-4 mr-2" />
-              Cash Deal
-            </Button>
+            {(isSuperAdmin || isSeniorFAndI) && (
+              <Button variant="outline" onClick={() => setCashDealModalOpen(true)} className="w-fit">
+                <Banknote className="w-4 h-4 mr-2" />
+                Cash Deal
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setWaModalOpen(true)} className="w-fit">
               <MessageSquare className="w-4 h-4 mr-2 text-emerald-500" />
               WhatsApp to PDF

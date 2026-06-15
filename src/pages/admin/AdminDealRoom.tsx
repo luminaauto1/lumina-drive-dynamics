@@ -45,7 +45,9 @@ const AdminDealRoom = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { role } = useAuth();
+  const { role, isSuperAdmin, isSeniorFAndI } = useAuth();
+  // Only full admins and senior F&I may finalize deals (deal_records hold figures).
+  const canFinalize = isSuperAdmin || isSeniorFAndI;
   
   const [application, setApplication] = useState<FinanceApplication | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -890,18 +892,20 @@ const AdminDealRoom = () => {
                         <Building2 className="w-4 h-4 mr-1 md:mr-2" />
                         Podium
                       </Button>
-                      <Button
-                        onClick={handleOpenFinalizeModal}
-                        size="sm"
-                        className="bg-emerald-600 hover:bg-emerald-700 text-xs md:text-sm"
-                      >
-                        <PartyPopper className="w-4 h-4 mr-1 md:mr-2" />
-                        Finalize
-                      </Button>
+                      {canFinalize && (
+                        <Button
+                          onClick={handleOpenFinalizeModal}
+                          size="sm"
+                          className="bg-emerald-600 hover:bg-emerald-700 text-xs md:text-sm"
+                        >
+                          <PartyPopper className="w-4 h-4 mr-1 md:mr-2" />
+                          Finalize
+                        </Button>
+                      )}
                     </>
                   )}
                   {/* Finalize button for vehicle_selected status too */}
-                  {application.status === 'vehicle_selected' && !canShowDealActions(application.status) && (
+                  {canFinalize && application.status === 'vehicle_selected' && !canShowDealActions(application.status) && (
                     <Button
                       onClick={handleOpenFinalizeModal}
                       size="sm"
