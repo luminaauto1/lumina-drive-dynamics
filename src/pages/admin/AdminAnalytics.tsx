@@ -28,44 +28,57 @@ const AdminAnalytics = () => {
     const fetchAnalytics = async () => {
       setLoading(true);
 
-      const [{ data: leads }, { data: deals }] = await Promise.all([
-        // Explicit high limit — PostREST defaults to 1000 rows and silently truncates.
-        supabase.from("leads").select("id, pipeline_stage, created_at, is_archived").limit(20000),
+      const stages = [
+        { id: 'new', label: 'NEW' },
+        { id: 'contacted', label: 'CONTACTED' },
+        { id: 'finance', label: 'FINANCE' },
+        { id: 'approved', label: 'APPROVED' },
+        { id: 'cold', label: 'COLD' },
+      ];
+
+      // Use exact COUNT queries (head:true) for lead totals. PostgREST caps the
+      // number of returned ROWS at 1000 server-side, so fetching rows and counting
+      // would silently truncate (the dealership already has >1000 leads). Counts
+      // are not subject to that cap.
+      const [
+        { count: totalLeads },
+        { count: activeLeads },
+        { data: deals },
+        ...stageResults
+      ] = await Promise.all([
+        supabase.from("leads").select("*", { count: "exact", head: true }),
+        supabase.from("leads").select("*", { count: "exact", head: true })
+          .not("is_archived", "is", true)
+          .or("pipeline_stage.neq.cold,pipeline_stage.is.null"),
         supabase.from("deal_records").select("*").limit(20000),
+        ...stages.map(s =>
+          supabase.from("leads").select("*", { count: "exact", head: true }).eq("pipeline_stage", s.id)
+        ),
       ]);
 
-      if (leads && deals) {
+      if (deals) {
         // Only finalized deals (with a sale date / closed) count toward money figures.
         const finalizedDeals = deals.filter(isFinalizedDeal);
-
-        // KPI calculations
-        const active = leads.filter(l => !l.is_archived && l.pipeline_stage !== 'cold').length;
-        const conversion = leads.length > 0 ? (finalizedDeals.length / leads.length) * 100 : 0;
+        const leadTotal = totalLeads || 0;
+        const conversion = leadTotal > 0 ? (finalizedDeals.length / leadTotal) * 100 : 0;
 
         // Net profit = the stored gross_profit column. It is ALREADY net of all
         // costs and already includes DIC + referral income — never add them again.
         const profit = finalizedDeals.reduce((sum, deal) => sum + dealNetProfit(deal), 0);
 
         setStats({
-          totalLeads: leads.length,
-          activeLeads: active,
+          totalLeads: leadTotal,
+          activeLeads: activeLeads || 0,
           totalDeals: finalizedDeals.length,
           conversionRate: conversion,
           totalProfit: profit,
         });
 
-        // Pipeline chart
-        const stages = [
-          { id: 'new', label: 'NEW' },
-          { id: 'contacted', label: 'CONTACTED' },
-          { id: 'finance', label: 'FINANCE' },
-          { id: 'approved', label: 'APPROVED' },
-          { id: 'cold', label: 'COLD' },
-        ];
+        // Pipeline chart — per-stage exact counts (not truncated).
         setPipelineData(
-          stages.map(s => ({
+          stages.map((s, i) => ({
             name: s.label,
-            count: leads.filter(l => l.pipeline_stage === s.id).length,
+            count: stageResults[i]?.count || 0,
           }))
         );
 
