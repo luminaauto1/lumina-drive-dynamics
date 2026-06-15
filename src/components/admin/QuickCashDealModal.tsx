@@ -12,6 +12,7 @@ import { useVehicles, formatPrice } from '@/hooks/useVehicles';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import FinalizeDealModal from './FinalizeDealModal';
+import { useCreateAftersalesRecord } from '@/hooks/useAftersales';
 
 interface QuickCashDealModalProps {
   open: boolean;
@@ -22,11 +23,13 @@ interface QuickCashDealModalProps {
 const QuickCashDealModal = ({ open, onOpenChange, onCreated }: QuickCashDealModalProps) => {
   const queryClient = useQueryClient();
   const { data: vehicles = [] } = useVehicles();
+  const createAftersalesRecord = useCreateAftersalesRecord();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Workflow States
   const [showFinalize, setShowFinalize] = useState(false);
   const [createdAppId, setCreatedAppId] = useState<string | null>(null);
+  const [createdApp, setCreatedApp] = useState<any>(null);
 
   // Form States
   const [clientType, setClientType] = useState<'private' | 'trade'>('private');
@@ -74,6 +77,7 @@ const QuickCashDealModal = ({ open, onOpenChange, onCreated }: QuickCashDealModa
     setSelectedPartnerId('');
     setShowFinalize(false);
     setCreatedAppId(null);
+    setCreatedApp(null);
   };
 
   const handleSubmit = async () => {
@@ -151,6 +155,7 @@ const QuickCashDealModal = ({ open, onOpenChange, onCreated }: QuickCashDealModa
       await queryClient.invalidateQueries({ queryKey: ['finance-applications'] });
       await queryClient.invalidateQueries({ queryKey: ['vehicles'] });
 
+      setCreatedApp(data);
       setCreatedAppId(data.id);
       setShowFinalize(true);
     } catch (error: any) {
@@ -186,11 +191,49 @@ const QuickCashDealModal = ({ open, onOpenChange, onCreated }: QuickCashDealModa
           purchase_price: selectedVehicle.purchase_price,
           reconditioning_cost: selectedVehicle.reconditioning_cost,
         }}
-        onSuccess={() => {
-          toast.success('Cash deal structure saved!');
+        onSuccess={async () => {
+          // Finalize the cash deal the SAME way the Deal Room does: atomically
+          // flip the application to 'finalized' AND the vehicle to 'sold', then
+          // create the aftersales record. Previously this only showed a toast, so
+          // cash deals never finalized (app stuck in pipeline, no aftersales).
+          const appId = createdAppId;
+          try {
+            const { error: rpcError } = await (supabase as any).rpc('finalize_deal_atomic', {
+              p_application_id: appId,
+              p_vehicle_id: selectedVehicle.id,
+            });
+            if (rpcError) throw rpcError;
+            queryClient.invalidateQueries({ queryKey: ['finance-applications'] });
+            queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+          } catch (err: any) {
+            console.error('Cash deal finalize failed:', err);
+            toast.error('Deal saved, but finalize failed — application/vehicle not updated: ' + err.message);
+            resetForm();
+            onOpenChange(false);
+            if (appId) onCreated(appId);
+            return;
+          }
+
+          // Non-critical: aftersales record (failure must not hide the finalize).
+          try {
+            await createAftersalesRecord.mutateAsync({
+              vehicleId: selectedVehicle.id,
+              customerId: createdApp?.user_id,
+              customerName: `${createdApp?.first_name || ''} ${createdApp?.last_name || ''}`.trim() || createdApp?.full_name,
+              customerEmail: createdApp?.email,
+              customerPhone: createdApp?.phone,
+              financeApplicationId: appId,
+            });
+            toast.success('Cash deal finalized! Vehicle marked sold & aftersales created.');
+          } catch (err) {
+            console.error('Aftersales (non-critical) failed:', err);
+            toast.success('Cash deal finalized & vehicle marked sold.');
+            toast.warning('Aftersales record could not be created automatically — add it manually.');
+          }
+
           resetForm();
           onOpenChange(false);
-          onCreated(createdAppId);
+          if (appId) onCreated(appId);
         }}
         isCashDeal={true}
       />

@@ -7,15 +7,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, Ghost } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Client {
   id: string;
   first_name: string | null;
   last_name: string | null;
   id_number: string | null;
+  email?: string | null;
+  phone?: string | null;
 }
 
 export const AddHiddenStockModal = ({ onSuccess }: { onSuccess: () => void }) => {
+  const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -33,7 +37,7 @@ export const AddHiddenStockModal = ({ onSuccess }: { onSuccess: () => void }) =>
       const fetchClients = async () => {
         const { data } = await supabase
           .from('finance_applications')
-          .select('id, first_name, last_name, id_number')
+          .select('id, first_name, last_name, id_number, email, phone')
           .neq('status', 'delivered')
           .order('created_at', { ascending: false });
         if (data) setClients(data);
@@ -74,13 +78,32 @@ export const AddHiddenStockModal = ({ onSuccess }: { onSuccess: () => void }) =>
       if (vError) throw vError;
 
       if (selectedClientId && selectedClientId !== "none") {
+        // Full link so the Deal Room, Finalize, and Client Profile all see this car:
+        // write BOTH vehicle FKs (readers prefer selected_vehicle_id), advance the
+        // application status, and create the application_matches row the Deal Room
+        // reads from. Previously only vehicle_id was set and no match was created,
+        // so finalize errored "please add a vehicle" and the profile showed none.
         await supabase
           .from('finance_applications')
-          .update({ vehicle_id: vehicle.id })
+          .update({
+            vehicle_id: vehicle.id,
+            selected_vehicle_id: vehicle.id,
+            status: 'vehicle_selected',
+          })
           .eq('id', selectedClientId);
-      }
 
-      toast.success("Hidden stock added & linked!");
+        await supabase
+          .from('application_matches')
+          .insert({ application_id: selectedClientId, vehicle_id: vehicle.id, notes: 'Client-specific hidden stock' });
+
+        // Refresh everything that depends on the link so no page refresh is needed.
+        queryClient.invalidateQueries({ queryKey: ['finance-applications'] });
+        queryClient.invalidateQueries({ queryKey: ['application-matches', selectedClientId] });
+        queryClient.invalidateQueries({ queryKey: ['user-application-matches'] });
+      }
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+
+      toast.success(selectedClientId !== "none" ? "Hidden car added & linked to client!" : "Hidden stock added!");
       setIsOpen(false);
       onSuccess();
       setFormData({ make: "", model: "", year: new Date().getFullYear(), vin: "", registration_number: "", mileage: 0, color: "", cost_price: 0 });
@@ -118,7 +141,7 @@ export const AddHiddenStockModal = ({ onSuccess }: { onSuccess: () => void }) =>
                 <SelectItem value="none">— No Client Yet —</SelectItem>
                 {clients.map(c => (
                   <SelectItem key={c.id} value={c.id}>
-                    {c.first_name} {c.last_name} {c.id_number ? `(${c.id_number})` : ''}
+                    {c.first_name} {c.last_name} — {c.email || c.phone || c.id_number || 'no contact'}
                   </SelectItem>
                 ))}
               </SelectContent>
