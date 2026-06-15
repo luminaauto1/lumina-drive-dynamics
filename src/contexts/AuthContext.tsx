@@ -57,9 +57,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         setSession(session);
         setUser(session?.user ?? null);
-        setLoading(false);
 
-        // Check admin role after auth state change
+        // Check role after auth state change. Keep `loading` TRUE until the role
+        // is resolved (fetchRole flips it off) so route guards don't bounce
+        // admins to the homepage before their roles have loaded.
         if (session?.user) {
           // Use setTimeout to avoid potential deadlock with Supabase client
           setTimeout(() => {
@@ -69,6 +70,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }, 0);
         } else {
           setRole(null);
+          setIsAccountant(false);
+          setLoading(false);
         }
       }
     );
@@ -85,10 +88,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (mounted) {
           setSession(session);
           setUser(session?.user ?? null);
-          setLoading(false);
 
           if (session?.user) {
+            // fetchRole flips `loading` off once the role is known.
             fetchRole(session.user.id);
+          } else {
+            setLoading(false);
           }
         }
       } catch (err) {
@@ -108,25 +113,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const fetchRole = async (userId: string) => {
-    // Fetch all roles for this user; pick highest privilege
-    const { data } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId);
+    try {
+      // Fetch all roles for this user; pick highest privilege
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId);
 
-    const roles = (data || []).map((r: any) => r.role as string);
-    setIsAccountant(roles.includes('accountant'));
-    if (roles.includes('admin')) {
-      setRole('super_admin');
-    } else if (roles.includes('sales_agent')) {
-      setRole('sales_agent');
-    } else if (roles.includes('senior_f_and_i') || roles.includes('accountant')) {
-      // Accountants inherit Senior F&I operational permissions
-      setRole('senior_f_and_i');
-    } else if (roles.includes('f_and_i')) {
-      setRole('f_and_i');
-    } else {
+      const roles = (data || []).map((r: any) => r.role as string);
+      setIsAccountant(roles.includes('accountant'));
+      if (roles.includes('admin')) {
+        setRole('super_admin');
+      } else if (roles.includes('sales_agent')) {
+        setRole('sales_agent');
+      } else if (roles.includes('senior_f_and_i') || roles.includes('accountant')) {
+        // Accountants inherit Senior F&I operational permissions
+        setRole('senior_f_and_i');
+      } else if (roles.includes('f_and_i')) {
+        setRole('f_and_i');
+      } else {
+        setRole(null);
+      }
+    } catch (err) {
+      console.error('Error fetching user role:', err);
       setRole(null);
+    } finally {
+      // Auth is only fully resolved once the role is known — release route guards now.
+      setLoading(false);
     }
   };
 
