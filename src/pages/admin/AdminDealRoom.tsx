@@ -39,7 +39,6 @@ import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
 import { useAuth } from '@/contexts/AuthContext';
 import { generateFinancePDF } from '@/lib/generateFinancePDF';
 import { toast } from 'sonner';
-import { sendStatusNotification } from '@/hooks/useStatusNotification';
 
 const AdminDealRoom = () => {
   const { id } = useParams<{ id: string }>();
@@ -139,21 +138,9 @@ const AdminDealRoom = () => {
     try {
       await updateApplication.mutateAsync({ id: application.id, updates: { status: newStatus } });
       setApplication(prev => prev ? { ...prev, status: newStatus } : null);
-      
-      // Send email notification to client
-      const vehicleName = activeVehicle 
-        ? `${activeVehicle.year} ${activeVehicle.make} ${activeVehicle.model}`
-        : undefined;
-      
-      sendStatusNotification({
-        clientEmail: application.email,
-        clientName: application.first_name || application.full_name?.split(' ')[0] || 'Client',
-        newStatus,
-        applicationId: application.id,
-        accessToken: (application as any).access_token,
-        vehicleName,
-      });
-      
+
+      // Client notification (email + WhatsApp) is handled inside updateApplication
+      // (the shared hook). A second dispatch here caused duplicate client emails.
       toast.success(`Status updated to ${newStatus}`);
     } catch (error) {
       console.error('Failed to update status:', error);
@@ -161,20 +148,10 @@ const AdminDealRoom = () => {
   };
   
   const handleContractSentSuccess = () => {
-    // Refresh application data after contract sent
+    // Refresh after contract sent. The contract_sent email is sent by
+    // ContractSentModal via the shared hook — no second dispatch here.
     fetchApplication();
     queryClient.invalidateQueries({ queryKey: ['finance-applications'] });
-    
-    // Send notification
-    if (application) {
-      sendStatusNotification({
-        clientEmail: application.email,
-        clientName: application.first_name || application.full_name?.split(' ')[0] || 'Client',
-        newStatus: 'contract_sent',
-        applicationId: application.id,
-        accessToken: (application as any).access_token,
-      });
-    }
   };
 
   const handleRequestRevision = async () => {
@@ -247,15 +224,7 @@ const AdminDealRoom = () => {
       });
       setApplication(prev => prev ? { ...prev, status: 'declined', declined_reason: declineReason } : null);
       setDeclineDialogOpen(false);
-      
-      // Send decline notification
-      sendStatusNotification({
-        clientEmail: application.email,
-        clientName: application.first_name || application.full_name?.split(' ')[0] || 'Client',
-        newStatus: 'declined',
-        applicationId: application.id,
-      });
-      
+      // Decline email + WhatsApp are sent by updateApplication (the shared hook).
       toast.success('Application declined');
     } catch (error) {
       console.error('Failed to decline application:', error);
@@ -1628,17 +1597,7 @@ const AdminDealRoom = () => {
             }
             await updateApplication.mutateAsync({ id: application.id, updates });
             setApplication(prev => prev ? ({ ...prev, ...updates } as any) : null);
-            const vehicleName = activeVehicle
-              ? `${activeVehicle.year} ${activeVehicle.make} ${activeVehicle.model}`
-              : undefined;
-            sendStatusNotification({
-              clientEmail: application.email,
-              clientName: application.first_name || application.full_name?.split(' ')[0] || 'Client',
-              newStatus: 'application_submitted',
-              applicationId: application.id,
-              accessToken: (application as any).access_token,
-              vehicleName,
-            });
+            // Submission email + WhatsApp are sent by updateApplication (the hook).
             toast.success('Application submitted to bank');
           } catch (err) {
             console.error('Bank ref submission failed:', err);

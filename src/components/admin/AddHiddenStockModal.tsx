@@ -3,11 +3,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Ghost } from "lucide-react";
+import { Loader2, Ghost, Check, ChevronsUpDown } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { cn } from "@/lib/utils";
 
 interface Client {
   id: string;
@@ -31,6 +33,7 @@ export const AddHiddenStockModal = ({ onSuccess }: { onSuccess: () => void }) =>
 
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClientId, setSelectedClientId] = useState("none");
+  const [clientPickerOpen, setClientPickerOpen] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -133,19 +136,54 @@ export const AddHiddenStockModal = ({ onSuccess }: { onSuccess: () => void }) =>
           {/* Client Link */}
           <div className="space-y-1.5">
             <Label>Link to Client (Optional)</Label>
-            <Select value={selectedClientId} onValueChange={setSelectedClientId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select client…" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">— No Client Yet —</SelectItem>
-                {clients.map(c => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.first_name} {c.last_name} — {c.email || c.phone || c.id_number || 'no contact'}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={clientPickerOpen} onOpenChange={setClientPickerOpen}>
+              <PopoverTrigger asChild>
+                <Button type="button" variant="outline" role="combobox" className="w-full justify-between font-normal">
+                  <span className="truncate">
+                    {selectedClientId === "none"
+                      ? "— No Client Yet —"
+                      : (() => {
+                          const c = clients.find(x => x.id === selectedClientId);
+                          if (!c) return "Select client…";
+                          const name = `${c.first_name || ''} ${c.last_name || ''}`.trim();
+                          return `${name}${c.email ? ` — ${c.email}` : c.phone ? ` — ${c.phone}` : ''}`;
+                        })()}
+                  </span>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command filter={(value, search) => value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0}>
+                  <CommandInput placeholder="Search name, email or phone…" />
+                  <CommandList>
+                    <CommandEmpty>No matching clients.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem value="no client yet" onSelect={() => { setSelectedClientId("none"); setClientPickerOpen(false); }}>
+                        <Check className={cn("mr-2 h-4 w-4", selectedClientId === "none" ? "opacity-100" : "opacity-0")} />
+                        — No Client Yet —
+                      </CommandItem>
+                      {clients.map(c => {
+                        const name = `${c.first_name || ''} ${c.last_name || ''}`.trim();
+                        const searchVal = `${name} ${c.email || ''} ${c.phone || ''} ${c.id_number || ''} ${c.id}`.trim();
+                        return (
+                          <CommandItem
+                            key={c.id}
+                            value={searchVal}
+                            onSelect={() => { setSelectedClientId(c.id); setClientPickerOpen(false); }}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", selectedClientId === c.id ? "opacity-100" : "opacity-0")} />
+                            <div className="flex flex-col">
+                              <span className="text-sm">{name || 'Unknown'}</span>
+                              <span className="text-xs text-muted-foreground">{c.email || c.phone || c.id_number || 'no contact'}</span>
+                            </div>
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* Vehicle Details */}
