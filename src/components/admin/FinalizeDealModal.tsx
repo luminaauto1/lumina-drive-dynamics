@@ -19,6 +19,7 @@ import { formatPrice, useVehicles, Vehicle } from '@/hooks/useVehicles';
 import { useVehicleExpenses, VehicleExpense, EXPENSE_CATEGORIES } from '@/hooks/useVehicleExpenses';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import DocumentManager from './DocumentManager';
 
 interface SalesRep {
   name: string;
@@ -1311,6 +1312,26 @@ const FinalizeDealModal = ({
               />
             </div>
           </div>
+
+          <Separator />
+
+          {/* Vehicle Documents */}
+          {activeVehicleId && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                <FileText className="w-4 h-4" />
+                Vehicle Documents
+              </div>
+              <p className="text-xs text-muted-foreground">
+                DEKRA, NATIS/registration, roadworthy, service history. Saved under this client &amp; vehicle in the Documents Hub.
+              </p>
+              <DocumentManager
+                category="vehicle"
+                vehicleId={activeVehicleId}
+                applicationId={applicationId || undefined}
+              />
+            </div>
+          )}
 
           <Separator />
 

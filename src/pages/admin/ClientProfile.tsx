@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, User, Car, FileText, History, Loader2, Building2 } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import JuristicPanel from "@/components/admin/JuristicPanel";
+import DocumentManager from "@/components/admin/DocumentManager";
 
 const ClientProfile = () => {
   const { id } = useParams();
@@ -169,17 +170,29 @@ const ClientProfile = () => {
               </TabsContent>
 
               <TabsContent value="documents" className="mt-4">
-                <Card className="p-5">
-                  <div className="grid grid-cols-2 gap-3">
-                    {['ID Document', 'Driver License', 'Payslip', 'Bank Statement'].map(doc => (
-                      <div key={doc} className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
-                        <span className="flex items-center gap-2 text-sm">
-                          <FileText className="w-4 h-4 text-muted-foreground" /> {doc}
-                        </span>
-                        <Badge variant="outline" className="text-[10px]">Pending</Badge>
-                      </div>
-                    ))}
-                  </div>
+                <Card className="p-5 space-y-5">
+                  <DocumentManager
+                    title="Client documents"
+                    description="ID, driver's licence, proof of address, payslips, bank statements."
+                    category="client"
+                    clientId={client.user_id || undefined}
+                    applicationId={client.id}
+                  />
+                  <DocumentManager
+                    title="Vehicle documents"
+                    description="DEKRA, NATIS/registration, roadworthy, service history — per vehicle."
+                    category="vehicle"
+                    clientId={client.user_id || undefined}
+                    applicationId={client.id}
+                    vehicleId={client.selected_vehicle_id || client.vehicle_id || undefined}
+                  />
+                  <DocumentManager
+                    title="Deal & contracts"
+                    description="Signed contracts, invoices, delivery and handover paperwork."
+                    category="deal"
+                    clientId={client.user_id || undefined}
+                    applicationId={client.id}
+                  />
                 </Card>
               </TabsContent>
 

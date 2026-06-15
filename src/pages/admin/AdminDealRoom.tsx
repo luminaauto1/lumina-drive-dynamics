@@ -13,6 +13,7 @@ import FinancePodiumModal from '@/components/admin/FinancePodiumModal';
 import FinalizeDealModal from '@/components/admin/FinalizeDealModal';
 import OTPModal from '@/components/admin/OTPModal';
 import ClientDocumentViewer from '@/components/admin/ClientDocumentViewer';
+import DocumentManager from '@/components/admin/DocumentManager';
 import ContractSentModal from '@/components/admin/ContractSentModal';
 import BankReferenceModal from '@/components/admin/BankReferenceModal';
 import BankReferenceBadge from '@/components/admin/BankReferenceBadge';
@@ -1388,11 +1389,35 @@ const AdminDealRoom = () => {
             </div>
 
             {/* Client Documents */}
-            <ClientDocumentViewer 
+            <ClientDocumentViewer
               applicationId={application.id}
               accessToken={(application as any).access_token}
               clientName={application.first_name || application.full_name}
             />
+
+            {/* Documents Hub — uploads here also appear in the client profile and Documents Hub */}
+            <div className="glass-card rounded-xl p-6 space-y-5">
+              <DocumentManager
+                title="Documents"
+                description="Upload client, vehicle and deal documents. Stored centrally in the Documents Hub."
+                category="client"
+                clientId={application.user_id || undefined}
+                applicationId={application.id}
+              />
+              <DocumentManager
+                title="Vehicle documents"
+                category="vehicle"
+                clientId={application.user_id || undefined}
+                applicationId={application.id}
+                vehicleId={(application as any).selected_vehicle_id || application.vehicle_id || undefined}
+              />
+              <DocumentManager
+                title="Deal & contracts"
+                category="deal"
+                clientId={application.user_id || undefined}
+                applicationId={application.id}
+              />
+            </div>
 
             {/* Quick Contact */}
             <div className="glass-card rounded-xl p-6">
