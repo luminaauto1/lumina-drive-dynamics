@@ -71,11 +71,16 @@ const AdminDashboard = () => {
       });
 
       // 3. Pipeline Health
+      // Filter to the urgent stages SERVER-SIDE so we don't fetch all active leads
+      // (>1000) and hit the PostgREST row cap, which would silently drop urgent
+      // leads. Only 'new' / 'validation_pending' feed this list anyway.
       const { data: activeLeads } = await supabase
         .from("leads")
         .select("*")
         .eq("is_archived", false)
-        .order("created_at", { ascending: false });
+        .in("pipeline_stage", ["new", "validation_pending"])
+        .order("created_at", { ascending: false })
+        .limit(1000);
 
       if (activeLeads) {
         // Priority order (higher = more urgent / overrides)

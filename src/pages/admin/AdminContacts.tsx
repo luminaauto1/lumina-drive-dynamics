@@ -29,15 +29,26 @@ const AdminContacts = () => {
   const navigate = useNavigate();
 
   const fetchContacts = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('leads')
-      .select('id, client_name, client_phone, client_email, notes, pipeline_stage, source, created_at')
-      .order('created_at', { ascending: false });
-    if (error) {
-      toast.error('Failed to load contacts');
-    } else {
-      setContacts(data || []);
+    // Paginate — PostgREST caps each response at 1000 rows, and the contacts book
+    // has more than that, so a single select silently dropped older contacts.
+    const PAGE = 1000;
+    let from = 0;
+    const all: any[] = [];
+    while (true) {
+      const { data, error } = await supabase
+        .from('leads')
+        .select('id, client_name, client_phone, client_email, notes, pipeline_stage, source, created_at')
+        .order('created_at', { ascending: false })
+        .range(from, from + PAGE - 1);
+      if (error) {
+        toast.error('Failed to load contacts');
+        break;
+      }
+      all.push(...(data || []));
+      if (!data || data.length < PAGE) break;
+      from += PAGE;
     }
+    setContacts(all);
     setLoading(false);
   }, []);
 
