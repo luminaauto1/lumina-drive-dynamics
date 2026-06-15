@@ -20,6 +20,7 @@ import { useVehicleExpenses, VehicleExpense, EXPENSE_CATEGORIES } from '@/hooks/
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import DocumentManager from './DocumentManager';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface SalesRep {
   name: string;
@@ -119,6 +120,9 @@ const FinalizeDealModal = ({
   isCashDeal = false,
 }: FinalizeDealModalProps) => {
   const { data: settings } = useSiteSettings();
+  // Only full admins may see profit/cost figures. Senior F&I can still finalize.
+  const { isSuperAdmin } = useAuth();
+  const canSeeFigures = isSuperAdmin;
   const [salesRepsFromDb, setSalesRepsFromDb] = useState<SalesRep[]>([]);
   useEffect(() => {
     if (!isOpen) return;
@@ -870,6 +874,8 @@ const FinalizeDealModal = ({
             </div>
           </div>
 
+          {canSeeFigures && (
+          <>
           <Separator />
 
           {/* === SECTION 3: Internal Costs === */}
@@ -1003,6 +1009,8 @@ const FinalizeDealModal = ({
               </div>
             </div>
           </div>
+          </>
+          )}
 
           <Separator />
 
@@ -1150,6 +1158,8 @@ const FinalizeDealModal = ({
             </div>
           </div>
 
+          {canSeeFigures && (
+          <>
           {/* Shared Capital / Joint Venture Section */}
           <div className="space-y-4">
             <div className="flex items-center gap-3 p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg">
@@ -1239,6 +1249,8 @@ const FinalizeDealModal = ({
               </div>
             )}
           </div>
+          </>
+          )}
 
           <Separator />
 
@@ -1402,6 +1414,8 @@ const FinalizeDealModal = ({
             )}
           </div>
 
+          {canSeeFigures && (
+          <>
           <Separator />
 
           {/* === DEAL BREAKDOWN SUMMARY CARD === */}
@@ -1503,6 +1517,8 @@ const FinalizeDealModal = ({
               Note: Admin & Bank fees are pass-through and not included in profit calculation. Commission is tracked separately.
             </p>
           </div>
+          </>
+          )}
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
