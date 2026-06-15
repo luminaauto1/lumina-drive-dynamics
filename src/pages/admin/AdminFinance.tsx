@@ -1075,22 +1075,10 @@ const AdminFinance = () => {
                             // (status + status_updated_at only; bank_reference untouched).
                           }
                           // DECOUPLED: keep real status; archive via flag only.
-                          // Fire WhatsApp BEFORE the DB write so unmount/remap can't abort it.
-                          if (newStatus === 'declined' && app.phone) {
-                            try {
-                              const { publicApiHeaders } = await import('@/lib/publicApi');
-                              const clientName = app.first_name || app.full_name || 'Valued Client';
-                              supabase.functions.invoke('notify-declined', {
-                                body: { phone_number: app.phone, client_name: clientName },
-                                headers: publicApiHeaders(),
-                              }).then(({ error: waErr }) => {
-                                if (waErr) console.error('[notify-declined] error:', waErr);
-                                else console.log('[notify-declined] dispatched for', app.phone);
-                              });
-                            } catch (waEx) {
-                              console.error('[notify-declined] failed to invoke:', waEx);
-                            }
-                          }
+                          // NOTE: the "declined" WhatsApp is sent by the shared
+                          // useUpdateFinanceApplication hook on the status change.
+                          // Do NOT also fire notify-declined here, or the client
+                          // receives two messages.
                           // GUARDRAIL: only allow whitelisted finance statuses to reach DB.
                           const validFinanceStatuses = STATUS_OPTIONS.map(o => o.value);
                           if (!validFinanceStatuses.includes(newStatus)) {
