@@ -26,7 +26,7 @@ const ANSWER_SCHEMA = {
 };
 
 Deno.serve(async (req) => {
-  const cors = buildCorsHeaders(req.headers.get("origin"));
+  const cors = buildCorsHeaders(req.headers.get("origin"), req.headers.get("access-control-request-headers"));
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 

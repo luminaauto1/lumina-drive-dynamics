@@ -26,14 +26,24 @@ export const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 };
 
-export function buildCorsHeaders(origin: string | null) {
+export function buildCorsHeaders(origin: string | null, requestedHeaders?: string | null) {
   // Reflect approved origins; fall back to wildcard for tools/preview.
   const allowed =
     origin && ALLOWED_ORIGINS.some((o) => origin.startsWith(o)) ? origin : "*";
+  // BULLETPROOF PREFLIGHT: echo back exactly the headers the browser says it
+  // will send (Access-Control-Request-Headers). This survives any supabase-js
+  // version adding a new header (the recurring cause of "Failed to send a
+  // request to the Edge Function"). Falls back to the explicit superset.
+  const allowHeaders =
+    requestedHeaders && requestedHeaders.trim().length > 0
+      ? requestedHeaders
+      : corsHeaders["Access-Control-Allow-Headers"];
   return {
     ...corsHeaders,
     "Access-Control-Allow-Origin": allowed,
-    Vary: "Origin",
+    "Access-Control-Allow-Headers": allowHeaders,
+    "Access-Control-Max-Age": "86400",
+    Vary: "Origin, Access-Control-Request-Headers",
   };
 }
 

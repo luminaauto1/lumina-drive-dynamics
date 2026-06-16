@@ -17,7 +17,7 @@ function genCode(): string {
 }
 
 Deno.serve(async (req) => {
-  const cors = buildCorsHeaders(req.headers.get("origin"));
+  const cors = buildCorsHeaders(req.headers.get("origin"), req.headers.get("access-control-request-headers"));
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
