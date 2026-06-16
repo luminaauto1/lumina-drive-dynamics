@@ -8,14 +8,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageCircle, UserPlus, Loader2, GripVertical, Search, RefreshCw, Archive, Trash2, Eye, EyeOff } from "lucide-react";
+import { MessageCircle, UserPlus, Loader2, GripVertical, Search, RefreshCw, Archive, Trash2, Eye, EyeOff, UserCog } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFAndIUsers } from "@/hooks/useFAndIUsers";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { LeadCockpit } from "@/components/admin/leads/LeadCockpit";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -102,6 +106,8 @@ interface MergedLead {
 
 const AdminLeads = () => {
   const { isSuperAdmin } = useAuth();
+  const { data: fniUsers = [] } = useFAndIUsers();
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [leads, setLeads] = useState<MergedLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
@@ -166,6 +172,73 @@ const AdminLeads = () => {
       toast.error('Bulk delete failed: ' + err.message);
     } finally {
       setBulkDeleting(false);
+    }
+  };
+
+  // Bulk ARCHIVE — moves selected real leads to the Archived view (reversible).
+  const handleBulkArchive = async () => {
+    const realIds = Array.from(selectedIds).filter(id => !id.startsWith('virtual-'));
+    if (realIds.length === 0) {
+      toast.error('Selected leads are virtual — drag them into a stage first to archive.');
+      return;
+    }
+    setBulkBusy(true);
+    try {
+      const { error } = await supabase.from('leads').update({ is_archived: true }).in('id', realIds);
+      if (error) throw error;
+      toast.success(`Archived ${realIds.length} lead${realIds.length > 1 ? 's' : ''}`);
+      setLeads(prev => prev.map(l => realIds.includes(l.id) ? { ...l, is_archived: true } : l));
+      clearSelection();
+    } catch (err: any) {
+      toast.error('Bulk archive failed: ' + err.message);
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  // Bulk MESSAGE — copies the selected leads' numbers (SA-normalised) for a WhatsApp broadcast.
+  const handleBulkMessage = async () => {
+    const numbers = Array.from(selectedIds)
+      .map(id => leads.find(l => l.id === id)?.client_phone)
+      .filter((p): p is string => !!p)
+      .map(p => { const d = p.replace(/\D/g, ''); return d.startsWith('0') ? `27${d.slice(1)}` : d; });
+    const unique = Array.from(new Set(numbers)).filter(Boolean);
+    if (unique.length === 0) {
+      toast.error('No phone numbers on the selected leads.');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(unique.join('\n'));
+      toast.success(`Copied ${unique.length} number${unique.length > 1 ? 's' : ''} for a WhatsApp broadcast.`);
+    } catch {
+      toast.error('Could not access the clipboard.');
+    }
+  };
+
+  // Bulk ASSIGN — leads have no assignment column, so assignment is applied to each
+  // lead's linked finance application (assigned_f_and_i). Leads without an app are skipped.
+  const handleBulkAssign = async (fniId: string, fniName: string) => {
+    const appIds = Array.from(selectedIds)
+      .map(id => leads.find(l => l.id === id)?.appDetails?.id)
+      .filter((x): x is string => !!x);
+    const uniqueAppIds = Array.from(new Set(appIds));
+    const skipped = selectedIds.size - uniqueAppIds.length;
+    if (uniqueAppIds.length === 0) {
+      toast.error('None of the selected leads have a finance application to assign.');
+      return;
+    }
+    setBulkBusy(true);
+    try {
+      const { error } = await supabase.from('finance_applications')
+        .update({ assigned_f_and_i: fniId, assigned_f_and_i_at: new Date().toISOString() } as any)
+        .in('id', uniqueAppIds);
+      if (error) throw error;
+      toast.success(`Assigned ${uniqueAppIds.length} application${uniqueAppIds.length > 1 ? 's' : ''} to ${fniName}${skipped > 0 ? ` • ${skipped} skipped (no application)` : ''}`);
+      clearSelection();
+    } catch (err: any) {
+      toast.error('Bulk assign failed: ' + err.message);
+    } finally {
+      setBulkBusy(false);
     }
   };
 
@@ -472,9 +545,39 @@ const AdminLeads = () => {
               {showStale ? 'Hide Stale' : `Show Stale${hiddenStaleLeadsCount + hiddenStaleAccountsCount > 0 ? ` (${hiddenStaleLeadsCount + hiddenStaleAccountsCount})` : ''}`}
             </Button>
             {isSuperAdmin && selectedIds.size > 0 && (
-              <Button variant="destructive" size="sm" onClick={() => setConfirmDeleteOpen(true)}>
-                <Trash2 className="w-4 h-4 mr-1" /> Delete ({selectedIds.size})
-              </Button>
+              <div className="flex items-center gap-1.5 rounded-lg bg-muted/40 px-2 py-1">
+                <span className="text-xs text-muted-foreground px-1">{selectedIds.size} selected</span>
+                <Button variant="outline" size="sm" onClick={handleBulkMessage} disabled={bulkBusy} title="Copy selected numbers for a WhatsApp broadcast">
+                  <MessageCircle className="w-4 h-4 mr-1" /> Copy #s
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" disabled={bulkBusy}>
+                      <UserCog className="w-4 h-4 mr-1" /> Assign
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Assign F&amp;I</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {fniUsers.length === 0 ? (
+                      <DropdownMenuItem disabled>No F&amp;I users found</DropdownMenuItem>
+                    ) : (
+                      fniUsers.map(u => (
+                        <DropdownMenuItem key={u.id} onClick={() => handleBulkAssign(u.id, u.name)}>
+                          {u.name}
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button variant="outline" size="sm" onClick={handleBulkArchive} disabled={bulkBusy}>
+                  <Archive className="w-4 h-4 mr-1" /> Archive
+                </Button>
+                <Button variant="destructive" size="sm" onClick={() => setConfirmDeleteOpen(true)} disabled={bulkBusy}>
+                  <Trash2 className="w-4 h-4 mr-1" /> Delete
+                </Button>
+                <Button variant="ghost" size="sm" onClick={clearSelection} disabled={bulkBusy}>Clear</Button>
+              </div>
             )}
             <Button variant="outline" size="sm" onClick={() => setShowArchived(!showArchived)}>
               <Archive className="w-4 h-4 mr-1" /> {showArchived ? 'Active' : 'Archived'}
