@@ -17,6 +17,12 @@ export interface TaskOSTask {
   id: string; title: string; description: string | null; status: string;
   due_at: string | null; urgency: number; importance: number; priority_score: number;
   priority_locked: boolean; tags: string[]; created_at: string; completed_at: string | null;
+  remind_at?: string | null; notified_at?: string | null; escalation_level?: number;
+}
+export interface TaskOSEntity {
+  id: string; kind: string; title: string | null; body: string;
+  due_at: string | null; remind_at?: string | null; importance: number;
+  tags: string[]; created_at: string;
 }
 
 // ---------------- INBOX ----------------
@@ -110,6 +116,8 @@ export const useUpdateTask = () => {
       const patch: any = { ...updates };
       if (updates.status === 'done' && !('completed_at' in updates)) patch.completed_at = new Date().toISOString();
       if (updates.status && updates.status !== 'done') patch.completed_at = null;
+      // Re-arming a reminder (new remind_at) clears the sent flag so it fires again.
+      if ('remind_at' in updates) { patch.notified_at = null; patch.escalation_level = 0; }
       const { error } = await db.from('taskos_tasks').update(patch).eq('id', id);
       if (error) throw error;
     },
@@ -117,6 +125,110 @@ export const useUpdateTask = () => {
     onError: (e: any) => toast.error('Update failed: ' + e.message),
   });
 };
+
+// ---------------- LIBRARY (entities: goals / projects / people / notes …) ----------------
+export const useTaskOSEntities = (kinds?: string[]) =>
+  useQuery({
+    queryKey: ['taskos', 'entities', kinds?.join(',') ?? 'all'],
+    queryFn: async (): Promise<TaskOSEntity[]> => {
+      let q = db.from('taskos_entities')
+        .select('id, kind, title, body, due_at, remind_at, importance, tags, created_at')
+        .order('created_at', { ascending: false }).limit(300);
+      if (kinds && kinds.length) q = q.in('kind', kinds);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+export const useCreateEntity = () => {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (input: { kind: string; title: string; body?: string }) => {
+      if (!user) throw new Error('Not signed in');
+      const { error } = await db.from('taskos_entities').insert({
+        user_id: user.id, kind: input.kind, title: input.title, body: input.body ?? '',
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['taskos', 'entities'] }); toast.success('Added'); },
+    onError: (e: any) => toast.error('Could not add: ' + e.message),
+  });
+};
+
+// Knowledge-graph: items linked to a given task/entity (both directions).
+export const useEntityLinks = (id: string | null) =>
+  useQuery({
+    enabled: !!id,
+    queryKey: ['taskos', 'links', id],
+    queryFn: async () => {
+      const { data: links, error } = await db.from('taskos_links')
+        .select('from_kind, from_id, to_kind, to_id, relation').or(`from_id.eq.${id},to_id.eq.${id}`);
+      if (error) throw error;
+      const others = (links ?? []).map((l: any) => {
+        const isFrom = l.from_id === id;
+        return { kind: isFrom ? l.to_kind : l.from_kind, id: isFrom ? l.to_id : l.from_id, relation: l.relation };
+      });
+      if (!others.length) return [] as any[];
+      const taskIds = others.filter((o) => o.kind === 'task').map((o) => o.id);
+      const entIds = others.filter((o) => o.kind === 'entity').map((o) => o.id);
+      const [tRes, eRes] = await Promise.all([
+        taskIds.length ? db.from('taskos_tasks').select('id, title').in('id', taskIds) : Promise.resolve({ data: [] }),
+        entIds.length ? db.from('taskos_entities').select('id, kind, title').in('id', entIds) : Promise.resolve({ data: [] }),
+      ]);
+      const titleById = new Map<string, { title: string; kind: string }>();
+      for (const t of (tRes as any).data ?? []) titleById.set(t.id, { title: t.title, kind: 'task' });
+      for (const e of (eRes as any).data ?? []) titleById.set(e.id, { title: e.title ?? '(untitled)', kind: e.kind });
+      return others.map((o) => ({ ...o, ...(titleById.get(o.id) ?? { title: '(unknown)', kind: o.kind }) }));
+    },
+  });
+
+// ---------------- SETTINGS + SPEND ----------------
+export const useTaskOSSettings = () =>
+  useQuery({
+    queryKey: ['taskos', 'settings'],
+    queryFn: async () => {
+      const { data, error } = await db.from('taskos_user_settings')
+        .select('user_id, timezone, briefing_hour, auto_classify, settings').maybeSingle();
+      if (error && error.code !== 'PGRST116') throw error;
+      return (data ?? null) as null | { timezone: string; briefing_hour: number; auto_classify: boolean; settings: any };
+    },
+  });
+
+export const useUpdateTaskOSSettings = () => {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (patch: { timezone?: string; briefing_hour?: number; auto_classify?: boolean; daily_ai_cap_usd?: number }) => {
+      if (!user) throw new Error('Not signed in');
+      const { daily_ai_cap_usd, ...rest } = patch;
+      const { data: existing } = await db.from('taskos_user_settings').select('settings').eq('user_id', user.id).maybeSingle();
+      const settings = { ...(existing?.settings ?? {}) };
+      if (daily_ai_cap_usd != null) settings.daily_ai_cap_usd = daily_ai_cap_usd;
+      const { error } = await db.from('taskos_user_settings')
+        .upsert({ user_id: user.id, ...rest, settings }, { onConflict: 'user_id' });
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['taskos', 'settings'] }); toast.success('Settings saved'); },
+    onError: (e: any) => toast.error('Could not save: ' + e.message),
+  });
+};
+
+// Today's (UTC) AI spend across all TaskOS calls for the logged-in user.
+export const useTaskOSSpendToday = () =>
+  useQuery({
+    queryKey: ['taskos', 'spend-today'],
+    queryFn: async () => {
+      const since = new Date(); since.setUTCHours(0, 0, 0, 0);
+      const { data, error } = await db.from('taskos_ai_runs')
+        .select('cost_usd, kind').gte('created_at', since.toISOString());
+      if (error) throw error;
+      const total = (data ?? []).reduce((s: number, r: any) => s + Number(r.cost_usd ?? 0), 0);
+      return { total, runs: (data ?? []).length };
+    },
+    refetchInterval: 30000,
+  });
 
 // ---------------- TELEGRAM / SETTINGS ----------------
 export const useTelegramStatus = () =>

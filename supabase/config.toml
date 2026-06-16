@@ -16,6 +16,14 @@ verify_jwt = false
 [functions.taskos-query]
 verify_jwt = false
 
+# Cron-driven (gated by the DB-held cron secret via checkCronSecret, or the
+# internal key for manual runs). Scheduled by pg_cron -> pg_net -> taskos_invoke.
+[functions.taskos-run-reminders]
+verify_jwt = false
+
+[functions.taskos-run-briefings]
+verify_jwt = false
+
 [functions.process-delayed-followups]
 verify_jwt = false
 

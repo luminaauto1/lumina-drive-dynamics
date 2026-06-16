@@ -4,6 +4,8 @@
 // taskos_telegram_links; unknown chats are rejected. user_id for captured rows
 // always comes from the chat->user map, NEVER from message content.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { downloadTelegramFile } from "../_shared/taskos/telegram.ts";
+import { transcribeAudio, transcriptionAvailable } from "../_shared/taskos/transcribe.ts";
 
 // deno-lint-ignore no-explicit-any
 declare const EdgeRuntime: any;
@@ -138,24 +140,53 @@ Deno.serve(async (req) => {
   // 11. Capture into the owner's inbox (user_id from the chat->user map, never the body).
   const mediaKind = msg?.voice ? "voice" : (msg?.photo ? "photo" : (msg?.document ? "document" : "text"));
   const mediaRef = msg?.voice?.file_id ?? msg?.photo?.[msg.photo.length - 1]?.file_id ?? msg?.document?.file_id ?? null;
-  if (mediaKind !== "text") {
-    // Phase 1: store the file_id; transcription/vision is a later phase.
+
+  // Voice notes: transcribe (if an STT key is configured) and route the text
+  // through the normal AI pipeline; otherwise save for manual review.
+  let captureText = text;
+  if (msg?.voice) {
+    if (transcriptionAvailable()) {
+      const file = await downloadTelegramFile(botToken, msg.voice.file_id);
+      const transcript = file ? await transcribeAudio(file.bytes, "voice.ogg") : null;
+      if (transcript) {
+        captureText = transcript;
+      } else {
+        await svc.from("taskos_inbox_items").insert({
+          user_id: ownerUserId, source: "telegram", raw_text: null, media_kind: "voice", media_ref: mediaRef,
+          external_id: `tg:${chatId}:${msg.message_id}`, status: "needs_review",
+          payload: { note: "voice transcription failed" },
+        });
+        await sendMessage(botToken, chatId, "🎙️ Saved your voice note, but I couldn't transcribe it this time. You can also type it.");
+        return ok();
+      }
+    } else {
+      await svc.from("taskos_inbox_items").insert({
+        user_id: ownerUserId, source: "telegram", raw_text: null, media_kind: "voice", media_ref: mediaRef,
+        external_id: `tg:${chatId}:${msg.message_id}`, status: "needs_review",
+        payload: { note: "voice capture; transcription not configured (set OPENAI_API_KEY)" },
+      });
+      await sendMessage(botToken, chatId, "🎙️ Saved your voice note. Voice transcription isn't switched on yet — for now send text and I'll organise it instantly.");
+      return ok();
+    }
+  } else if (mediaKind !== "text") {
+    // Photos / documents: store the reference; vision understanding is a later phase.
     await svc.from("taskos_inbox_items").insert({
       user_id: ownerUserId, source: "telegram", raw_text: text || null, media_kind: mediaKind, media_ref: mediaRef,
       external_id: `tg:${chatId}:${msg.message_id}`, status: "needs_review",
-      payload: { note: "media capture; transcription pending" },
+      payload: { note: "media capture; understanding pending" },
     });
-    await sendMessage(botToken, chatId, "📎 Saved. Voice/photo understanding is coming soon — for now send text and I'll organise it instantly.");
+    await sendMessage(botToken, chatId, "📎 Saved. Photo/document understanding is coming soon — for now send text or a voice note.");
     return ok();
   }
-  if (!text) return ok();
+
+  if (!captureText) return ok();
 
   const { data: inboxRow, error: insErr } = await svc.from("taskos_inbox_items")
-    .insert({ user_id: ownerUserId, source: "telegram", raw_text: text, media_kind: "text", external_id: `tg:${chatId}:${msg.message_id}`, status: "pending" })
+    .insert({ user_id: ownerUserId, source: "telegram", raw_text: captureText, media_kind: msg?.voice ? "voice" : "text", media_ref: msg?.voice ? mediaRef : null, external_id: `tg:${chatId}:${msg.message_id}`, status: "pending" })
     .select("id").maybeSingle();
   if (insErr && (insErr as any).code === "23505") return ok(); // duplicate message
 
-  await sendMessage(botToken, chatId, "Captured ✓ — organising it now.");
+  await sendMessage(botToken, chatId, msg?.voice ? `🎙️ Got it: “${captureText.slice(0, 80)}${captureText.length > 80 ? "…" : ""}” — organising now.` : "Captured ✓ — organising it now.");
 
   // 13. Fire-and-forget AI processing with the inbox id ONLY (never user_id from body).
   if (inboxRow?.id) {

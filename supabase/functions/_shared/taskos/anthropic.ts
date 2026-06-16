@@ -78,3 +78,49 @@ export async function callClaude(opts: CallClaudeOpts): Promise<{ parsed: any; u
   if (!textBlock) throw new Error("No text block in Claude response");
   return { parsed: opts.schema ? JSON.parse(textBlock.text) : textBlock.text, usage: data.usage };
 }
+
+// ---------------------------------------------------------------------------
+// Spend tracking & caps (P2 reliability). Costs are ESTIMATES for budgeting and
+// observability — not an authoritative bill. Per 1M tokens (USD).
+// ---------------------------------------------------------------------------
+const PRICING: Record<string, { in: number; out: number }> = {
+  [OPUS]: { in: 15, out: 75 },
+  [HAIKU]: { in: 1, out: 5 },
+};
+
+export function estimateCostUsd(model: string, usage: any): number {
+  const p = PRICING[model] ?? { in: 5, out: 15 };
+  const i = Number(usage?.input_tokens ?? 0);
+  const o = Number(usage?.output_tokens ?? 0);
+  return (i / 1e6) * p.in + (o / 1e6) * p.out;
+}
+
+// Best-effort log of one AI call to taskos_ai_runs (service-role client).
+export async function logAiRun(svc: any, userId: string, kind: string, model: string, usage: any): Promise<void> {
+  try {
+    await svc.from("taskos_ai_runs").insert({
+      user_id: userId,
+      kind,
+      model,
+      input_tokens: Number(usage?.input_tokens ?? 0),
+      output_tokens: Number(usage?.output_tokens ?? 0),
+      cost_usd: estimateCostUsd(model, usage),
+    });
+  } catch (e) {
+    console.error("[taskos] logAiRun failed", e instanceof Error ? e.message : e);
+  }
+}
+
+// Per-user, per-UTC-day spend guard. Returns whether today's spend hit the cap.
+export async function checkDailyCap(
+  svc: any,
+  userId: string,
+  capUsd: number,
+): Promise<{ over: boolean; spentUsd: number; capUsd: number }> {
+  const since = new Date();
+  since.setUTCHours(0, 0, 0, 0);
+  const { data } = await svc.from("taskos_ai_runs")
+    .select("cost_usd").eq("user_id", userId).gte("created_at", since.toISOString());
+  const spent = (data ?? []).reduce((s: number, r: any) => s + Number(r.cost_usd ?? 0), 0);
+  return { over: spent >= capUsd, spentUsd: spent, capUsd };
+}
