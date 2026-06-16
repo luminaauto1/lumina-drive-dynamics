@@ -1,11 +1,19 @@
 project_id = "geovwgfbbfhhmommyasj"
 
-# LuminaTaskOS — webhook + AI processor are public (gated by their own secrets);
-# taskos-telegram-link and taskos-query are NOT listed => verify_jwt defaults TRUE.
+# LuminaTaskOS — all taskos functions set verify_jwt=false and do their OWN auth
+# inside (webhook: secret-token; process-inbox: internal key; link/query:
+# getUser() + staff check). The platform JWT gate is disabled because it rejects
+# the CORS preflight/POST for browser invokes; security is enforced in-function.
 [functions.taskos-telegram-webhook]
 verify_jwt = false
 
 [functions.taskos-process-inbox]
+verify_jwt = false
+
+[functions.taskos-telegram-link]
+verify_jwt = false
+
+[functions.taskos-query]
 verify_jwt = false
 
 [functions.process-delayed-followups]
