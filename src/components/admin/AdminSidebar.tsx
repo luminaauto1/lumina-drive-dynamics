@@ -1,5 +1,6 @@
-import { LayoutDashboard, Car, Users, CreditCard, Settings, ChevronLeft, ChevronRight, ChevronDown, BarChart3, Package, Home, FileBarChart, Banknote, ShoppingCart, Calculator, Contact, Briefcase, TableProperties, Mail, Gift, Building2, FolderOpen } from 'lucide-react';
+import { LayoutDashboard, Car, Users, CreditCard, Settings, ChevronLeft, ChevronRight, ChevronDown, BarChart3, Package, Home, FileBarChart, Banknote, ShoppingCart, Calculator, Contact, Briefcase, TableProperties, Mail, Gift, Building2, FolderOpen, Search } from 'lucide-react';
 import { NavLink, useLocation, Link } from 'react-router-dom';
+import { OPEN_GLOBAL_SEARCH_EVENT } from './GlobalSearch';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -159,6 +160,24 @@ const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
 
       {/* Navigation */}
       <nav className="p-2 space-y-1 overflow-y-auto h-[calc(100vh-8rem)]">
+        {/* Global search trigger (opens the Cmd/Ctrl+K palette) */}
+        <button
+          type="button"
+          onClick={() => { window.dispatchEvent(new CustomEvent(OPEN_GLOBAL_SEARCH_EVENT)); onNavigate?.(); }}
+          title="Search clients, applications, vehicles (Ctrl/⌘ K)"
+          className={cn(
+            'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors w-full text-left mb-1',
+            'text-muted-foreground hover:bg-secondary hover:text-foreground',
+            collapsed && 'justify-center'
+          )}
+        >
+          <Search className="h-5 w-5 flex-shrink-0" />
+          {!collapsed && <span className="font-medium flex-1">Search</span>}
+          {!collapsed && (
+            <kbd className="ml-auto text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5">⌘K</kbd>
+          )}
+        </button>
+
         {visibleMenuItems.map((item) => {
           if (isGroup(item)) {
             const groupActive = isGroupActive(item);

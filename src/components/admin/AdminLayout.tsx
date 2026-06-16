@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminSidebar from './AdminSidebar';
 import AIAssistantWidget from './AIAssistantWidget';
+import GlobalSearch from './GlobalSearch';
 import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -56,6 +57,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
       </main>
 
       <AIAssistantWidget />
+      <GlobalSearch />
     </div>
   );
 };
