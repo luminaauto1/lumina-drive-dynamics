@@ -4,6 +4,7 @@ import {
   CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem,
 } from '@/components/ui/command';
 import { supabase } from '@/integrations/supabase/client';
+import { normalizeEmail, normalizePhone } from '@/lib/normalizeContact';
 import { User, Car, FileText, Loader2 } from 'lucide-react';
 
 /** Event any component can dispatch to open the global search. */
@@ -72,10 +73,26 @@ const GlobalSearch = () => {
           .limit(6),
       ]);
 
-      setApps((appRes.data || []).map((a: any) => ({
+      // One person = one result. The same human can have several applications
+      // (one per car) — group them by email (phone fallback) so the search shows
+      // a single profile, not a row per car. We keep the most-advanced application
+      // as the entry point; the profile page then aggregates them all.
+      const STATUS_RANK: Record<string, number> = {
+        finalized: 6, vehicle_delivered: 6, contract_signed: 5, approved: 4,
+        pre_approved: 4, contract_sent: 3, pending: 1,
+      };
+      const rank = (s?: string) => STATUS_RANK[(s || '').toLowerCase()] ?? 2;
+      const appMap = new Map<string, { app: any; count: number }>();
+      for (const a of (appRes.data || []) as any[]) {
+        const key = normalizeEmail(a.email) || normalizePhone(a.phone) || `id:${a.id}`;
+        const existing = appMap.get(key);
+        if (!existing) appMap.set(key, { app: a, count: 1 });
+        else { existing.count += 1; if (rank(a.status) > rank(existing.app.status)) existing.app = a; }
+      }
+      setApps([...appMap.values()].map(({ app: a, count }) => ({
         id: a.id,
         name: a.full_name || `${a.first_name || ''} ${a.last_name || ''}`.trim() || 'Unnamed',
-        detail: [a.email, a.phone, a.status?.replace(/_/g, ' ')].filter(Boolean).join(' • '),
+        detail: [a.email, a.phone, count > 1 ? `${count} cars` : a.status?.replace(/_/g, ' ')].filter(Boolean).join(' • '),
         search: [a.full_name, a.first_name, a.last_name, a.email, a.phone].filter(Boolean).join(' '),
       })));
       setVehicles((vehRes.data || []).map((v: any) => ({

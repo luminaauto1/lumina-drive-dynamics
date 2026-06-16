@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, User, Car, FileText, History, Loader2, Building2 } from "lucide-react";
+import { ArrowLeft, User, Car, FileText, History, Loader2, Building2, Gift } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import JuristicPanel from "@/components/admin/JuristicPanel";
 import DocumentManager from "@/components/admin/DocumentManager";
@@ -15,28 +15,57 @@ import ClientTimeline from "@/components/admin/ClientTimeline";
 import { buildClientTimeline, TimelineItem } from "@/lib/clientTimeline";
 import { useDocumentSettings, consumeInvoiceNumber } from "@/hooks/useDocumentSettings";
 import { generateInvoicePDF } from "@/lib/generateInvoicePDF";
+import { normalizeEmail, normalizePhone } from "@/lib/normalizeContact";
 import { toast } from "sonner";
+
+const VEHICLE_JOIN =
+  '*, selected_vehicle:vehicles!finance_applications_selected_vehicle_id_fkey(*), linked_vehicle:vehicles!finance_applications_vehicle_id_fkey(*), deal_records(*)';
+
+const statusColors: Record<string, string> = {
+  pending: 'bg-muted text-muted-foreground',
+  pre_approved: 'bg-yellow-500/20 text-yellow-400',
+  approved: 'bg-emerald-500/20 text-emerald-400',
+  contract_sent: 'bg-purple-500/20 text-purple-400',
+  contract_signed: 'bg-emerald-500/20 text-emerald-400',
+  finalized: 'bg-emerald-600/20 text-emerald-300',
+  vehicle_delivered: 'bg-amber-500/20 text-amber-400',
+  declined: 'bg-destructive/20 text-destructive',
+  declined_conditional: 'bg-gray-500/20 text-gray-300',
+  lost: 'bg-zinc-800/50 text-zinc-500',
+};
+
+const vehicleOf = (app: any) => app?.selected_vehicle || app?.linked_vehicle || null;
+const vehicleLabel = (v: any) => (v ? `${v.year || ''} ${v.make || ''} ${v.model || ''}`.trim() : '');
 
 const ClientProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [client, setClient] = useState<any>(null);
+  // All finance applications belonging to this PERSON (same email/phone). The
+  // person is one profile; each application = one car/deal kept separate.
+  const [apps, setApps] = useState<any[]>([]);
+  const [referrals, setReferrals] = useState<any[]>([]);
+  const [selectedId, setSelectedId] = useState<string | undefined>(id);
   const [loading, setLoading] = useState(true);
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
-  const [generatingInvoice, setGeneratingInvoice] = useState(false);
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
   const { data: docSettings } = useDocumentSettings();
 
-  const handleGenerateInvoice = async () => {
-    const deal = client?.deal_records?.[0];
+  // The application currently in focus for the per-deal tabs (Documents/Deal/Juristic).
+  const activeApp = apps.find((a) => a.id === selectedId) || apps[0] || null;
+  // Primary identity record (the one opened from the link, falls back to first).
+  const person = apps.find((a) => a.id === id) || apps[0] || null;
+
+  const handleGenerateInvoice = async (app: any) => {
+    const deal = app?.deal_records?.[0];
     if (!deal || !docSettings) {
       toast.error('No finalized deal to invoice yet.');
       return;
     }
-    setGeneratingInvoice(true);
+    setGeneratingId(app.id);
     try {
-      const v = client.selected_vehicle || client.linked_vehicle;
-      const vehicleLabel = v ? `${v.year || ''} ${v.make || ''} ${v.model || ''}`.trim() : 'Vehicle';
-      const lineItems = [{ description: `Vehicle: ${vehicleLabel}`, amount: Number(deal.sold_price || 0) }];
+      const v = vehicleOf(app);
+      const label = vehicleLabel(v) || 'Vehicle';
+      const lineItems = [{ description: `Vehicle: ${label}`, amount: Number(deal.sold_price || 0) }];
       const addons = Array.isArray(deal.addons_data) ? deal.addons_data : [];
       addons.forEach((a: any) => {
         const price = Number(a?.price || 0);
@@ -46,12 +75,12 @@ const ClientProfile = () => {
       generateInvoicePDF({
         invoiceNumber,
         date: new Date(deal.sale_date || deal.created_at || Date.now()).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' }),
-        clientName: `${client.first_name || ''} ${client.last_name || ''}`.trim() || client.full_name || 'Client',
-        idNumber: client.id_number || undefined,
-        address: [client.street_address, client.area_code].filter(Boolean).join(', ') || undefined,
-        email: client.email || undefined,
-        phone: client.phone || undefined,
-        vehicleLabel,
+        clientName: `${app.first_name || ''} ${app.last_name || ''}`.trim() || app.full_name || 'Client',
+        idNumber: app.id_number || undefined,
+        address: [app.street_address, app.area_code].filter(Boolean).join(', ') || undefined,
+        email: app.email || undefined,
+        phone: app.phone || undefined,
+        vehicleLabel: label,
         vin: v?.vin || undefined,
         reg: v?.registration_number || undefined,
         lineItems,
@@ -60,58 +89,101 @@ const ClientProfile = () => {
     } catch (e: any) {
       toast.error('Invoice generation failed: ' + e.message);
     } finally {
-      setGeneratingInvoice(false);
+      setGeneratingId(null);
     }
   };
 
   useEffect(() => {
-    const fetchClient = async () => {
-      // Join the vehicle via BOTH foreign keys — the admin app writes vehicle_id,
-      // while older code read selected_vehicle_id (which is rarely set), so the
-      // Linked Vehicle card was almost always empty. Coalesce the two below.
-      const { data } = await supabase
-        .from('finance_applications')
-        .select('*, selected_vehicle:vehicles!finance_applications_selected_vehicle_id_fkey(*), linked_vehicle:vehicles!finance_applications_vehicle_id_fkey(*), deal_records(*)')
-        .eq('id', id)
-        .maybeSingle();
+    let cancelled = false;
+    const fetchAll = async () => {
+      setLoading(true);
+      // 1. Load the application opened from the link to learn WHO this is.
+      const { data: primary } = await supabase
+        .from('finance_applications').select(VEHICLE_JOIN).eq('id', id).maybeSingle();
 
-      if (data) {
-        setClient(data);
-        // Unified timeline: merge every scattered history source for this client.
-        // client_audit_logs + leads.activity_log are keyed by email/phone;
-        // status_history & deal_records are on the application; offers by app id.
-        const filters: string[] = [];
-        if (data.email) filters.push(`client_email.eq.${data.email}`);
-        if (data.phone) filters.push(`client_phone.eq.${data.phone}`);
-        const leadFilters: string[] = [];
-        if (data.email) leadFilters.push(`client_email.eq.${data.email}`);
-        if (data.phone) leadFilters.push(`client_phone.eq.${data.phone}`);
+      if (!primary) { if (!cancelled) { setApps([]); setLoading(false); } return; }
 
-        const [logsRes, leadsRes, offersRes] = await Promise.all([
-          filters.length
-            ? supabase.from('client_audit_logs').select('*').or(filters.join(',')).order('created_at', { ascending: false }).limit(200)
-            : Promise.resolve({ data: [] as any[] }),
-          leadFilters.length
-            ? supabase.from('leads').select('activity_log').or(leadFilters.join(','))
-            : Promise.resolve({ data: [] as any[] }),
-          supabase.from('finance_offers').select('id, bank_name, status, created_at').eq('application_id', id as string),
-        ]);
+      const email = primary.email as string | null;
+      const phone = primary.phone as string | null;
 
-        const leadActivity = (leadsRes.data || [])
-          .flatMap((r: any) => Array.isArray(r.activity_log) ? r.activity_log : []);
+      // 2. Load EVERY application for this same person (by email/phone). This is
+      //    visual aggregation only — records stay separate in the database.
+      const appOrs: string[] = [];
+      if (email) appOrs.push(`email.ilike.${email}`);
+      if (phone) appOrs.push(`phone.ilike.${phone}`);
+      const { data: matches } = appOrs.length
+        ? await supabase.from('finance_applications').select(VEHICLE_JOIN).or(appOrs.join(','))
+        : { data: [primary] as any[] };
 
-        setTimeline(buildClientTimeline({
-          auditLogs: logsRes.data || [],
-          statusHistory: Array.isArray(data.status_history) ? data.status_history : [],
-          leadActivity,
-          offers: offersRes.data || [],
-          dealRecords: data.deal_records || [],
-          application: { created_at: data.created_at, status: data.status },
-        }));
+      // Dedupe by id; make sure the primary is present; then keep only rows that
+      // truly belong to this person (normalized email/phone match) to avoid any
+      // accidental over-matching.
+      const pEmail = normalizeEmail(email);
+      const pPhone = normalizePhone(phone);
+      const byId = new Map<string, any>();
+      for (const a of [primary, ...(matches || [])]) {
+        if (!a) continue;
+        const sameEmail = pEmail && normalizeEmail(a.email) === pEmail;
+        const samePhone = pPhone && normalizePhone(a.phone) === pPhone;
+        if (a.id === primary.id || sameEmail || samePhone) byId.set(a.id, a);
       }
-      setLoading(false);
+      const allApps = [...byId.values()].sort(
+        (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime(),
+      );
+
+      // 3. Referrals THIS person made (matched by referrer email/phone). Best-effort.
+      let refs: any[] = [];
+      try {
+        const refOrs: string[] = [];
+        if (email) refOrs.push(`referrer_email.ilike.${email}`);
+        if (phone) refOrs.push(`referrer_phone.ilike.${phone}`);
+        if (refOrs.length) {
+          // `referrals` may not be in the generated types — cast to keep TS happy.
+          const { data: r } = await (supabase as any).from('referrals').select('*').or(refOrs.join(',')).order('created_at', { ascending: false });
+          refs = r || [];
+        }
+      } catch { /* referrals table optional */ }
+
+      // 4. Unified timeline across ALL of the person's applications.
+      const appIds = allApps.map((a) => a.id);
+      const tlFilters: string[] = [];
+      if (email) tlFilters.push(`client_email.eq.${email}`);
+      if (phone) tlFilters.push(`client_phone.eq.${phone}`);
+      const [logsRes, leadsRes, offersRes] = await Promise.all([
+        tlFilters.length
+          ? supabase.from('client_audit_logs').select('*').or(tlFilters.join(',')).order('created_at', { ascending: false }).limit(300)
+          : Promise.resolve({ data: [] as any[] }),
+        tlFilters.length
+          ? supabase.from('leads').select('activity_log').or(tlFilters.join(','))
+          : Promise.resolve({ data: [] as any[] }),
+        appIds.length
+          ? supabase.from('finance_offers').select('id, bank_name, status, created_at, application_id').in('application_id', appIds)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+
+      const leadActivity = (leadsRes.data || []).flatMap((r: any) => Array.isArray(r.activity_log) ? r.activity_log : []);
+      const statusHistory = allApps.flatMap((a) => Array.isArray(a.status_history) ? a.status_history : []);
+      const dealRecords = allApps.flatMap((a) => a.deal_records || []);
+
+      const tl = buildClientTimeline({
+        auditLogs: logsRes.data || [],
+        statusHistory,
+        leadActivity,
+        offers: offersRes.data || [],
+        dealRecords,
+        application: { created_at: primary.created_at, status: primary.status },
+      });
+
+      if (!cancelled) {
+        setApps(allApps);
+        setReferrals(refs);
+        setSelectedId(id);
+        setTimeline(tl);
+        setLoading(false);
+      }
     };
-    fetchClient();
+    fetchAll();
+    return () => { cancelled = true; };
   }, [id]);
 
   if (loading) {
@@ -124,7 +196,7 @@ const ClientProfile = () => {
     );
   }
 
-  if (!client) {
+  if (!person) {
     return (
       <AdminLayout>
         <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
@@ -137,159 +209,220 @@ const ClientProfile = () => {
     );
   }
 
-  const linkedVehicle = client.selected_vehicle || client.linked_vehicle;
-
-  const statusColors: Record<string, string> = {
-    pending: 'bg-muted text-muted-foreground',
-    pre_approved: 'bg-yellow-500/20 text-yellow-400',
-    contract_sent: 'bg-purple-500/20 text-purple-400',
-    contract_signed: 'bg-emerald-500/20 text-emerald-400',
-    vehicle_delivered: 'bg-amber-500/20 text-amber-400',
-    declined: 'bg-destructive/20 text-destructive',
-    declined_conditional: 'bg-gray-500/20 text-gray-300',
-    lost: 'bg-zinc-800/50 text-zinc-500',
-  };
+  const multi = apps.length > 1;
 
   return (
     <AdminLayout>
       <Helmet>
-        <title>{client.full_name || 'Client'} | Profile</title>
+        <title>{person.full_name || 'Client'} | Profile</title>
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
 
       <div className="max-w-6xl mx-auto p-6 space-y-6">
-        {/* HEADER */}
+        {/* HEADER — one person, regardless of how many cars/deals they have. */}
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div className="flex-1">
-            <h1 className="text-2xl font-bold">{client.first_name} {client.last_name}</h1>
+            <h1 className="text-2xl font-bold">{person.first_name} {person.last_name}</h1>
             <div className="flex items-center gap-3 text-sm text-muted-foreground mt-0.5 flex-wrap">
-              {client.id_number && <span>ID: {client.id_number}</span>}
-              {client.id_number && <span>•</span>}
-              <span>{client.email}</span>
+              {person.id_number && <span>ID: {person.id_number}</span>}
+              {person.id_number && <span>•</span>}
+              <span>{person.email}</span>
               <span>•</span>
-              <span>{client.phone}</span>
+              <span>{person.phone}</span>
             </div>
           </div>
-          <Badge className={`text-xs ${statusColors[client.status] || 'bg-muted text-muted-foreground'}`}>
-            {client.status?.replace(/_/g, ' ').toUpperCase()}
-          </Badge>
+          {multi && (
+            <Badge variant="outline" className="text-xs">
+              {apps.length} applications
+            </Badge>
+          )}
         </div>
 
         <Separator />
 
-        {/* CONTENT */}
+        {/* CARS & APPLICATIONS — every car/deal this person has, kept separate. */}
+        <Card className="p-5 space-y-3">
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            <Car className="w-4 h-4" /> Cars & Applications {multi && <span className="text-muted-foreground font-normal">({apps.length})</span>}
+          </h3>
+          <div className="space-y-2">
+            {apps.map((app) => {
+              const v = vehicleOf(app);
+              const deal = app.deal_records?.[0];
+              const isActive = app.id === activeApp?.id;
+              return (
+                <div
+                  key={app.id}
+                  onClick={() => setSelectedId(app.id)}
+                  className={`rounded-lg border p-3 cursor-pointer transition-colors ${isActive ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/40'}`}
+                >
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm">{vehicleLabel(v) || 'No vehicle linked'}</p>
+                      <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap mt-0.5">
+                        {v?.registration_number && <span>Reg: {v.registration_number}</span>}
+                        {v?.vin && <span>VIN: {v.vin}</span>}
+                        {deal?.sold_price != null && <span>Sold: R {Number(deal.sold_price).toLocaleString()}</span>}
+                        {deal?.sale_date && <span>{new Date(deal.sale_date).toLocaleDateString()}</span>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge className={`text-xs ${statusColors[app.status] || 'bg-muted text-muted-foreground'}`}>
+                        {app.status?.replace(/_/g, ' ').toUpperCase()}
+                      </Badge>
+                      {deal && (
+                        <Button
+                          variant="outline" size="sm"
+                          onClick={(e) => { e.stopPropagation(); handleGenerateInvoice(app); }}
+                          disabled={generatingId === app.id}
+                        >
+                          {generatingId === app.id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <FileText className="w-3.5 h-3.5 mr-1" />}
+                          Invoice
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+
+        {/* REFERRALS this person made. */}
+        {referrals.length > 0 && (
+          <Card className="p-5 space-y-3">
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <Gift className="w-4 h-4" /> Referrals made <span className="text-muted-foreground font-normal">({referrals.length})</span>
+            </h3>
+            <div className="space-y-2">
+              {referrals.map((r) => (
+                <div key={r.id} className="flex items-center justify-between gap-3 rounded-lg border border-border p-3 flex-wrap">
+                  <div className="min-w-0">
+                    <p className="text-sm">{r.referee_name || 'Referred contact'}</p>
+                    <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap mt-0.5">
+                      {r.referee_phone && <span>{r.referee_phone}</span>}
+                      {r.referee_email && <span>{r.referee_email}</span>}
+                      {r.created_at && <span>{new Date(r.created_at).toLocaleDateString()}</span>}
+                    </div>
+                  </div>
+                  {r.status && <Badge variant="outline" className="text-xs shrink-0">{String(r.status)}</Badge>}
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {/* CONTENT — per-application detail (the selected car) + unified history. */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* LEFT: Vehicle */}
+          {/* LEFT: selected vehicle */}
           <Card className="p-5 space-y-4">
             <h3 className="text-sm font-semibold flex items-center gap-2">
-              <Car className="w-4 h-4" /> Linked Vehicle
+              <Car className="w-4 h-4" /> {multi ? 'Selected vehicle' : 'Linked Vehicle'}
             </h3>
-            {linkedVehicle ? (
-              <div className="space-y-2">
-                <p className="font-medium">
-                  {linkedVehicle.year} {linkedVehicle.make} {linkedVehicle.model}
-                </p>
-                <div className="space-y-1 text-xs text-muted-foreground">
-                  <p>VIN: {linkedVehicle.vin || 'N/A'}</p>
-                  <p>Reg: {linkedVehicle.registration_number || 'N/A'}</p>
-                  {linkedVehicle.color && <p>Color: {linkedVehicle.color}</p>}
+            {(() => {
+              const v = vehicleOf(activeApp);
+              return v ? (
+                <div className="space-y-2">
+                  <p className="font-medium">{v.year} {v.make} {v.model}</p>
+                  <div className="space-y-1 text-xs text-muted-foreground">
+                    <p>VIN: {v.vin || 'N/A'}</p>
+                    <p>Reg: {v.registration_number || 'N/A'}</p>
+                    {v.color && <p>Color: {v.color}</p>}
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No vehicle linked.</p>
-            )}
+              ) : <p className="text-sm text-muted-foreground">No vehicle linked.</p>;
+            })()}
           </Card>
 
-          {/* CENTER: Tabs */}
+          {/* CENTER: Tabs (History is unified; the rest follow the selected car) */}
           <div className="lg:col-span-2">
             <Tabs defaultValue="history">
               <TabsList>
-                <TabsTrigger value="history">
-                  <History className="w-3.5 h-3.5 mr-1" /> History
-                </TabsTrigger>
-                <TabsTrigger value="documents">
-                  <FileText className="w-3.5 h-3.5 mr-1" /> Documents
-                </TabsTrigger>
-                <TabsTrigger value="deal">
-                  <User className="w-3.5 h-3.5 mr-1" /> Deal Info
-                </TabsTrigger>
-                <TabsTrigger value="juristic">
-                  <Building2 className="w-3.5 h-3.5 mr-1" /> Juristic
-                </TabsTrigger>
+                <TabsTrigger value="history"><History className="w-3.5 h-3.5 mr-1" /> History</TabsTrigger>
+                <TabsTrigger value="documents"><FileText className="w-3.5 h-3.5 mr-1" /> Documents</TabsTrigger>
+                <TabsTrigger value="deal"><User className="w-3.5 h-3.5 mr-1" /> Deal Info</TabsTrigger>
+                <TabsTrigger value="juristic"><Building2 className="w-3.5 h-3.5 mr-1" /> Juristic</TabsTrigger>
               </TabsList>
 
               <TabsContent value="history" className="mt-4">
                 <Card className="p-5">
                   <p className="text-xs text-muted-foreground mb-4">
-                    Unified history — notes, calls, reminders, status changes, bank offers and deal events.
+                    Unified history across {multi ? 'all this client’s applications' : 'this client'} — notes, calls, reminders, status changes, bank offers and deal events.
                   </p>
                   <ClientTimeline items={timeline} />
                 </Card>
               </TabsContent>
 
               <TabsContent value="documents" className="mt-4">
+                {multi && (
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Showing documents for the selected car ({vehicleLabel(vehicleOf(activeApp)) || 'application'}). Pick another above to switch.
+                  </p>
+                )}
                 <Card className="p-5 space-y-5">
                   <DocumentManager
                     title="Client documents"
                     description="ID, driver's licence, proof of address, payslips, bank statements."
                     category="client"
-                    clientId={client.user_id || undefined}
-                    applicationId={client.id}
+                    clientId={activeApp?.user_id || undefined}
+                    applicationId={activeApp?.id}
                   />
                   <DocumentManager
                     title="Vehicle documents"
                     description="DEKRA, NATIS/registration, roadworthy, service history — per vehicle."
                     category="vehicle"
-                    clientId={client.user_id || undefined}
-                    applicationId={client.id}
-                    vehicleId={client.selected_vehicle_id || client.vehicle_id || undefined}
+                    clientId={activeApp?.user_id || undefined}
+                    applicationId={activeApp?.id}
+                    vehicleId={activeApp?.selected_vehicle_id || activeApp?.vehicle_id || undefined}
                   />
                   <DocumentManager
                     title="Deal & contracts"
                     description="Signed contracts, invoices, delivery and handover paperwork."
                     category="deal"
-                    clientId={client.user_id || undefined}
-                    applicationId={client.id}
+                    clientId={activeApp?.user_id || undefined}
+                    applicationId={activeApp?.id}
                   />
                 </Card>
               </TabsContent>
 
               <TabsContent value="deal" className="mt-4">
                 <Card className="p-5 space-y-3">
-                  {client.deal_records && client.deal_records.length > 0 ? (
+                  {multi && (
+                    <p className="text-xs text-muted-foreground">
+                      Deal for the selected car ({vehicleLabel(vehicleOf(activeApp)) || 'application'}).
+                    </p>
+                  )}
+                  {activeApp?.deal_records && activeApp.deal_records.length > 0 ? (
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Sold Price</span>
-                        <span className="font-medium">R {client.deal_records[0].sold_price?.toLocaleString() || 'N/A'}</span>
+                        <span className="font-medium">R {activeApp.deal_records[0].sold_price?.toLocaleString() || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Deposit</span>
-                        <span className="font-medium">R {client.deal_records[0].client_deposit?.toLocaleString() || '0'}</span>
+                        <span className="font-medium">R {activeApp.deal_records[0].client_deposit?.toLocaleString() || '0'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Sale Date</span>
                         <span className="font-medium">
-                          {client.deal_records[0].sale_date
-                            ? new Date(client.deal_records[0].sale_date).toLocaleDateString()
-                            : 'N/A'}
+                          {activeApp.deal_records[0].sale_date ? new Date(activeApp.deal_records[0].sale_date).toLocaleDateString() : 'N/A'}
                         </span>
                       </div>
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">No deal records yet.</p>
                   )}
-                  {client.deal_records && client.deal_records.length > 0 && (
+                  {activeApp?.deal_records && activeApp.deal_records.length > 0 && (
                     <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleGenerateInvoice}
-                      disabled={generatingInvoice}
+                      variant="outline" size="sm"
+                      onClick={() => handleGenerateInvoice(activeApp)}
+                      disabled={generatingId === activeApp.id}
                       className="w-full mt-2"
                     >
-                      {generatingInvoice ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <FileText className="w-4 h-4 mr-1" />}
+                      {generatingId === activeApp.id ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <FileText className="w-4 h-4 mr-1" />}
                       Generate Invoice (PDF)
                     </Button>
                   )}
@@ -297,7 +430,7 @@ const ClientProfile = () => {
               </TabsContent>
 
               <TabsContent value="juristic" className="mt-4">
-                <JuristicPanel applicationId={client.id} />
+                <JuristicPanel applicationId={activeApp?.id} />
               </TabsContent>
             </Tabs>
           </div>
