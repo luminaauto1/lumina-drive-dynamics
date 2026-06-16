@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { publicApiHeaders } from '@/lib/publicApi';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Settings, DollarSign, Phone, Palette, Loader2, MapPin, CreditCard, Users, Plus, X, Target, Mail, TestTube, Building2, Shield } from 'lucide-react';
+import { Settings, DollarSign, Phone, Palette, Loader2, MapPin, CreditCard, Users, Plus, X, Target, Mail, TestTube, Building2, Shield, FileText } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Switch } from '@/components/ui/switch';
@@ -15,6 +15,7 @@ import { useSiteSettings, useUpdateSiteSettings, SiteSettings } from '@/hooks/us
 
 import BankIntegrationsTab from '@/components/admin/BankIntegrationsTab';
 import TeamManagementTab from '@/components/admin/TeamManagementTab';
+import DocumentSettingsTab from '@/components/admin/DocumentSettingsTab';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -372,7 +373,7 @@ const AdminSettings = () => {
 
         <form onSubmit={handleSubmit(onSubmit)}>
           <Tabs defaultValue="finance" className="max-w-3xl">
-            <TabsList className={`grid w-full ${isSuperAdmin ? 'grid-cols-8' : 'grid-cols-7'} mb-6`}>
+            <TabsList className={`grid w-full ${isSuperAdmin ? 'grid-cols-9' : 'grid-cols-7'} mb-6`}>
               <TabsTrigger value="finance" className="gap-2">
                 <DollarSign className="w-4 h-4" />
                 Finance
@@ -405,6 +406,12 @@ const AdminSettings = () => {
                 <TabsTrigger value="team" className="gap-2">
                   <Shield className="w-4 h-4" />
                   Team
+                </TabsTrigger>
+              )}
+              {isSuperAdmin && (
+                <TabsTrigger value="documents" className="gap-2">
+                  <FileText className="w-4 h-4" />
+                  Documents
                 </TabsTrigger>
               )}
             </TabsList>
@@ -864,6 +871,14 @@ const AdminSettings = () => {
             {isSuperAdmin && (
               <TabsContent value="team">
                 <TeamManagementTab />
+              </TabsContent>
+            )}
+
+            {isSuperAdmin && (
+              <TabsContent value="documents">
+                <div className="glass-card rounded-xl p-6">
+                  <DocumentSettingsTab />
+                </div>
               </TabsContent>
             )}
 

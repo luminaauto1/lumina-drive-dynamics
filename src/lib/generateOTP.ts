@@ -30,6 +30,11 @@ export interface OTPData {
 
   signedPlace: string;
   deliveryPlace?: string;
+
+  // Optional company branding overrides (fall back to built-in Lumina defaults).
+  companyLegalName?: string;
+  companyTradingName?: string;
+  companyContactLine?: string;
 }
 
 const fmt = (n: number): string =>
@@ -120,15 +125,15 @@ export const generateOTP = (data: OTPData) => {
   doc.setFontSize(15);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...text);
-  doc.text('MAKHULU HOLDINGS (PTY) LTD', leftMargin, y);
+  doc.text(data.companyLegalName || 'MAKHULU HOLDINGS (PTY) LTD', leftMargin, y);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(...primary);
-  doc.text('t/a Lumina Auto', leftMargin, y + 5);
+  doc.text(`t/a ${data.companyTradingName || 'Lumina Auto'}`, leftMargin, y + 5);
   doc.setFontSize(7.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...muted);
-  doc.text('Pretoria, South Africa  •  info@luminaauto.co.za  •  068 601 7462', leftMargin, y + 10);
+  doc.text(data.companyContactLine || 'Pretoria, South Africa  •  info@luminaauto.co.za  •  068 601 7462', leftMargin, y + 10);
 
   y += 14;
   doc.setDrawColor(...primary);

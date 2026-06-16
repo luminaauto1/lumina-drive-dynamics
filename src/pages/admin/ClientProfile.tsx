@@ -13,6 +13,9 @@ import JuristicPanel from "@/components/admin/JuristicPanel";
 import DocumentManager from "@/components/admin/DocumentManager";
 import ClientTimeline from "@/components/admin/ClientTimeline";
 import { buildClientTimeline, TimelineItem } from "@/lib/clientTimeline";
+import { useDocumentSettings, consumeInvoiceNumber } from "@/hooks/useDocumentSettings";
+import { generateInvoicePDF } from "@/lib/generateInvoicePDF";
+import { toast } from "sonner";
 
 const ClientProfile = () => {
   const { id } = useParams();
@@ -20,6 +23,46 @@ const ClientProfile = () => {
   const [client, setClient] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
+  const [generatingInvoice, setGeneratingInvoice] = useState(false);
+  const { data: docSettings } = useDocumentSettings();
+
+  const handleGenerateInvoice = async () => {
+    const deal = client?.deal_records?.[0];
+    if (!deal || !docSettings) {
+      toast.error('No finalized deal to invoice yet.');
+      return;
+    }
+    setGeneratingInvoice(true);
+    try {
+      const v = client.selected_vehicle || client.linked_vehicle;
+      const vehicleLabel = v ? `${v.year || ''} ${v.make || ''} ${v.model || ''}`.trim() : 'Vehicle';
+      const lineItems = [{ description: `Vehicle: ${vehicleLabel}`, amount: Number(deal.sold_price || 0) }];
+      const addons = Array.isArray(deal.addons_data) ? deal.addons_data : [];
+      addons.forEach((a: any) => {
+        const price = Number(a?.price || 0);
+        if (price > 0) lineItems.push({ description: a?.name || 'Add-on', amount: price });
+      });
+      const invoiceNumber = await consumeInvoiceNumber(docSettings);
+      generateInvoicePDF({
+        invoiceNumber,
+        date: new Date(deal.sale_date || deal.created_at || Date.now()).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' }),
+        clientName: `${client.first_name || ''} ${client.last_name || ''}`.trim() || client.full_name || 'Client',
+        idNumber: client.id_number || undefined,
+        address: [client.street_address, client.area_code].filter(Boolean).join(', ') || undefined,
+        email: client.email || undefined,
+        phone: client.phone || undefined,
+        vehicleLabel,
+        vin: v?.vin || undefined,
+        reg: v?.registration_number || undefined,
+        lineItems,
+      }, docSettings);
+      toast.success(`Invoice ${invoiceNumber} generated`);
+    } catch (e: any) {
+      toast.error('Invoice generation failed: ' + e.message);
+    } finally {
+      setGeneratingInvoice(false);
+    }
+  };
 
   useEffect(() => {
     const fetchClient = async () => {
@@ -237,6 +280,18 @@ const ClientProfile = () => {
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">No deal records yet.</p>
+                  )}
+                  {client.deal_records && client.deal_records.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleGenerateInvoice}
+                      disabled={generatingInvoice}
+                      className="w-full mt-2"
+                    >
+                      {generatingInvoice ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <FileText className="w-4 h-4 mr-1" />}
+                      Generate Invoice (PDF)
+                    </Button>
                   )}
                 </Card>
               </TabsContent>

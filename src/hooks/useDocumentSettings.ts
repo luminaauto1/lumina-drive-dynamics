@@ -1,0 +1,104 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+/** Customizable company / invoice / OTP document settings (stored as one JSON
+ *  blob on site_settings.document_settings). Read directly from site_settings
+ *  while admin-authenticated — these include banking/VAT and are NOT in the
+ *  public site view. */
+export interface DocumentSettings {
+  // Company / brand
+  companyLegalName: string;
+  companyTradingName: string;
+  companyAddress: string;
+  companyPhone: string;
+  companyEmail: string;
+  companyVatNumber: string;
+  companyRegNumber: string;
+  // Banking (for invoices)
+  bankName: string;
+  bankAccountName: string;
+  bankAccountNumber: string;
+  bankBranchCode: string;
+  bankAccountType: string;
+  // Invoice
+  invoicePrefix: string;
+  invoiceNextNumber: number;
+  invoiceTerms: string;
+  vatPercent: number;
+  defaultAdminFee: number;
+  // OTP (Offer to Purchase)
+  otpValidityDays: number;
+  otpTerms: string; // optional override; empty = use the built-in legal terms
+}
+
+export const DEFAULT_DOCUMENT_SETTINGS: DocumentSettings = {
+  companyLegalName: 'MAKHULU HOLDINGS (PTY) LTD',
+  companyTradingName: 'Lumina Auto',
+  companyAddress: 'Pretoria, South Africa',
+  companyPhone: '068 601 7462',
+  companyEmail: 'info@luminaauto.co.za',
+  companyVatNumber: '',
+  companyRegNumber: '',
+  bankName: '',
+  bankAccountName: '',
+  bankAccountNumber: '',
+  bankBranchCode: '',
+  bankAccountType: 'Cheque',
+  invoicePrefix: 'INV-',
+  invoiceNextNumber: 1001,
+  invoiceTerms: 'Payment due on delivery. The vehicle remains the property of the seller until paid in full.',
+  vatPercent: 15,
+  defaultAdminFee: 2500,
+  otpValidityDays: 7,
+  otpTerms: '',
+};
+
+export const useDocumentSettings = () => {
+  return useQuery({
+    queryKey: ['document-settings'],
+    queryFn: async (): Promise<DocumentSettings> => {
+      // Cast: document_settings is a newly-added column not yet in generated types.
+      const { data } = await (supabase as any)
+        .from('site_settings').select('document_settings').limit(1).maybeSingle();
+      const stored = (data?.document_settings || {}) as Partial<DocumentSettings>;
+      return { ...DEFAULT_DOCUMENT_SETTINGS, ...stored };
+    },
+  });
+};
+
+export const useUpdateDocumentSettings = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (settings: DocumentSettings) => {
+      const { data: row } = await (supabase as any)
+        .from('site_settings').select('id').limit(1).maybeSingle();
+      if (row?.id) {
+        const { error } = await (supabase as any)
+          .from('site_settings').update({ document_settings: settings }).eq('id', row.id);
+        if (error) throw error;
+      } else {
+        const { error } = await (supabase as any)
+          .from('site_settings').insert({ document_settings: settings });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['document-settings'] });
+      toast.success('Document settings saved');
+    },
+    onError: (e: any) => toast.error('Save failed: ' + e.message),
+  });
+};
+
+/** Returns the formatted invoice number to use now, and bumps the stored counter. */
+export const consumeInvoiceNumber = async (current: DocumentSettings): Promise<string> => {
+  const num = current.invoiceNextNumber || 1001;
+  const { data: row } = await (supabase as any)
+    .from('site_settings').select('id, document_settings').limit(1).maybeSingle();
+  if (row?.id) {
+    const merged = { ...DEFAULT_DOCUMENT_SETTINGS, ...(row.document_settings || {}), invoiceNextNumber: num + 1 };
+    await (supabase as any).from('site_settings').update({ document_settings: merged }).eq('id', row.id);
+  }
+  return `${current.invoicePrefix || 'INV-'}${num}`;
+};

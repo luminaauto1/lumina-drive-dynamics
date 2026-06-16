@@ -1,0 +1,121 @@
+import { useEffect, useState } from 'react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Loader2, FileText, Building2, Banknote, Receipt } from 'lucide-react';
+import {
+  useDocumentSettings, useUpdateDocumentSettings, DEFAULT_DOCUMENT_SETTINGS, DocumentSettings,
+} from '@/hooks/useDocumentSettings';
+
+// Module-level field components (defined OUTSIDE the tab so they keep focus on each keystroke).
+const Field = ({ label, value, onChange, type = 'text', placeholder }: {
+  label: string; value: string | number; onChange: (v: any) => void; type?: string; placeholder?: string;
+}) => (
+  <div className="space-y-1">
+    <Label className="text-xs text-muted-foreground">{label}</Label>
+    <Input
+      type={type}
+      value={value as any}
+      placeholder={placeholder}
+      onChange={(e) => onChange(type === 'number' ? Number(e.target.value) : e.target.value)}
+    />
+  </div>
+);
+
+const AreaField = ({ label, value, onChange, placeholder }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string;
+}) => (
+  <div className="space-y-1">
+    <Label className="text-xs text-muted-foreground">{label}</Label>
+    <Textarea value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} rows={3} />
+  </div>
+);
+
+/** Customizable company / banking / invoice / OTP document settings.
+ *  Self-contained (own save), so it lives safely inside the AdminSettings form. */
+const DocumentSettingsTab = () => {
+  const { data, isLoading } = useDocumentSettings();
+  const update = useUpdateDocumentSettings();
+  const [form, setForm] = useState<DocumentSettings>(DEFAULT_DOCUMENT_SETTINGS);
+
+  useEffect(() => { if (data) setForm(data); }, [data]);
+
+  const set = (k: keyof DocumentSettings, v: any) => setForm((prev) => ({ ...prev, [k]: v }));
+
+  if (isLoading) {
+    return <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin" /></div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <FileText className="w-5 h-5 text-primary" />
+        <div>
+          <h3 className="font-semibold">Documents</h3>
+          <p className="text-xs text-muted-foreground">Company details used on Invoices and Offers to Purchase (OTP).</p>
+        </div>
+      </div>
+
+      {/* Company */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2 text-sm font-medium"><Building2 className="w-4 h-4 text-muted-foreground" /> Company</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Field label="Trading name" value={form.companyTradingName} onChange={(v) => set('companyTradingName', v)} />
+          <Field label="Legal entity name" value={form.companyLegalName} onChange={(v) => set('companyLegalName', v)} />
+          <Field label="Phone" value={form.companyPhone} onChange={(v) => set('companyPhone', v)} />
+          <Field label="Email" value={form.companyEmail} onChange={(v) => set('companyEmail', v)} />
+          <Field label="VAT number" value={form.companyVatNumber} onChange={(v) => set('companyVatNumber', v)} placeholder="4xxxxxxxxx" />
+          <Field label="Company reg. number" value={form.companyRegNumber} onChange={(v) => set('companyRegNumber', v)} />
+        </div>
+        <AreaField label="Address" value={form.companyAddress} onChange={(v) => set('companyAddress', v)} />
+      </section>
+
+      {/* Banking */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2 text-sm font-medium"><Banknote className="w-4 h-4 text-muted-foreground" /> Banking (shown on invoices)</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Field label="Account name" value={form.bankAccountName} onChange={(v) => set('bankAccountName', v)} />
+          <Field label="Bank" value={form.bankName} onChange={(v) => set('bankName', v)} />
+          <Field label="Account number" value={form.bankAccountNumber} onChange={(v) => set('bankAccountNumber', v)} />
+          <Field label="Branch code" value={form.bankBranchCode} onChange={(v) => set('bankBranchCode', v)} />
+          <Field label="Account type" value={form.bankAccountType} onChange={(v) => set('bankAccountType', v)} />
+        </div>
+      </section>
+
+      {/* Invoice */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2 text-sm font-medium"><Receipt className="w-4 h-4 text-muted-foreground" /> Invoice</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Field label="Number prefix" value={form.invoicePrefix} onChange={(v) => set('invoicePrefix', v)} placeholder="INV-" />
+          <Field label="Next number" type="number" value={form.invoiceNextNumber} onChange={(v) => set('invoiceNextNumber', v)} />
+          <Field label="VAT %" type="number" value={form.vatPercent} onChange={(v) => set('vatPercent', v)} />
+          <Field label="Default admin fee" type="number" value={form.defaultAdminFee} onChange={(v) => set('defaultAdminFee', v)} />
+        </div>
+        <AreaField label="Invoice terms / footer note" value={form.invoiceTerms} onChange={(v) => set('invoiceTerms', v)} />
+      </section>
+
+      {/* OTP */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2 text-sm font-medium"><FileText className="w-4 h-4 text-muted-foreground" /> Offer to Purchase (OTP)</div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Validity (days)" type="number" value={form.otpValidityDays} onChange={(v) => set('otpValidityDays', v)} />
+        </div>
+        <AreaField
+          label="Custom OTP terms (optional — leave blank to use the built-in legal terms)"
+          value={form.otpTerms}
+          onChange={(v) => set('otpTerms', v)}
+        />
+      </section>
+
+      <div className="flex justify-end">
+        <Button type="button" onClick={() => update.mutate(form)} disabled={update.isPending}>
+          {update.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+          Save document settings
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+export default DocumentSettingsTab;

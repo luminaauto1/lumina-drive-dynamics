@@ -7,6 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Download, FileText } from 'lucide-react';
 import { generateOTP, OTPData } from '@/lib/generateOTP';
+import { useDocumentSettings } from '@/hooks/useDocumentSettings';
 import { toast } from 'sonner';
 
 interface OTPModalProps {
@@ -63,6 +64,17 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData }: OTPModal
   const quoteRef = `OTP-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9999)).padStart(4, '0')}`;
   const today = new Date().toLocaleDateString('en-ZA');
 
+  // Pull customizable company defaults (admin fee, signing place) from settings.
+  const { data: docSettings } = useDocumentSettings();
+  useEffect(() => {
+    if (docSettings) {
+      setAdminFee(docSettings.defaultAdminFee ?? 2500);
+      if (docSettings.companyTradingName) {
+        setSignedPlace(`${docSettings.companyTradingName}${docSettings.companyAddress ? `, ${docSettings.companyAddress}` : ''}`);
+      }
+    }
+  }, [docSettings]);
+
   useEffect(() => {
     if (applicationData) {
       setClientName(applicationData.clientName || '');
@@ -113,6 +125,11 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData }: OTPModal
       vapPrice,
       adminFee,
       signedPlace,
+      companyLegalName: docSettings?.companyLegalName,
+      companyTradingName: docSettings?.companyTradingName,
+      companyContactLine: docSettings
+        ? [docSettings.companyAddress, docSettings.companyEmail, docSettings.companyPhone].filter(Boolean).join('  •  ')
+        : undefined,
     };
     generateOTP(data);
     toast.success('OTP PDF downloaded');
