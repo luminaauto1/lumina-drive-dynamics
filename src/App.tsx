@@ -42,6 +42,7 @@ import AdminContacts from "./pages/admin/AdminContacts";
 import AdminReferrals from "./pages/admin/AdminReferrals";
 import AdminEmailSettings from "./pages/admin/AdminEmailSettings";
 import CRMSheet from "./pages/admin/CRMSheet";
+import AdminCRM from "./pages/admin/AdminCRM";
 import ClientProfile from "./pages/admin/ClientProfile";
 import AdminDocumentsHub from "./pages/admin/AdminDocumentsHub";
 import UpdatePassword from "./pages/UpdatePassword";
@@ -124,6 +125,7 @@ const AppLayout = () => {
           <Route path="/admin/clients/:id" element={<ProtectedRoute requireSuperAdmin><ClientProfile /></ProtectedRoute>} />
           <Route path="/admin/documents" element={<ProtectedRoute requireSuperAdmin><AdminDocumentsHub /></ProtectedRoute>} />
           <Route path="/admin/crm-sheet" element={<ProtectedRoute requireAdmin blockStandardFAndI><CRMSheet /></ProtectedRoute>} />
+          <Route path="/admin/crm" element={<ProtectedRoute requireAdmin><AdminCRM /></ProtectedRoute>} />
           <Route path="/update-password" element={<UpdatePassword />} />
           <Route path="/system-fix" element={<ProtectedRoute requireSuperAdmin><SystemFix /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
