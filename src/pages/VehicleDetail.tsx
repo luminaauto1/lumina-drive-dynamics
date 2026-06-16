@@ -1,18 +1,20 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Calendar, Gauge, Fuel, Palette, Settings, Shield, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar, Gauge, Fuel, Palette, Settings, Shield, Sparkles, Heart, Share2 } from "lucide-react";
+import { toast } from "sonner";
 import SEO from "@/components/seo/SEO";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useWishlist } from "@/hooks/useWishlist";
-import { useVehicle } from "@/hooks/useVehicles";
+import { useVehicle, usePublicVehicles } from "@/hooks/useVehicles";
 import { formatPrice, formatMileage, calculateMonthlyPayment } from "@/lib/formatters";
 import { getOptimizedImage } from "@/lib/utils";
 import { useBestFinanceOffer } from "@/hooks/useBestFinanceOffer";
 import KineticText from "@/components/KineticText";
 import FinanceCalculator from "@/components/FinanceCalculator";
 import ImageLightbox from "@/components/ImageLightbox";
+import VehicleCard from "@/components/VehicleCard";
 import { useTrackEvent } from "@/hooks/useAnalytics";
 
 const VehicleDetail = () => {
@@ -26,6 +28,7 @@ const VehicleDetail = () => {
   const trackEvent = useTrackEvent();
 
   const { data: vehicleData, isLoading } = useVehicle(id || "");
+  const { data: allVehicles } = usePublicVehicles();
 
   // Cast vehicle to 'any' to bypass strict JSON/Type checks for new columns
   const vehicle = vehicleData as any;
@@ -100,6 +103,43 @@ const VehicleDetail = () => {
     : null;
 
   const images = vehicle.images || [];
+
+  // Save / Wishlist
+  const saved = isInWishlist(vehicle.id);
+  const handleToggleWishlist = () => {
+    toggleWishlist(vehicle.id);
+    toast.success(saved ? "Removed from saved" : "Saved to wishlist");
+  };
+
+  // Share
+  const handleShare = async () => {
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: displayTitle, url });
+      } catch {
+        // User cancelled share; do nothing
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success("Link copied");
+      } catch {
+        toast.error("Could not copy link");
+      }
+    }
+  };
+
+  // Similar vehicles: up to 4 OTHER available vehicles matching same make (fallback: body_type)
+  const allList = (allVehicles as any[]) || [];
+  const candidates = allList.filter(
+    (v) => v.id !== vehicle.id && v.status === "available"
+  );
+  let similarVehicles = candidates.filter((v) => v.make === vehicle.make);
+  if (similarVehicles.length === 0 && vehicle.body_type) {
+    similarVehicles = candidates.filter((v) => v.body_type === vehicle.body_type);
+  }
+  similarVehicles = similarVehicles.slice(0, 4);
 
   // WhatsApp Message
   const whatsappMessage =
@@ -237,6 +277,22 @@ const VehicleDetail = () => {
                   <KineticText>{displayTitle}</KineticText>
                 </h1>
 
+                {/* Save / Share */}
+                <div className="flex items-center gap-3 mt-4">
+                  <Button
+                    variant="outline"
+                    onClick={handleToggleWishlist}
+                    className={saved ? "border-primary text-primary" : ""}
+                  >
+                    <Heart className={`w-4 h-4 ${saved ? "fill-current" : ""}`} />
+                    {saved ? "Saved" : "Save"}
+                  </Button>
+                  <Button variant="outline" onClick={handleShare}>
+                    <Share2 className="w-4 h-4" />
+                    Share
+                  </Button>
+                </div>
+
                 {/* Variant Selector (If Sourcing) */}
                 {variants.length > 0 && (
                   <div className="mt-4 max-w-sm">
@@ -334,6 +390,18 @@ const VehicleDetail = () => {
             </div>
           </div>
         </section>
+
+        {/* --- SIMILAR VEHICLES --- */}
+        {similarVehicles.length > 0 && (
+          <section className="container mx-auto px-4 md:px-6 py-12 border-t border-white/5">
+            <h2 className="font-display text-2xl md:text-3xl font-bold mb-8">Similar Vehicles</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {similarVehicles.map((v) => (
+                <VehicleCard key={v.id} vehicle={v as any} />
+              ))}
+            </div>
+          </section>
+        )}
       </div>
 
       {/* Lightbox */}

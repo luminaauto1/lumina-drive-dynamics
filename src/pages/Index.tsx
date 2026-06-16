@@ -12,6 +12,7 @@ import ExitIntentModal from '@/components/ExitIntentModal';
 import PublicReferralModal from '@/components/PublicReferralModal';
 import VehicleCard from '@/components/VehicleCard';
 import SkeletonCard from '@/components/SkeletonCard';
+import Testimonials from '@/components/Testimonials';
 import { usePublicVehicles } from '@/hooks/useVehicles';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 const Index = () => {
@@ -206,12 +207,18 @@ const Index = () => {
             </motion.span>
 
             <motion.h1 variants={itemVariants} className="font-display text-4xl md:text-6xl lg:text-7xl font-bold mb-6 max-w-5xl mx-auto leading-tight">
-              Drive the Car You Deserve.<br />
-              <span className="gradient-text">Check How You Qualify in Minutes.</span>
+              {settings?.hero_headline ? (
+                heroHeadline
+              ) : (
+                <>
+                  Drive the Car You Deserve.<br />
+                  <span className="gradient-text">Check How You Qualify in Minutes.</span>
+                </>
+              )}
             </motion.h1>
 
             <motion.p variants={itemVariants} className="text-muted-foreground text-lg md:text-xl max-w-2xl mx-auto mb-10">
-              Experience South Africas's most trusted, hassle-free finance process. We specialize in vehicle sourcing, bank-backed financing, and premium quality new & pre-owned sales.
+              Experience South Africa's most trusted, hassle-free finance process. We specialize in vehicle sourcing, bank-backed financing, and premium quality new & pre-owned sales.
             </motion.p>
 
             <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -318,7 +325,16 @@ const Index = () => {
 
             {isLoading ? <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <SkeletonCard count={4} />
-              </div> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              </div> : displayVehicles.length === 0 ? (
+              <motion.div variants={itemVariants} className="text-center py-16 rounded-xl border border-border bg-card">
+                <p className="text-lg font-medium mb-2">Fresh stock landing soon</p>
+                <p className="text-muted-foreground text-sm mb-6">New vehicles are added regularly — tell us what you're after and we'll source it.</p>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Link to="/sourcing"><Button>Request a vehicle</Button></Link>
+                  <Link to="/inventory"><Button variant="outline">Browse all inventory</Button></Link>
+                </div>
+              </motion.div>
+              ) : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {displayVehicles.map((vehicle, index) => <motion.div key={vehicle.id} variants={itemVariants} custom={index}>
                     <VehicleCard vehicle={vehicle} />
                   </motion.div>)}
@@ -357,7 +373,8 @@ const Index = () => {
           </div>
         </motion.section>
 
-        {/* CTA Section */}
+        {/* Social proof / testimonials (renders only when configured in settings) */}
+        <Testimonials />
 
         {/* CTA Section */}
         <motion.section className="py-24 relative overflow-hidden" variants={containerVariants} initial="hidden" whileInView="visible" viewport={{

@@ -1,4 +1,5 @@
 // Finance Logic - Bank Scoring Algorithm for Dynamic Interest Rates
+import { calculateMonthlyPayment } from '@/lib/formatters';
 
 export interface VehicleRiskProfile {
   vehicleYear?: number;
@@ -89,4 +90,64 @@ export function getMarketingRateConfig(
   const rate = Math.max(0, defaultSiteRate - 1);
 
   return { term, rate };
+}
+
+// Minimal shapes so this helper can be shared by the card and the inventory
+// filter without importing the full hook types (avoids circular imports).
+interface CardFinanceVehicle {
+  price: number;
+  finance_available?: boolean | null;
+  status?: string | null;
+  is_generic_listing?: boolean | null;
+}
+
+interface CardFinanceSettings {
+  default_interest_rate?: number | null;
+  default_balloon_percent?: number | null;
+}
+
+interface CardFinanceOffer {
+  interest_rate_linked?: number | null;
+  interest_rate_fixed?: number | null;
+}
+
+/**
+ * Single source of truth for the "/pm" figure shown on a VehicleCard.
+ * Both the card and the inventory monthly-payment filter MUST use this so the
+ * slider filters on the exact value the customer sees.
+ * Returns null when the vehicle isn't financeable.
+ */
+export function getCardMonthlyPayment(
+  vehicle: CardFinanceVehicle,
+  siteSettings?: CardFinanceSettings | null,
+  bestOffer?: CardFinanceOffer | null
+): number | null {
+  if (!vehicle.finance_available) return null;
+
+  const hasPersonalizedRate =
+    !!bestOffer && !!(bestOffer.interest_rate_linked || bestOffer.interest_rate_fixed);
+  const personalizedRate = hasPersonalizedRate
+    ? Math.min(bestOffer!.interest_rate_linked || 100, bestOffer!.interest_rate_fixed || 100)
+    : undefined;
+
+  const defaultSiteRate = siteSettings?.default_interest_rate || 13.5;
+  const marketingConfig = getMarketingRateConfig(
+    vehicle.price,
+    defaultSiteRate,
+    hasPersonalizedRate,
+    personalizedRate
+  );
+
+  const isSourcingDisplay =
+    vehicle.status === 'sourcing' || !!vehicle.is_generic_listing;
+  const sourcingBalloon = isSourcingDisplay
+    ? siteSettings?.default_balloon_percent || 35
+    : 0;
+
+  return calculateMonthlyPayment(
+    vehicle.price,
+    marketingConfig.rate,
+    marketingConfig.term,
+    sourcingBalloon
+  );
 }

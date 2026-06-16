@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Heart, Search, User, Settings, CreditCard } from 'lucide-react';
+import { Menu, X, Heart, Search, User, Settings, CreditCard, Phone } from 'lucide-react';
 import moneyMakerIcon from '@/assets/money-maker-dollar.png.asset.json';
 import { Button } from '@/components/ui/button';
 import { useWishlist } from '@/hooks/useWishlist';
@@ -18,6 +18,8 @@ const Navbar = () => {
   const { data: settings } = useSiteSettings();
 
   const showFinanceTab = settings?.show_finance_tab ?? true;
+  const primaryPhone = settings?.primary_phone || '+27 68 601 7462';
+  const telHref = `tel:${primaryPhone.replace(/[^\d+]/g, '')}`;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -75,6 +77,15 @@ const Navbar = () => {
                 <img src={moneyMakerIcon.url} alt="" className="h-4 w-4 md:h-[18px] md:w-[18px] object-contain opacity-100 transition-opacity" />
                 <span>Money Maker</span>
               </Link>
+
+              {/* Click-to-call — quick contact, especially on mobile */}
+              <a
+                href={telHref}
+                className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
+                aria-label={`Call us on ${primaryPhone}`}
+              >
+                <Phone className="w-5 h-5" />
+              </a>
 
               <Link to="/inventory" className="hidden md:flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
                 <Search className="w-5 h-5" />

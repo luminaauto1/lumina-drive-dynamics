@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
-import { Helmet } from 'react-helmet-async';
 import { Shield, Award, Clock, Users, CheckCircle } from 'lucide-react';
 import KineticText from '@/components/KineticText';
+import SEO from '@/components/seo/SEO';
 
 const About = () => {
   const values = [
@@ -35,13 +35,11 @@ const About = () => {
 
   return (
     <>
-      <Helmet>
-        <title>About Us | Lumina Auto</title>
-        <meta
-          name="description"
-          content="Learn about Lumina Auto's commitment to excellence in pre-owned luxury vehicles."
-        />
-      </Helmet>
+      <SEO
+        title="About Us | Lumina Auto"
+        description="Learn about Lumina Auto's commitment to excellence in pre-owned vehicles, finance and sourcing across South Africa."
+        url="/about"
+      />
 
       <div className="min-h-screen pt-24 pb-16">
         <div className="container mx-auto px-6">

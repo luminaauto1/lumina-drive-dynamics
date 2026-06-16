@@ -23,6 +23,7 @@ const Footer = () => {
   const facebookUrl = settings?.facebook_url || 'https://www.facebook.com/profile.php?id=61573796805868';
   const instagramUrl = settings?.instagram_url || 'https://www.instagram.com/lumina.auto/';
   const tiktokUrl = (settings as any)?.tiktok_url || '';
+  const youtubeUrl = (settings as any)?.youtube_url || '';
 
   // Parse address into lines for display
   const addressLines = physicalAddress?.split(',').map(line => line.trim()) || [];
@@ -61,12 +62,16 @@ const Footer = () => {
               >
                 <Facebook className="w-5 h-5" />
               </a>
-              <a
-                href="#"
-                className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
-              >
-                <Youtube className="w-5 h-5" />
-              </a>
+              {youtubeUrl && (
+                <a
+                  href={youtubeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
+                >
+                  <Youtube className="w-5 h-5" />
+                </a>
+              )}
               {tiktokUrl && (
                 <a
                   href={tiktokUrl}

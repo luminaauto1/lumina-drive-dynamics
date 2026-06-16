@@ -23,6 +23,8 @@ const Auth = () => {
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [isResetting, setIsResetting] = useState(false);
+  // Inline validation errors for the sign-up form
+  const [fieldErrors, setFieldErrors] = useState<{ firstName?: string; surname?: string; mobileNumber?: string }>({});
 
   const { user, signIn, signUp } = useAuth();
   const navigate = useNavigate();
@@ -55,6 +57,23 @@ const Auth = () => {
           navigate(returnTo);
         }
       } else {
+        // Inline 'required' validation for sign-up fields
+        const errors: { firstName?: string; surname?: string; mobileNumber?: string } = {};
+        if (!firstName.trim()) errors.firstName = 'First name is required';
+        if (!surname.trim()) errors.surname = 'Surname is required';
+        if (!mobileNumber.trim()) {
+          errors.mobileNumber = 'Mobile number is required';
+        } else if (mobileNumber.trim().length < 10) {
+          errors.mobileNumber = 'Enter a valid 10-digit mobile number';
+        }
+
+        if (Object.keys(errors).length > 0) {
+          setFieldErrors(errors);
+          setIsLoading(false);
+          return;
+        }
+        setFieldErrors({});
+
         if (password.length < 6) {
           toast.error('Password must be at least 6 characters');
           setIsLoading(false);
@@ -105,6 +124,22 @@ const Auth = () => {
       toast.error('Failed to send reset link');
     } finally {
       setIsResetting(false);
+    }
+  };
+
+  // NOTE: The Google provider must be enabled in Supabase Auth → Providers
+  // (with a configured OAuth client ID/secret) for this button to work.
+  const handleGoogleSignIn = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin + '/dashboard' },
+      });
+      if (error) {
+        toast.error(error.message);
+      }
+    } catch (error: any) {
+      toast.error('Failed to start Google sign-in');
     }
   };
 
@@ -205,6 +240,9 @@ const Auth = () => {
                                 className="pl-10 glass-card border-border"
                               />
                             </div>
+                            {fieldErrors.firstName && (
+                              <p className="text-sm text-destructive">{fieldErrors.firstName}</p>
+                            )}
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor="surname">Surname</Label>
@@ -219,6 +257,9 @@ const Auth = () => {
                                 className="pl-10 glass-card border-border"
                               />
                             </div>
+                            {fieldErrors.surname && (
+                              <p className="text-sm text-destructive">{fieldErrors.surname}</p>
+                            )}
                           </div>
                         </div>
                         <div className="space-y-2">
@@ -238,6 +279,9 @@ const Auth = () => {
                               className="pl-10 glass-card border-border"
                             />
                           </div>
+                          {fieldErrors.mobileNumber && (
+                            <p className="text-sm text-destructive">{fieldErrors.mobileNumber}</p>
+                          )}
                         </div>
                       </>
                     )}
@@ -280,8 +324,8 @@ const Auth = () => {
                         </button>
                       </div>
                       
-                      {/* Forgot Password - appears after 1+ failed attempts */}
-                      {isLogin && failedAttempts >= 1 && (
+                      {/* Forgot Password - always available on the sign-in form */}
+                      {isLogin && (
                         <motion.div
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: 'auto' }}
@@ -309,6 +353,31 @@ const Auth = () => {
                       {isLoading ? 'Please wait...' : isLogin ? 'Sign In' : 'Create Account'}
                     </Button>
                   </form>
+
+                  {/* Divider */}
+                  <div className="flex items-center gap-4 my-6">
+                    <div className="flex-1 h-px bg-border" />
+                    <span className="text-sm text-muted-foreground">or</span>
+                    <div className="flex-1 h-px bg-border" />
+                  </div>
+
+                  {/* Continue with Google.
+                      NOTE: requires the Google provider to be enabled in
+                      Supabase Auth → Providers for this to work. */}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleGoogleSignIn}
+                    className="w-full glass-card border-border"
+                  >
+                    <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" aria-hidden="true">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z" />
+                      <path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z" />
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z" />
+                    </svg>
+                    Continue with Google
+                  </Button>
 
                   <div className="mt-6 text-center">
                     <button

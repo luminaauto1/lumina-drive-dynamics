@@ -19,6 +19,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useVehicles } from '@/hooks/useVehicles';
 import { useApplicationMatches } from '@/hooks/useApplicationMatches';
+import { useDocuments } from '@/hooks/useDocuments';
 import { USER_STATUS_LABELS, STATUS_STYLES } from '@/lib/statusConfig';
 import { toast } from 'sonner';
 
@@ -63,10 +64,32 @@ const Dashboard = () => {
   const draftApplications = applications.filter(app => app.status === 'draft');
   const hasDraftApplications = draftApplications.length > 0;
 
+  // Latest submitted (non-draft) application for the read-only summary card.
+  // `applications` is already ordered created_at desc, so the first non-draft is newest.
+  const latestApplication = applications.find(app => app.status !== 'draft');
+
+  // Resolve the vehicle of interest for the summary card: prefer an explicitly
+  // selected vehicle, then the linked vehicle_id, then any free-text preference.
+  const latestAppVehicle = latestApplication
+    ? vehicles.find(
+        v => v.id === latestApplication.selected_vehicle_id || v.id === latestApplication.vehicle_id
+      )
+    : undefined;
+  const latestAppVehicleLabel = latestAppVehicle
+    ? `${latestAppVehicle.year} ${latestAppVehicle.make} ${latestAppVehicle.model}`.trim()
+    : (latestApplication?.preferred_vehicle_text || null);
+
+  // Read-only list of documents the client has uploaded against their latest
+  // application. Only fires once we have an application id.
+  const { data: clientDocuments = [] } = useDocuments(
+    { applicationId: latestApplication?.id },
+    { enabled: !!latestApplication?.id }
+  );
+
   // Calculate draft application progress
   const getDraftProgress = (app: any) => {
     const step1Fields = ['full_name', 'email', 'phone', 'id_number'];
-    const step2Fields = ['employment_status', 'employer_name', 'gross_salary', 'net_salary'];
+    const step2Fields = ['employment_type', 'employer_name', 'gross_salary', 'net_salary'];
     const step3Fields = ['kin_name', 'kin_contact', 'bank_name', 'account_type', 'account_number'];
     const step4Fields = ['expenses_summary', 'popia_consent'];
     
@@ -245,6 +268,76 @@ const Dashboard = () => {
               Sign Out
             </Button>
           </div>
+
+          {/* Read-only Finance Application Summary */}
+          {latestApplication && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-12"
+            >
+              <div className="glass-card rounded-xl p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-primary/15 flex items-center justify-center">
+                      <FileText className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold">Your Finance Application</h2>
+                      <p className="text-sm text-muted-foreground">
+                        Submitted {new Date(latestApplication.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  <span
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border ${STATUS_STYLES[latestApplication.status] || STATUS_STYLES.pending}`}
+                  >
+                    {USER_STATUS_LABELS[latestApplication.status] || latestApplication.status}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="bg-background/50 rounded-lg p-4">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                      Vehicle of Interest
+                    </p>
+                    <p className="font-semibold flex items-center gap-2">
+                      <Car className="w-4 h-4 text-muted-foreground" />
+                      {latestAppVehicleLabel || 'Not specified yet'}
+                    </p>
+                  </div>
+                  <div className="bg-background/50 rounded-lg p-4">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+                      Applicant
+                    </p>
+                    <p className="font-semibold">
+                      {latestApplication.full_name || profile.full_name || user.email}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Read-only list of uploaded documents, if any exist */}
+                {clientDocuments.length > 0 && (
+                  <div className="mt-4 bg-background/50 rounded-lg p-4">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
+                      Your Uploaded Documents
+                    </p>
+                    <ul className="space-y-2">
+                      {clientDocuments.map((doc) => (
+                        <li key={doc.id} className="flex items-center gap-2 text-sm">
+                          <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+                          <span className="truncate">{doc.title}</span>
+                          <span className="text-xs text-muted-foreground ml-auto shrink-0">
+                            {new Date(doc.created_at).toLocaleDateString()}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
 
           {/* Pre-Approved: Upload Documents Section */}
           {needsDocumentUpload && preApprovedApplication && (

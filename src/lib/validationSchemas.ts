@@ -26,7 +26,8 @@ const emailSchema = z.string()
 const nameSchema = z.string()
   .min(2, 'Name must be at least 2 characters')
   .max(100, 'Name must be less than 100 characters')
-  .regex(/^[a-zA-Z\s'-]+$/, 'Name can only contain letters, spaces, hyphens and apostrophes');
+  // Allow accented letters (José, Müller, Renée) and a dot for initials (J. P.).
+  .regex(/^[\p{L}\s'.-]+$/u, 'Name can only contain letters, spaces, hyphens, apostrophes and dots');
 
 // Bank account number validation (numeric only, reasonable length)
 const accountNumberSchema = z.string()

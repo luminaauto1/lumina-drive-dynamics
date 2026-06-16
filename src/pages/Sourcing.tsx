@@ -14,6 +14,7 @@ import KineticText from '@/components/KineticText';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePublicVehicles, formatPrice } from '@/hooks/useVehicles';
+import { supabase } from '@/integrations/supabase/client';
 const Sourcing = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -49,6 +50,44 @@ const Sourcing = () => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Contact number so a captured sourcing lead is actually actionable (the form
+  // otherwise collects no phone/email and the lead would be uncontactable).
+  const [contactPhone, setContactPhone] = useState('');
+
+  // Bot protection: honeypot must stay empty + min time-since-mount.
+  const [website, setWebsite] = useState('');
+  const [openedAt] = useState(() => Date.now());
+  const isLikelyBot = () => website.trim().length > 0 || Date.now() - openedAt < 1500;
+
+  // Persist a sourcing lead so nothing depends on WhatsApp actually opening.
+  // Anon can INSERT into leads (policy "Anyone can create leads") but not read
+  // them back, so we fire-and-forget (no .select()). Duplicate budget/request
+  // rows for the same person collapse in the CRM (grouped by phone).
+  const persistLead = async (kind: 'budget' | 'request'): Promise<boolean> => {
+    const isFinance = paymentMethod === 'finance';
+    const budgetLine = isFinance ? `Net income: R${miniFinanceData.net_income}` : `Cash budget: R${budgetRange[0].toLocaleString()}`;
+    const notes = (kind === 'budget'
+      ? [`Sourcing budget check (${isFinance ? 'Finance' : 'Cash'} buyer)`, budgetLine, isFinance && miniFinanceData.id_number ? `ID: ${miniFinanceData.id_number}` : '']
+      : [`Sourcing request (${isFinance ? 'Finance' : 'Cash'} buyer)`, budgetLine,
+         `Vehicle: ${[vehicleData.make, vehicleData.model, vehicleData.year, vehicleData.color].filter(Boolean).join(' ')}`,
+         vehicleData.additionalDetails ? `Details: ${vehicleData.additionalDetails}` : '']
+    ).filter(Boolean).join('\n');
+    try {
+      const { error } = await supabase.from('leads').insert([{
+        client_name: (isFinance && miniFinanceData.name) ? miniFinanceData.name : 'Sourcing enquiry',
+        client_phone: contactPhone.trim() || null,
+        source: 'sourcing',
+        status: 'new',
+        notes,
+      }] as any);
+      if (error) throw error;
+      return true;
+    } catch (err) {
+      console.error('[Sourcing] lead capture failed', err);
+      return false;
+    }
+  };
+
   const handleCheckBuyingPower = () => {
     if (user) {
       navigate('/finance-application');
@@ -57,15 +96,17 @@ const Sourcing = () => {
     }
   };
 
-  const handleMiniFinanceSubmit = () => {
-    if (!miniFinanceData.name || !miniFinanceData.id_number || !miniFinanceData.net_income) {
+  const handleMiniFinanceSubmit = async () => {
+    if (!miniFinanceData.name || !miniFinanceData.id_number || !miniFinanceData.net_income || !contactPhone.trim()) {
       toast({
         title: 'Missing Information',
-        description: 'Please fill in all fields to unlock vehicle selection.',
+        description: 'Please fill in all fields (including your mobile number) to unlock vehicle selection.',
         variant: 'destructive',
       });
       return;
     }
+    if (isLikelyBot()) return;
+    await persistLead('budget'); // capture the high-intent lead even if they stop here
     setBudgetUnlocked(true);
     toast({
       title: 'Budget Check Complete',
@@ -73,7 +114,7 @@ const Sourcing = () => {
     });
   };
 
-  const handleCashBudgetSet = () => {
+  const handleCashBudgetSet = async () => {
     if (budgetRange[0] < 50000) {
       toast({
         title: 'Budget Too Low',
@@ -82,6 +123,16 @@ const Sourcing = () => {
       });
       return;
     }
+    if (!contactPhone.trim()) {
+      toast({
+        title: 'Mobile Number Required',
+        description: 'Please add a mobile number so we can reach you about your sourcing request.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (isLikelyBot()) return;
+    await persistLead('budget');
     setBudgetUnlocked(true);
     toast({
       title: 'Budget Confirmed',
@@ -99,19 +150,23 @@ const Sourcing = () => {
       });
       return;
     }
+    if (isLikelyBot()) return;
     setIsSubmitting(true);
 
-    const budgetText = paymentMethod === 'cash' 
-      ? `R${budgetRange[0].toLocaleString()}` 
+    // Persist the request so it's never lost if WhatsApp doesn't open.
+    await persistLead('request');
+
+    const budgetText = paymentMethod === 'cash'
+      ? `R${budgetRange[0].toLocaleString()}`
       : `Net Income: R${miniFinanceData.net_income}`;
 
-    const message = `🔍 *New Sourcing Request*\n\n*Buyer Type:* ${paymentMethod === 'cash' ? 'Cash Buyer' : 'Finance Buyer'}\n*Budget:* ${budgetText}\n${paymentMethod === 'finance' ? `*Name:* ${miniFinanceData.name}\n*ID:* ${miniFinanceData.id_number}` : ''}\n\n🚗 *Vehicle Details*\nMake: ${vehicleData.make}\nModel: ${vehicleData.model}\nYear: ${vehicleData.year || 'Any'}\nColor: ${vehicleData.color || 'Any'}\n\n📝 Additional Info:\n${vehicleData.additionalDetails || 'N/A'}`;
+    const message = `🔍 *New Sourcing Request*\n\n*Buyer Type:* ${paymentMethod === 'cash' ? 'Cash Buyer' : 'Finance Buyer'}\n*Budget:* ${budgetText}\n*Mobile:* ${contactPhone || 'N/A'}\n${paymentMethod === 'finance' ? `*Name:* ${miniFinanceData.name}\n*ID:* ${miniFinanceData.id_number}` : ''}\n\n🚗 *Vehicle Details*\nMake: ${vehicleData.make}\nModel: ${vehicleData.model}\nYear: ${vehicleData.year || 'Any'}\nColor: ${vehicleData.color || 'Any'}\n\n📝 Additional Info:\n${vehicleData.additionalDetails || 'N/A'}`;
 
     window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`, '_blank');
 
     toast({
       title: 'Request Submitted!',
-      description: 'Our team will begin sourcing your vehicle immediately.',
+      description: 'We have your details — our team will start sourcing right away.',
     });
 
     setIsSubmitting(false);
@@ -327,9 +382,21 @@ const Sourcing = () => {
                       <Input
                         id="mini_income"
                         type="number"
+                        inputMode="numeric"
                         value={miniFinanceData.net_income}
                         onChange={(e) => setMiniFinanceData({ ...miniFinanceData, net_income: e.target.value })}
                         placeholder="e.g. 35000"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="mini_phone">Mobile Number *</Label>
+                      <Input
+                        id="mini_phone"
+                        type="tel"
+                        inputMode="tel"
+                        value={contactPhone}
+                        onChange={(e) => setContactPhone(e.target.value)}
+                        placeholder="e.g. 082 123 4567"
                       />
                     </div>
 
@@ -378,6 +445,18 @@ const Sourcing = () => {
                       </div>
                     </div>
 
+                    <div className="space-y-2">
+                      <Label htmlFor="cash_phone">Mobile Number *</Label>
+                      <Input
+                        id="cash_phone"
+                        type="tel"
+                        inputMode="tel"
+                        value={contactPhone}
+                        onChange={(e) => setContactPhone(e.target.value)}
+                        placeholder="e.g. 082 123 4567"
+                      />
+                    </div>
+
                     <Button onClick={handleCashBudgetSet} className="w-full">
                       <Unlock className="w-4 h-4 mr-2" />
                       Confirm Budget & Continue
@@ -422,6 +501,11 @@ const Sourcing = () => {
                 )}
 
                 <form onSubmit={handleVehicleSubmit} className="bg-card rounded-xl border border-border p-8 space-y-6">
+                  {/* Honeypot — hidden from humans; bots that fill it are dropped. */}
+                  <div className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden" aria-hidden="true">
+                    <label htmlFor="sourcing-website">Website</label>
+                    <input id="sourcing-website" type="text" tabIndex={-1} autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} />
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="make">Make *</Label>

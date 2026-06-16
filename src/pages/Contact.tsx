@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Helmet } from 'react-helmet-async';
+import SEO from '@/components/seo/SEO';
 import { MapPin, Phone, Mail, Clock, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,9 +9,12 @@ import { Label } from '@/components/ui/label';
 import KineticText from '@/components/KineticText';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const Contact = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [website, setWebsite] = useState(''); // honeypot — must stay empty
+  const [openedAt] = useState(() => Date.now());
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -37,7 +40,13 @@ const Contact = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    // Bot protection: honeypot must be empty + min time-since-mount.
+    // Silently ignore submissions that fail these checks.
+    if (website.trim().length > 0 || Date.now() - openedAt < 1500) {
+      return;
+    }
+
     // Validate required fields
     if (!formData.name.trim() || !formData.email.trim() || !formData.message.trim()) {
       toast.error('Please fill in all required fields');
@@ -47,37 +56,57 @@ const Contact = () => {
     setIsSubmitting(true);
 
     try {
-      // Build WhatsApp message
-      const messageParts = [
-        `Hi Lumina Auto, I am ${formData.name.trim()}.`,
-        `Email: ${formData.email.trim()}`,
-      ];
-      
-      if (formData.phone.trim()) {
-        messageParts.push(`Phone: ${formData.phone.trim()}`);
+      const name = formData.name.trim();
+      const email = formData.email.trim();
+      const phone = formData.phone.trim();
+
+      // Build the enquiry notes from all supplied fields
+      const noteParts: string[] = [];
+      if (formData.interestedVehicle.trim()) {
+        noteParts.push(`Interested vehicle: ${formData.interestedVehicle.trim()}`);
       }
-      
+      if (formData.budget.trim()) {
+        noteParts.push(`Budget: R${formData.budget.trim()}`);
+      }
+      noteParts.push(`Message: ${formData.message.trim()}`);
+
+      // 1. Persist the enquiry FIRST — only claim success if it saved.
+      const { error } = await supabase.from('leads').insert([{
+        client_name: name,
+        client_email: email,
+        client_phone: phone || null,
+        source: 'contact_form',
+        status: 'new',
+        notes: noteParts.join('\n'),
+      }] as any);
+
+      if (error) throw error;
+
+      // 2. Open WhatsApp as a secondary convenience hand-off.
+      const messageParts = [
+        `Hi Lumina Auto, I am ${name}.`,
+        `Email: ${email}`,
+      ];
+      if (phone) {
+        messageParts.push(`Phone: ${phone}`);
+      }
       if (formData.interestedVehicle.trim()) {
         messageParts.push(`I am interested in: ${formData.interestedVehicle.trim()}`);
       }
-      
       if (formData.budget.trim()) {
         messageParts.push(`My budget is: R${formData.budget.trim()}`);
       }
-      
       messageParts.push(`Message: ${formData.message.trim()}`);
-      
+
       const whatsappMessage = messageParts.join('\n');
       const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`;
-      
-      // Open WhatsApp
       window.open(whatsappUrl, '_blank');
-      
-      toast.success('Opening WhatsApp...');
+
+      toast.success('Message sent! We have your details and will be in touch.');
       setFormData({ name: '', email: '', phone: '', interestedVehicle: '', budget: '', message: '' });
     } catch (error) {
       console.error('Contact form error:', error);
-      toast.error('An error occurred. Please try again.');
+      toast.error('Could not send your message. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -109,13 +138,11 @@ const Contact = () => {
 
   return (
     <>
-      <Helmet>
-        <title>Contact Us | Lumina Auto</title>
-        <meta
-          name="description"
-          content="Get in touch with Lumina Auto. Visit our showroom or contact us for inquiries about our premium pre-owned vehicles."
-        />
-      </Helmet>
+      <SEO
+        title="Contact Us | Lumina Auto"
+        description="Get in touch with Lumina Auto. Visit our showroom or contact us about our pre-owned vehicles, finance and sourcing."
+        url="/contact"
+      />
 
       <div className="min-h-screen pt-24 pb-16">
         <div className="container mx-auto px-6">
@@ -173,6 +200,18 @@ const Contact = () => {
             >
               <h2 className="text-2xl font-bold mb-6">Send a Message</h2>
               <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden" aria-hidden="true">
+                  <label htmlFor="contact-website">Website</label>
+                  <input
+                    id="contact-website"
+                    type="text"
+                    tabIndex={-1}
+                    autoComplete="off"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                  />
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="name">Full Name *</Label>
                   <Input

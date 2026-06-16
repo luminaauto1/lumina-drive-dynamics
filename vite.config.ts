@@ -5,7 +5,7 @@ import path from "path";
 // https://vitejs.dev/config/
 // MIGRATION NOTE: the Lovable component tagger plugin was removed as part of
 // the Lovable -> Vercel migration; the build no longer depends on Lovable.
-export default defineConfig(() => ({
+export default defineConfig(({ mode }) => ({
   server: {
     host: "0.0.0.0",
     port: 8080,
@@ -16,4 +16,6 @@ export default defineConfig(() => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  // Strip console.* and debugger from PRODUCTION builds only (keep them in dev).
+  esbuild: mode === "production" ? { drop: ["console", "debugger"] } : {},
 }));

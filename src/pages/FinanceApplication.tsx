@@ -592,8 +592,9 @@ const FinanceApplication = () => {
   };
 
   // TASK 4: Silent background Google Places search based on employer_name.
-  // Non-destructive: never overwrites the user's manual employer_address;
-  // only sets business_address_auto and (if blank) workplace_cell_no.
+  // Non-destructive: only sets business_address_auto (the employer ADDRESS).
+  // It does NOT touch workplace_cell_no — auto-filling that overwrote the field
+  // with the company's public switchboard number, polluting the lead data.
   useEffect(() => {
     const name = formData.employer_name?.trim();
     if (!name || name.length < 3) return;
@@ -610,18 +611,15 @@ const FinanceApplication = () => {
           (results: any[], status: string) => {
             if (status !== 'OK' || !results?.[0]?.place_id) return;
             service.getDetails(
-              { placeId: results[0].place_id, fields: ['formatted_address', 'formatted_phone_number', 'international_phone_number'] },
+              { placeId: results[0].place_id, fields: ['formatted_address'] },
               (place: any, st: string) => {
                 if (st !== 'OK' || !place) return;
-                setFormData((prev) => {
-                  const next = { ...prev };
-                  if (place.formatted_address) next.business_address_auto = place.formatted_address;
-                  const phone = place.international_phone_number || place.formatted_phone_number;
-                  if (phone && !prev.workplace_cell_no?.trim()) {
-                    next.workplace_cell_no = phone;
-                  }
-                  return next;
-                });
+                // Only auto-fill the employer ADDRESS — never the phone number.
+                setFormData((prev) => (
+                  place.formatted_address
+                    ? { ...prev, business_address_auto: place.formatted_address }
+                    : prev
+                ));
               }
             );
           }
@@ -971,108 +969,13 @@ const FinanceApplication = () => {
         // Non-blocking - application was already saved
       }
 
-      // EmailJS direct dispatch (matches pattern in useFinanceApplications.ts)
-      const EMAILJS_SERVICE_ID = "service_myacl2m";
-      const EMAILJS_TEMPLATE_ID = "template_b2igduv";
-      const EMAILJS_USER_ID = "pWT3blntfZk-_syL4";
-
-      // 6. Send admin notification to finance department (non-blocking)
-      try {
-        const adminSubject = `🚨 NEW FINANCE APP: ${formData.first_name} ${formData.last_name} 🏎️💨`;
-        const adminBody = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h2 style="color: #1a1a1a; border-bottom: 2px solid #d4af37; padding-bottom: 10px;">🚨 New Finance Application Received</h2>
-            <p><strong>Client:</strong> ${formData.first_name} ${formData.last_name}</p>
-            <p><strong>Phone:</strong> ${formData.phone}</p>
-            <p><strong>Email:</strong> ${formData.email}</p>
-            <p><strong>ID/Passport:</strong> ${formData.id_number || 'N/A'}</p>
-            <p><strong>Net Salary:</strong> R${formData.net_salary ? parseFloat(formData.net_salary).toLocaleString() : 'Not provided'}</p>
-            <p><strong>Vehicle Preference:</strong> ${formData.preferred_vehicle_text || 'None specified'}</p>
-            <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-            <p>Log in to the Lumina Dealership Hub to view the full application and generate the PDF.</p>
-          </div>
-        `;
-        const adminRes = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            service_id: EMAILJS_SERVICE_ID,
-            template_id: EMAILJS_TEMPLATE_ID,
-            user_id: EMAILJS_USER_ID,
-            template_params: {
-              to_email: "finance@luminaauto.co.za",
-              subject: adminSubject,
-              html_message: adminBody,
-            },
-          }),
-        });
-        if (!adminRes.ok) {
-          console.error("EmailJS rejected admin notification:", await adminRes.text());
-        }
-      } catch (adminEmailError) {
-        console.error("Failed to send admin notification email", adminEmailError);
-      }
-
-      // 7. Send client confirmation email (non-blocking)
-      try {
-        if (formData.email) {
-          const accountUsername = formData.email.trim().toLowerCase();
-          const loginLink = `${window.location.origin}/auth`;
-          const clientSubject = `Finance Application Received - Lumina Auto`;
-
-          // Credentials block: only show password if a fresh account was created.
-          // If the email already had an account, instruct them to use Forgot Password.
-          const credentialsBlock = generatedTempPassword
-            ? `
-                <p style="margin: 0 0 8px 0; color: #333;">A secure account has been automatically created for you to track your application progress in real time.</p>
-                <p style="margin: 4px 0; color: #1a1a1a;"><strong>Username:</strong> ${accountUsername}</p>
-                <p style="margin: 4px 0; color: #1a1a1a;"><strong>Temporary Password:</strong> <code style="background: #fff; padding: 2px 6px; border: 1px solid #d4af37; border-radius: 4px; font-family: monospace;">${generatedTempPassword}</code></p>
-                <p style="margin: 8px 0 12px 0; color: #555; font-size: 13px;">For your security, we recommend changing this password after your first login. You can do so anytime by clicking <strong>"Forgot Password"</strong> on the portal login page — a reset link will be emailed to you.</p>
-              `
-            : `
-                <p style="margin: 0 0 8px 0; color: #333;">An account already exists under this email address. You can log in to track your application progress.</p>
-                <p style="margin: 4px 0; color: #1a1a1a;"><strong>Username:</strong> ${accountUsername}</p>
-                <p style="margin: 8px 0 12px 0; color: #555; font-size: 13px;">If you do not remember your password, click <strong>"Forgot Password"</strong> on the portal login page to receive a secure reset link.</p>
-              `;
-
-          const clientBody = `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-              <h2 style="color: #1a1a1a; border-bottom: 2px solid #d4af37; padding-bottom: 10px;">Application Successfully Submitted</h2>
-              <p>Hi ${formData.first_name},</p>
-              <p>Thank you for choosing <strong>Lumina Auto</strong>. We have successfully received your finance application.</p>
-              <p>Our F&amp;I team will review your details and be in touch with you shortly regarding the next steps.</p>
-              <div style="background: #faf7ee; border: 1px solid #d4af37; border-radius: 8px; padding: 16px; margin: 20px 0;">
-                <h3 style="margin: 0 0 8px 0; color: #1a1a1a; font-size: 16px;">Your Client Portal Account</h3>
-                ${credentialsBlock}
-                <p style="margin: 12px 0 0 0;">
-                  <a href="${loginLink}" style="display: inline-block; background: #1a1a1a; color: #d4af37; padding: 10px 18px; text-decoration: none; border-radius: 6px; font-weight: 600;">Go to Portal Login</a>
-                </p>
-              </div>
-              <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-              <p style="color: #666;">Best regards,<br/>Albert &amp; The Lumina Auto Team</p>
-            </div>
-          `;
-          const clientRes = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              service_id: EMAILJS_SERVICE_ID,
-              template_id: EMAILJS_TEMPLATE_ID,
-              user_id: EMAILJS_USER_ID,
-              template_params: {
-                to_email: formData.email.trim().toLowerCase(),
-                subject: clientSubject,
-                html_message: clientBody,
-              },
-            }),
-          });
-          if (!clientRes.ok) {
-            console.error("EmailJS rejected client confirmation:", await clientRes.text());
-          }
-        }
-      } catch (clientEmailError) {
-        console.error("Failed to send client confirmation email", clientEmailError);
-      }
+      // SECURITY: the previous client-side EmailJS dispatch was removed. It hard-
+      // coded the EmailJS service/template/user keys + the finance@ address in the
+      // public bundle (scrapeable) AND emailed the account's temporary password in
+      // plaintext. Admin notification is handled server-side by send-finance-alert
+      // (above); the client receives the Supabase account/password-setup email plus
+      // the notify-app-submitted message (below) — no secrets or passwords in
+      // client code.
 
       // 3. FIRE WHATSAPP NOTIFICATION VIA SECURE BACKEND
       try {

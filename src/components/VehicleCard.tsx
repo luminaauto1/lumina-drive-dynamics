@@ -3,11 +3,11 @@ import { Link } from 'react-router-dom';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { Heart, GitCompare, ChevronRight, Sparkles } from 'lucide-react';
 import { useWishlist } from '@/hooks/useWishlist';
-import { formatPrice, formatMileage, calculateMonthlyPayment } from '@/lib/formatters';
+import { formatPrice, formatMileage } from '@/lib/formatters';
 import { getOptimizedImage } from '@/lib/utils';
 import { useBestFinanceOffer } from '@/hooks/useBestFinanceOffer';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
-import { getMarketingRateConfig } from '@/lib/financeLogic';
+import { getCardMonthlyPayment } from '@/lib/financeLogic';
 import type { Vehicle } from '@/hooks/useVehicles';
 
 interface VehicleCardProps {
@@ -81,30 +81,10 @@ const VehicleCard = ({ vehicle, onCompare, isComparing, isSourcingCard = false, 
   const isSourcingDisplay = vehicle.status === 'sourcing' || (vehicle as any).is_generic_listing;
   const inWishlist = isInWishlist(vehicle.id);
   
-  // Calculate monthly payment using MARKETING LOGIC (teaser rates for cards)
+  // Calculate monthly payment using MARKETING LOGIC (teaser rates for cards).
+  // Shared helper is the single source of truth so the inventory filter matches.
   const hasPersonalizedRate = !!bestOffer && !!(bestOffer.interest_rate_linked || bestOffer.interest_rate_fixed);
-  const personalizedRate = hasPersonalizedRate 
-    ? Math.min(bestOffer.interest_rate_linked || 100, bestOffer.interest_rate_fixed || 100)
-    : undefined;
-  const personalizedBalloon = bestOffer?.balloon_amount && vehicle.price > 0
-    ? Math.round((bestOffer.balloon_amount / vehicle.price) * 100)
-    : 0;
-  
-  // Get marketing rate config - uses teaser rates for cards unless user has personalized rate
-  const defaultSiteRate = siteSettings?.default_interest_rate || 13.5;
-  const marketingConfig = getMarketingRateConfig(
-    vehicle.price,
-    defaultSiteRate,
-    hasPersonalizedRate,
-    personalizedRate
-  );
-  
-  // For sourcing cards, use aggressive balloon from settings (default 35%) to make payment look attractive
-  const sourcingBalloon = isSourcingDisplay ? (siteSettings?.default_balloon_percent || 35) : 0;
-  
-  const monthlyPayment = vehicle.finance_available
-    ? calculateMonthlyPayment(vehicle.price, marketingConfig.rate, marketingConfig.term, sourcingBalloon)
-    : null;
+  const monthlyPayment = getCardMonthlyPayment(vehicle, siteSettings, bestOffer);
 
   const images = vehicle.images || [];
 

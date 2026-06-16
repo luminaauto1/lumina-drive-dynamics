@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Calculator as CalculatorIcon, Info } from 'lucide-react';
+import { Calculator as CalculatorIcon, Info, MessageCircle } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
@@ -10,9 +10,12 @@ import { Link } from 'react-router-dom';
 import KineticText from '@/components/KineticText';
 import { formatPrice } from '@/lib/formatters';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const Calculator = () => {
   const { data: settings } = useSiteSettings();
+  const whatsappNumber = settings?.whatsapp_number || '27686017462';
   
   // Dynamic settings from database
   const minInterest = settings?.min_interest ?? 10.5;
@@ -27,6 +30,12 @@ const Calculator = () => {
   const [interest, setInterest] = useState<number | ''>(defaultInterest);
   const [monthlyPayment, setMonthlyPayment] = useState(0);
 
+  // Lead-capture ("WhatsApp me this estimate") state
+  const [leadName, setLeadName] = useState('');
+  const [leadPhone, setLeadPhone] = useState('');
+  const [leadWebsite, setLeadWebsite] = useState(''); // honeypot — must stay empty
+  const [isSendingEstimate, setIsSendingEstimate] = useState(false);
+
   // Update interest when settings load
   useEffect(() => {
     if (settings?.default_interest_rate) {
@@ -38,11 +47,10 @@ const Calculator = () => {
   const vehicleAge = currentYear - vehicleYear;
   const maxBalloon = Math.max(0, 40 - vehicleAge * 5);
 
-  // Clamp balloon if vehicle age changes
+  // Clamp balloon down if the vehicle age lowers the cap. The inline note under
+  // the balloon slider explains the bank age-based limit to the user.
   useEffect(() => {
-    if (balloon > maxBalloon) {
-      setBalloon(maxBalloon);
-    }
+    if (balloon > maxBalloon) setBalloon(maxBalloon);
   }, [maxBalloon, balloon]);
 
   // PMT formula calculation
@@ -72,6 +80,38 @@ const Calculator = () => {
   const financeAmount = priceValue - depositAmount;
 
   const yearOptions = Array.from({ length: 15 }, (_, i) => currentYear - i);
+
+  // "WhatsApp me this estimate" — capture a high-intent lead (best effort) and
+  // open WhatsApp prefilled with the computed estimate so it isn't lost.
+  const handleSendEstimate = async () => {
+    if (leadWebsite.trim().length > 0) return; // honeypot tripped
+    setIsSendingEstimate(true);
+    const summary = [
+      `Vehicle price: ${formatPrice(priceValue)}`,
+      `Deposit: ${deposit}% (${formatPrice(depositAmount)})`,
+      `Balloon: ${balloon}% (${formatPrice(balloonAmount)})`,
+      `Term: ${months} months`,
+      `Rate: ${interest === '' ? defaultInterest : interest}%`,
+      `Estimated monthly: ${formatPrice(monthlyPayment)}/pm`,
+    ].join('\n');
+    if (leadName.trim() || leadPhone.trim()) {
+      try {
+        await supabase.from('leads').insert([{
+          client_name: leadName.trim() || 'Calculator enquiry',
+          client_phone: leadPhone.trim() || null,
+          source: 'calculator',
+          status: 'new',
+          notes: `Finance calculator estimate request\n${summary}`,
+        }] as any);
+      } catch (e) {
+        console.error('[Calculator] lead capture failed', e);
+      }
+    }
+    const msg = `Hi Lumina Auto, please send me this finance estimate:\n\n${summary}`;
+    window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(msg)}`, '_blank');
+    toast.success('Opening WhatsApp with your estimate…');
+    setIsSendingEstimate(false);
+  };
 
   return (
     <>
@@ -296,12 +336,12 @@ const Calculator = () => {
                 <span>-{formatPrice(depositAmount)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Finance Amount</span>
+                <span className="text-muted-foreground">Amount Financed</span>
                 <span>{formatPrice(financeAmount)}</span>
               </div>
               {balloon > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Balloon (end of term)</span>
+                  <span className="text-muted-foreground">…of which balloon (deferred to end of term)</span>
                   <span>{formatPrice(balloonAmount)}</span>
                 </div>
               )}
@@ -321,6 +361,25 @@ const Calculator = () => {
             <p className="text-xs text-muted-foreground text-center">
               *Estimate only. Subject to credit approval. Terms and conditions apply.
             </p>
+
+            {/* Lead capture — WhatsApp the estimate (and log a lead). */}
+            <div className="rounded-xl border border-border bg-secondary/40 p-4 space-y-3">
+              <p className="text-sm font-medium flex items-center gap-2">
+                <MessageCircle className="w-4 h-4 text-primary" /> Want this estimate on WhatsApp?
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Input placeholder="Your name" value={leadName} onChange={(e) => setLeadName(e.target.value)} />
+                <Input type="tel" inputMode="tel" placeholder="Mobile number" value={leadPhone} onChange={(e) => setLeadPhone(e.target.value)} />
+              </div>
+              {/* Honeypot — hidden from humans; bots that fill it are dropped. */}
+              <div className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden" aria-hidden="true">
+                <label htmlFor="calc-website">Website</label>
+                <input id="calc-website" type="text" tabIndex={-1} autoComplete="off" value={leadWebsite} onChange={(e) => setLeadWebsite(e.target.value)} />
+              </div>
+              <Button onClick={handleSendEstimate} disabled={isSendingEstimate} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-11">
+                <MessageCircle className="w-4 h-4 mr-2" /> WhatsApp me this estimate
+              </Button>
+            </div>
 
             <div className="flex flex-col sm:flex-row gap-4">
               <Link to="/finance-application" className="flex-1">
