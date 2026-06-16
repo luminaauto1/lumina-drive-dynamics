@@ -17,8 +17,12 @@ const ALLOWED_ORIGINS = [
 
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
+  // Explicit list (NOT "*"): the CORS spec excludes Authorization from the "*"
+  // wildcard, so it must be named. The supabase-js client also sends
+  // x-supabase-api-version, which the legacy list omitted — that broke the
+  // preflight for browser invoke() calls.
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-lumina-key",
+    "authorization, x-client-info, apikey, content-type, x-lumina-key, x-supabase-api-version, x-region",
   "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 };
 
