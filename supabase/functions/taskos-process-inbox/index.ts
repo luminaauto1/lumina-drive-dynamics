@@ -200,6 +200,7 @@ async function processOne(svc: any, inboxId: string): Promise<{ status: string; 
 // ---- sweep: retry stuck/failed items + backfill missing embeddings (cron) ----
 async function sweep(svc: any): Promise<any> {
   const tenMinAgo = new Date(Date.now() - 10 * 60_000).toISOString();
+  const twoMinAgo = new Date(Date.now() - 2 * 60_000).toISOString();
   const ids = new Set<string>();
   const { data: failed } = await svc.from("taskos_inbox_items")
     .select("id").eq("status", "failed").lt("error_count", 3).order("created_at", { ascending: true }).limit(15);
@@ -207,6 +208,12 @@ async function sweep(svc: any): Promise<any> {
   const { data: stuck } = await svc.from("taskos_inbox_items")
     .select("id").eq("status", "processing").lt("claimed_at", tenMinAgo).limit(10);
   for (const r of stuck ?? []) ids.add(r.id);
+  // Stale 'pending' — captured but the browser's processing call never landed
+  // (e.g. transient network/preflight). Older than 2 min so we don't race the
+  // normal fire-and-forget path. This makes capture self-healing.
+  const { data: stalePending } = await svc.from("taskos_inbox_items")
+    .select("id").eq("status", "pending").lt("created_at", twoMinAgo).order("created_at", { ascending: true }).limit(15);
+  for (const r of stalePending ?? []) ids.add(r.id);
 
   // Reset to pending so processOne can re-claim, then process sequentially.
   const idList = [...ids];

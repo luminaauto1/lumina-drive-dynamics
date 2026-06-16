@@ -40,18 +40,23 @@ export async function callClaude(opts: CallClaudeOpts): Promise<{ parsed: any; u
   const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
 
+  // Adaptive thinking (and the `effort` knob that rides on it) is an Opus 4.8
+  // feature — Haiku 4.5 returns 400 "adaptive thinking is not supported on this
+  // model". Only send those fields for models that support them.
+  const supportsThinking = opts.model === OPUS;
+
   const output_config: Record<string, unknown> = {};
-  if (opts.effort) output_config.effort = opts.effort;
+  if (opts.effort && supportsThinking) output_config.effort = opts.effort;
   if (opts.schema) output_config.format = { type: "json_schema", schema: opts.schema };
 
   const body: Record<string, unknown> = {
     model: opts.model,
     max_tokens: opts.maxTokens ?? 2048,
-    thinking: { type: "adaptive" },
     system: [{ type: "text", text: opts.system, cache_control: { type: "ephemeral" } }],
     messages: [{ role: "user", content: JSON.stringify(opts.userPayload) }],
     // NO temperature / top_p / top_k / budget_tokens — all 400 on Opus 4.8.
   };
+  if (supportsThinking) body.thinking = { type: "adaptive" };
   if (Object.keys(output_config).length) body.output_config = output_config;
 
   let res: Response;
