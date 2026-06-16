@@ -24,7 +24,6 @@ import FinanceApplication from "./pages/FinanceApplication";
 import Sourcing from "./pages/Sourcing";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminInventoryPage from "./pages/admin/AdminInventoryPage";
-import AdminLeads from "./pages/admin/AdminLeads";
 import AdminFinance from "./pages/admin/AdminFinance";
 import AdminDealRoom from "./pages/admin/AdminDealRoom";
 import AdminSettings from "./pages/admin/AdminSettings";
@@ -41,7 +40,6 @@ import AdminNetwork from "./pages/admin/AdminNetwork";
 import AdminContacts from "./pages/admin/AdminContacts";
 import AdminReferrals from "./pages/admin/AdminReferrals";
 import AdminEmailSettings from "./pages/admin/AdminEmailSettings";
-import CRMSheet from "./pages/admin/CRMSheet";
 import AdminCRM from "./pages/admin/AdminCRM";
 import ClientProfile from "./pages/admin/ClientProfile";
 import AdminDocumentsHub from "./pages/admin/AdminDocumentsHub";
@@ -104,7 +102,9 @@ const AppLayout = () => {
           {/* Admin Routes */}
           <Route path="/admin" element={<ProtectedRoute requireSuperAdmin><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/inventory" element={<ProtectedRoute requireAdmin><AdminInventoryPage /></ProtectedRoute>} />
-          <Route path="/admin/leads" element={<ProtectedRoute requireAdmin><AdminLeads /></ProtectedRoute>} />
+          {/* Pipeline + CRM Sheet replaced by the unified CRM. Old paths still
+              resolve (login landing + existing links) and render the new CRM. */}
+          <Route path="/admin/leads" element={<ProtectedRoute requireAdmin><AdminCRM /></ProtectedRoute>} />
           <Route path="/admin/contacts" element={<ProtectedRoute requireSuperAdmin><AdminContacts /></ProtectedRoute>} />
           <Route path="/admin/finance" element={<ProtectedRoute requireAdmin><AdminFinance /></ProtectedRoute>} />
           <Route path="/admin/finance/create" element={<ProtectedRoute requireAdmin><AdminCreateApplication /></ProtectedRoute>} />
@@ -124,7 +124,7 @@ const AppLayout = () => {
           <Route path="/admin/juristic" element={<ProtectedRoute requireSuperAdmin><AdminJuristic /></ProtectedRoute>} />
           <Route path="/admin/clients/:id" element={<ProtectedRoute requireSuperAdmin><ClientProfile /></ProtectedRoute>} />
           <Route path="/admin/documents" element={<ProtectedRoute requireSuperAdmin><AdminDocumentsHub /></ProtectedRoute>} />
-          <Route path="/admin/crm-sheet" element={<ProtectedRoute requireAdmin blockStandardFAndI><CRMSheet /></ProtectedRoute>} />
+          <Route path="/admin/crm-sheet" element={<ProtectedRoute requireAdmin blockStandardFAndI><AdminCRM /></ProtectedRoute>} />
           <Route path="/admin/crm" element={<ProtectedRoute requireAdmin><AdminCRM /></ProtectedRoute>} />
           <Route path="/update-password" element={<UpdatePassword />} />
           <Route path="/system-fix" element={<ProtectedRoute requireSuperAdmin><SystemFix /></ProtectedRoute>} />

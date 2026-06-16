@@ -31,12 +31,15 @@ import UniversalClientHub from '@/components/admin/UniversalClientHub';
 const STALE_MS = 24 * 60 * 60 * 1000;
 
 const AdminCRM = () => {
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, role } = useAuth();
   const { data: fniUsers = [] } = useFAndIUsers();
   const { records, loading, refetch, moveStage, archiveRecords, deleteRecords, assignRecords, addLead } = useCrmData();
 
+  // Standard F&I were blocked from the old CRM Sheet — preserve that: no table view.
+  const canUseTable = role !== 'f_and_i';
+
   const [searchParams, setSearchParams] = useSearchParams();
-  const [view, setView] = useState<'board' | 'table'>(searchParams.get('view') === 'table' ? 'table' : 'board');
+  const [view, setView] = useState<'board' | 'table'>(searchParams.get('view') === 'table' && canUseTable ? 'table' : 'board');
   const [search, setSearch] = useState('');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [showArchived, setShowArchived] = useState(false);
@@ -148,9 +151,11 @@ const AdminCRM = () => {
                 <Button variant={view === 'board' ? 'default' : 'ghost'} size="sm" className="h-7 px-2.5" onClick={() => switchView('board')}>
                   <LayoutGrid className="w-4 h-4 mr-1" /> Board
                 </Button>
-                <Button variant={view === 'table' ? 'default' : 'ghost'} size="sm" className="h-7 px-2.5" onClick={() => switchView('table')}>
-                  <TableIcon className="w-4 h-4 mr-1" /> Table
-                </Button>
+                {canUseTable && (
+                  <Button variant={view === 'table' ? 'default' : 'ghost'} size="sm" className="h-7 px-2.5" onClick={() => switchView('table')}>
+                    <TableIcon className="w-4 h-4 mr-1" /> Table
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -236,7 +241,7 @@ const AdminCRM = () => {
         <div className="flex-1 flex flex-col overflow-hidden p-4">
           {loading ? (
             <div className="flex items-center justify-center flex-1"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
-          ) : view === 'board' ? (
+          ) : (view === 'board' || !canUseTable) ? (
             <CrmBoard records={filtered} onMove={moveStage} onOpen={openRecord} selectedIds={selectedIds} onToggleSelect={toggleSelect} canSelect={isSuperAdmin} />
           ) : (
             <CrmTable records={filtered} onOpen={openRecord} onChanged={refetch} selectedIds={selectedIds} onToggleSelect={toggleSelect} canSelect={isSuperAdmin} />

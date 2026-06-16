@@ -34,14 +34,7 @@ const menuItems: MenuItem[] = [
       { title: 'Cars to Buy', path: '/admin/cars-to-buy' },
     ],
   },
-  {
-    title: 'CRM',
-    icon: Users,
-    children: [
-      { title: 'Pipeline', path: '/admin/leads' },
-      { title: 'CRM Sheet', path: '/admin/crm-sheet' },
-    ],
-  },
+  { title: 'CRM', icon: Users, path: '/admin/crm' },
   { title: 'Finance', icon: CreditCard, path: '/admin/finance' },
   { title: 'Documents Hub', icon: FolderOpen, path: '/admin/documents' },
   { title: 'Quote Generator', icon: Calculator, path: '/admin/quotes' },
@@ -76,6 +69,7 @@ interface AdminSidebarProps {
 
 // Paths a sales_agent is allowed to see in the sidebar.
 const SALES_AGENT_ALLOWED_PATHS = new Set<string>([
+  '/admin/crm',
   '/admin/leads',
   '/admin/crm-sheet',
   '/admin/finance',
@@ -106,6 +100,7 @@ const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
   // Senior F&I: finance + CRM access.
   const SENIOR_FNI_ALLOWED_PATHS = new Set<string>([
     '/admin/finance',
+    '/admin/crm',
     '/admin/leads',
     '/admin/crm-sheet',
     '/admin/quotes',
