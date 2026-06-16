@@ -1,0 +1,250 @@
+import { useState } from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Loader2, Send, Inbox, ListTodo, Sparkles, Settings as SettingsIcon, Trash2, Copy, Check, MessageCircle, Plug } from 'lucide-react';
+import { formatDistanceToNow, format } from 'date-fns';
+import { toast } from 'sonner';
+import {
+  useTaskOSInbox, useCaptureInbox, useDiscardInbox,
+  useTaskOSTasks, useCreateTask, useUpdateTask,
+  useTelegramStatus, useGenerateTelegramCode, useUnlinkTelegram,
+  useTaskOSQuery, TaskOSTask,
+} from '@/hooks/useTaskOS';
+
+const statusColor = (s: string) => {
+  if (s === 'processed') return 'border-emerald-500/40 text-emerald-400';
+  if (s === 'processing' || s === 'pending') return 'border-blue-500/40 text-blue-400';
+  if (s === 'needs_review') return 'border-amber-500/40 text-amber-400';
+  if (s === 'failed') return 'border-red-500/40 text-red-400';
+  return 'border-zinc-600 text-muted-foreground';
+};
+
+// ---------------- INBOX ----------------
+const InboxTab = () => {
+  const { data: items = [], isLoading } = useTaskOSInbox();
+  const capture = useCaptureInbox();
+  const discard = useDiscardInbox();
+  const [text, setText] = useState('');
+
+  const send = () => {
+    if (!text.trim()) return;
+    capture.mutate(text.trim(), { onSuccess: () => setText('') });
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="p-3 border-b border-border space-y-2">
+        <Textarea
+          value={text} onChange={(e) => setText(e.target.value)}
+          placeholder="Dump anything — a task, idea, reminder, person, note… AI will sort it."
+          className="min-h-[72px] text-sm resize-none"
+          onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send(); }}
+        />
+        <div className="flex justify-between items-center">
+          <span className="text-[10px] text-muted-foreground">⌘/Ctrl + Enter to capture</span>
+          <Button size="sm" onClick={send} disabled={capture.isPending || !text.trim()}>
+            {capture.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Send className="w-4 h-4 mr-1" />} Capture
+          </Button>
+        </div>
+      </div>
+      <ScrollArea className="flex-1">
+        <div className="p-3 space-y-2">
+          {isLoading ? (
+            <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+          ) : items.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-8">Nothing captured yet. Type above, or send a message to your linked Telegram.</p>
+          ) : items.map((it) => {
+            const ents = it.ai_result?.entities ?? [];
+            return (
+              <div key={it.id} className="rounded-lg border border-border bg-card p-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm flex-1 whitespace-pre-wrap">{it.raw_text || `(${it.media_kind})`}</p>
+                  <Badge variant="outline" className={`text-[9px] shrink-0 ${statusColor(it.status)}`}>{it.status.replace(/_/g, ' ')}</Badge>
+                </div>
+                <div className="flex items-center justify-between mt-1.5">
+                  <div className="flex flex-wrap gap-1">
+                    {ents.map((e: any, i: number) => (
+                      <Badge key={i} variant="secondary" className="text-[9px]">{e.type}: {e.title?.slice(0, 28)}</Badge>
+                    ))}
+                    {it.status === 'failed' && it.error_text && <span className="text-[9px] text-red-400">{it.error_text.slice(0, 60)}</span>}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] text-muted-foreground">{formatDistanceToNow(new Date(it.created_at), { addSuffix: true })}</span>
+                    <button onClick={() => discard.mutate(it.id)} className="text-muted-foreground hover:text-red-400"><Trash2 className="w-3 h-3" /></button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+};
+
+// ---------------- TASKS ----------------
+const TasksTab = () => {
+  const { data: tasks = [], isLoading } = useTaskOSTasks();
+  const create = useCreateTask();
+  const update = useUpdateTask();
+  const [title, setTitle] = useState('');
+
+  const add = () => { if (!title.trim()) return; create.mutate({ title: title.trim() }, { onSuccess: () => setTitle('') }); };
+  const open = tasks.filter((t) => t.status !== 'done' && t.status !== 'cancelled');
+  const done = tasks.filter((t) => t.status === 'done');
+
+  const Row = ({ t }: { t: TaskOSTask }) => (
+    <div className="flex items-start gap-2 rounded-lg border border-border bg-card p-2.5">
+      <Checkbox
+        checked={t.status === 'done'}
+        onCheckedChange={(c) => update.mutate({ id: t.id, updates: { status: c ? 'done' : 'todo' } })}
+        className="mt-0.5"
+      />
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm ${t.status === 'done' ? 'line-through text-muted-foreground' : ''}`}>{t.title}</p>
+        <div className="flex items-center gap-2 mt-0.5">
+          {t.due_at && <span className="text-[10px] text-amber-400">{format(new Date(t.due_at), 'dd MMM HH:mm')}</span>}
+          <span className="text-[10px] text-muted-foreground">U{t.urgency}·I{t.importance}</span>
+          {t.tags?.slice(0, 3).map((tag) => <Badge key={tag} variant="secondary" className="text-[9px]">{tag}</Badge>)}
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="p-3 border-b border-border flex gap-2">
+        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Add a task…" className="h-8 text-sm"
+          onKeyDown={(e) => { if (e.key === 'Enter') add(); }} />
+        <Button size="sm" onClick={add} disabled={create.isPending || !title.trim()}>Add</Button>
+      </div>
+      <ScrollArea className="flex-1">
+        <div className="p-3 space-y-2">
+          {isLoading ? <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+            : open.length === 0 ? <p className="text-xs text-muted-foreground text-center py-8">No open tasks. Capture something or add one above.</p>
+            : open.map((t) => <Row key={t.id} t={t} />)}
+          {done.length > 0 && (
+            <>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground pt-3">Done ({done.length})</p>
+              {done.slice(0, 20).map((t) => <Row key={t.id} t={t} />)}
+            </>
+          )}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+};
+
+// ---------------- ASK ----------------
+const AskTab = () => {
+  const ask = useTaskOSQuery();
+  const [q, setQ] = useState('');
+  const [answer, setAnswer] = useState<{ answer: string; sources: string[] } | null>(null);
+  const run = () => { if (!q.trim()) return; ask.mutate(q.trim(), { onSuccess: (d) => setAnswer(d) }); };
+  return (
+    <div className="flex flex-col h-full">
+      <div className="p-3 border-b border-border flex gap-2">
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ask your second brain… e.g. what am I waiting on?"
+          className="h-8 text-sm" onKeyDown={(e) => { if (e.key === 'Enter') run(); }} />
+        <Button size="sm" onClick={run} disabled={ask.isPending || !q.trim()}>
+          {ask.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+        </Button>
+      </div>
+      <ScrollArea className="flex-1">
+        <div className="p-3">
+          {ask.isPending ? <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+            : answer ? (
+              <div className="rounded-lg border border-border bg-card p-3">
+                <p className="text-sm whitespace-pre-wrap">{answer.answer}</p>
+                {answer.sources?.length > 0 && <p className="text-[10px] text-muted-foreground mt-2">{answer.sources.length} source(s)</p>}
+              </div>
+            ) : <p className="text-xs text-muted-foreground text-center py-8">Ask anything about your tasks, notes, people, and ideas.</p>}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+};
+
+// ---------------- SETTINGS (Telegram) ----------------
+const SettingsTab = () => {
+  const { data: status } = useTelegramStatus();
+  const gen = useGenerateTelegramCode();
+  const unlink = useUnlinkTelegram();
+  const [code, setCode] = useState<{ code: string; deep_link: string | null } | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const copy = (s: string) => { navigator.clipboard.writeText(s); setCopied(true); setTimeout(() => setCopied(false), 1500); };
+
+  return (
+    <ScrollArea className="h-full">
+      <div className="p-4 space-y-4">
+        <div className="flex items-center gap-2">
+          <MessageCircle className="w-4 h-4 text-emerald-400" />
+          <h3 className="text-sm font-semibold">Telegram</h3>
+        </div>
+
+        {status?.linked ? (
+          <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-2">
+            <p className="text-sm">✅ Connected{status.link?.telegram_username ? ` as @${status.link.telegram_username}` : ''}</p>
+            <p className="text-xs text-muted-foreground">Everything you message the bot lands in your private inbox and is auto-organised.</p>
+            <Button size="sm" variant="outline" onClick={() => unlink.mutate()} disabled={unlink.isPending}>
+              {unlink.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plug className="w-4 h-4 mr-1" />} Disconnect
+            </Button>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-border bg-card p-3 space-y-3">
+            <p className="text-xs text-muted-foreground">Link your own Telegram so you can capture on the go. Your data stays private to you.</p>
+            {!code ? (
+              <Button size="sm" onClick={() => gen.mutate(undefined, { onSuccess: (d) => setCode(d) })} disabled={gen.isPending}>
+                {gen.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plug className="w-4 h-4 mr-1" />} Connect Telegram
+              </Button>
+            ) : (
+              <div className="space-y-2">
+                {code.deep_link ? (
+                  <a href={code.deep_link} target="_blank" rel="noreferrer">
+                    <Button size="sm" className="w-full"><MessageCircle className="w-4 h-4 mr-1" /> Open Telegram & link</Button>
+                  </a>
+                ) : (
+                  <p className="text-xs text-amber-400">Bot username not configured — send <code>/start {code.code}</code> to the bot manually.</p>
+                )}
+                <div className="flex items-center justify-between rounded bg-muted/40 px-2 py-1.5">
+                  <span className="text-xs font-mono">{code.code}</span>
+                  <button onClick={() => copy(code.code)} className="text-muted-foreground hover:text-foreground">
+                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">Code expires in 10 minutes. This panel switches to “Connected” automatically once you link.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        <p className="text-[10px] text-muted-foreground pt-2">More: Reminders, Goals, Projects, People & a daily briefing are coming next.</p>
+      </div>
+    </ScrollArea>
+  );
+};
+
+const TaskOSPanel = () => (
+  <Tabs defaultValue="inbox" className="flex flex-col h-full">
+    <div className="px-3 pt-3">
+      <TabsList className="grid grid-cols-4 w-full h-9">
+        <TabsTrigger value="inbox" className="text-xs gap-1"><Inbox className="w-3.5 h-3.5" /> Inbox</TabsTrigger>
+        <TabsTrigger value="tasks" className="text-xs gap-1"><ListTodo className="w-3.5 h-3.5" /> Tasks</TabsTrigger>
+        <TabsTrigger value="ask" className="text-xs gap-1"><Sparkles className="w-3.5 h-3.5" /> Ask</TabsTrigger>
+        <TabsTrigger value="settings" className="text-xs gap-1"><SettingsIcon className="w-3.5 h-3.5" /></TabsTrigger>
+      </TabsList>
+    </div>
+    <TabsContent value="inbox" className="flex-1 mt-2 overflow-hidden"><InboxTab /></TabsContent>
+    <TabsContent value="tasks" className="flex-1 mt-2 overflow-hidden"><TasksTab /></TabsContent>
+    <TabsContent value="ask" className="flex-1 mt-2 overflow-hidden"><AskTab /></TabsContent>
+    <TabsContent value="settings" className="flex-1 mt-2 overflow-hidden"><SettingsTab /></TabsContent>
+  </Tabs>
+);
+
+export default TaskOSPanel;
