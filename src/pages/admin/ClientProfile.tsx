@@ -11,13 +11,15 @@ import { ArrowLeft, User, Car, FileText, History, Loader2, Building2 } from "luc
 import AdminLayout from "@/components/admin/AdminLayout";
 import JuristicPanel from "@/components/admin/JuristicPanel";
 import DocumentManager from "@/components/admin/DocumentManager";
+import ClientTimeline from "@/components/admin/ClientTimeline";
+import { buildClientTimeline, TimelineItem } from "@/lib/clientTimeline";
 
 const ClientProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [client, setClient] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [timeline, setTimeline] = useState<TimelineItem[]>([]);
 
   useEffect(() => {
     const fetchClient = async () => {
@@ -32,20 +34,37 @@ const ClientProfile = () => {
 
       if (data) {
         setClient(data);
-        // Real client timeline: notes/calls/status changes logged from the Client
-        // Hub & Lead Cockpit land in client_audit_logs, keyed by email/phone.
+        // Unified timeline: merge every scattered history source for this client.
+        // client_audit_logs + leads.activity_log are keyed by email/phone;
+        // status_history & deal_records are on the application; offers by app id.
         const filters: string[] = [];
         if (data.email) filters.push(`client_email.eq.${data.email}`);
         if (data.phone) filters.push(`client_phone.eq.${data.phone}`);
-        if (filters.length) {
-          const { data: logs } = await supabase
-            .from('client_audit_logs')
-            .select('*')
-            .or(filters.join(','))
-            .order('created_at', { ascending: false })
-            .limit(100);
-          if (logs) setAuditLogs(logs);
-        }
+        const leadFilters: string[] = [];
+        if (data.email) leadFilters.push(`client_email.eq.${data.email}`);
+        if (data.phone) leadFilters.push(`client_phone.eq.${data.phone}`);
+
+        const [logsRes, leadsRes, offersRes] = await Promise.all([
+          filters.length
+            ? supabase.from('client_audit_logs').select('*').or(filters.join(',')).order('created_at', { ascending: false }).limit(200)
+            : Promise.resolve({ data: [] as any[] }),
+          leadFilters.length
+            ? supabase.from('leads').select('activity_log').or(leadFilters.join(','))
+            : Promise.resolve({ data: [] as any[] }),
+          supabase.from('finance_offers').select('id, bank_name, status, created_at').eq('application_id', id as string),
+        ]);
+
+        const leadActivity = (leadsRes.data || [])
+          .flatMap((r: any) => Array.isArray(r.activity_log) ? r.activity_log : []);
+
+        setTimeline(buildClientTimeline({
+          auditLogs: logsRes.data || [],
+          statusHistory: Array.isArray(data.status_history) ? data.status_history : [],
+          leadActivity,
+          offers: offersRes.data || [],
+          dealRecords: data.deal_records || [],
+          application: { created_at: data.created_at, status: data.status },
+        }));
       }
       setLoading(false);
     };
@@ -160,52 +179,11 @@ const ClientProfile = () => {
               </TabsList>
 
               <TabsContent value="history" className="mt-4">
-                <Card className="p-5 space-y-4">
-                  <div className="border-l-2 border-border pl-4 space-y-4">
-                    {/* Real activity logged from the Client Hub / Lead Cockpit */}
-                    {auditLogs.map((log) => (
-                      <div key={log.id}>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(log.created_at).toLocaleString()}
-                          {log.author_name ? ` • ${log.author_name}` : ''}
-                        </p>
-                        <p className="text-sm font-medium capitalize">
-                          {(log.action_type || 'note').replace(/_/g, ' ')}
-                        </p>
-                        {log.note && (
-                          <p className="text-xs text-muted-foreground whitespace-pre-wrap">{log.note}</p>
-                        )}
-                      </div>
-                    ))}
-
-                    {client.deal_records && client.deal_records.length > 0 && (
-                      <div>
-                        <p className="text-xs text-muted-foreground">
-                          {client.deal_records[0].sale_date
-                            ? new Date(client.deal_records[0].sale_date).toLocaleDateString()
-                            : 'N/A'}
-                        </p>
-                        <p className="text-sm font-medium">Vehicle Sold</p>
-                        <p className="text-xs text-muted-foreground">Deal finalized</p>
-                      </div>
-                    )}
-
-                    <div>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(client.created_at).toLocaleDateString()}
-                      </p>
-                      <p className="text-sm font-medium">Application Created</p>
-                      <p className="text-xs text-muted-foreground">
-                        Status: {client.status?.replace(/_/g, ' ')}
-                      </p>
-                    </div>
-
-                    {auditLogs.length === 0 && (
-                      <p className="text-xs text-muted-foreground italic">
-                        No notes or calls logged yet — log activity from the Pipeline (Lead Cockpit) or Client Hub.
-                      </p>
-                    )}
-                  </div>
+                <Card className="p-5">
+                  <p className="text-xs text-muted-foreground mb-4">
+                    Unified history — notes, calls, reminders, status changes, bank offers and deal events.
+                  </p>
+                  <ClientTimeline items={timeline} />
                 </Card>
               </TabsContent>
 
