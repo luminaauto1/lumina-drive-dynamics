@@ -26,6 +26,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      # Public project identifiers — required by Vercel CLI v50+ for non-interactive CI deploys.
+      VERCEL_ORG_ID: team_pEq6NR4dRmtM7zcNeeTpROcq
+      VERCEL_PROJECT_ID: prj_dw5xEJnNK0yFD4i8mEbhEbvfyeyz
     steps:
       - uses: actions/checkout@v4
 
@@ -49,7 +52,7 @@ jobs:
         if: env.VERCEL_TOKEN != ''
         run: |
           set -euo pipefail
-          vercel deploy --prod --yes --token="$VERCEL_TOKEN" \
+          vercel deploy --prod --token="$VERCEL_TOKEN" \
             --build-env VITE_SUPABASE_URL="https://gkghazemorbxmzzcbaty.supabase.co" \
             --build-env VITE_SUPABASE_PUBLISHABLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdrZ2hhemVtb3JieG16emNiYXR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyODEwMTQsImV4cCI6MjA5Njg1NzAxNH0.3ZTKnEjaD374VAGOWynmdaSFgghW5fxo-8PDNF1WM_4" \
             --build-env VITE_SUPABASE_PROJECT_ID="gkghazemorbxmzzcbaty" \
