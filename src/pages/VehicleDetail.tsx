@@ -202,7 +202,7 @@ const VehicleDetail = () => {
         {/* --- IMAGE GALLERY --- */}
         <section className={`relative ${isSold ? "sold-overlay" : ""}`}>
           <div
-            className="relative aspect-[16/9] md:aspect-[21/9] overflow-hidden bg-card cursor-pointer group"
+            className="relative aspect-[16/9] overflow-hidden bg-card cursor-pointer group max-h-[520px]"
             onClick={() => setLightboxOpen(true)}
           >
             {images.length > 0 ? (
