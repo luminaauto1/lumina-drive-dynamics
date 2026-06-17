@@ -26,9 +26,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      # Public project identifiers — required by Vercel CLI v50+ for non-interactive CI deploys.
-      VERCEL_ORG_ID: team_pEq6NR4dRmtM7zcNeeTpROcq
-      VERCEL_PROJECT_ID: prj_dw5xEJnNK0yFD4i8mEbhEbvfyeyz
     steps:
       - uses: actions/checkout@v4
 
@@ -46,7 +43,15 @@ jobs:
 
       - name: Install Vercel CLI
         if: env.VERCEL_TOKEN != ''
-        run: npm i -g vercel@32
+        run: npm i -g vercel@latest
+
+      - name: Link Vercel project
+        if: env.VERCEL_TOKEN != ''
+        run: |
+          mkdir -p .vercel
+          cat > .vercel/project.json << 'EOF'
+          {"orgId":"team_pEq6NR4dRmtM7zcNeeTpROcq","projectId":"prj_dw5xEJnNK0yFD4i8mEbhEbvfyeyz"}
+          EOF
 
       - name: Deploy to Vercel (production)
         if: env.VERCEL_TOKEN != ''
