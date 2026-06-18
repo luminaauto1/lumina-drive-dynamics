@@ -11,8 +11,9 @@
 // schemas rely on, so we don't pass it).
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-export const HEAVY = "gemini-2.5-pro";
-export const FAST = "gemini-2.5-flash-lite";
+export const HEAVY = "gemini-2.5-pro";          // deepest reasoning (Q&A, escalation)
+export const MID = "gemini-2.5-flash";          // smart + cheap (classification, Telegram Q&A)
+export const FAST = "gemini-2.5-flash-lite";    // cheapest, thinking-off (briefings)
 
 // Highest-priority security contract, prepended to every system prompt. Untrusted
 // Telegram/inbox text is DATA, never commands. The model has no tools and no DB
@@ -41,11 +42,11 @@ interface CallModelOpts {
   maxTokens?: number;
 }
 
-// Thinking budget (output tokens reserved for reasoning) per effort level. Only
-// the HEAVY/pro tier "thinks"; the FAST/flash-lite tier runs with thinking off
-// for speed and cost on the high-volume path. -1 = dynamic (model decides).
+// Thinking budget (output tokens reserved for reasoning) per effort level.
+// The HEAVY/pro and MID/flash tiers "think"; only FAST/flash-lite runs with
+// thinking off (cheapest path). -1 = dynamic (model decides).
 const THINKING_BUDGET: Record<string, number> = {
-  low: 256, medium: 1024, high: 4096, xhigh: 8192, max: -1,
+  low: 512, medium: 2048, high: 6144, xhigh: 12288, max: -1,
 };
 
 function extractJsonText(parts: any[]): string {
@@ -65,9 +66,11 @@ export async function callGemini(opts: CallModelOpts): Promise<{ parsed: any; us
   const apiKey = Deno.env.get("GEMINI_API_KEY");
   if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
 
-  // HEAVY tier thinks; FAST tier does not (thinking off by default on flash-lite).
-  const thinks = opts.model === HEAVY;
-  const budget = thinks ? (THINKING_BUDGET[opts.effort ?? "medium"] ?? 1024) : 0;
+  // pro + flash reason ("think"); flash-lite runs thinking-off (cheapest path).
+  // pro cannot fully disable thinking, so its budget floors at 128.
+  const thinks = opts.model !== FAST;
+  const rawBudget = THINKING_BUDGET[opts.effort ?? "medium"] ?? 2048;
+  const budget = thinks ? (opts.model === HEAVY ? Math.max(128, rawBudget) : rawBudget) : 0;
   const answerTokens = opts.maxTokens ?? 2048;
   // Reserve room for reasoning so the JSON answer is never truncated by thinking.
   const maxOutputTokens = answerTokens + (budget === -1 ? 8192 : budget);
@@ -129,8 +132,9 @@ export async function callGemini(opts: CallModelOpts): Promise<{ parsed: any; us
 // observability — not an authoritative bill. Per 1M tokens (USD), base tier.
 // ---------------------------------------------------------------------------
 const PRICING: Record<string, { in: number; out: number }> = {
-  [HEAVY]: { in: 1.25, out: 10 },   // gemini-2.5-pro (≤200k prompt tier)
-  [FAST]: { in: 0.10, out: 0.40 },  // gemini-2.5-flash-lite
+  [HEAVY]: { in: 1.25, out: 10 },    // gemini-2.5-pro (≤200k prompt tier)
+  [MID]: { in: 0.30, out: 2.50 },    // gemini-2.5-flash
+  [FAST]: { in: 0.10, out: 0.40 },   // gemini-2.5-flash-lite
 };
 
 export function estimateCostUsd(model: string, usage: any): number {
