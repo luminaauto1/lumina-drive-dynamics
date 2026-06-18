@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
+import { dealNetProfit, isFinalizedDeal } from '@/lib/dealMetrics';
 import {
   Sheet,
   SheetContent,
@@ -25,6 +26,7 @@ interface AccountingDeal {
   sale_date: string | null;
   created_at: string;
   sold_price: number | null;
+  gross_profit: number | null;
   cost_price: number | null;
   recon_cost: number | null;
   dic_amount: number | null;
@@ -65,7 +67,7 @@ const useAccountingDeals = () => {
       const { data, error } = await supabase
         .from('deal_records')
         .select(`
-          id, application_id, sale_date, created_at, sold_price, cost_price, recon_cost,
+          id, application_id, sale_date, created_at, sold_price, gross_profit, cost_price, recon_cost,
           dic_amount, partner_profit_amount, partner_capital_contribution,
           sales_rep_commission, referral_commission_amount,
           addons_data, aftersales_expenses, is_closed,
@@ -104,18 +106,11 @@ const sumLicensing = (expenses: any[] | null) => {
   }, 0);
 };
 
-const calcNetProfit = (d: AccountingDeal) => {
-  const gross = Number(d.sold_price || 0);
-  const vap = sumAddons(d.addons_data);
-  const dic = Number(d.dic_amount || 0);
-  const cost = Number(d.cost_price || 0);
-  const recon = Number(d.recon_cost || 0);
-  const licensing = sumLicensing(d.aftersales_expenses);
-  const partnerPayout =
-    Number(d.partner_profit_amount || 0) + Number(d.partner_capital_contribution || 0);
-  const referralPayout = Number(d.referral_commission_amount || 0);
-  return gross + vap + dic - cost - recon - licensing - partnerPayout - referralPayout;
-};
+// Net profit ALWAYS comes from the canonical stored value (deal_records.gross_profit)
+// via dealNetProfit() — the exact figure the Deal Ledger, Dashboard, Analytics and the
+// other Report tabs already use. Re-deriving it here is what produced the partner-deal
+// "losses": the old formula subtracted partner_capital_contribution (the partner's
+// returned capital, already inside cost_price) as if it were an expense.
 
 const AccountingVATTab = () => {
   const { data: deals = [], isLoading } = useAccountingDeals();
@@ -152,26 +147,15 @@ const AccountingVATTab = () => {
     },
   });
 
-  const finalizedDeals = useMemo(() => {
-    return deals.filter((d) => {
-      const status = (d.application?.internal_status || d.application?.status || '').toLowerCase();
-      return (
-        d.is_closed ||
-        status.includes('delivered') ||
-        status.includes('finalized') ||
-        status.includes('paid_out') ||
-        status.includes('handover') ||
-        !!d.sale_date
-      );
-    });
-  }, [deals]);
+  // Same finalized-deal definition as every other report (single source of truth).
+  const finalizedDeals = useMemo(() => deals.filter(isFinalizedDeal), [deals]);
 
   const headerMetrics = useMemo(() => {
     let grossRevenue = 0;
     let netProfit = 0;
     finalizedDeals.forEach((d) => {
       grossRevenue += Number(d.sold_price || 0);
-      netProfit += calcNetProfit(d);
+      netProfit += dealNetProfit(d);
     });
     return {
       grossRevenue,
@@ -197,15 +181,18 @@ const AccountingVATTab = () => {
       : format(new Date(d.created_at), 'dd MMM yyyy');
     const vapTotal = sumAddons(d.addons_data);
     const licensing = sumLicensing(d.aftersales_expenses);
-    const partnerPayout =
-      Number(d.partner_profit_amount || 0) + Number(d.partner_capital_contribution || 0);
+    // The partner's PROFIT SHARE is the only partner figure deducted from profit.
+    // Their CAPITAL contribution is returned to them (already inside the car's cost),
+    // so it is shown for reference but never subtracted.
+    const partnerProfitShare = Number(d.partner_profit_amount || 0);
+    const partnerCapital = Number(d.partner_capital_contribution || 0);
     const referralPayout = Number(d.referral_commission_amount || 0);
     const grossSelling = Number(d.sold_price || 0);
     const dic = Number(d.dic_amount || 0);
     const vehicleCost = Number(d.cost_price || 0);
     const recon = Number(d.recon_cost || 0);
-    const netProfit =
-      grossSelling + vapTotal + dic - vehicleCost - recon - licensing - partnerPayout - referralPayout;
+    // Canonical net profit stored at finalize — matches the Deal Ledger exactly.
+    const netProfit = dealNetProfit(d);
 
     return {
       clientName,
@@ -227,7 +214,8 @@ const AccountingVATTab = () => {
       licensing,
       dic,
       vapTotal,
-      partnerPayout,
+      partnerProfitShare,
+      partnerCapital,
       referralPayout,
       netProfit,
     };
@@ -369,7 +357,7 @@ const AccountingVATTab = () => {
                       const vehicleLabel = v
                         ? `${v.year || ''} ${v.make || ''} ${v.model || ''}`.trim() || '—'
                         : '—';
-                      const netProfit = calcNetProfit(d);
+                      const netProfit = dealNetProfit(d);
 
                       return (
                         <TableRow
@@ -514,16 +502,22 @@ const AccountingVATTab = () => {
                       value={fmtR(breakdown.licensing)}
                     />
                     <BreakdownItem
-                      label="Partner Payout"
-                      value={fmtR(breakdown.partnerPayout)}
+                      label="Partner Profit Share"
+                      value={fmtR(breakdown.partnerProfitShare)}
                       tone="red"
                     />
                     <BreakdownItem
                       label="Referral Payout"
                       value={fmtR(breakdown.referralPayout)}
                       tone="red"
-                      className="col-span-2"
                     />
+                    {breakdown.partnerCapital > 0 && (
+                      <BreakdownItem
+                        label="Partner Capital (returned — not a cost)"
+                        value={fmtR(breakdown.partnerCapital)}
+                        className="col-span-2"
+                      />
+                    )}
                   </div>
                 </section>
 
@@ -544,7 +538,9 @@ const AccountingVATTab = () => {
                     </span>
                   </div>
                   <p className="text-[11px] text-zinc-500 mt-2 select-text">
-                    Income (Selling + VAP + DIC) minus Costs (Vehicle + Recon + Licensing + Payouts)
+                    Finalized net profit from the deal record — after vehicle cost, recon, all
+                    expenses, licensing, referral and the partner profit share. Matches the Deal
+                    Ledger to the cent. Partner capital is returned to the partner, not a cost.
                   </p>
                 </section>
 
