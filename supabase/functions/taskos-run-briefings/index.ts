@@ -1,13 +1,13 @@
 // LuminaTaskOS — daily briefing + weekly review (cron-driven, ~every 15 min).
 // For each linked user, when THEIR local clock hits their chosen briefing hour,
-// Claude composes a short briefing and it's sent to their Telegram. Weekly review
+// Gemini composes a short briefing and it's sent to their Telegram. Weekly review
 // fires additionally on Mondays. Dedupe is atomic via the (user,kind,date) unique
 // index: we INSERT to claim the slot first, then generate+send. Per-user isolated.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildCorsHeaders, checkInternalKey } from "../_shared/publicGuard.ts";
 import { checkCronSecret } from "../_shared/taskos/cron.ts";
 import { sendTelegram } from "../_shared/taskos/telegram.ts";
-import { callClaude, GUARDRAIL, HAIKU, logAiRun } from "../_shared/taskos/anthropic.ts";
+import { callGemini, FAST, GUARDRAIL, logAiRun } from "../_shared/taskos/gemini.ts";
 
 const BRIEF_SCHEMA = {
   type: "object", additionalProperties: false, required: ["message"],
@@ -74,11 +74,11 @@ Deno.serve(async (req) => {
           .eq("user_id", s.user_id).not("status", "in", "(done,cancelled)")
           .order("priority_score", { ascending: false }).limit(20);
         try {
-          const { parsed, usage } = await callClaude({
-            model: HAIKU, system: DAILY_SYSTEM, schema: BRIEF_SCHEMA, effort: "low", maxTokens: 1024,
+          const { parsed, usage } = await callGemini({
+            model: FAST, system: DAILY_SYSTEM, schema: BRIEF_SCHEMA, effort: "low", maxTokens: 1024,
             userPayload: { now: new Date().toISOString(), timezone: tz, open_tasks: active ?? [] },
           });
-          await logAiRun(svc, s.user_id, "briefing", HAIKU, usage);
+          await logAiRun(svc, s.user_id, "briefing", FAST, usage);
           const msg = String(parsed?.message ?? "").slice(0, 1500) || "Good morning! No open tasks on the board — a clean slate.";
           if (await sendTelegram(token, chat, `☀️ ${msg}`)) {
             await svc.from("taskos_briefings").update({ body: msg }).eq("user_id", s.user_id).eq("kind", "daily").eq("for_date", date);
@@ -98,11 +98,11 @@ Deno.serve(async (req) => {
             svc.from("taskos_tasks").select("title, due_at, priority_score").eq("user_id", s.user_id).not("status", "in", "(done,cancelled)").order("priority_score", { ascending: false }).limit(25),
           ]);
           try {
-            const { parsed, usage } = await callClaude({
-              model: HAIKU, system: WEEKLY_SYSTEM, schema: BRIEF_SCHEMA, effort: "low", maxTokens: 1200,
+            const { parsed, usage } = await callGemini({
+              model: FAST, system: WEEKLY_SYSTEM, schema: BRIEF_SCHEMA, effort: "low", maxTokens: 1200,
               userPayload: { now: new Date().toISOString(), timezone: tz, completed_last_7d: done ?? [], still_open: open ?? [] },
             });
-            await logAiRun(svc, s.user_id, "weekly_review", HAIKU, usage);
+            await logAiRun(svc, s.user_id, "weekly_review", FAST, usage);
             const msg = String(parsed?.message ?? "").slice(0, 1800) || "New week — let's set it up well.";
             if (await sendTelegram(token, chat, `🗓️ Weekly review\n${msg}`)) {
               await svc.from("taskos_briefings").update({ body: msg }).eq("user_id", s.user_id).eq("kind", "weekly").eq("for_date", date);

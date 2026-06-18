@@ -3,12 +3,12 @@
 //   { inbox_item_id }  -> classify ONE captured item (webhook/panel; internal-key gated)
 //   { mode: "sweep" }  -> retry stuck/failed items + backfill embeddings (cron-gated)
 // Per-user isolation: user_id is ALWAYS read from the trusted inbox row, NEVER the
-// caller. AI: Haiku first; escalate to Opus when confidence is low. Spend is logged
-// to taskos_ai_runs and capped per user/day. New rows get embeddings (semantic
-// memory) and knowledge-graph links.
+// caller. AI: Flash-Lite first; escalate to Pro when confidence is low. Spend is
+// logged to taskos_ai_runs and capped per user/day. New rows get embeddings
+// (semantic memory) and knowledge-graph links.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildCorsHeaders, checkInternalKey } from "../_shared/publicGuard.ts";
-import { callClaude, checkDailyCap, GUARDRAIL, HAIKU, logAiRun, OPUS, wrapUntrusted } from "../_shared/taskos/anthropic.ts";
+import { callGemini, checkDailyCap, FAST, GUARDRAIL, HEAVY, logAiRun, wrapUntrusted } from "../_shared/taskos/gemini.ts";
 import { checkCronSecret } from "../_shared/taskos/cron.ts";
 import { embedText, toVectorLiteral } from "../_shared/taskos/embeddings.ts";
 
@@ -111,19 +111,19 @@ async function processOne(svc: any, inboxId: string): Promise<{ status: string; 
       existing_entities: (ctxEntities ?? []).map((e: any) => ({ id: e.id, kind: e.kind, title: e.title })),
     };
 
-    // Haiku first (cheap), escalate to Opus when low-confidence / flagged.
-    let parsed: any, modelUsed = HAIKU;
+    // Flash-Lite first (cheap), escalate to Pro when low-confidence / flagged.
+    let parsed: any, modelUsed = FAST;
     {
-      const r = await callClaude({ model: HAIKU, system: CLASSIFY_SYSTEM, schema: CLASSIFY_SCHEMA, effort: "medium", maxTokens: 2048, userPayload: payload });
+      const r = await callGemini({ model: FAST, system: CLASSIFY_SYSTEM, schema: CLASSIFY_SCHEMA, effort: "medium", maxTokens: 2048, userPayload: payload });
       parsed = r.parsed;
-      await logAiRun(svc, ownerUserId, "classify", HAIKU, r.usage);
+      await logAiRun(svc, ownerUserId, "classify", FAST, r.usage);
     }
     const lowConf = typeof parsed?.confidence !== "number" || parsed.confidence < 0.6 || parsed?.needs_review === true;
     if (lowConf) {
       try {
-        const r = await callClaude({ model: OPUS, system: CLASSIFY_SYSTEM, schema: CLASSIFY_SCHEMA, effort: "high", maxTokens: 2048, userPayload: payload });
-        parsed = r.parsed; modelUsed = OPUS;
-        await logAiRun(svc, ownerUserId, "classify", OPUS, r.usage);
+        const r = await callGemini({ model: HEAVY, system: CLASSIFY_SYSTEM, schema: CLASSIFY_SCHEMA, effort: "high", maxTokens: 2048, userPayload: payload });
+        parsed = r.parsed; modelUsed = HEAVY;
+        await logAiRun(svc, ownerUserId, "classify", HEAVY, r.usage);
       } catch (e) {
         console.error("[taskos-process-inbox] opus escalation failed, keeping haiku result", e instanceof Error ? e.message : e);
       }
