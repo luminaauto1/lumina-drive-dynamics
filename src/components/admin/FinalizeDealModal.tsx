@@ -17,6 +17,8 @@ import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { useCreateDealRecord, useUpdateDealRecord, AftersalesExpense, DealAddOnItem } from '@/hooks/useDealRecords';
 import { formatPrice, useVehicles, Vehicle } from '@/hooks/useVehicles';
 import { useVehicleExpenses, VehicleExpense, EXPENSE_CATEGORIES } from '@/hooks/useVehicleExpenses';
+import { useVendors } from '@/hooks/useVendors';
+import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import DocumentManager from './DocumentManager';
@@ -75,6 +77,10 @@ export interface ExistingDealData {
   referral_income_amount?: number | null;
   // Sale date for reporting
   sale_date?: string | null;
+  // Sale type + invoicing (Vendors feature)
+  deal_type?: string | null;
+  finance_house_vendor_id?: string | null;
+  invoice_config?: Record<string, any> | null;
   vehicle?: {
     id: string;
     make: string;
@@ -242,6 +248,18 @@ const FinalizeDealModal = ({
   // Referral Income (what we RECEIVE)
   const [referralIncome, setReferralIncome] = useState(0);
   
+  // Sale type + invoicing (Vendors feature). 'direct' = invoice the client;
+  // 'finance' = a finance house buys the car from us for the client (bill-to = that vendor).
+  const [dealType, setDealType] = useState<'direct' | 'finance'>('direct');
+  const [financeHouseVendorId, setFinanceHouseVendorId] = useState<string>('');
+  // Which money lines appear on the buyer's invoice. selling_price is always on.
+  const [invoiceConfig, setInvoiceConfig] = useState<Record<string, any>>({
+    selling_price: true, dic: false, dealer_deposit: false, admin_fee: false,
+    bank_initiation_fee: false, addons: [] as string[],
+  });
+  const { data: allVendors = [] } = useVendors({ activeOnly: true });
+  const financeVendors = allVendors.filter((v) => v.vendor_type === 'finance_house' || v.vendor_type === 'both');
+
   // Sale Date for reporting
   const [saleDate, setSaleDate] = useState<Date>(new Date());
   
@@ -325,7 +343,18 @@ const FinalizeDealModal = ({
         
         // Referral Income
         setReferralIncome(Number(existingDeal.referral_income_amount) || 0);
-        
+
+        // Sale type + invoicing
+        setDealType((existingDeal.deal_type as 'direct' | 'finance') || 'direct');
+        setFinanceHouseVendorId(existingDeal.finance_house_vendor_id || '');
+        if (existingDeal.invoice_config && typeof existingDeal.invoice_config === 'object') {
+          setInvoiceConfig({
+            selling_price: true, dic: false, dealer_deposit: false, admin_fee: false,
+            bank_initiation_fee: false, addons: [] as string[],
+            ...existingDeal.invoice_config,
+          });
+        }
+
         // Delivery
         if (existingDeal.delivery_date) {
           const deliveryDateTime = new Date(existingDeal.delivery_date);
@@ -621,6 +650,10 @@ const FinalizeDealModal = ({
       referralCommissionAmount: referralCommission,
       // Referral Income (what we receive)
       referralIncomeAmount: referralIncome,
+      // Sale type + invoicing (Vendors feature)
+      dealType,
+      financeHouseVendorId: dealType === 'finance' ? (financeHouseVendorId || null) : null,
+      invoiceConfig,
     };
 
     try {
@@ -690,6 +723,98 @@ const FinalizeDealModal = ({
             <p className="text-xs text-muted-foreground">
               Date the sale was finalized. Used for monthly reporting and analytics.
             </p>
+          </div>
+
+          {/* === SALE TYPE & INVOICING (Vendors feature — additive) === */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-purple-400">
+              <Receipt className="w-4 h-4" />
+              Sale Type & Invoicing
+            </div>
+            <ToggleGroup
+              type="single"
+              value={dealType}
+              onValueChange={(v) => v && setDealType(v as 'direct' | 'finance')}
+              className="grid grid-cols-2 gap-2"
+            >
+              <ToggleGroupItem value="direct" className="border border-border data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+                Direct to customer
+              </ToggleGroupItem>
+              <ToggleGroupItem value="finance" className="border border-border data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+                Through finance house
+              </ToggleGroupItem>
+            </ToggleGroup>
+
+            {dealType === 'finance' && (
+              <div className="space-y-2">
+                <Label>Finance house (invoice bill-to)</Label>
+                <Select value={financeHouseVendorId || 'none'} onValueChange={(v) => setFinanceHouseVendorId(v === 'none' ? '' : v)}>
+                  <SelectTrigger><SelectValue placeholder="Which dealer / finance house buys the car?" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Select finance house —</SelectItem>
+                    {financeVendors.map((v) => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  The invoice is addressed to this vendor at the selling price; the deal still lives under the client's profile.
+                  Add finance houses under Financials → Vendors.
+                </p>
+              </div>
+            )}
+
+            {/* Per-line invoice inclusion */}
+            <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">
+                Lines to show on the {dealType === 'finance' ? 'finance house' : 'customer'} invoice
+              </p>
+              <label className="flex items-center gap-2 text-sm opacity-70">
+                <Checkbox checked disabled /> Vehicle selling price (always included)
+              </label>
+              {dicAmount > 0 && (
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <Checkbox checked={!!invoiceConfig.dic}
+                    onCheckedChange={(c) => setInvoiceConfig((p) => ({ ...p, dic: c === true }))} />
+                  DIC{canSeeFigures ? ` — ${formatPrice(dicAmount)}` : ''}
+                </label>
+              )}
+              {dealerDepositContribution > 0 && (
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <Checkbox checked={!!invoiceConfig.dealer_deposit}
+                    onCheckedChange={(c) => setInvoiceConfig((p) => ({ ...p, dealer_deposit: c === true }))} />
+                  Dealer deposit contribution{canSeeFigures ? ` — ${formatPrice(dealerDepositContribution)}` : ''}
+                </label>
+              )}
+              {externalAdminFee > 0 && (
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <Checkbox checked={!!invoiceConfig.admin_fee}
+                    onCheckedChange={(c) => setInvoiceConfig((p) => ({ ...p, admin_fee: c === true }))} />
+                  Admin fee — {formatPrice(externalAdminFee)}
+                </label>
+              )}
+              {bankInitiationFee > 0 && (
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <Checkbox checked={!!invoiceConfig.bank_initiation_fee}
+                    onCheckedChange={(c) => setInvoiceConfig((p) => ({ ...p, bank_initiation_fee: c === true }))} />
+                  Bank initiation fee — {formatPrice(bankInitiationFee)}
+                </label>
+              )}
+              {addons.filter((a) => a.name && (a.price || 0) > 0).map((a) => (
+                <label key={a._id} className="flex items-center gap-2 text-sm cursor-pointer">
+                  <Checkbox
+                    checked={Array.isArray(invoiceConfig.addons) && invoiceConfig.addons.includes(a.name)}
+                    onCheckedChange={(c) => setInvoiceConfig((p) => {
+                      const set = new Set<string>(Array.isArray(p.addons) ? p.addons : []);
+                      if (c === true) set.add(a.name); else set.delete(a.name);
+                      return { ...p, addons: [...set] };
+                    })}
+                  />
+                  {a.name} (VAP) — {formatPrice(a.price)}
+                </label>
+              ))}
+              <p className="text-[11px] text-muted-foreground">
+                Tick anything the buyer is actually paying for, so it appears on their invoice.
+              </p>
+            </div>
           </div>
 
           {/* Vehicle Selector */}
