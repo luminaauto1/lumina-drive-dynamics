@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { useUpdateVehicle, useCreateVehicle, Vehicle } from '@/hooks/useVehicles';
+import { useVendors } from '@/hooks/useVendors';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
@@ -62,6 +63,9 @@ const StockInModal = ({ vehicle, isOpen, onClose }: StockInModalProps) => {
   const [costPrice, setCostPrice] = useState(0);
   const [reconCost, setReconCost] = useState(0);
   const [salePrice, setSalePrice] = useState(vehicle.price);
+  const [sourceVendorId, setSourceVendorId] = useState<string>(''); // where the car was bought
+  const { data: vendors = [] } = useVendors({ activeOnly: true });
+  const sourceVendors = vendors.filter((v) => v.vendor_type === 'supplier' || v.vendor_type === 'both');
   
   // Vehicle Health (DNA)
   const [lastServiceDate, setLastServiceDate] = useState('');
@@ -100,6 +104,7 @@ const StockInModal = ({ vehicle, isOpen, onClose }: StockInModalProps) => {
       setServicePlanExpiry((vehicle as any).service_plan_expiry_date || '');
       setSpareKeys((vehicle as any).spare_keys || false);
       setFshStatus((vehicle as any).fsh_status || 'Full');
+      setSourceVendorId((vehicle as any).source_vendor_id || '');
       setImages(vehicle.images || []);
     }
   }, [vehicle]);
@@ -243,6 +248,7 @@ const StockInModal = ({ vehicle, isOpen, onClose }: StockInModalProps) => {
         cost_price: costPrice,
         purchase_price: costPrice, // Keep for compatibility
         reconditioning_cost: reconCost,
+        source_vendor_id: sourceVendorId || null, // where the car was bought (Vendors)
         // NOTE: Do NOT include estimated_profit - it may be a generated column
         last_service_date: lastServiceDate || null,
         last_service_km: lastServiceKm || null,
@@ -488,7 +494,26 @@ const StockInModal = ({ vehicle, isOpen, onClose }: StockInModalProps) => {
                 onChange={(e) => setSalePrice(parseFloat(e.target.value) || 0)}
               />
             </div>
-            
+
+            {/* Bought From — links the purchase to a Vendor for accounting */}
+            <div className="space-y-2">
+              <Label>Bought From (Vendor)</Label>
+              <Select value={sourceVendorId || 'none'} onValueChange={(v) => setSourceVendorId(v === 'none' ? '' : v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Where was this car bought?" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— Not specified —</SelectItem>
+                  {sourceVendors.map((v) => (
+                    <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Manage suppliers under Financials → Vendors.
+              </p>
+            </div>
+
             {/* Profit Preview */}
             <div className={`p-4 rounded-lg border ${estimatedProfit >= 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
               <p className="text-sm text-muted-foreground mb-1">Estimated Profit</p>

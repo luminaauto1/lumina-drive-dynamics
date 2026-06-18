@@ -58,6 +58,11 @@ export interface DealRecordInsert {
   referralIncomeAmount?: number;
   // Partner capital contribution
   partnerCapitalContribution?: number;
+  // Sale type + invoicing (Vendors feature). Additive — defaults keep every
+  // existing deal as a plain 'direct' sale invoiced to the client.
+  dealType?: 'direct' | 'finance';
+  financeHouseVendorId?: string | null;
+  invoiceConfig?: Record<string, any>;
 }
 
 export interface DealRecordUpdate extends DealRecordInsert {
@@ -114,6 +119,10 @@ export const useCreateDealRecord = () => {
           referral_income_amount: record.referralIncomeAmount || 0,
           // Partner Capital
           partner_capital_contribution: record.partnerCapitalContribution || 0,
+          // Sale type + invoicing
+          deal_type: record.dealType || 'direct',
+          finance_house_vendor_id: record.financeHouseVendorId || null,
+          invoice_config: record.invoiceConfig || {},
         })
         .select()
         .single();
@@ -226,6 +235,10 @@ export const useUpdateDealRecord = () => {
           referral_income_amount: record.referralIncomeAmount || 0,
           // Partner Capital
           partner_capital_contribution: record.partnerCapitalContribution || 0,
+          // Sale type + invoicing
+          deal_type: record.dealType || 'direct',
+          finance_house_vendor_id: record.financeHouseVendorId || null,
+          invoice_config: record.invoiceConfig || {},
         })
         .eq('id', record.dealId)
         .select()
