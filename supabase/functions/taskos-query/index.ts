@@ -1,10 +1,10 @@
 // LuminaTaskOS — semantic Q&A over the user's OWN second-brain data.
 // JWT-required. Retrieval is RLS-scoped (user client sees only its own rows) and
 // HYBRID: pgvector cosine similarity (semantic) UNION full-text search (keyword).
-// Claude then synthesizes an answer from those candidates only.
+// Gemini then synthesizes an answer from those candidates only.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildCorsHeaders } from "../_shared/publicGuard.ts";
-import { callClaude, GUARDRAIL, logAiRun, OPUS, wrapUntrusted } from "../_shared/taskos/anthropic.ts";
+import { callGemini, GUARDRAIL, HEAVY, logAiRun, wrapUntrusted } from "../_shared/taskos/gemini.ts";
 import { embedText, toVectorLiteral } from "../_shared/taskos/embeddings.ts";
 
 const STAFF_ROLES = ["admin", "sales_agent", "f_and_i", "senior_f_and_i", "accountant"];
@@ -77,15 +77,15 @@ Deno.serve(async (req) => {
       return json({ answer: "I couldn't find anything in your TaskOS matching that. Try different words, or it may not be captured yet.", sources: [], confident: false });
     }
 
-    const { parsed, usage } = await callClaude({
-      model: OPUS,
+    const { parsed, usage } = await callGemini({
+      model: HEAVY,
       system: ANSWER_SYSTEM,
       schema: ANSWER_SCHEMA,
       effort: "high",
       maxTokens: 4096,
       userPayload: { question: wrapUntrusted(q), candidates },
     });
-    await logAiRun(svc, user.id, "query", OPUS, usage);
+    await logAiRun(svc, user.id, "query", HEAVY, usage);
 
     return json(parsed);
   } catch (e) {
