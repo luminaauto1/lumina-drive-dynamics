@@ -85,9 +85,10 @@ export const generateDealInvoicePDF = (invoice: DealInvoiceData, settings: Docum
   doc.setFontSize(8);
   const companyLines = [
     settings.companyLegalName,
+    settings.companyRegNumber ? `Reg: ${settings.companyRegNumber}` : '',
     settings.companyAddress,
     [settings.companyPhone, settings.companyEmail].filter(Boolean).join('  •  '),
-    [registered ? `VAT: ${settings.companyVatNumber}` : '', settings.companyRegNumber ? `Reg: ${settings.companyRegNumber}` : ''].filter(Boolean).join('   '),
+    registered && settings.companyVatNumber ? `VAT: ${settings.companyVatNumber}` : '',
   ].filter(Boolean) as string[];
   const cyEnd = drawBlock(companyLines, margin, y + 6, pageW / 2 - margin, 4.4);
 

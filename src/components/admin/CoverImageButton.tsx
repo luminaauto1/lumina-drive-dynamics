@@ -21,13 +21,13 @@ const pathFromPublicUrl = (url: string): string | null => {
 };
 
 /**
- * Auto-prepares the cover (first) vehicle photo: removes the background and fits
- * the car into the website's preview frame, then swaps it in as the cover.
- * Runs automatically the first time photos are added, and can be re-run manually
- * (e.g. after dragging a different photo to the front).
+ * Prepares the cover (first) vehicle photo: removes the background and fits the
+ * car into the website's preview frame, then swaps it in as the cover. Off by
+ * default — run it manually per car with "Prepare cover now", or opt in to having
+ * it run automatically when photos are added.
  */
 const CoverImageButton = ({ images, onChange }: CoverImageButtonProps) => {
-  const [autoEnabled, setAutoEnabled] = useState(true);
+  const [autoEnabled, setAutoEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
   const processingRef = useRef(false);
   const attemptedRef = useRef<Set<string>>(new Set()); // covers we've already tried
@@ -99,9 +99,9 @@ const CoverImageButton = ({ images, onChange }: CoverImageButtonProps) => {
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">
-        Removes the background and fits the car neatly into the website preview frame (transparent,
-        fast-loading). Runs automatically on the first photo; the very first run downloads a one-time
-        helper, so it may take a few extra seconds.
+        Optional: removes the background and fits the car neatly into the website preview frame
+        (transparent, fast-loading). Off by default — click “Prepare cover now” when you want it.
+        The very first run downloads a one-time helper, so it may take a few extra seconds.
       </p>
       <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
         <input
