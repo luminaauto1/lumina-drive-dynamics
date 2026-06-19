@@ -15,6 +15,7 @@ export interface Vendor {
   vendor_type: VendorType;
   registration_number: string | null;
   vat_number: string | null;
+  is_vat_registered: boolean;
   contact_person: string | null;
   email: string | null;
   phone: string | null;

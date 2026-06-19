@@ -27,6 +27,8 @@ export interface DealInvoiceData {
   vehicleLines?: string[];       // full vehicle details, pre-formatted ("Make: …", "VIN: …", …). Omit for a general (non-vehicle) invoice.
   notes?: string;                // optional free-text note printed under the totals
   paymentReference?: string;     // reference the payer should use; falls back to the invoice number
+  taxInvoice?: boolean;          // force a TAX INVOICE (e.g. the bill-to vendor is VAT registered); overrides the company setting
+  vatRate?: number;              // VAT rate to apply on a tax invoice (0 = zero-rated). Defaults to the company rate.
   lineItems: { description: string; amount: number }[];
 }
 
@@ -35,10 +37,15 @@ const fmt = (n: number): string =>
   `R ${n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export const generateDealInvoicePDF = (invoice: DealInvoiceData, settings: DocumentSettings) => {
-  // VAT-registered status is an explicit toggle. Backward-compat: older saved settings
-  // (no flag) fall back to "registered if a VAT number + positive rate were configured".
-  const registered = settings.vatRegistered ?? (!!(settings.companyVatNumber && settings.companyVatNumber.trim()) && (settings.vatPercent || 0) > 0);
-  const vatRate = registered ? (settings.vatPercent || 0) : 0; // a registered vendor may still charge 0%
+  // A TAX INVOICE is issued when the caller forces it (e.g. the bill-to vendor is VAT
+  // registered) or our own company is VAT registered. Falls back to the legacy
+  // "has a VAT number + positive rate" rule for older saved settings.
+  const registered = invoice.taxInvoice
+    ?? settings.vatRegistered
+    ?? (!!(settings.companyVatNumber && settings.companyVatNumber.trim()) && (settings.vatPercent || 0) > 0);
+  // The rate the caller asked for (0 = zero-rated, valid while we're not VAT registered),
+  // otherwise the company rate. Only applied on a tax invoice.
+  const vatRate = registered ? (invoice.vatRate ?? settings.vatPercent ?? 0) : 0;
   const title = registered ? 'TAX INVOICE' : 'INVOICE';
 
   const doc = new jsPDF();

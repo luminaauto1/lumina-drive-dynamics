@@ -62,6 +62,7 @@ const AdminVendors = () => {
       is_active: editing.is_active ?? true,
       registration_number: editing.registration_number || null,
       vat_number: editing.vat_number || null,
+      is_vat_registered: editing.is_vat_registered ?? false,
       contact_person: editing.contact_person || null,
       email: editing.email || null,
       phone: editing.phone || null,
@@ -223,6 +224,22 @@ const AdminVendors = () => {
                 <Field label="Contact Person" value={editing.contact_person} onChange={(v) => set({ contact_person: v })} />
                 <Field label="Phone" value={editing.phone} onChange={(v) => set({ phone: v })} />
                 <Field label="Email" value={editing.email} onChange={(v) => set({ email: v })} />
+              </div>
+
+              <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 p-3">
+                <Switch
+                  id="vendor-vat"
+                  checked={editing.is_vat_registered ?? false}
+                  onCheckedChange={(c) => set({ is_vat_registered: c })}
+                  className="mt-0.5"
+                />
+                <Label htmlFor="vendor-vat" className="cursor-pointer">
+                  VAT registered
+                  <span className="block text-xs font-normal text-muted-foreground mt-0.5">
+                    Invoices billed to this vendor are issued as a <strong>TAX INVOICE</strong> with a VAT line.
+                    While our company isn't VAT-registered the VAT is zero-rated (shows <strong>VAT 0% — R0,00</strong>).
+                  </span>
+                </Label>
               </div>
 
               <div className="space-y-2">
