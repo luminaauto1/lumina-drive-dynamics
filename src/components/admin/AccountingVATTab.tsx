@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { dealNetProfit, isFinalizedDeal } from '@/lib/dealMetrics';
 import { useVendors, Vendor } from '@/hooks/useVendors';
+import { useAuth } from '@/contexts/AuthContext';
 import { useVehicleExpenses, EXPENSE_CATEGORIES } from '@/hooks/useVehicleExpenses';
 import { useDocumentSettings } from '@/hooks/useDocumentSettings';
 import { generateDealInvoicePDF, DealInvoiceData } from '@/lib/generateDealInvoicePDF';
@@ -115,10 +116,16 @@ const buildInvoiceLines = (d: AccountingDeal): { description: string; amount: nu
   //  - Finance deal: the finance house funds the purchase (keeps the bought price)
   //    and pays us the proceeds ON TOP — i.e. selling price minus the vehicle cost.
   const isFinance = d.deal_type === 'finance';
-  const vehicleAmount = isFinance ? (num(d.sold_price) - num(d.cost_price)) : num(d.sold_price);
-  const vehicleDesc = isFinance
-    ? `${vehLabel}${veh?.vin ? ` (VIN ${veh.vin})` : ''} — deal proceeds (selling less purchase)`
-    : `${vehLabel}${veh?.vin ? ` (VIN ${veh.vin})` : ''} — selling price`;
+  // Finance deals vary per deal: sometimes the house FUNDS the car (keeps the
+  // bought price) and pays us only the margin; other times WE own the car and they
+  // buy it from us at the full price. invoice_config.finance_basis chooses
+  // ('full' | 'margin'); default is 'full'.
+  const useMargin = isFinance && cfg.finance_basis === 'margin';
+  const vinPart = veh?.vin ? ` (VIN ${veh.vin})` : '';
+  const vehicleAmount = useMargin ? (num(d.sold_price) - num(d.cost_price)) : num(d.sold_price);
+  const vehicleDesc = useMargin
+    ? `${vehLabel}${vinPart} — deal proceeds (selling less purchase)`
+    : `${vehLabel}${vinPart} — selling price`;
   if (cfg.selling_price !== false) lines.push({ description: vehicleDesc, amount: vehicleAmount });
   if (cfg.dic && num(d.dic_amount) > 0) lines.push({ description: 'DIC (Dealer Incentive)', amount: num(d.dic_amount) });
   if (cfg.dealer_deposit && num(d.dealer_deposit_contribution) > 0) lines.push({ description: 'Dealer deposit contribution', amount: num(d.dealer_deposit_contribution) });
@@ -139,6 +146,7 @@ const AccountingVATTab = () => {
   const { data: deals = [], isLoading } = useAccountingDeals();
   const { data: vendors = [] } = useVendors();
   const { data: docSettings } = useDocumentSettings();
+  const { isSuperAdmin } = useAuth();
   const queryClient = useQueryClient();
   const [view, setView] = useState<'pending' | 'all'>('pending');
   const [activeDeal, setActiveDeal] = useState<AccountingDeal | null>(null);
@@ -173,6 +181,24 @@ const AccountingVATTab = () => {
     onSuccess: (_d, v) => toast.success(v.value ? 'Marked as invoiced' : 'Reopened as pending'),
   });
 
+  // Per-deal choice for finance deals: invoice the full selling price, or only the
+  // margin (selling − cost) when the finance house funded the car. Persisted on the
+  // deal's invoice_config (merged, so finalize-time settings are preserved).
+  const setFinanceBasis = useMutation({
+    mutationFn: async ({ deal, basis }: { deal: AccountingDeal; basis: 'full' | 'margin' }) => {
+      const newConfig = { ...(deal.invoice_config || {}), finance_basis: basis };
+      const { error } = await (supabase as any).from('deal_records').update({ invoice_config: newConfig }).eq('id', deal.id);
+      if (error) throw error;
+      return newConfig;
+    },
+    onSuccess: (newConfig, { deal }) => {
+      queryClient.invalidateQueries({ queryKey: ['accounting-deals'] });
+      setActiveDeal((cur) => (cur && cur.id === deal.id ? { ...cur, invoice_config: newConfig } : cur));
+      toast.success('Invoice basis updated');
+    },
+    onError: () => toast.error('Could not update — admin only.'),
+  });
+
   const finalizedDeals = useMemo(() => deals.filter(isFinalizedDeal), [deals]);
 
   const headerMetrics = useMemo(() => {
@@ -199,6 +225,7 @@ const AccountingVATTab = () => {
       dateStr: d.sale_date ? format(new Date(d.sale_date), 'dd MMM yyyy') : format(new Date(d.created_at), 'dd MMM yyyy'),
       boughtFromVendor: v?.source_vendor_id ? vendorMap.get(v.source_vendor_id) : undefined,
       soldToName: isFinance ? (financeVendor?.name || 'Finance house (not set)') : clientName,
+      financeBasis: (d.invoice_config?.finance_basis === 'margin' ? 'margin' : 'full') as 'full' | 'margin',
       grossSelling: num(d.sold_price), discount: num(d.discount_amount), vehicleCost: num(d.cost_price),
       recon: num(d.recon_cost), dic: num(d.dic_amount), vapRevenue: sumAddons(d.addons_data), vapCost: sumAddonCost(d.addons_data),
       referralIncome: num(d.referral_income_amount), referralPayout: num(d.referral_commission_amount),
@@ -482,6 +509,27 @@ const AccountingVATTab = () => {
                       <Download className="w-3.5 h-3.5 mr-1" /> PDF
                     </Button>
                   </div>
+                  {b.isFinance && (
+                    <div className="mt-2 flex items-center justify-between gap-3 rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-2">
+                      <span className="text-xs text-zinc-400">Finance house pays</span>
+                      {isSuperAdmin ? (
+                        <div className="inline-flex rounded-md border border-zinc-700 p-0.5">
+                          {(['full', 'margin'] as const).map((opt) => (
+                            <button
+                              key={opt} type="button" disabled={setFinanceBasis.isPending}
+                              onClick={() => setFinanceBasis.mutate({ deal: activeDeal, basis: opt })}
+                              className={cn('px-2.5 py-1 text-xs rounded-sm transition-colors',
+                                b.financeBasis === opt ? 'bg-zinc-200 text-zinc-900 font-medium' : 'text-zinc-400 hover:text-zinc-200')}
+                            >
+                              {opt === 'full' ? 'Full selling price' : 'Margin (selling − cost)'}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-zinc-300">{b.financeBasis === 'margin' ? 'Margin (selling − cost)' : 'Full selling price'}</span>
+                      )}
+                    </div>
+                  )}
                   <ul className="mt-2 space-y-1 border-t border-zinc-800 pt-2">
                     {b.invoiceLines.map((l, i) => (
                       <li key={i} className="flex justify-between gap-3 text-sm select-text">
