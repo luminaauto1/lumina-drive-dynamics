@@ -277,6 +277,15 @@ const AccountingVATTab = () => {
         .filter(([, val]) => val != null && String(val).trim() !== '')
         .map(([label, val]) => ({ label, value: String(val) }));
 
+      // Itemised recon ledger (the individual vehicle_expenses lines) + any extra deal recon.
+      const ledgerTotal = vehicleExpenses.reduce((s, e) => s + num(e.amount), 0);
+      const addRecon = b.recon - ledgerTotal;
+      const reconItemRows = vehicleExpenses.map((e: any) => ({
+        label: `${e.description || catLabel(e.category)} · ${catLabel(e.category)}`,
+        value: fmtR(num(e.amount)),
+      }));
+      if (addRecon > 0.005) reconItemRows.push({ label: 'Additional deal recon (not on ledger)', value: fmtR(addRecon) });
+
       const sections: SpecSection[] = [
         { title: 'Parties', rows: [
           { label: 'Bought from', value: b.boughtFromVendor?.name || '—' },
@@ -299,7 +308,8 @@ const AccountingVATTab = () => {
           { label: 'Referral payout', value: fmtR(b.referralPayout) },
           ...(b.partnerCapital > 0 ? [{ label: 'Partner capital (returned)', value: fmtR(b.partnerCapital) }] : []),
         ] },
-        ...(b.expenseItems.length ? [{ title: 'Aftersales / expense items', rows: b.expenseItems.map((e: any) => ({ label: expenseLabel(e), value: fmtR(expenseAmount(e)) })) }] : []),
+        ...(reconItemRows.length ? [{ title: `Recon / vehicle expense items (${reconItemRows.length})`, rows: reconItemRows }] : []),
+        ...(b.expenseItems.length ? [{ title: `Aftersales / expense items (${b.expenseItems.length})`, rows: b.expenseItems.map((e: any) => ({ label: expenseLabel(e), value: fmtR(expenseAmount(e)) })) }] : []),
         ...(b.addonItems.length ? [{ title: 'Value-added products', rows: b.addonItems.map((a: any) => ({ label: a.name || 'VAP', value: `cost ${fmtR(num(a.cost))} → sell ${fmtR(num(a.price))}` })) }] : []),
         { title: 'VAT', rows: [
           { label: 'Status', value: vatRegistered ? `Registered (${vatRate}%)` : 'Not registered' },

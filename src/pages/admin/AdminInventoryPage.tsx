@@ -164,6 +164,16 @@ const AdminInventoryPage = () => {
         ] });
       }
 
+      if (isSuperAdmin) {
+        const { data: exp } = await supabase.from('vehicle_expenses').select('description,category,amount').eq('vehicle_id', vehicle.id);
+        if (exp && (exp as any[]).length) {
+          sections.push({
+            title: `Recon / vehicle expense items (${(exp as any[]).length})`,
+            rows: (exp as any[]).map((e) => ({ label: e.description || e.category || 'Expense', value: fmtR(n(e.amount)) })),
+          });
+        }
+      }
+
       generateVehicleSpecPDF({
         title,
         subtitle: `${v.year || ''} ${v.make || ''} ${v.model || ''}`.trim(),
