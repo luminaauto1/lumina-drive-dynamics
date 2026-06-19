@@ -24,7 +24,8 @@ export interface DealInvoiceData {
   date: string;                  // display string, e.g. "18 Jun 2026"
   billTo: DealInvoiceParty;
   onBehalfOf?: string;           // client name, shown when the bill-to is a finance house
-  vehicleLines: string[];        // full vehicle details, pre-formatted ("Make: …", "VIN: …", …)
+  vehicleLines?: string[];       // full vehicle details, pre-formatted ("Make: …", "VIN: …", …). Omit for a general (non-vehicle) invoice.
+  notes?: string;                // optional free-text note printed under the totals
   lineItems: { description: string; amount: number }[];
 }
 
@@ -96,9 +97,11 @@ export const generateDealInvoicePDF = (invoice: DealInvoiceData, settings: Docum
   doc.line(margin, y, pageW - margin, y);
   y += 11;
 
-  // ── Bill To + Vehicle ──
+  // ── Bill To (+ Vehicle, only when vehicle details are supplied) ──
+  const vehLines = (invoice.vehicleLines || []).filter(Boolean);
+  const hasVehicle = vehLines.length > 0;
   sectionLabel('BILL TO', margin, y);
-  sectionLabel('VEHICLE', colX, y);
+  if (hasVehicle) sectionLabel('VEHICLE', colX, y);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(45);
 
   const billLines = [
@@ -111,8 +114,8 @@ export const generateDealInvoicePDF = (invoice: DealInvoiceData, settings: Docum
     invoice.onBehalfOf ? `On behalf of: ${invoice.onBehalfOf}` : '',
   ].filter(Boolean) as string[];
 
-  const by = drawBlock(billLines, margin, y + 6, pageW / 2 - margin - colGap);
-  const vy = drawBlock(invoice.vehicleLines, colX, y + 6, pageW / 2 - margin - colGap / 2);
+  const by = drawBlock(billLines, margin, y + 6, hasVehicle ? pageW / 2 - margin - colGap : pageW - margin * 2);
+  const vy = hasVehicle ? drawBlock(vehLines, colX, y + 6, pageW / 2 - margin - colGap / 2) : y + 6;
   y = Math.max(by, vy) + 6;
 
   // ── Line items + totals ──
@@ -139,6 +142,13 @@ export const generateDealInvoicePDF = (invoice: DealInvoiceData, settings: Docum
 
   // @ts-ignore - lastAutoTable is added by jspdf-autotable
   y = (doc as any).lastAutoTable.finalY + 10;
+
+  if (invoice.notes && invoice.notes.trim()) {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(60);
+    const wrapped = doc.splitTextToSize(invoice.notes.trim(), pageW - margin * 2);
+    doc.text(wrapped, margin, y);
+    y += wrapped.length * 4.5 + 6;
+  }
 
   if (!registered) {
     doc.setFont('helvetica', 'italic');

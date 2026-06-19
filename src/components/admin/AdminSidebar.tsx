@@ -49,6 +49,7 @@ const menuItems: MenuItem[] = [
       { title: 'Deal Ledger', path: '/admin/aftersales' },
       { title: 'Reports', path: '/admin/reports' },
       { title: 'Vendors', path: '/admin/vendors' },
+      { title: 'Invoice Creator', path: '/admin/invoices' },
       { title: 'Lead Analytics', path: '/admin/reports/lead-analytics' },
       { title: 'Analytics', path: '/admin/analytics' },
     ],
@@ -95,7 +96,7 @@ const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
     group.children.some(c => isPathActive(c.path));
 
   // Accountants see the Reports entry (Accounting & VAT ledger) plus Vendors.
-  const ACCOUNTANT_ALLOWED_PATHS = new Set<string>(['/admin/reports', '/admin/vendors']);
+  const ACCOUNTANT_ALLOWED_PATHS = new Set<string>(['/admin/reports', '/admin/vendors', '/admin/invoices']);
   // Standard F&I: finance page only.
   const STANDARD_FNI_ALLOWED_PATHS = new Set<string>(['/admin/finance']);
   // Senior F&I: finance + CRM access.
