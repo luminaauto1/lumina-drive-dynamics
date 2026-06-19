@@ -321,7 +321,12 @@ const FinalizeDealModal = ({
         // Partner Split
         setIsSharedCapital(existingDeal.is_shared_capital || false);
         setPartnerSplitType((existingDeal.partner_split_type as 'percentage' | 'fixed') || 'percentage');
-        setPartnerSplitValue(Number(existingDeal.partner_split_value) || Number(existingDeal.partner_split_percent) || 50);
+        // Preserve a saved 0 — the old `|| 50` fallback forced 0 back to 50 on reopen.
+        setPartnerSplitValue(
+          existingDeal.is_shared_capital
+            ? Number(existingDeal.partner_split_value ?? existingDeal.partner_split_percent ?? 50)
+            : 50
+        );
         setPartnerCapitalContribution(Number(existingDeal.partner_capital_contribution) || 0);
         
         // Add-ons - add stable IDs for existing data
