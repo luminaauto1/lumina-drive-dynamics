@@ -256,6 +256,7 @@ const FinalizeDealModal = ({
   const [invoiceConfig, setInvoiceConfig] = useState<Record<string, any>>({
     selling_price: true, dic: false, dealer_deposit: false, admin_fee: false,
     bank_initiation_fee: false, addons: [] as string[], finance_basis: 'full',
+    invoice_number: '', payment_reference: '',
   });
   const { data: allVendors = [] } = useVendors({ activeOnly: true });
   const financeVendors = allVendors.filter((v) => v.vendor_type === 'finance_house' || v.vendor_type === 'both');
@@ -356,6 +357,7 @@ const FinalizeDealModal = ({
           setInvoiceConfig({
             selling_price: true, dic: false, dealer_deposit: false, admin_fee: false,
             bank_initiation_fee: false, addons: [] as string[], finance_basis: 'full',
+            invoice_number: '', payment_reference: '',
             ...existingDeal.invoice_config,
           });
         }
@@ -889,6 +891,28 @@ const FinalizeDealModal = ({
               <p className="text-[11px] text-muted-foreground">
                 Tick anything the buyer is actually paying for, so it appears on their invoice.
               </p>
+            </div>
+
+            {/* Invoice number + payment reference */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Invoice number</Label>
+                <Input
+                  placeholder="Auto (e.g. INV-XXXXXXXX)"
+                  value={invoiceConfig.invoice_number || ''}
+                  onChange={(e) => setInvoiceConfig((p) => ({ ...p, invoice_number: e.target.value }))}
+                />
+                <p className="text-[11px] text-muted-foreground">Leave blank to auto-generate from the deal.</p>
+              </div>
+              <div className="space-y-1">
+                <Label>Payment reference</Label>
+                <Input
+                  placeholder="Reference the buyer must pay on"
+                  value={invoiceConfig.payment_reference || ''}
+                  onChange={(e) => setInvoiceConfig((p) => ({ ...p, payment_reference: e.target.value }))}
+                />
+                <p className="text-[11px] text-muted-foreground">Shown under Banking Details. Defaults to the invoice number.</p>
+              </div>
             </div>
           </div>
 

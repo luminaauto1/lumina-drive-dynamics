@@ -174,7 +174,7 @@ const AdminInvoiceCreator = () => {
               </div>
             ))}
             <div className="flex justify-between border-t border-border pt-3 text-sm font-semibold">
-              <span>Total {docSettings?.companyVatNumber && (docSettings?.vatPercent || 0) > 0 ? '(incl. VAT)' : '(VAT 0% — not registered)'}</span>
+              <span>Total {docSettings?.vatRegistered ? `(incl. ${docSettings?.vatPercent || 0}% VAT)` : '(no VAT)'}</span>
               <span className="tabular-nums">{fmtR(total)}</span>
             </div>
           </CardContent>

@@ -169,7 +169,7 @@ const AccountingVATTab = () => {
     return m;
   }, [vendors]);
 
-  const vatRegistered = !!(docSettings?.companyVatNumber?.trim()) && (docSettings?.vatPercent || 0) > 0;
+  const vatRegistered = docSettings?.vatRegistered ?? (!!(docSettings?.companyVatNumber?.trim()) && (docSettings?.vatPercent || 0) > 0);
   const vatRate = vatRegistered ? (docSettings?.vatPercent || 0) : 0;
 
   const toggleInvoiced = useMutation({
@@ -238,8 +238,12 @@ const AccountingVATTab = () => {
     const billTo = isFinance && financeVendor
       ? { name: financeVendor.name, regOrId: financeVendor.registration_number ? `Reg: ${financeVendor.registration_number}` : undefined, vatNumber: financeVendor.vat_number || undefined, address: financeVendor.address || undefined, email: financeVendor.email || undefined, phone: financeVendor.phone || undefined }
       : { name: clientName, regOrId: app?.id_number ? `ID: ${app.id_number}` : undefined, email: app?.email || undefined, phone: app?.phone || undefined };
+    const cfg = d.invoice_config || {};
+    const invoiceNumber = (cfg.invoice_number && String(cfg.invoice_number).trim())
+      || `${docSettings.invoicePrefix || 'INV-'}${d.id.slice(0, 8).toUpperCase()}`;
     const data: DealInvoiceData = {
-      invoiceNumber: `${docSettings.invoicePrefix || 'INV-'}${d.id.slice(0, 8).toUpperCase()}`,
+      invoiceNumber,
+      paymentReference: (cfg.payment_reference && String(cfg.payment_reference).trim()) || undefined,
       date: d.sale_date ? format(new Date(d.sale_date), 'dd MMM yyyy') : format(new Date(d.created_at), 'dd MMM yyyy'),
       billTo, onBehalfOf: isFinance ? clientName : undefined,
       vehicleLines: [
@@ -577,7 +581,7 @@ const AccountingVATTab = () => {
                     <span className="text-xs text-zinc-400">{vatRegistered ? `Registered · ${vatRate}%` : 'Not registered'}</span>
                   </div>
                   <Line label={`Output VAT (${vatRate}%) on selling price`} value={fmtR(vatRate > 0 ? b.grossSelling * (vatRate / (100 + vatRate)) : 0)} tone="amber" />
-                  {!vatRegistered && <p className="text-[11px] text-zinc-500 mt-1">No VAT charged. Switches on automatically once a VAT number + rate are set in Document Settings.</p>}
+                  {!vatRegistered && <p className="text-[11px] text-zinc-500 mt-1">No VAT charged. Turn on “We are VAT registered” in Document Settings to issue Tax Invoices (VAT shown, even at 0%).</p>}
                 </section>
 
                 {/* Invoice lines */}
