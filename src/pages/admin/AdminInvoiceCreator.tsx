@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { useVendors } from '@/hooks/useVendors';
 import { useDocumentSettings } from '@/hooks/useDocumentSettings';
 import { generateDealInvoicePDF, DealInvoiceData } from '@/lib/generateDealInvoicePDF';
@@ -30,9 +31,11 @@ const AdminInvoiceCreator = () => {
   const [phone, setPhone] = useState('');
 
   const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [paymentReference, setPaymentReference] = useState('');
   const [dateStr, setDateStr] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [lineItems, setLineItems] = useState<LineItem[]>([{ description: '', amount: 0 }]);
   const [notes, setNotes] = useState('');
+  const [taxInvoice, setTaxInvoice] = useState(false); // issue as a (possibly zero-rated) VAT invoice
 
   // Default the invoice number from document settings (editable).
   useEffect(() => {
@@ -40,6 +43,11 @@ const AdminInvoiceCreator = () => {
       setInvoiceNumber(`${docSettings.invoicePrefix || 'INV-'}${docSettings.invoiceNextNumber || 1001}`);
     }
   }, [docSettings, invoiceNumber]);
+
+  // If our own company is VAT registered, default to a tax invoice.
+  useEffect(() => {
+    if (docSettings?.vatRegistered) setTaxInvoice(true);
+  }, [docSettings]);
 
   const total = useMemo(() => lineItems.reduce((s, l) => s + (Number(l.amount) || 0), 0), [lineItems]);
 
@@ -52,6 +60,8 @@ const AdminInvoiceCreator = () => {
     setAddress(v.address || '');
     setEmail(v.email || '');
     setPhone(v.phone || '');
+    // A VAT-registered vendor needs a (zero-rated) VAT invoice.
+    if (v.is_vat_registered || docSettings?.vatRegistered) setTaxInvoice(true);
   };
 
   const setItem = (i: number, patch: Partial<LineItem>) =>
@@ -69,6 +79,9 @@ const AdminInvoiceCreator = () => {
 
     const data: DealInvoiceData = {
       invoiceNumber: invoiceNumber.trim() || `${docSettings.invoicePrefix || 'INV-'}${docSettings.invoiceNextNumber || 1001}`,
+      paymentReference: paymentReference.trim() || undefined,
+      taxInvoice,
+      vatRate: docSettings.vatRegistered ? (docSettings.vatPercent || 0) : 0, // zero-rated while we're not registered
       date: format(new Date(`${dateStr}T00:00:00`), 'dd MMM yyyy'),
       billTo: {
         name: name.trim(),
@@ -134,14 +147,32 @@ const AdminInvoiceCreator = () => {
         {/* Invoice meta */}
         <Card>
           <CardHeader><CardTitle className="text-base">Invoice Details</CardTitle></CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Invoice reference / number</Label>
-              <Input value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} placeholder="INV-1001" />
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Invoice number</Label>
+                <Input value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} placeholder="INV-1001" />
+              </div>
+              <div className="space-y-2">
+                <Label>Payment reference</Label>
+                <Input value={paymentReference} onChange={(e) => setPaymentReference(e.target.value)} placeholder="Defaults to invoice number" />
+              </div>
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <Input type="date" value={dateStr} onChange={(e) => setDateStr(e.target.value)} />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Date</Label>
-              <Input type="date" value={dateStr} onChange={(e) => setDateStr(e.target.value)} />
+            <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 p-3">
+              <Switch id="inv-tax" checked={taxInvoice} onCheckedChange={setTaxInvoice} className="mt-0.5" />
+              <Label htmlFor="inv-tax" className="cursor-pointer">
+                Issue as a VAT invoice
+                <span className="block text-xs font-normal text-muted-foreground mt-0.5">
+                  Titles it <strong>TAX INVOICE</strong> with a VAT line.
+                  {docSettings?.vatRegistered
+                    ? ` VAT at ${docSettings?.vatPercent || 0}%.`
+                    : ' Zero-rated (VAT 0% — R0,00) while your company isn’t VAT-registered.'}
+                </span>
+              </Label>
             </div>
           </CardContent>
         </Card>
@@ -174,7 +205,7 @@ const AdminInvoiceCreator = () => {
               </div>
             ))}
             <div className="flex justify-between border-t border-border pt-3 text-sm font-semibold">
-              <span>Total {docSettings?.vatRegistered ? `(incl. ${docSettings?.vatPercent || 0}% VAT)` : '(no VAT)'}</span>
+              <span>Total {taxInvoice ? `(incl. ${docSettings?.vatRegistered ? (docSettings?.vatPercent || 0) : 0}% VAT)` : '(no VAT)'}</span>
               <span className="tabular-nums">{fmtR(total)}</span>
             </div>
           </CardContent>

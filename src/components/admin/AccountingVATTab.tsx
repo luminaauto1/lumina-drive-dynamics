@@ -228,6 +228,14 @@ const AccountingVATTab = () => {
     };
   }, [activeDeal, vendorMap]);
 
+  // A deal's invoice is a TAX INVOICE when our company is VAT-registered, or the
+  // finance house it's billed to is VAT-registered (then it's zero-rated while we're not).
+  const isTaxInvoiceForDeal = (d: AccountingDeal): boolean => {
+    if (docSettings?.vatRegistered) return true;
+    const fv = d.deal_type === 'finance' && d.finance_house_vendor_id ? vendorMap.get(d.finance_house_vendor_id) : undefined;
+    return !!fv?.is_vat_registered;
+  };
+
   const handleDownloadInvoice = (d: AccountingDeal) => {
     if (!docSettings) { toast.error('Document settings not loaded yet'); return; }
     const app = d.application; const v = d.vehicle;
@@ -235,6 +243,8 @@ const AccountingVATTab = () => {
     const isFinance = d.deal_type === 'finance';
     const financeVendor = d.finance_house_vendor_id ? vendorMap.get(d.finance_house_vendor_id) : undefined;
     if (isFinance && !financeVendor) { toast.error('Finance deal but no finance house set — open the deal and pick one first.'); return; }
+    const taxInvoice = isTaxInvoiceForDeal(d);
+    const invVatRate = docSettings.vatRegistered ? (docSettings.vatPercent || 0) : 0; // zero-rated while we're not registered
     const billTo = isFinance && financeVendor
       ? { name: financeVendor.name, regOrId: financeVendor.registration_number ? `Reg: ${financeVendor.registration_number}` : undefined, vatNumber: financeVendor.vat_number || undefined, address: financeVendor.address || undefined, email: financeVendor.email || undefined, phone: financeVendor.phone || undefined }
       : { name: clientName, regOrId: app?.id_number ? `ID: ${app.id_number}` : undefined, email: app?.email || undefined, phone: app?.phone || undefined };
@@ -244,6 +254,8 @@ const AccountingVATTab = () => {
     const data: DealInvoiceData = {
       invoiceNumber,
       paymentReference: (cfg.payment_reference && String(cfg.payment_reference).trim()) || undefined,
+      taxInvoice,
+      vatRate: invVatRate,
       date: d.sale_date ? format(new Date(d.sale_date), 'dd MMM yyyy') : format(new Date(d.created_at), 'dd MMM yyyy'),
       billTo, onBehalfOf: isFinance ? clientName : undefined,
       vehicleLines: [
@@ -435,7 +447,7 @@ const AccountingVATTab = () => {
                   <SheetTitle className="text-zinc-100 select-text text-lg">{b.clientName}</SheetTitle>
                   <div className="flex items-center gap-2">
                     <Button size="sm" variant="outline" className="h-8" onClick={() => handleDownloadInvoice(activeDeal)}>
-                      <Download className="w-3.5 h-3.5 mr-1" /> {vatRegistered ? 'Tax Invoice' : 'Invoice'}
+                      <Download className="w-3.5 h-3.5 mr-1" /> {isTaxInvoiceForDeal(activeDeal) ? 'Tax Invoice' : 'Invoice'}
                     </Button>
                     <Button size="sm" variant="outline" className="h-8" disabled={specBusy} onClick={() => downloadSpec(activeDeal)}>
                       <FileText className="w-3.5 h-3.5 mr-1" /> {specBusy ? '…' : 'Spec Sheet'}
