@@ -109,7 +109,10 @@ const buildInvoiceLines = (d: AccountingDeal): { description: string; amount: nu
   const cfg = d.invoice_config || {};
   const veh = d.vehicle;
   const vehLabel = veh ? `${veh.year || ''} ${veh.make || ''} ${veh.model || ''}`.trim() : 'Vehicle';
-  const lines = [{ description: `${vehLabel}${veh?.vin ? ` (VIN ${veh.vin})` : ''} — selling price`, amount: num(d.sold_price) }];
+  const lines: { description: string; amount: number }[] = [];
+  // Selling price is opt-OUT (default on) — a finance house sometimes buys the car
+  // on our behalf and only pays us the margin, so the full price isn't invoiced.
+  if (cfg.selling_price !== false) lines.push({ description: `${vehLabel}${veh?.vin ? ` (VIN ${veh.vin})` : ''} — selling price`, amount: num(d.sold_price) });
   if (cfg.dic && num(d.dic_amount) > 0) lines.push({ description: 'DIC (Dealer Incentive)', amount: num(d.dic_amount) });
   if (cfg.dealer_deposit && num(d.dealer_deposit_contribution) > 0) lines.push({ description: 'Dealer deposit contribution', amount: num(d.dealer_deposit_contribution) });
   if (cfg.admin_fee && num(d.external_admin_fee) > 0) lines.push({ description: 'Admin fee', amount: num(d.external_admin_fee) });
@@ -117,6 +120,10 @@ const buildInvoiceLines = (d: AccountingDeal): { description: string; amount: nu
   const inc: string[] = Array.isArray(cfg.addons) ? cfg.addons : [];
   for (const a of Array.isArray(d.addons_data) ? d.addons_data : []) {
     if (a?.name && inc.includes(a.name)) lines.push({ description: `${a.name} (VAP)`, amount: num(a.price) });
+  }
+  // Custom lines (e.g. "Profit on deal" / "Facilitation fee" billed to a finance house).
+  for (const cl of Array.isArray(cfg.custom_lines) ? cfg.custom_lines : []) {
+    if (cl && (cl.label || num(cl.amount))) lines.push({ description: String(cl.label || 'Other'), amount: num(cl.amount) });
   }
   return lines;
 };

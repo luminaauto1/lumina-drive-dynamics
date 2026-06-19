@@ -767,8 +767,13 @@ const FinalizeDealModal = ({
               <p className="text-xs font-medium text-muted-foreground">
                 Lines to show on the {dealType === 'finance' ? 'finance house' : 'customer'} invoice
               </p>
-              <label className="flex items-center gap-2 text-sm opacity-70">
-                <Checkbox checked disabled /> Vehicle selling price (always included)
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <Checkbox
+                  checked={invoiceConfig.selling_price !== false}
+                  onCheckedChange={(c) => setInvoiceConfig((p) => ({ ...p, selling_price: c === true }))}
+                />
+                Vehicle selling price{canSeeFigures ? ` — ${formatPrice(sellingPrice)}` : ''}
+                <span className="text-[10px] text-muted-foreground">(untick if the finance house only pays the margin)</span>
               </label>
               {dicAmount > 0 && (
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
@@ -811,6 +816,48 @@ const FinalizeDealModal = ({
                   {a.name} (VAP) — {formatPrice(a.price)}
                 </label>
               ))}
+              {/* Custom invoice lines — e.g. invoice only the margin to a finance house */}
+              <div className="pt-2 border-t border-border/60 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">Custom lines (e.g. "Profit on deal", facilitation fee)</span>
+                  <Button
+                    type="button" variant="ghost" size="sm" className="h-7 px-2"
+                    onClick={() => setInvoiceConfig((p) => ({ ...p, custom_lines: [...(Array.isArray(p.custom_lines) ? p.custom_lines : []), { label: '', amount: 0 }] }))}
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1" /> Add line
+                  </Button>
+                </div>
+                {(Array.isArray(invoiceConfig.custom_lines) ? invoiceConfig.custom_lines : []).map((cl: any, i: number) => (
+                  <div key={i} className="flex gap-2">
+                    <Input
+                      placeholder="Description (e.g. Profit on deal)"
+                      value={cl?.label || ''}
+                      onChange={(e) => setInvoiceConfig((p) => {
+                        const arr = Array.isArray(p.custom_lines) ? [...p.custom_lines] : [];
+                        arr[i] = { ...arr[i], label: e.target.value };
+                        return { ...p, custom_lines: arr };
+                      })}
+                    />
+                    <Input
+                      type="number" placeholder="Amount" className="w-32"
+                      value={cl?.amount || ''}
+                      onChange={(e) => setInvoiceConfig((p) => {
+                        const arr = Array.isArray(p.custom_lines) ? [...p.custom_lines] : [];
+                        arr[i] = { ...arr[i], amount: parseFloat(e.target.value) || 0 };
+                        return { ...p, custom_lines: arr };
+                      })}
+                    />
+                    <Button
+                      type="button" variant="ghost" size="icon" className="flex-shrink-0"
+                      onClick={() => setInvoiceConfig((p) => ({ ...p, custom_lines: (Array.isArray(p.custom_lines) ? p.custom_lines : []).filter((_: any, idx: number) => idx !== i) }))}
+                      aria-label="Remove line"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+
               <p className="text-[11px] text-muted-foreground">
                 Tick anything the buyer is actually paying for, so it appears on their invoice.
               </p>
