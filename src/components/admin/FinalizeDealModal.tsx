@@ -255,7 +255,7 @@ const FinalizeDealModal = ({
   // Which money lines appear on the buyer's invoice. selling_price is always on.
   const [invoiceConfig, setInvoiceConfig] = useState<Record<string, any>>({
     selling_price: true, dic: false, dealer_deposit: false, admin_fee: false,
-    bank_initiation_fee: false, addons: [] as string[],
+    bank_initiation_fee: false, addons: [] as string[], finance_basis: 'full',
   });
   const { data: allVendors = [] } = useVendors({ activeOnly: true });
   const financeVendors = allVendors.filter((v) => v.vendor_type === 'finance_house' || v.vendor_type === 'both');
@@ -355,7 +355,7 @@ const FinalizeDealModal = ({
         if (existingDeal.invoice_config && typeof existingDeal.invoice_config === 'object') {
           setInvoiceConfig({
             selling_price: true, dic: false, dealer_deposit: false, admin_fee: false,
-            bank_initiation_fee: false, addons: [] as string[],
+            bank_initiation_fee: false, addons: [] as string[], finance_basis: 'full',
             ...existingDeal.invoice_config,
           });
         }
@@ -761,8 +761,30 @@ const FinalizeDealModal = ({
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  The invoice is addressed to this vendor at the selling price; the deal still lives under the client's profile.
+                  The invoice is addressed to this vendor; the deal still lives under the client's profile.
                   Add finance houses under Financials → Vendors.
+                </p>
+              </div>
+            )}
+
+            {dealType === 'finance' && (
+              <div className="space-y-2">
+                <Label>How was the car funded?</Label>
+                <ToggleGroup
+                  type="single"
+                  value={invoiceConfig.finance_basis || 'full'}
+                  onValueChange={(v) => v && setInvoiceConfig((p) => ({ ...p, finance_basis: v }))}
+                  className="grid grid-cols-2 gap-2"
+                >
+                  <ToggleGroupItem value="full" className="border border-border data-[state=on]:bg-primary data-[state=on]:text-primary-foreground text-xs h-auto py-2 whitespace-normal">
+                    We bought it → invoice full price
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="margin" className="border border-border data-[state=on]:bg-primary data-[state=on]:text-primary-foreground text-xs h-auto py-2 whitespace-normal">
+                    They funded it → invoice the margin
+                  </ToggleGroupItem>
+                </ToggleGroup>
+                <p className="text-xs text-muted-foreground">
+                  "Full price" invoices the whole selling price. "Margin" invoices only selling − purchase (they keep the bought price since they funded the car).
                 </p>
               </div>
             )}
@@ -777,8 +799,9 @@ const FinalizeDealModal = ({
                   checked={invoiceConfig.selling_price !== false}
                   onCheckedChange={(c) => setInvoiceConfig((p) => ({ ...p, selling_price: c === true }))}
                 />
-                Vehicle selling price{canSeeFigures ? ` — ${formatPrice(sellingPrice)}` : ''}
-                <span className="text-[10px] text-muted-foreground">(untick if the finance house only pays the margin)</span>
+                {dealType === 'finance' && invoiceConfig.finance_basis === 'margin'
+                  ? `Vehicle deal proceeds (selling − cost)${canSeeFigures ? ` — ${formatPrice(Math.max(0, sellingPrice - costPrice))}` : ''}`
+                  : `Vehicle selling price${canSeeFigures ? ` — ${formatPrice(sellingPrice)}` : ''}`}
               </label>
               {dicAmount > 0 && (
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
