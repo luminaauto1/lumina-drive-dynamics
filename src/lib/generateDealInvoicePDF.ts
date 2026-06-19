@@ -45,6 +45,20 @@ export const generateDealInvoicePDF = (invoice: DealInvoiceData, settings: Docum
   const margin = 14;
   let y = 16;
 
+  // Render a block of text lines at x, splitting embedded newlines and wrapping
+  // long lines to maxW — so multi-line addresses never overlap the rows beneath.
+  const drawBlock = (lines: string[], x: number, startY: number, maxW: number, lh = 4.5) => {
+    let yy = startY;
+    for (const raw of lines) {
+      for (const seg of String(raw ?? '').split(/\r?\n/)) {
+        const t = seg.trim();
+        if (!t) continue;
+        for (const w of doc.splitTextToSize(t, maxW) as string[]) { doc.text(w, x, yy); yy += lh; }
+      }
+    }
+    return yy;
+  };
+
   // ── Header: company identity (left) + INVOICE / TAX INVOICE (right) ──
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(20);
@@ -61,7 +75,7 @@ export const generateDealInvoicePDF = (invoice: DealInvoiceData, settings: Docum
     [settings.companyPhone, settings.companyEmail].filter(Boolean).join(' • '),
     [registered ? `VAT: ${settings.companyVatNumber}` : '', settings.companyRegNumber ? `Reg: ${settings.companyRegNumber}` : ''].filter(Boolean).join('  '),
   ].filter(Boolean) as string[];
-  companyLines.forEach((line) => { doc.text(line, margin, cy); cy += 4; });
+  cy = drawBlock(companyLines, margin, cy, pageW / 2 - margin, 4);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
@@ -103,10 +117,8 @@ export const generateDealInvoicePDF = (invoice: DealInvoiceData, settings: Docum
     invoice.reg ? `Reg: ${invoice.reg}` : '',
   ].filter(Boolean) as string[];
 
-  let by = y + 5;
-  billLines.forEach((l) => { doc.text(l, margin, by); by += 4.5; });
-  let vy = y + 5;
-  vehLines.forEach((l) => { doc.text(l, pageW / 2 + 4, vy); vy += 4.5; });
+  const by = drawBlock(billLines, margin, y + 5, pageW / 2 - margin - 6);
+  const vy = drawBlock(vehLines, pageW / 2 + 4, y + 5, pageW / 2 - margin - 4);
   y = Math.max(by, vy) + 4;
 
   // ── Line items + totals ──
