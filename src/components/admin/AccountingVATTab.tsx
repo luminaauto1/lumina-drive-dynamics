@@ -50,9 +50,16 @@ interface AccountingDeal {
   vehicle?: {
     make: string | null;
     model: string | null;
+    variant: string | null;
     year: number | null;
     vin: string | null;
+    engine_code: string | null;
     registration_number: string | null;
+    stock_number: string | null;
+    mileage: number | null;
+    color: string | null;
+    transmission: string | null;
+    fuel_type: string | null;
     source_vendor_id: string | null;
   } | null;
   application?: {
@@ -84,7 +91,7 @@ const useAccountingDeals = () => {
           sales_rep_commission, referral_commission_amount, referral_income_amount,
           addons_data, aftersales_expenses, is_closed,
           deal_type, finance_house_vendor_id, invoice_config,
-          vehicle:vehicles(make, model, year, vin, registration_number, source_vendor_id),
+          vehicle:vehicles(make, model, variant, year, vin, engine_code, registration_number, stock_number, mileage, color, transmission, fuel_type, source_vendor_id),
           application:finance_applications(
             id, first_name, last_name, full_name, id_number, phone, email,
             internal_status, status, is_invoiced, bank_reference, contract_bank_name
@@ -232,8 +239,20 @@ const AccountingVATTab = () => {
       invoiceNumber: `${docSettings.invoicePrefix || 'INV-'}${d.id.slice(0, 8).toUpperCase()}`,
       date: d.sale_date ? format(new Date(d.sale_date), 'dd MMM yyyy') : format(new Date(d.created_at), 'dd MMM yyyy'),
       billTo, onBehalfOf: isFinance ? clientName : undefined,
-      vehicleLabel: v ? `${v.year || ''} ${v.make || ''} ${v.model || ''}`.trim() : undefined,
-      vin: v?.vin || undefined, reg: v?.registration_number || undefined,
+      vehicleLines: [
+        `Make: ${v?.make || '—'}`,
+        `Model: ${v?.model || '—'}`,
+        v?.variant ? `Variant: ${v.variant}` : '',
+        `Year: ${v?.year || '—'}`,
+        v?.color ? `Colour: ${v.color}` : '',
+        v?.mileage != null ? `Mileage: ${Number(v.mileage).toLocaleString('en-ZA')} km` : '',
+        v?.transmission ? `Transmission: ${v.transmission}` : '',
+        v?.fuel_type ? `Fuel: ${v.fuel_type}` : '',
+        v?.vin ? `VIN: ${v.vin}` : '',
+        v?.engine_code ? `Engine No: ${v.engine_code}` : '',
+        v?.registration_number ? `Reg: ${v.registration_number}` : '',
+        v?.stock_number ? `Stock No: ${v.stock_number}` : '',
+      ].filter(Boolean) as string[],
       lineItems: buildInvoiceLines(d),
     };
     generateDealInvoicePDF(data, docSettings);
