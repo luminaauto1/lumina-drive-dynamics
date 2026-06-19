@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { dealNetProfit, isFinalizedDeal } from '@/lib/dealMetrics';
 import { useVendors, Vendor } from '@/hooks/useVendors';
-import { useAuth } from '@/contexts/AuthContext';
 import { useVehicleExpenses, EXPENSE_CATEGORIES } from '@/hooks/useVehicleExpenses';
 import { useDocumentSettings } from '@/hooks/useDocumentSettings';
 import { generateDealInvoicePDF, DealInvoiceData } from '@/lib/generateDealInvoicePDF';
@@ -146,7 +145,6 @@ const AccountingVATTab = () => {
   const { data: deals = [], isLoading } = useAccountingDeals();
   const { data: vendors = [] } = useVendors();
   const { data: docSettings } = useDocumentSettings();
-  const { isSuperAdmin } = useAuth();
   const queryClient = useQueryClient();
   const [view, setView] = useState<'pending' | 'all'>('pending');
   const [activeDeal, setActiveDeal] = useState<AccountingDeal | null>(null);
@@ -179,24 +177,6 @@ const AccountingVATTab = () => {
     },
     onError: (_e, _v, ctx) => { if (ctx?.prev) queryClient.setQueryData(['accounting-deals'], ctx.prev); toast.error('Failed to update invoice status'); },
     onSuccess: (_d, v) => toast.success(v.value ? 'Marked as invoiced' : 'Reopened as pending'),
-  });
-
-  // Per-deal choice for finance deals: invoice the full selling price, or only the
-  // margin (selling − cost) when the finance house funded the car. Persisted on the
-  // deal's invoice_config (merged, so finalize-time settings are preserved).
-  const setFinanceBasis = useMutation({
-    mutationFn: async ({ deal, basis }: { deal: AccountingDeal; basis: 'full' | 'margin' }) => {
-      const newConfig = { ...(deal.invoice_config || {}), finance_basis: basis };
-      const { error } = await (supabase as any).from('deal_records').update({ invoice_config: newConfig }).eq('id', deal.id);
-      if (error) throw error;
-      return newConfig;
-    },
-    onSuccess: (newConfig, { deal }) => {
-      queryClient.invalidateQueries({ queryKey: ['accounting-deals'] });
-      setActiveDeal((cur) => (cur && cur.id === deal.id ? { ...cur, invoice_config: newConfig } : cur));
-      toast.success('Invoice basis updated');
-    },
-    onError: () => toast.error('Could not update — admin only.'),
   });
 
   const finalizedDeals = useMemo(() => deals.filter(isFinalizedDeal), [deals]);
@@ -512,22 +492,10 @@ const AccountingVATTab = () => {
                   {b.isFinance && (
                     <div className="mt-2 flex items-center justify-between gap-3 rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-2">
                       <span className="text-xs text-zinc-400">Finance house pays</span>
-                      {isSuperAdmin ? (
-                        <div className="inline-flex rounded-md border border-zinc-700 p-0.5">
-                          {(['full', 'margin'] as const).map((opt) => (
-                            <button
-                              key={opt} type="button" disabled={setFinanceBasis.isPending}
-                              onClick={() => setFinanceBasis.mutate({ deal: activeDeal, basis: opt })}
-                              className={cn('px-2.5 py-1 text-xs rounded-sm transition-colors',
-                                b.financeBasis === opt ? 'bg-zinc-200 text-zinc-900 font-medium' : 'text-zinc-400 hover:text-zinc-200')}
-                            >
-                              {opt === 'full' ? 'Full selling price' : 'Margin (selling − cost)'}
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-zinc-300">{b.financeBasis === 'margin' ? 'Margin (selling − cost)' : 'Full selling price'}</span>
-                      )}
+                      <span className="text-xs text-zinc-300">
+                        {b.financeBasis === 'margin' ? 'Margin (selling − cost)' : 'Full selling price'}
+                        <span className="text-zinc-600"> · set in Finalize Deal</span>
+                      </span>
                     </div>
                   )}
                   <ul className="mt-2 space-y-1 border-t border-zinc-800 pt-2">
