@@ -915,10 +915,6 @@ const AdminAftersales = () => {
   const [editDeal, setEditDeal] = useState<DealRecord | null>(null);
   const [expandedDeals, setExpandedDeals] = useState<Set<string>>(new Set());
 
-  // Lock/Unlock state
-  const [unlockingDealId, setUnlockingDealId] = useState<string | null>(null);
-  const [adminPinInput, setAdminPinInput] = useState('');
-
   // PDF generation state
   const [pdfDeal, setPdfDeal] = useState<DealRecord | null>(null);
   const [pdfExpenses, setPdfExpenses] = useState<{ description: string; amount: number; category: string }[]>([]);
@@ -1000,36 +996,22 @@ const AdminAftersales = () => {
     }
   };
 
-  // Lock/Unlock handlers
+  // Lock/Unlock handlers — locking just prevents accidental editing; no PIN required.
   const handleToggleLock = async (deal: DealRecord) => {
     if (deal.is_closed) {
-      // Need PIN to unlock
-      setUnlockingDealId(deal.id);
-    } else {
-      // Lock it
-      if (confirm('Finalize this deal? This will lock the financial data.')) {
-        await supabase.from('deal_records').update({ is_closed: true } as any).eq('id', deal.id);
-        toast.success('Deal finalized and locked.');
+      // Unlock for editing (no PIN).
+      if (confirm('Unlock this deal for editing?')) {
+        await supabase.from('deal_records').update({ is_closed: false } as any).eq('id', deal.id);
+        toast.success('Deal unlocked for editing.');
         queryClient.invalidateQueries({ queryKey: ['deal-records'] });
       }
-    }
-  };
-
-  const handleUnlockWithPin = async () => {
-    try {
-      const { data, error } = await supabase.functions.invoke('verify-admin-pin', {
-        body: { pin: adminPinInput, dealId: unlockingDealId, action: 'unlock' },
-      });
-      if (error || data?.error) {
-        toast.error(data?.error || 'Incorrect Admin PIN.');
-        return;
+    } else {
+      // Lock it.
+      if (confirm('Lock this deal? This prevents accidental editing — you can unlock it again anytime.')) {
+        await supabase.from('deal_records').update({ is_closed: true } as any).eq('id', deal.id);
+        toast.success('Deal locked.');
+        queryClient.invalidateQueries({ queryKey: ['deal-records'] });
       }
-      toast.success('Deal unlocked for editing.');
-      setUnlockingDealId(null);
-      setAdminPinInput('');
-      queryClient.invalidateQueries({ queryKey: ['deal-records'] });
-    } catch {
-      toast.error('Failed to verify PIN.');
     }
   };
 
@@ -1448,7 +1430,7 @@ const AdminAftersales = () => {
                               <p className="text-sm">{format(new Date(deal.created_at), 'dd MMM yyyy')}</p>
                               {isLocked && (
                                 <Badge variant="outline" className="text-xs mt-1 border-muted-foreground/30">
-                                  <Lock className="w-3 h-3 mr-1" /> Finalized
+                                  <Lock className="w-3 h-3 mr-1" /> Locked
                                 </Badge>
                               )}
                               {!isLocked && deal.next_service_date && (
@@ -1472,7 +1454,7 @@ const AdminAftersales = () => {
                                 variant="ghost"
                                 className={isLocked ? 'text-muted-foreground hover:text-foreground' : 'text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10'}
                                 onClick={() => handleToggleLock(deal)}
-                                title={isLocked ? 'Unlock Deal (Requires PIN)' : 'Finalize & Lock Deal'}
+                                title={isLocked ? 'Unlock Deal' : 'Lock Deal (prevent accidental editing)'}
                               >
                                 {isLocked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
                               </Button>
@@ -1751,32 +1733,6 @@ const AdminAftersales = () => {
             existingDeal={editDeal as ExistingDealData}
           />
         )}
-
-        {/* Unlock PIN Dialog */}
-        <Dialog open={!!unlockingDealId} onOpenChange={(open) => { if (!open) { setUnlockingDealId(null); setAdminPinInput(''); } }}>
-          <DialogContent className="max-w-sm">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Unlock className="w-5 h-5" />
-                Admin Unlock
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">Enter Admin PIN to unlock this finalized deal for editing.</p>
-              <Input
-                type="password"
-                placeholder="Enter PIN..."
-                value={adminPinInput}
-                onChange={(e) => setAdminPinInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleUnlockWithPin()}
-              />
-              <Button onClick={handleUnlockWithPin} className="w-full">
-                <Unlock className="w-4 h-4 mr-2" />
-                Unlock Deal
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
 
         {/* --- REPORT PREVIEW MODAL --- */}
         <Dialog open={isReportPreviewOpen} onOpenChange={(open) => { if (!open) { setIsReportPreviewOpen(false); setPdfDeal(null); } }}>
