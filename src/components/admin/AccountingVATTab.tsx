@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Receipt, TrendingUp, CheckCircle2, Percent, Download, Truck, Banknote, ArrowRight } from 'lucide-react';
+import { Receipt, TrendingUp, CheckCircle2, Percent, Download, Truck, Banknote, ArrowRight, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -14,6 +14,7 @@ import { useVendors, Vendor } from '@/hooks/useVendors';
 import { useVehicleExpenses, EXPENSE_CATEGORIES } from '@/hooks/useVehicleExpenses';
 import { useDocumentSettings } from '@/hooks/useDocumentSettings';
 import { generateDealInvoicePDF, DealInvoiceData } from '@/lib/generateDealInvoicePDF';
+import { generateVehicleSpecPDF, loadVehicleImage, SpecSection } from '@/lib/generateVehicleSpecPDF';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 
 // To the cent — this is the accountant's view.
@@ -60,6 +61,7 @@ interface AccountingDeal {
     color: string | null;
     transmission: string | null;
     fuel_type: string | null;
+    images: string[] | null;
     source_vendor_id: string | null;
   } | null;
   application?: {
@@ -91,7 +93,7 @@ const useAccountingDeals = () => {
           sales_rep_commission, referral_commission_amount, referral_income_amount,
           addons_data, aftersales_expenses, is_closed,
           deal_type, finance_house_vendor_id, invoice_config,
-          vehicle:vehicles(make, model, variant, year, vin, engine_code, registration_number, stock_number, mileage, color, transmission, fuel_type, source_vendor_id),
+          vehicle:vehicles(make, model, variant, year, vin, engine_code, registration_number, stock_number, mileage, color, transmission, fuel_type, images, source_vendor_id),
           application:finance_applications(
             id, first_name, last_name, full_name, id_number, phone, email,
             internal_status, status, is_invoiced, bank_reference, contract_bank_name
@@ -155,6 +157,7 @@ const AccountingVATTab = () => {
   const queryClient = useQueryClient();
   const [view, setView] = useState<'pending' | 'all'>('pending');
   const [activeDeal, setActiveDeal] = useState<AccountingDeal | null>(null);
+  const [specBusy, setSpecBusy] = useState(false);
 
   // Per-vehicle expense ledger (the individual recon/expense line items).
   const { data: vehicleExpenses = [] } = useVehicleExpenses(activeDeal?.vehicle_id || undefined);
@@ -258,6 +261,68 @@ const AccountingVATTab = () => {
     generateDealInvoicePDF(data, docSettings);
   };
 
+  // Full spec sheet + sale breakdown for the open (sold) deal.
+  const downloadSpec = async (d: AccountingDeal) => {
+    if (!docSettings || !b) { toast.error('Not ready yet'); return; }
+    setSpecBusy(true);
+    try {
+      const v = d.vehicle;
+      const photos = (await Promise.all((v?.images || []).slice(0, 2).map((u) => loadVehicleImage(u)))).filter(Boolean) as any[];
+      const vehicleRows = ([
+        ['Make', v?.make], ['Model', v?.model], ['Variant', v?.variant], ['Year', v?.year], ['Colour', v?.color],
+        ['Mileage', v?.mileage != null ? `${Number(v.mileage).toLocaleString('en-ZA')} km` : ''],
+        ['Transmission', v?.transmission], ['Fuel', v?.fuel_type], ['VIN', v?.vin], ['Engine No', v?.engine_code],
+        ['Registration', v?.registration_number], ['Stock No', v?.stock_number],
+      ] as [string, any][])
+        .filter(([, val]) => val != null && String(val).trim() !== '')
+        .map(([label, val]) => ({ label, value: String(val) }));
+
+      const sections: SpecSection[] = [
+        { title: 'Parties', rows: [
+          { label: 'Bought from', value: b.boughtFromVendor?.name || '—' },
+          { label: 'Sold to', value: b.soldToName + (b.isFinance ? ` (for ${b.clientName})` : '') },
+        ] },
+        { title: 'Income', rows: [
+          { label: 'Gross selling price', value: fmtR(b.grossSelling) },
+          ...(b.discount > 0 ? [{ label: 'Discount', value: `- ${fmtR(b.discount)}` }] : []),
+          { label: 'DIC', value: fmtR(b.dic) },
+          { label: 'VAP revenue', value: fmtR(b.vapRevenue) },
+          { label: 'Referral income', value: fmtR(b.referralIncome) },
+        ] },
+        { title: 'Costs & deductions', rows: [
+          { label: 'Vehicle purchase', value: fmtR(b.vehicleCost) },
+          { label: 'Recon total', value: fmtR(b.recon) },
+          { label: 'VAP cost', value: fmtR(b.vapCost) },
+          { label: 'Aftersales expenses', value: fmtR(b.expensesTotal) },
+          { label: 'Sales-rep commission', value: fmtR(b.commission) },
+          { label: 'Partner profit share', value: fmtR(b.partnerProfitShare) },
+          { label: 'Referral payout', value: fmtR(b.referralPayout) },
+          ...(b.partnerCapital > 0 ? [{ label: 'Partner capital (returned)', value: fmtR(b.partnerCapital) }] : []),
+        ] },
+        ...(b.expenseItems.length ? [{ title: 'Aftersales / expense items', rows: b.expenseItems.map((e: any) => ({ label: expenseLabel(e), value: fmtR(expenseAmount(e)) })) }] : []),
+        ...(b.addonItems.length ? [{ title: 'Value-added products', rows: b.addonItems.map((a: any) => ({ label: a.name || 'VAP', value: `cost ${fmtR(num(a.cost))} → sell ${fmtR(num(a.price))}` })) }] : []),
+        { title: 'VAT', rows: [
+          { label: 'Status', value: vatRegistered ? `Registered (${vatRate}%)` : 'Not registered' },
+          { label: `Output VAT (${vatRate}%)`, value: fmtR(vatRate > 0 ? b.grossSelling * (vatRate / (100 + vatRate)) : 0) },
+        ] },
+        { title: 'Net profit', emphasize: true, rows: [{ label: 'Total deal profit', value: fmtR(b.netProfit) }] },
+      ];
+
+      generateVehicleSpecPDF({
+        title: 'SALE BREAKDOWN',
+        subtitle: b.vehicleLabel,
+        ref: `${docSettings.invoicePrefix || 'INV-'}${d.id.slice(0, 8).toUpperCase()}`,
+        date: b.dateStr,
+        vehicleRows, photos, sections,
+      }, docSettings);
+      toast.success('Spec sheet generated');
+    } catch {
+      toast.error('Could not generate spec sheet');
+    } finally {
+      setSpecBusy(false);
+    }
+  };
+
   const additionalRecon = b ? b.recon - reconLedgerTotal : 0;
 
   return (
@@ -354,9 +419,14 @@ const AccountingVATTab = () => {
               <SheetHeader className="space-y-1 pb-3 border-b border-zinc-800">
                 <div className="flex items-center justify-between gap-3">
                   <SheetTitle className="text-zinc-100 select-text text-lg">{b.clientName}</SheetTitle>
-                  <Button size="sm" variant="outline" className="h-8" onClick={() => handleDownloadInvoice(activeDeal)}>
-                    <Download className="w-3.5 h-3.5 mr-1" /> {vatRegistered ? 'Tax Invoice' : 'Invoice'}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" className="h-8" onClick={() => handleDownloadInvoice(activeDeal)}>
+                      <Download className="w-3.5 h-3.5 mr-1" /> {vatRegistered ? 'Tax Invoice' : 'Invoice'}
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-8" disabled={specBusy} onClick={() => downloadSpec(activeDeal)}>
+                      <FileText className="w-3.5 h-3.5 mr-1" /> {specBusy ? '…' : 'Spec Sheet'}
+                    </Button>
+                  </div>
                 </div>
                 <SheetDescription className="select-text text-zinc-400 text-xs">
                   {b.vehicleLabel} · Finalized {b.dateStr}

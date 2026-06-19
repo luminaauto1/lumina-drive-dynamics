@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Plus, Search, Trash2, Edit2, Upload, X, GripVertical, Star, Clock, Truck, Ghost, ArrowRightCircle, Eye, EyeOff, PackageCheck, Lock, User } from 'lucide-react';
+import { Plus, Search, Trash2, Edit2, Upload, X, GripVertical, Star, Clock, Truck, Ghost, ArrowRightCircle, Eye, EyeOff, PackageCheck, Lock, User, FileText } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -48,6 +48,8 @@ import { toast } from 'sonner';
 import { getOptimizedImage } from '@/lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDocumentSettings } from '@/hooks/useDocumentSettings';
+import { generateVehicleSpecPDF, loadVehicleImage, SpecSection } from '@/lib/generateVehicleSpecPDF';
 
 const BODY_TYPE_OPTIONS = ['Hatchback', 'Sedan', 'SUV', 'Coupe', 'Convertible', 'Bakkie/Pickup', 'MPV'] as const;
 
@@ -102,6 +104,79 @@ const AdminInventoryPage = () => {
   const { data: vehicles = [], isLoading } = useVehicles();
   const createVehicle = useCreateVehicle();
   const updateVehicle = useUpdateVehicle();
+  const { data: docSettings } = useDocumentSettings();
+  const [specBusyId, setSpecBusyId] = useState<string | null>(null);
+
+  // Download a spec sheet (vehicle details + 2 photos; full sale breakdown if sold).
+  const downloadVehicleSpec = async (vehicle: Vehicle) => {
+    if (!docSettings) { toast.error('Document settings not loaded'); return; }
+    setSpecBusyId(vehicle.id);
+    try {
+      const v: any = vehicle;
+      const fmtR = (n: number) => `R ${Number(n || 0).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      const photos = (await Promise.all((v.images || []).slice(0, 2).map((u: string) => loadVehicleImage(u)))).filter(Boolean) as any[];
+      const vehicleRows = ([
+        ['Make', v.make], ['Model', v.model], ['Variant', v.variant], ['Year', v.year], ['Colour', v.color],
+        ['Mileage', v.mileage != null ? `${Number(v.mileage).toLocaleString('en-ZA')} km` : ''],
+        ['Transmission', v.transmission], ['Fuel', v.fuel_type], ['VIN', v.vin], ['Engine No', v.engine_code],
+        ['Registration', v.registration_number], ['Stock No', v.stock_number], ['Status', v.status],
+      ] as [string, any][]).filter(([, val]) => val != null && String(val).trim() !== '').map(([label, val]) => ({ label, value: String(val) }));
+
+      const sections: SpecSection[] = [];
+      let title = 'VEHICLE SPEC SHEET';
+      const n = (x: any) => Number(x || 0);
+
+      if (vehicle.status === 'sold' && isSuperAdmin) {
+        const { data: deal } = await supabase.from('deal_records')
+          .select('sold_price,cost_price,recon_cost,dic_amount,referral_income_amount,referral_commission_amount,sales_rep_commission,partner_profit_amount,gross_profit,addons_data')
+          .eq('vehicle_id', vehicle.id).order('sale_date', { ascending: false }).limit(1).maybeSingle();
+        if (deal) {
+          title = 'SALE BREAKDOWN';
+          const vapRev = Array.isArray((deal as any).addons_data) ? (deal as any).addons_data.reduce((s: number, a: any) => s + n(a?.price), 0) : 0;
+          const vapCost = Array.isArray((deal as any).addons_data) ? (deal as any).addons_data.reduce((s: number, a: any) => s + n(a?.cost), 0) : 0;
+          sections.push(
+            { title: 'Income', rows: [
+              { label: 'Gross selling price', value: fmtR(n(deal.sold_price)) },
+              { label: 'DIC', value: fmtR(n(deal.dic_amount)) },
+              { label: 'VAP revenue', value: fmtR(vapRev) },
+              { label: 'Referral income', value: fmtR(n(deal.referral_income_amount)) },
+            ] },
+            { title: 'Costs & deductions', rows: [
+              { label: 'Vehicle purchase', value: fmtR(n(deal.cost_price)) },
+              { label: 'Recon', value: fmtR(n(deal.recon_cost)) },
+              { label: 'VAP cost', value: fmtR(vapCost) },
+              { label: 'Sales-rep commission', value: fmtR(n(deal.sales_rep_commission)) },
+              { label: 'Partner profit share', value: fmtR(n(deal.partner_profit_amount)) },
+              { label: 'Referral payout', value: fmtR(n(deal.referral_commission_amount)) },
+            ] },
+            { title: 'Net profit', emphasize: true, rows: [{ label: 'Total deal profit', value: fmtR(n(deal.gross_profit)) }] },
+          );
+        }
+      } else if (isSuperAdmin) {
+        const cost = n(v.cost_price ?? v.purchase_price);
+        const recon = n(v.reconditioning_cost);
+        const price = n(v.price);
+        sections.push({ title: 'Pricing', rows: [
+          { label: 'Cost price', value: fmtR(cost) },
+          { label: 'Recon', value: fmtR(recon) },
+          { label: 'Asking price', value: fmtR(price) },
+          { label: 'Est. margin', value: fmtR(price - cost - recon) },
+        ] });
+      }
+
+      generateVehicleSpecPDF({
+        title,
+        subtitle: `${v.year || ''} ${v.make || ''} ${v.model || ''}`.trim(),
+        ref: v.stock_number || vehicle.id.slice(0, 8).toUpperCase(),
+        vehicleRows, photos, sections,
+      }, docSettings);
+      toast.success('Spec sheet generated');
+    } catch {
+      toast.error('Could not generate spec sheet');
+    } finally {
+      setSpecBusyId(null);
+    }
+  };
   const deleteVehicleMutation = useDeleteVehicle();
 
   // Fetch deal records to link sold vehicles to owners
@@ -722,6 +797,15 @@ const AdminInventoryPage = () => {
                             </Button>
                             <Button
                               variant="ghost"
+                              size="icon"
+                              disabled={specBusyId === vehicle.id}
+                              onClick={() => downloadVehicleSpec(vehicle)}
+                              title="Download spec sheet / sale breakdown"
+                            >
+                              <FileText className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
                               size="sm"
                               onClick={() => window.open(`/admin/clients/${dealInfo.appId}`, '_blank')}
                               className="text-blue-400 hover:text-blue-300 gap-1"
@@ -769,6 +853,15 @@ const AdminInventoryPage = () => {
                               <ArrowRightCircle className="w-4 h-4" />
                             </Button>
                           )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            disabled={specBusyId === vehicle.id}
+                            onClick={() => downloadVehicleSpec(vehicle)}
+                            title="Download spec sheet"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
