@@ -3,6 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, FileText, Building2, Banknote, Receipt } from 'lucide-react';
 import {
   useDocumentSettings, useUpdateDocumentSettings, DEFAULT_DOCUMENT_SETTINGS, DocumentSettings,
@@ -92,6 +93,21 @@ const DocumentSettingsTab = () => {
           <Field label="VAT %" type="number" value={form.vatPercent} onChange={(v) => set('vatPercent', v)} />
           <Field label="Default admin fee" type="number" value={form.defaultAdminFee} onChange={(v) => set('defaultAdminFee', v)} />
         </div>
+        <label className="flex items-start gap-2 rounded-lg border border-border bg-muted/20 p-3 cursor-pointer">
+          <Checkbox
+            className="mt-0.5"
+            checked={!!form.vatRegistered}
+            onCheckedChange={(c) => set('vatRegistered', c === true)}
+          />
+          <span className="text-sm">
+            <span className="font-medium">We are VAT registered</span>
+            <span className="block text-xs text-muted-foreground mt-0.5">
+              On → invoices are issued as a <strong>TAX INVOICE</strong> with a VAT line at the “VAT %” above
+              (set it to 0 to show <strong>VAT R0,00</strong> — a valid VAT invoice with no VAT charged).
+              Off → a plain “Invoice” with no VAT line.
+            </span>
+          </span>
+        </label>
         <AreaField label="Invoice terms / footer note" value={form.invoiceTerms} onChange={(v) => set('invoiceTerms', v)} />
       </section>
 

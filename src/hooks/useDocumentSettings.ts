@@ -26,6 +26,7 @@ export interface DocumentSettings {
   invoiceNextNumber: number;
   invoiceTerms: string;
   vatPercent: number;
+  vatRegistered: boolean; // true = issue Tax Invoices with a VAT line (even at 0%); false = plain Invoice, no VAT
   defaultAdminFee: number;
   // OTP (Offer to Purchase)
   otpValidityDays: number;
@@ -49,6 +50,7 @@ export const DEFAULT_DOCUMENT_SETTINGS: DocumentSettings = {
   invoiceNextNumber: 1001,
   invoiceTerms: 'Payment due on delivery. The vehicle remains the property of the seller until paid in full.',
   vatPercent: 15,
+  vatRegistered: false,
   defaultAdminFee: 2500,
   otpValidityDays: 7,
   otpTerms: '',

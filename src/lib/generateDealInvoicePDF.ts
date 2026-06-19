@@ -2,10 +2,10 @@
 // customer (direct sale) or the finance house that bought the car for the client
 // (finance sale) — and prints only the line items the operator ticked at finalize.
 //
-// VAT-ready: while the business is NOT VAT-registered (no VAT number configured),
-// the document is titled "INVOICE" and VAT shows as 0%. Once a VAT number + rate
-// are set in Document Settings the same code prints a proper "TAX INVOICE" with
-// the embedded VAT portion — no further changes needed.
+// VAT-ready: VAT status is driven by the "We are VAT registered" toggle in Document
+// Settings. When registered, the document is a proper "TAX INVOICE" with a VAT line
+// at the configured rate — which may be 0%, i.e. a valid VAT invoice showing VAT
+// R0,00 (no VAT charged). When not registered, it's a plain "INVOICE" with no VAT.
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { DocumentSettings } from '@/hooks/useDocumentSettings';
@@ -26,6 +26,7 @@ export interface DealInvoiceData {
   onBehalfOf?: string;           // client name, shown when the bill-to is a finance house
   vehicleLines?: string[];       // full vehicle details, pre-formatted ("Make: …", "VIN: …", …). Omit for a general (non-vehicle) invoice.
   notes?: string;                // optional free-text note printed under the totals
+  paymentReference?: string;     // reference the payer should use; falls back to the invoice number
   lineItems: { description: string; amount: number }[];
 }
 
@@ -34,8 +35,10 @@ const fmt = (n: number): string =>
   `R ${n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export const generateDealInvoicePDF = (invoice: DealInvoiceData, settings: DocumentSettings) => {
-  const registered = !!(settings.companyVatNumber && settings.companyVatNumber.trim()) && (settings.vatPercent || 0) > 0;
-  const vatRate = registered ? settings.vatPercent : 0;
+  // VAT-registered status is an explicit toggle. Backward-compat: older saved settings
+  // (no flag) fall back to "registered if a VAT number + positive rate were configured".
+  const registered = settings.vatRegistered ?? (!!(settings.companyVatNumber && settings.companyVatNumber.trim()) && (settings.vatPercent || 0) > 0);
+  const vatRate = registered ? (settings.vatPercent || 0) : 0; // a registered vendor may still charge 0%
   const title = registered ? 'TAX INVOICE' : 'INVOICE';
 
   const doc = new jsPDF();
@@ -167,7 +170,7 @@ export const generateDealInvoicePDF = (invoice: DealInvoiceData, settings: Docum
       settings.bankName ? `Bank: ${settings.bankName}` : '',
       settings.bankAccountNumber ? `Account No: ${settings.bankAccountNumber}` : '',
       [settings.bankBranchCode ? `Branch: ${settings.bankBranchCode}` : '', settings.bankAccountType ? `Type: ${settings.bankAccountType}` : ''].filter(Boolean).join('    '),
-      `Reference: ${invoice.invoiceNumber}`,
+      `Reference: ${(invoice.paymentReference && invoice.paymentReference.trim()) || invoice.invoiceNumber}`,
     ].filter(Boolean) as string[];
     y = drawBlock(bankLines, margin, y + 6, pageW - margin * 2) + 6;
   }
