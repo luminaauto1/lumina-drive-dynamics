@@ -10,6 +10,15 @@ import { sendTelegram } from "../_shared/taskos/telegram.ts";
 
 const nowISO = () => new Date().toISOString();
 
+// Format a due timestamp in the user's LOCAL timezone. The edge runtime is UTC,
+// so toLocaleString without an explicit timeZone rendered times 2h behind for SAST
+// users (e.g. a 09:00 task showed "07:00").
+const fmtDue = (iso: string, tz: string) =>
+  new Date(iso).toLocaleString("en-ZA", {
+    timeZone: tz, hour12: false,
+    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
+  });
+
 // Hours a task is overdue -> desired escalation level (0 = none).
 function desiredLevel(hoursOverdue: number): number {
   if (hoursOverdue >= 72) return 4;
@@ -50,6 +59,16 @@ Deno.serve(async (req) => {
     return chat;
   }
 
+  // Resolve a user's timezone lazily, cached (default SAST).
+  const tzCache = new Map<string, string>();
+  async function tzFor(userId: string): Promise<string> {
+    if (tzCache.has(userId)) return tzCache.get(userId)!;
+    const { data } = await svc.from("taskos_user_settings").select("timezone").eq("user_id", userId).maybeSingle();
+    const tz = (data?.timezone as string) || "Africa/Johannesburg";
+    tzCache.set(userId, tz);
+    return tz;
+  }
+
   try {
     // 1. Tasks whose reminder time has arrived and haven't been notified yet.
     const { data: dueTasks } = await svc.from("taskos_tasks")
@@ -60,7 +79,7 @@ Deno.serve(async (req) => {
       if (sent >= MAX_SENDS) break;
       const chat = await chatFor(t.user_id);
       if (!chat) { await svc.from("taskos_tasks").update({ notified_at: nowISO(), escalation_level: 1 }).eq("id", t.id); continue; }
-      const due = t.due_at ? ` (due ${new Date(t.due_at).toLocaleString("en-ZA", { hour12: false })})` : "";
+      const due = t.due_at ? ` (due ${fmtDue(t.due_at, await tzFor(t.user_id))})` : "";
       const okSend = await sendTelegram(token, chat, `⏰ Reminder: ${t.title}${due}`);
       if (okSend) { await svc.from("taskos_tasks").update({ notified_at: nowISO(), escalation_level: 1 }).eq("id", t.id); sent++; }
     }
@@ -73,7 +92,7 @@ Deno.serve(async (req) => {
       if (sent >= MAX_SENDS) break;
       const chat = await chatFor(e.user_id);
       if (!chat) { await svc.from("taskos_entities").update({ notified_at: nowISO(), escalation_level: 1 }).eq("id", e.id); continue; }
-      const due = e.due_at ? ` (${new Date(e.due_at).toLocaleString("en-ZA", { hour12: false })})` : "";
+      const due = e.due_at ? ` (${fmtDue(e.due_at, await tzFor(e.user_id))})` : "";
       const okSend = await sendTelegram(token, chat, `⏰ ${e.kind}: ${e.title ?? "(reminder)"}${due}`);
       if (okSend) { await svc.from("taskos_entities").update({ notified_at: nowISO(), escalation_level: 1 }).eq("id", e.id); sent++; }
     }
