@@ -110,9 +110,16 @@ const buildInvoiceLines = (d: AccountingDeal): { description: string; amount: nu
   const veh = d.vehicle;
   const vehLabel = veh ? `${veh.year || ''} ${veh.make || ''} ${veh.model || ''}`.trim() : 'Vehicle';
   const lines: { description: string; amount: number }[] = [];
-  // Selling price is opt-OUT (default on) — a finance house sometimes buys the car
-  // on our behalf and only pays us the margin, so the full price isn't invoiced.
-  if (cfg.selling_price !== false) lines.push({ description: `${vehLabel}${veh?.vin ? ` (VIN ${veh.vin})` : ''} — selling price`, amount: num(d.sold_price) });
+  // What the buyer actually pays us for the car:
+  //  - Direct sale: the full selling price.
+  //  - Finance deal: the finance house funds the purchase (keeps the bought price)
+  //    and pays us the proceeds ON TOP — i.e. selling price minus the vehicle cost.
+  const isFinance = d.deal_type === 'finance';
+  const vehicleAmount = isFinance ? (num(d.sold_price) - num(d.cost_price)) : num(d.sold_price);
+  const vehicleDesc = isFinance
+    ? `${vehLabel}${veh?.vin ? ` (VIN ${veh.vin})` : ''} — deal proceeds (selling less purchase)`
+    : `${vehLabel}${veh?.vin ? ` (VIN ${veh.vin})` : ''} — selling price`;
+  if (cfg.selling_price !== false) lines.push({ description: vehicleDesc, amount: vehicleAmount });
   if (cfg.dic && num(d.dic_amount) > 0) lines.push({ description: 'DIC (Dealer Incentive)', amount: num(d.dic_amount) });
   if (cfg.dealer_deposit && num(d.dealer_deposit_contribution) > 0) lines.push({ description: 'Dealer deposit contribution', amount: num(d.dealer_deposit_contribution) });
   if (cfg.admin_fee && num(d.external_admin_fee) > 0) lines.push({ description: 'Admin fee', amount: num(d.external_admin_fee) });
