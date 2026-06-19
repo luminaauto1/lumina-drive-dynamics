@@ -128,12 +128,21 @@ const AdminInventoryPage = () => {
 
       if (vehicle.status === 'sold' && isSuperAdmin) {
         const { data: deal } = await supabase.from('deal_records')
-          .select('sold_price,cost_price,recon_cost,dic_amount,referral_income_amount,referral_commission_amount,sales_rep_commission,partner_profit_amount,gross_profit,addons_data')
+          .select('sold_price,cost_price,recon_cost,dic_amount,referral_income_amount,referral_commission_amount,sales_rep_commission,partner_profit_amount,gross_profit,addons_data,sale_date,deal_type,finance_applications(first_name,last_name)')
           .eq('vehicle_id', vehicle.id).order('sale_date', { ascending: false }).limit(1).maybeSingle();
         if (deal) {
           title = 'SALE BREAKDOWN';
           const vapRev = Array.isArray((deal as any).addons_data) ? (deal as any).addons_data.reduce((s: number, a: any) => s + n(a?.price), 0) : 0;
           const vapCost = Array.isArray((deal as any).addons_data) ? (deal as any).addons_data.reduce((s: number, a: any) => s + n(a?.cost), 0) : 0;
+          // Who the car was actually sold to — the client, even on a finance deal (where the
+          // finance house is only the invoice bill-to).
+          const client = (deal as any).finance_applications;
+          const buyerName = client ? `${client.first_name || ''} ${client.last_name || ''}`.trim() : '';
+          const saleRows: { label: string; value: string }[] = [];
+          if (buyerName) saleRows.push({ label: 'Sold to (client)', value: buyerName });
+          if ((deal as any).deal_type === 'finance') saleRows.push({ label: 'Deal type', value: 'Finance' });
+          if ((deal as any).sale_date) saleRows.push({ label: 'Sale date', value: new Date((deal as any).sale_date).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' }) });
+          if (saleRows.length) sections.push({ title: 'Sale', rows: saleRows });
           sections.push(
             { title: 'Income', rows: [
               { label: 'Gross selling price', value: fmtR(n(deal.sold_price)) },

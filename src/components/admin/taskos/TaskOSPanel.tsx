@@ -9,8 +9,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import {
   Loader2, Send, Inbox, ListTodo, Sparkles, Settings as SettingsIcon, Trash2, Copy, Check,
   MessageCircle, Plug, Library as LibraryIcon, Link2, Clock, AlertTriangle, Save, ChevronRight,
+  CalendarClock,
 } from 'lucide-react';
 import { formatDistanceToNow, format, isPast } from 'date-fns';
+import { toast } from 'sonner';
 import {
   useTaskOSInbox, useCaptureInbox, useDiscardInbox,
   useTaskOSTasks, useCreateTask, useUpdateTask,
@@ -105,9 +107,24 @@ const TasksTab = () => {
     .sort((a, b) => (b.priority_score ?? 0) - (a.priority_score ?? 0));
   const done = tasks.filter((t) => t.status === 'done');
 
+  // Convert an ISO timestamp to the value a <input type="datetime-local"> expects (local tz).
+  const toLocalInput = (iso: string) => {
+    const d = new Date(iso);
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  };
+
   const Row = ({ t }: { t: TaskOSTask }) => {
     const overdue = t.due_at && t.status !== 'done' && isPast(new Date(t.due_at));
     const reminderArmed = t.remind_at && !t.notified_at;
+    const [resched, setResched] = useState(false);
+    const applyReschedule = (val: string) => {
+      if (!val) return;
+      const iso = new Date(val).toISOString();
+      // Move the due time and re-arm the reminder for the new time.
+      update.mutate({ id: t.id, updates: { due_at: iso, remind_at: iso } }, {
+        onSuccess: () => { setResched(false); toast.success('Task rescheduled'); },
+      });
+    };
     return (
       <div className="flex items-start gap-2 rounded-lg border border-border bg-card p-2.5">
         <Checkbox
@@ -126,7 +143,27 @@ const TasksTab = () => {
             <span className="text-[10px] text-muted-foreground">U{t.urgency}·I{t.importance}</span>
             {t.tags?.slice(0, 3).map((tag) => <Badge key={tag} variant="secondary" className="text-[9px]">{tag}</Badge>)}
           </div>
+          {resched && (
+            <div className="flex items-center gap-2 mt-2">
+              <input
+                type="datetime-local"
+                defaultValue={t.due_at ? toLocalInput(t.due_at) : ''}
+                onChange={(e) => applyReschedule(e.target.value)}
+                className="h-7 text-xs rounded-md border border-border bg-background px-2"
+              />
+              <button onClick={() => setResched(false)} className="text-[10px] text-muted-foreground hover:text-foreground">cancel</button>
+            </div>
+          )}
         </div>
+        {t.status !== 'done' && (
+          <button
+            onClick={() => setResched((s) => !s)}
+            title="Reschedule"
+            className={`mt-0.5 ${resched ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            <CalendarClock className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
     );
   };
