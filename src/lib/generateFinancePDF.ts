@@ -2,6 +2,9 @@ import jsPDF from 'jspdf';
 import { FinanceApplication } from '@/hooks/useFinanceApplications';
 import { formatPrice } from '@/hooks/useVehicles';
 import { formatSAPhoneForPDF } from '@/lib/formatPhone';
+import { lookupBankBranch } from '@/hooks/useDocumentSettings';
+
+type BankBranch = { bank: string; branchName: string; branchCode: string };
 
 // Helper function to load image via Image constructor (handles CORS properly)
 const getBase64FromUrl = (url: string): Promise<string> => {
@@ -29,7 +32,7 @@ const getBase64FromUrl = (url: string): Promise<string> => {
   });
 };
 
-export const generateFinancePDF = async (application: FinanceApplication, vehicleDetails?: string, isUnbranded = false) => {
+export const generateFinancePDF = async (application: FinanceApplication, vehicleDetails?: string, isUnbranded = false, bankBranches?: BankBranch[]) => {
   const doc = new jsPDF();
   
   // Colors
@@ -256,7 +259,17 @@ export const generateFinancePDF = async (application: FinanceApplication, vehicl
   yPos += lineHeight;
   addField('Net Salary', application.net_salary ? formatPrice(application.net_salary) : null);
   yPos += lineHeight;
-  addField('Bank', application.bank_name);
+  // Resolve the client's bank to its configured branch name + code (falls back to the
+  // built-in SA universal codes when no settings are passed). Also normalises the bank
+  // display name (e.g. "standard_bank" -> "Standard Bank").
+  const branch = lookupBankBranch(application.bank_name, bankBranches);
+  addField('Bank', branch?.bank || application.bank_name);
+  if (branch) {
+    yPos += lineHeight;
+    addField('Branch', branch.branchName);
+    yPos += lineHeight;
+    addField('Branch Code', branch.branchCode);
+  }
   yPos += lineHeight;
   addField('Account Type', application.account_type);
   yPos += lineHeight;

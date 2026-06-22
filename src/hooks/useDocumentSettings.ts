@@ -31,7 +31,37 @@ export interface DocumentSettings {
   // OTP (Offer to Purchase)
   otpValidityDays: number;
   otpTerms: string; // optional override; empty = use the built-in legal terms
+  // Bank branch codes — printed on the finance application PDF based on the client's bank.
+  bankBranches: { bank: string; branchName: string; branchCode: string }[];
 }
+
+// South African universal branch codes (editable in Settings → Branch Codes).
+export const DEFAULT_BANK_BRANCHES: { bank: string; branchName: string; branchCode: string }[] = [
+  { bank: 'ABSA', branchName: 'Universal Branch', branchCode: '632005' },
+  { bank: 'African Bank', branchName: 'Universal Branch', branchCode: '430000' },
+  { bank: 'Bidvest Bank', branchName: 'Universal Branch', branchCode: '462005' },
+  { bank: 'Capitec', branchName: 'Universal Branch', branchCode: '470010' },
+  { bank: 'Discovery Bank', branchName: 'Universal Branch', branchCode: '679000' },
+  { bank: 'FNB', branchName: 'Universal Branch', branchCode: '250655' },
+  { bank: 'Grindrod Bank', branchName: 'Universal Branch', branchCode: '584000' },
+  { bank: 'Investec', branchName: 'Universal Branch', branchCode: '580105' },
+  { bank: 'Nedbank', branchName: 'Universal Branch', branchCode: '198765' },
+  { bank: 'Sasfin', branchName: 'Universal Branch', branchCode: '683000' },
+  { bank: 'Standard Bank', branchName: 'Universal Branch', branchCode: '051001' },
+  { bank: 'TymeBank', branchName: 'Universal Branch', branchCode: '678910' },
+  { bank: 'WesBank', branchName: 'Universal Branch', branchCode: '250655' },
+];
+
+/** Look up a client's bank (any spelling/case) against the configured branch list. */
+export const lookupBankBranch = (
+  bankName: string | null | undefined,
+  branches: { bank: string; branchName: string; branchCode: string }[] | undefined,
+) => {
+  if (!bankName) return null;
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z]/g, '');
+  const key = norm(bankName);
+  return (branches ?? DEFAULT_BANK_BRANCHES).find((b) => norm(b.bank) === key) ?? null;
+};
 
 export const DEFAULT_DOCUMENT_SETTINGS: DocumentSettings = {
   companyLegalName: 'MAKHULU HOLDINGS (PTY) LTD',
@@ -54,6 +84,7 @@ export const DEFAULT_DOCUMENT_SETTINGS: DocumentSettings = {
   defaultAdminFee: 2500,
   otpValidityDays: 7,
   otpTerms: '',
+  bankBranches: DEFAULT_BANK_BRANCHES,
 };
 
 export const useDocumentSettings = () => {
