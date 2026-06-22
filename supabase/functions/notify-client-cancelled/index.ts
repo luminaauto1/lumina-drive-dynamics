@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildCorsHeaders } from "../_shared/publicGuard.ts";
 
 serve(async (req) => {
-  const cors = buildCorsHeaders(req.headers.get("origin"));
+  const cors = buildCorsHeaders(req.headers.get("origin"), req.headers.get("access-control-request-headers"));
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
   try {

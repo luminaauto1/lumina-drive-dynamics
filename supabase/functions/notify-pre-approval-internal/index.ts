@@ -7,7 +7,7 @@ const TEMPLATE_ID = "20060";
 const ACCOUNT_ID = "4026";
 
 serve(async (req) => {
-  const cors = buildCorsHeaders(req.headers.get("origin"));
+  const cors = buildCorsHeaders(req.headers.get("origin"), req.headers.get("access-control-request-headers"));
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
   const guard = checkInternalKey(req);
