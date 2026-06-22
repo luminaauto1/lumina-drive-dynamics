@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card } from "@/components/ui/card";
-import { Users, TrendingUp, DollarSign, Target, Loader2 } from "lucide-react";
+import { Users, TrendingUp, DollarSign, Target, Loader2, Inbox, Send, CheckCircle2, XCircle } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, LineChart, Line,
@@ -10,6 +10,36 @@ import {
 import { startOfMonth, subMonths, format, parseISO } from "date-fns";
 import { Helmet } from "react-helmet-async";
 import { isFinalizedDeal, dealNetProfit, dealReportDate } from "@/lib/dealMetrics";
+import { useAnalyticsDashboard, type RangeKey } from "@/hooks/useAnalyticsDashboard";
+import { AnalyticsRangeFilter } from "@/components/admin/AnalyticsRangeFilter";
+
+const num = (v: any) => (v == null ? 0 : Number(v) || 0);
+const fmtMins = (m: number | null) =>
+  m == null ? "—" : m < 60 ? `${m}m` : `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}m` : ""}`;
+
+const PeriodKpi = ({ label, value, icon: Icon, accent }: { label: string; value: any; icon: any; accent: string }) => (
+  <Card className="p-4 bg-card border-border">
+    <div className="flex items-center justify-between">
+      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
+      <Icon className={`w-4 h-4 ${accent}`} />
+    </div>
+    <div className="mt-1 text-3xl font-bold tabular-nums">{num(value)}</div>
+  </Card>
+);
+
+const RateCard = ({ label, pct, allTime, hint }: { label: string; pct: any; allTime?: any; hint: string }) => (
+  <Card className="p-4 bg-card border-border">
+    <div className="flex items-center justify-between">
+      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
+      {allTime != null && <span className="text-[10px] text-muted-foreground">all-time {num(allTime)}%</span>}
+    </div>
+    <div className="mt-1 text-3xl font-bold tabular-nums">{num(pct)}%</div>
+    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+      <div className="h-full rounded-full bg-platinum" style={{ width: `${Math.min(100, num(pct))}%` }} />
+    </div>
+    <div className="mt-1 text-[11px] text-muted-foreground">{hint}</div>
+  </Card>
+);
 
 const AdminAnalytics = () => {
   const [loading, setLoading] = useState(true);
@@ -22,7 +52,10 @@ const AdminAnalytics = () => {
   });
   const [pipelineData, setPipelineData] = useState<{ name: string; count: number }[]>([]);
   const [revenueTrend, setRevenueTrend] = useState<{ month: string; profit: number; deals: number }[]>([]);
-  
+  // ZTC-style finance-pipeline activity dashboard (additive; reads finance_applications RPCs).
+  const [range, setRange] = useState<{ key: RangeKey; from?: string; to?: string }>({ key: 'today' });
+  const dash = useAnalyticsDashboard(range);
+
 
   useEffect(() => {
     const fetchAnalytics = async () => {
@@ -182,6 +215,99 @@ const AdminAnalytics = () => {
             </div>
           </Card>
         </div>
+
+        {/* ── Finance pipeline activity (ZTC-style, additive) ── */}
+        <section className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Finance pipeline activity · {dash.range.label}
+              </h2>
+              <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                Live · refreshes every minute
+              </span>
+            </div>
+            <AnalyticsRangeFilter value={range} onChange={setRange} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <PeriodKpi label="Received" value={dash.kpis.data?.received} icon={Inbox} accent="text-foreground" />
+            <PeriodKpi label="Submitted" value={dash.kpis.data?.submitted} icon={Send} accent="text-platinum" />
+            <PeriodKpi label="Approved" value={dash.kpis.data?.approved} icon={CheckCircle2} accent="text-emerald-400" />
+            <PeriodKpi label="Declined" value={dash.kpis.data?.declined} icon={XCircle} accent="text-red-400" />
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
+            <RateCard label="Approval rate" pct={dash.kpis.data?.approval_rate} allTime={dash.kpis.data?.alltime_approval_rate} hint="approved of decided" />
+            <RateCard label="Submission rate" pct={dash.kpis.data?.submit_rate} hint="submitted of received" />
+            <RateCard label="Decline rate" pct={dash.kpis.data?.decline_rate} hint="declined of decided" />
+            <Card className="p-4 bg-card border-border">
+              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Avg working-time / app</div>
+              <div className="mt-1 text-3xl font-bold tabular-nums">{fmtMins(dash.kpis.data?.avg_minutes_per_app ?? null)}</div>
+              <div className="mt-1 text-[11px] text-muted-foreground">
+                {dash.kpis.data?.submitted
+                  ? `${num(dash.kpis.data.submitted)} submitted over ${fmtMins(num(dash.kpis.data.working_minutes))} of work (8h day, Mon–Fri, −1h lunch)`
+                  : 'No applications submitted in this period'}
+              </div>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+            <Card className="p-5 bg-card border-border lg:col-span-3">
+              <h3 className="text-base font-semibold mb-1">Decisions · last 14 days</h3>
+              <p className="text-[11px] text-muted-foreground mb-3">Approved vs declined per day (SAST).</p>
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={dash.daily.data ?? []}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 10 }} tickFormatter={(d: string) => String(d).slice(8)} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" allowDecimals={false} />
+                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                    <Bar dataKey="approved" stackId="d" fill="hsl(var(--platinum))" />
+                    <Bar dataKey="declined" stackId="d" fill="hsl(0 70% 55%)" radius={[3, 3, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            <Card className="p-5 bg-card border-border lg:col-span-2">
+              <h3 className="text-base font-semibold mb-1">Top reps · {dash.range.label}</h3>
+              <p className="text-[11px] text-muted-foreground mb-3">Submissions this period · all-time alongside · ~time/app = avg load.</p>
+              <ul className="space-y-2.5">
+                {(dash.leaderboard.data ?? []).slice(0, 8).map((r: any, i: number) => {
+                  const list = dash.leaderboard.data ?? [];
+                  const max = Math.max(1, ...list.map((x: any) => num(x.period_submitted) || num(x.alltime_submitted)));
+                  const bar = ((num(r.period_submitted) || num(r.alltime_submitted)) / max) * 100;
+                  return (
+                    <li key={r.agent_id} className="flex items-center gap-3">
+                      <span className="w-4 text-xs font-semibold tabular-nums text-muted-foreground">{i + 1}</span>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium">
+                            {r.agent_name}
+                            {r.avg_load_mins != null && <span className="ml-2 text-[10px] text-muted-foreground">~{fmtMins(num(r.avg_load_mins))}/app</span>}
+                          </span>
+                          <span className="tabular-nums text-muted-foreground">
+                            {num(r.period_submitted)}
+                            <span className="ml-1 text-[10px] opacity-60">/ {num(r.alltime_submitted)} all-time</span>
+                          </span>
+                        </div>
+                        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                          <div className="h-full rounded-full bg-platinum" style={{ width: `${bar}%` }} />
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+                {(dash.leaderboard.data ?? []).length === 0 && <li className="text-xs text-muted-foreground">No rep-attributed submissions yet.</li>}
+              </ul>
+              {dash.snapshot.data?.self_submitted ? (
+                <p className="mt-3 text-[11px] text-muted-foreground">+ {num(dash.snapshot.data.self_submitted)} self-submitted, all-time (no rep).</p>
+              ) : null}
+            </Card>
+          </div>
+        </section>
 
       </div>
     </AdminLayout>
