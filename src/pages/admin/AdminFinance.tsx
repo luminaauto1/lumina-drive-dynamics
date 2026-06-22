@@ -1701,6 +1701,7 @@ const AdminFinance = () => {
         defaultValue={(editBankRefApp as any)?.bank_reference || ''}
         showFAndIAssignment
         defaultFAndIId={(editBankRefApp as any)?.assigned_f_and_i || null}
+        clientName={`${(editBankRefApp as any)?.first_name || ''} ${(editBankRefApp as any)?.last_name || ''}`.trim() || (editBankRefApp as any)?.full_name || ''}
         onConfirm={async (reference, fniId) => {
           if (!editBankRefApp) return;
           try {
@@ -1726,6 +1727,7 @@ const AdminFinance = () => {
         defaultValue={(bankRefApp as any)?.bank_reference || ''}
         showFAndIAssignment
         defaultFAndIId={(bankRefApp as any)?.assigned_f_and_i || null}
+        clientName={`${(bankRefApp as any)?.first_name || ''} ${(bankRefApp as any)?.last_name || ''}`.trim() || (bankRefApp as any)?.full_name || ''}
         onConfirm={async (reference, fniId) => {
           if (!bankRefApp) return;
           try {
