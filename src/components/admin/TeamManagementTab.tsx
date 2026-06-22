@@ -195,6 +195,28 @@ const TeamManagementTab = () => {
     loadAgents();
   };
 
+  // Role combos applied on assignment (mirror the create-agent edge function).
+  const ROLE_COMBOS: Record<StaffRoleKind, StaffRoleKind[]> = {
+    sales_agent: ['sales_agent'],
+    f_and_i: ['f_and_i'],
+    senior_f_and_i: ['senior_f_and_i', 'f_and_i'],
+    accountant: ['accountant', 'senior_f_and_i', 'f_and_i'],
+  };
+  const ALL_STAFF_ROLES: StaffRoleKind[] = ['sales_agent', 'f_and_i', 'senior_f_and_i', 'accountant'];
+
+  const handleChangeRole = async (userId: string, label: string, newRole: StaffRoleKind, currentRole: StaffRoleKind) => {
+    if (newRole === currentRole) return;
+    if (!confirm(`Change ${label}'s role to ${ROLE_LABELS[newRole]}?`)) return;
+    // Clear existing staff roles (never touches the admin role), then grant the new role + implied combo.
+    const { error: delErr } = await supabase.from('user_roles').delete().eq('user_id', userId).in('role', ALL_STAFF_ROLES as any);
+    if (delErr) { toast.error(delErr.message); return; }
+    const rows = ROLE_COMBOS[newRole].map((r) => ({ user_id: userId, role: r }));
+    const { error: insErr } = await supabase.from('user_roles').upsert(rows as any, { onConflict: 'user_id,role' });
+    if (insErr) { toast.error(insErr.message); return; }
+    toast.success(`Role updated to ${ROLE_LABELS[newRole]}`);
+    loadAgents();
+  };
+
   const copyCreds = async () => {
     if (!lastCreds) return;
     const txt = `Lumina Auto — Sales Agent Login\nEmail: ${lastCreds.email}\nTemp Password: ${lastCreds.password}\nLogin: ${window.location.origin}/auth`;
@@ -334,26 +356,35 @@ const TeamManagementTab = () => {
                     <Mail className="w-4 h-4 text-primary" />
                   </div>
                   <div>
-                    <p className="font-medium text-sm flex items-center gap-2">
+                    <p className="font-medium text-sm">
                       {a.full_name || a.email || 'Unnamed user'}
-                      <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-primary/30 bg-primary/10 text-primary">
-                        {ROLE_LABELS[a.role]}
-                      </span>
                     </p>
                     {a.full_name && a.email && (
                       <p className="text-xs text-muted-foreground">{a.email}</p>
                     )}
                   </div>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleRevoke(a.user_id, a.email || 'this user', a.role)}
-                  className="text-destructive hover:text-destructive"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Select value={a.role} onValueChange={(v) => handleChangeRole(a.user_id, a.full_name || a.email || 'this user', v as StaffRoleKind, a.role)}>
+                    <SelectTrigger className="h-8 w-[150px] text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sales_agent">Salesperson</SelectItem>
+                      <SelectItem value="f_and_i">F&amp;I</SelectItem>
+                      <SelectItem value="senior_f_and_i">Senior F&amp;I</SelectItem>
+                      <SelectItem value="accountant">Accountant</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleRevoke(a.user_id, a.email || 'this user', a.role)}
+                    className="text-destructive hover:text-destructive"
+                    title="Revoke all access"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
             ))}
           </div>

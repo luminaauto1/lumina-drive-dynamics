@@ -120,33 +120,33 @@ const AppLayout = () => {
             <Route path="/juristic/:token" element={<JuristicCapture />} />
             {/* Admin Routes */}
             <Route path="/admin" element={<ProtectedRoute requireSuperAdmin><AdminDashboard /></ProtectedRoute>} />
-            <Route path="/admin/inventory" element={<ProtectedRoute requireAdmin blockStandardFAndI><AdminInventoryPage /></ProtectedRoute>} />
+            <Route path="/admin/inventory" element={<ProtectedRoute section="inventory"><AdminInventoryPage /></ProtectedRoute>} />
             {/* Pipeline + CRM Sheet replaced by the unified CRM. Old paths still
                 resolve (login landing + existing links) and render the new CRM. */}
-            <Route path="/admin/leads" element={<ProtectedRoute requireAdmin blockStandardFAndI><AdminCRM /></ProtectedRoute>} />
+            <Route path="/admin/leads" element={<ProtectedRoute section="crm"><AdminCRM /></ProtectedRoute>} />
             <Route path="/admin/contacts" element={<ProtectedRoute requireSuperAdmin><AdminContacts /></ProtectedRoute>} />
-            <Route path="/admin/finance" element={<ProtectedRoute requireAdmin><AdminFinance /></ProtectedRoute>} />
-            <Route path="/admin/finance/create" element={<ProtectedRoute requireAdmin blockStandardFAndI><AdminCreateApplication /></ProtectedRoute>} />
-            <Route path="/admin/finance/:id" element={<ProtectedRoute requireSuperAdmin allowFAndI><AdminDealRoom /></ProtectedRoute>} />
-            <Route path="/admin/quotes" element={<ProtectedRoute requireAdmin blockStandardFAndI><AdminQuoteGenerator /></ProtectedRoute>} />
-            <Route path="/admin/aftersales" element={<ProtectedRoute requireSuperAdmin><AdminAftersales /></ProtectedRoute>} />
-            <Route path="/admin/reports" element={<ProtectedRoute requireSuperAdmin allowAccountant><AdminReports /></ProtectedRoute>} />
-            <Route path="/admin/vendors" element={<ProtectedRoute requireSuperAdmin allowAccountant><AdminVendors /></ProtectedRoute>} />
-            <Route path="/admin/invoices" element={<ProtectedRoute requireSuperAdmin allowAccountant><AdminInvoiceCreator /></ProtectedRoute>} />
-            <Route path="/admin/reports/lead-analytics" element={<ProtectedRoute requireSuperAdmin><AdminLeadAnalytics /></ProtectedRoute>} />
-            <Route path="/admin/extra-incomes" element={<ProtectedRoute requireSuperAdmin><AdminExtraIncomes /></ProtectedRoute>} />
-            <Route path="/admin/cars-to-buy" element={<ProtectedRoute requireSuperAdmin><AdminCarsToBuy /></ProtectedRoute>} />
-            <Route path="/admin/analytics" element={<ProtectedRoute requireSuperAdmin><AdminAnalytics /></ProtectedRoute>} />
+            <Route path="/admin/finance" element={<ProtectedRoute section="finance"><AdminFinance /></ProtectedRoute>} />
+            <Route path="/admin/finance/create" element={<ProtectedRoute section="finance"><AdminCreateApplication /></ProtectedRoute>} />
+            <Route path="/admin/finance/:id" element={<ProtectedRoute section="finance"><AdminDealRoom /></ProtectedRoute>} />
+            <Route path="/admin/quotes" element={<ProtectedRoute section="quotes"><AdminQuoteGenerator /></ProtectedRoute>} />
+            <Route path="/admin/aftersales" element={<ProtectedRoute section="deal_ledger"><AdminAftersales /></ProtectedRoute>} />
+            <Route path="/admin/reports" element={<ProtectedRoute section="reports"><AdminReports /></ProtectedRoute>} />
+            <Route path="/admin/vendors" element={<ProtectedRoute section="vendors"><AdminVendors /></ProtectedRoute>} />
+            <Route path="/admin/invoices" element={<ProtectedRoute section="invoices"><AdminInvoiceCreator /></ProtectedRoute>} />
+            <Route path="/admin/reports/lead-analytics" element={<ProtectedRoute section="reports"><AdminLeadAnalytics /></ProtectedRoute>} />
+            <Route path="/admin/extra-incomes" element={<ProtectedRoute section="extra_incomes"><AdminExtraIncomes /></ProtectedRoute>} />
+            <Route path="/admin/cars-to-buy" element={<ProtectedRoute section="cars_to_buy"><AdminCarsToBuy /></ProtectedRoute>} />
+            <Route path="/admin/analytics" element={<ProtectedRoute section="analytics"><AdminAnalytics /></ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute requireSuperAdmin><AdminSettings /></ProtectedRoute>} />
             <Route path="/admin/settings/email" element={<ProtectedRoute requireSuperAdmin><AdminEmailSettings /></ProtectedRoute>} />
-            <Route path="/admin/reports/partner-payout/:dealId" element={<ProtectedRoute requireSuperAdmin><AdminPartnerPayout /></ProtectedRoute>} />
-            <Route path="/admin/network" element={<ProtectedRoute requireSuperAdmin><AdminNetwork /></ProtectedRoute>} />
-            <Route path="/admin/referrals" element={<ProtectedRoute requireSuperAdmin><AdminReferrals /></ProtectedRoute>} />
-            <Route path="/admin/juristic" element={<ProtectedRoute requireSuperAdmin><AdminJuristic /></ProtectedRoute>} />
+            <Route path="/admin/reports/partner-payout/:dealId" element={<ProtectedRoute section="reports"><AdminPartnerPayout /></ProtectedRoute>} />
+            <Route path="/admin/network" element={<ProtectedRoute section="network"><AdminNetwork /></ProtectedRoute>} />
+            <Route path="/admin/referrals" element={<ProtectedRoute section="referrals"><AdminReferrals /></ProtectedRoute>} />
+            <Route path="/admin/juristic" element={<ProtectedRoute section="juristic"><AdminJuristic /></ProtectedRoute>} />
             <Route path="/admin/clients/:id" element={<ProtectedRoute requireSuperAdmin><ClientProfile /></ProtectedRoute>} />
-            <Route path="/admin/documents" element={<ProtectedRoute requireSuperAdmin><AdminDocumentsHub /></ProtectedRoute>} />
-            <Route path="/admin/crm-sheet" element={<ProtectedRoute requireAdmin blockStandardFAndI><AdminCRM /></ProtectedRoute>} />
-            <Route path="/admin/crm" element={<ProtectedRoute requireAdmin blockStandardFAndI><AdminCRM /></ProtectedRoute>} />
+            <Route path="/admin/documents" element={<ProtectedRoute section="documents"><AdminDocumentsHub /></ProtectedRoute>} />
+            <Route path="/admin/crm-sheet" element={<ProtectedRoute section="crm"><AdminCRM /></ProtectedRoute>} />
+            <Route path="/admin/crm" element={<ProtectedRoute section="crm"><AdminCRM /></ProtectedRoute>} />
             <Route path="/update-password" element={<UpdatePassword />} />
             <Route path="/system-fix" element={<ProtectedRoute requireSuperAdmin><SystemFix /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />

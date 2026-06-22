@@ -5,8 +5,9 @@ import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { useAuth } from '@/contexts/AuthContext';
 import { useOutstandingReferralCount } from '@/hooks/useReferrals';
+import { useMyAllowedSections } from '@/hooks/useRolePermissions';
+import { sectionForPath } from '@/lib/permissions';
 
 interface NavGroup {
   title: string;
@@ -69,20 +70,10 @@ interface AdminSidebarProps {
   onCollapse?: (collapsed: boolean) => void;
 }
 
-// Paths a sales_agent is allowed to see in the sidebar.
-const SALES_AGENT_ALLOWED_PATHS = new Set<string>([
-  '/admin/crm',
-  '/admin/leads',
-  '/admin/crm-sheet',
-  '/admin/finance',
-  '/admin/inventory',
-  '/admin/quotes',
-]);
-
 const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const { isSuperAdmin, isAccountant, isFAndI, isSeniorFAndI, role } = useAuth();
+  const { allowed, isAdmin } = useMyAllowedSections();
   const { data: outstandingRefs = 0 } = useOutstandingReferralCount();
 
   useEffect(() => {
@@ -95,39 +86,25 @@ const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
   const isGroupActive = (group: NavGroup) =>
     group.children.some(c => isPathActive(c.path));
 
-  // Accountants see the Reports entry (Accounting & VAT ledger) plus Vendors.
-  const ACCOUNTANT_ALLOWED_PATHS = new Set<string>(['/admin/reports', '/admin/vendors', '/admin/invoices']);
-  // Standard F&I: finance page only.
-  const STANDARD_FNI_ALLOWED_PATHS = new Set<string>(['/admin/finance']);
-  // Senior F&I: finance + CRM access.
-  const SENIOR_FNI_ALLOWED_PATHS = new Set<string>([
-    '/admin/finance',
-    '/admin/crm',
-    '/admin/leads',
-    '/admin/crm-sheet',
-    '/admin/quotes',
-  ]);
+  // A path is visible when the user is an admin, or its governing section is one the
+  // user's role is granted (Settings/Dashboard have no section → admin-only).
+  const canSeePath = (path: string) => {
+    if (isAdmin) return true;
+    const section = sectionForPath(path);
+    return !!section && allowed.has(section);
+  };
 
-  // Filter menu by role.
-  const visibleMenuItems = isSuperAdmin
-    ? menuItems
-    : menuItems
-        .map((item) => {
-          const allowed = isAccountant
-            ? ACCOUNTANT_ALLOWED_PATHS
-            : role === 'f_and_i'
-              ? STANDARD_FNI_ALLOWED_PATHS
-              : isSeniorFAndI
-                ? SENIOR_FNI_ALLOWED_PATHS
-                : SALES_AGENT_ALLOWED_PATHS;
-          if (isGroup(item)) {
-            const allowedChildren = item.children.filter(c => allowed.has(c.path));
-            if (allowedChildren.length === 0) return null;
-            return { ...item, children: allowedChildren } as NavGroup;
-          }
-          return allowed.has(item.path) ? item : null;
-        })
-        .filter(Boolean) as MenuItem[];
+  // Filter menu by the per-role section matrix.
+  const visibleMenuItems = menuItems
+    .map((item) => {
+      if (isGroup(item)) {
+        const allowedChildren = item.children.filter(c => canSeePath(c.path));
+        if (allowedChildren.length === 0) return null;
+        return { ...item, children: allowedChildren } as NavGroup;
+      }
+      return canSeePath(item.path) ? item : null;
+    })
+    .filter(Boolean) as MenuItem[];
 
 
   return (
