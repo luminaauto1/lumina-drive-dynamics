@@ -33,8 +33,10 @@ const ProtectedRoute = ({ children, requireAdmin = false, requireSuperAdmin = fa
   }
 
   if (requireSuperAdmin && !isAdmin && !(allowFAndI && isFAndI) && !(allowAccountant && isAccountant)) {
-    // Sales agents land on the leads pipeline; non-staff bounce to home.
-    return <Navigate to={isStaff ? '/admin/leads' : '/'} replace />;
+    // Standard F&I lives on the finance page; sales agents land on the leads
+    // pipeline; non-staff bounce to home.
+    const fallback = role === 'f_and_i' ? '/admin/finance' : isStaff ? '/admin/leads' : '/';
+    return <Navigate to={fallback} replace />;
   }
 
 

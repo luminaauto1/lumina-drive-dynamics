@@ -2,7 +2,7 @@
 // Supports two modes:
 //   - inviteByEmail (default): sends Supabase invite email
 //   - manualPassword: createUser with a temp password the admin can WhatsApp
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
