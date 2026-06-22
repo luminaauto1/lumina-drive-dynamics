@@ -263,6 +263,60 @@ export const useUnlinkTelegram = () => {
   });
 };
 
+// ---------------- INSIGHTS (foresight / goal-health / patterns) ----------------
+export interface TaskOSInsight {
+  id: string; kind: string; title: string; body: string | null; severity: number;
+  data: any; related_ids: string[]; for_date: string | null; status: string;
+  surfaced_at: string | null; created_at: string;
+}
+
+export const useTaskOSInsights = () =>
+  useQuery({
+    queryKey: ['taskos', 'insights'],
+    queryFn: async (): Promise<TaskOSInsight[]> => {
+      const { data, error } = await db.from('taskos_insights')
+        .select('id, kind, title, body, severity, data, related_ids, for_date, status, surfaced_at, created_at')
+        .eq('status', 'active')
+        .order('severity', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data ?? [];
+    },
+    refetchInterval: 60000,
+  });
+
+// Refresh foresight on demand. No internal key → hits the function's JWT path,
+// which runs ONLY for the signed-in user (user_id from the verified token).
+export const useRefreshInsights = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('taskos-run-reflection', { body: { force: true } });
+      if (error) throw error;
+      return data as { ok: boolean; insights: number; goals: number; ai: boolean };
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['taskos', 'insights'] });
+      qc.invalidateQueries({ queryKey: ['taskos', 'entities'] });
+      toast.success('Foresight refreshed');
+    },
+    onError: (e: any) => toast.error('Refresh failed: ' + e.message),
+  });
+};
+
+export const useDismissInsight = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await db.from('taskos_insights')
+        .update({ status: 'dismissed', dismissed_at: new Date().toISOString() }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['taskos', 'insights'] }),
+  });
+};
+
 // ---------------- ASK (Q&A) ----------------
 export const useTaskOSQuery = () =>
   useMutation({

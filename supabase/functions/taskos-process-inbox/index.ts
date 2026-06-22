@@ -60,6 +60,13 @@ Input: "send mrs naidoo the invoice by friday"
 Input: "idea - maybe run a winter service special next month"
 -> entities: [ { temp_id:"i1", type:"idea", title:"Winter service special", body:"Possible promo next month", importance:2 } ]   // no time cue, no due_at, no remind_at.
 
+========== MEMORY & CONTINUITY — use related_memory ==========
+You are given "related_memory": the user's EXISTING tasks, goals, projects, people and notes most relevant to THIS item (each carries a real "id"). It is your memory of what already exists. Use it:
+- LINK to what's real: if the item involves a person/goal/project that already exists, reference that record's real id in links[].to — do NOT mint a duplicate person/goal. A task that advances an existing goal/project SHOULD get a link { from:<task temp_id>, to:<that goal/project id>, relation:"part_of" }.
+- DEDUPE: if this item is essentially the SAME as an existing OPEN task, do NOT create a second task — instead set that new task entity's "duplicate_of" to the existing task's id (you may still create genuinely-new related entities + links to it).
+- ENRICH: carry continuity from memory into the title/body when it clarifies (same customer, same deal, prior context).
+Only ever use ids that appear in related_memory or existing_entities. Never invent an id.
+
 Be decisive. Set confidence high (>=0.8) when the intent is clear. Use needs_review:true only when the text is genuinely ambiguous or you had to guess a date with no real cue.`;
 
 const CLASSIFY_SCHEMA = {
@@ -83,6 +90,7 @@ const CLASSIFY_SCHEMA = {
           urgency: { type: "integer", enum: [1, 2, 3, 4, 5] },
           importance: { type: "integer", enum: [1, 2, 3, 4, 5] },
           tags: { type: "array", items: { type: "string" } },
+          duplicate_of: { type: "string", description: "id of an existing OPEN task in related_memory this duplicates; set instead of creating a second task" },
         },
       },
     },
@@ -245,11 +253,29 @@ async function processOne(svc: any, inboxId: string): Promise<{ status: string; 
       .select("id, kind, title").eq("user_id", ownerUserId)
       .in("kind", ["project", "goal", "person", "contact"]).order("created_at", { ascending: false }).limit(40);
 
+    // Semantic recall — the user's existing tasks/notes/people MOST RELEVANT to
+    // this capture (not just the 40 newest). This is the "memory of past tasks":
+    // it lets the model link to, dedupe against, and enrich from real history.
+    const rawEmb = await embedText(row.raw_text);
+    let related: any[] = [];
+    if (rawEmb) {
+      try {
+        const { data: rel } = await svc.rpc("taskos_semantic_search_svc", {
+          p_user: ownerUserId, query_embedding: toVectorLiteral(rawEmb), match_count: 8,
+        });
+        related = Array.isArray(rel) ? rel : [];
+      } catch (e) { console.error("[taskos-process-inbox] recall failed", e instanceof Error ? e.message : e); }
+    }
+
     const now = new Date();
     const payload = {
       time_context: buildTimeContext(now, tz),
       item: wrapUntrusted(row.raw_text),
       existing_entities: (ctxEntities ?? []).map((e: any) => ({ id: e.id, kind: e.kind, title: e.title })),
+      related_memory: related.map((r: any) => ({
+        id: r.id, kind: r.kind, title: r.title,
+        body: typeof r.body === "string" ? r.body.slice(0, 200) : "", due_at: r.due_at,
+      })),
     };
 
     // Flash (thinking) first; escalate to Pro (thinking) when low-confidence / flagged.
@@ -271,14 +297,27 @@ async function processOne(svc: any, inboxId: string): Promise<{ status: string; 
     }
 
     const entities: any[] = Array.isArray(parsed?.entities) ? parsed.entities : [];
-    // temp_id / existing-id -> { kind, id } so we can resolve links.
+    // temp_id / existing-id -> { kind, id } so we can resolve links + dedupe.
     const idMap = new Map<string, { kind: "task" | "entity"; id: string }>();
     for (const e of ctxEntities ?? []) idMap.set(e.id, { kind: "entity", id: e.id });
+    // Recalled memory is also link/dedupe-resolvable by its real id.
+    for (const r of related) idMap.set(r.id, { kind: r.kind === "task" ? "task" : "entity", id: r.id });
 
-    let created = 0;
+    let created = 0, dedupSkipped = 0;
     for (const ent of entities) {
       const type = String(ent?.type ?? "").toLowerCase();
       if (!ALLOWED_TYPES.has(type)) continue; // whitelist — drop hallucinated types
+
+      // Dedupe: model says this is the same as an existing OPEN task. Don't create a
+      // second one — refresh the existing task's progress timestamp and route any
+      // links for this temp_id to the real task instead.
+      const dupRef = typeof ent?.duplicate_of === "string" ? idMap.get(ent.duplicate_of) : null;
+      if (type === "task" && dupRef && dupRef.kind === "task") {
+        await svc.from("taskos_tasks").update({ last_progress_at: nowISO() }).eq("id", dupRef.id).eq("user_id", ownerUserId);
+        if (ent?.temp_id) idMap.set(String(ent.temp_id), { kind: "task", id: dupRef.id });
+        dedupSkipped++;
+        continue;
+      }
       const title = String(ent?.title ?? "").slice(0, 500) || "(untitled)";
       const body = typeof ent?.body === "string" ? ent.body : "";
       let dueAt = localWallToUtcISO(ent?.due_at, tz);
@@ -318,6 +357,7 @@ async function processOne(svc: any, inboxId: string): Promise<{ status: string; 
 
     // Knowledge-graph edges (only when both ends resolved; ignore dup unique-violations).
     const links: any[] = Array.isArray(parsed?.links) ? parsed.links : [];
+    const goalTargets = new Set<string>(); // goal/project entities that gained activity
     for (const ln of links) {
       const f = idMap.get(String(ln?.from));
       const t = idMap.get(String(ln?.to));
@@ -327,13 +367,25 @@ async function processOne(svc: any, inboxId: string): Promise<{ status: string; 
         user_id: ownerUserId, from_kind: f.kind, from_id: f.id, to_kind: t.kind, to_id: t.id, relation,
       });
       if (error && (error as any).code !== "23505") console.error("[taskos-process-inbox] link insert", error.message);
+      if (t.kind === "entity" && ["part_of", "about", "relates_to"].includes(relation)) goalTargets.add(t.id);
     }
 
-    const needsReview = parsed?.needs_review === true || (typeof parsed?.confidence === "number" && parsed.confidence < 0.5) || created === 0;
+    // Refresh goal/project activity so the goal-health tracker sees momentum when a
+    // new task is linked to a goal. Filtered to goal/project kinds in the update.
+    if (goalTargets.size) {
+      await svc.from("taskos_entities").update({ last_activity_at: nowISO() })
+        .in("id", [...goalTargets]).in("kind", ["goal", "project"]).eq("user_id", ownerUserId);
+    }
+
+    // created===0 alone no longer means "needs review": a pure-dedup capture (handled
+    // against an existing task) is a successful, fully-processed outcome.
+    const needsReview = parsed?.needs_review === true
+      || (typeof parsed?.confidence === "number" && parsed.confidence < 0.5)
+      || (created === 0 && dedupSkipped === 0);
     await svc.from("taskos_inbox_items").update({
       status: needsReview ? "needs_review" : "processed",
       processed_at: nowISO(),
-      ai_result: { ...parsed, _model: modelUsed },
+      ai_result: { ...parsed, _model: modelUsed, _dedup_skipped: dedupSkipped, _related_recalled: related.length },
     }).eq("id", inboxId).eq("user_id", ownerUserId);
 
     return { status: needsReview ? "needs_review" : "processed", created };
