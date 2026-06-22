@@ -49,6 +49,7 @@ const menuItems: MenuItem[] = [
     icon: Package,
     children: [
       { title: 'Deal Ledger', path: '/admin/aftersales' },
+      { title: 'Deal Desk', path: '/admin/deal-desk' },
       { title: 'Reports', path: '/admin/reports' },
       { title: 'Vendors', path: '/admin/vendors' },
       { title: 'Invoice Creator', path: '/admin/invoices' },
