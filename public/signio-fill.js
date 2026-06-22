@@ -144,6 +144,23 @@
   let flags = [];
   function flag(msg) { flags.push(msg); console.warn('[Lumina FLAG]', msg); }
 
+  // Next-of-Kin Relation: use Lumina's value if present; else default to "Other"; else the
+  // first real option. Lumina doesn't capture kin relation, so this keeps the step unblocked.
+  function selectRelation(rel) {
+    const el = selectByLabel(/relation/i);
+    if (!el) return false;
+    const opts = [...el.options];
+    let opt = null;
+    if (rel) {
+      opt = opts.find((o) => norm(o.text) === norm(rel)) ||
+            opts.find((o) => norm(o.text).includes(norm(rel)) || norm(rel).includes(norm(o.text)));
+    }
+    if (!opt) opt = opts.find((o) => /other/i.test(o.text));
+    if (!opt) opt = opts.find((o) => o.value && !/not selected|please select|^select|^$/i.test(o.text.trim()));
+    if (opt) { setVal(el, opt.value); return true; }
+    return false;
+  }
+
   async function fillBasicInfo(d) {
     if (!luhnValid(d.id_number)) flag('ID number "' + (d.id_number || '(missing)') + '" is not a valid SA ID (Luhn/13-digit) — fix before submit.');
     d._gender = genderFromId(d.id_number) || (norm(d.gender) === 'male' ? 'Male' : norm(d.gender) === 'female' ? 'Female' : null);
@@ -205,8 +222,11 @@
       setText(/spouse first/i, d.spouse_first_name);
       setText(/spouse surname/i, d.spouse_surname);
     }
-    if (d.kin_relation) setSelect(/relation/i, d.kin_relation, { contains: true });
-    else flag('Next-of-Kin "Relation" not set in Lumina — pick it on the form (required).');
+    // Relation: Lumina doesn't capture it, so DEFAULT to a safe option ("Other") so the
+    // required field never blocks the step. (Pick the real one on the form if known.)
+    const relSet = selectRelation(d.kin_relation);
+    if (!d.kin_relation && relSet) flag('Next-of-Kin Relation defaulted to "Other" (not captured in Lumina) — change it on the form if you know it.');
+    else if (!relSet) flag('Next-of-Kin "Relation" could not be set — pick it on the form (required).');
     if (d.kin_first_name) setText(/^first name$/i, d.kin_first_name);
     if (d.kin_surname) setText(/^surname$/i, d.kin_surname);
     setSelect(/contact method/i, 'Cellphone');
