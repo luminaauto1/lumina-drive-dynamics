@@ -781,7 +781,7 @@ const AdminFinance = () => {
             return isToday(a.created_at);
           }).length;
           const Sub = ({ n }: { n: number }) => (
-            <div className={`text-xs mt-1 ${n > 0 ? 'opacity-60' : 'text-zinc-600'}`}>+{n} today</div>
+            <div className={`text-[10px] mt-0.5 ${n > 0 ? 'opacity-60' : 'text-zinc-600'}`}>+{n} today</div>
           );
           const declinedCount = applications.filter(a => a.status === 'declined' || a.status === 'blacklisted').length;
           const declinedToday = todayByStatus('declined') + todayByStatus('blacklisted');
@@ -790,46 +790,46 @@ const AdminFinance = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-6"
+              className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-8 gap-2 mb-4"
             >
-              <div className="glass-card rounded-lg p-4">
-                <p className="text-2xl font-bold text-amber-400">{activeApps.filter(a => a.status === 'pending').length}</p>
-                <p className="text-sm text-muted-foreground">Pending</p>
+              <div className="glass-card rounded-lg p-2.5">
+                <p className="text-xl font-bold text-amber-400 leading-none">{activeApps.filter(a => a.status === 'pending').length}</p>
+                <p className="text-[11px] text-muted-foreground mt-1">Pending</p>
                 <Sub n={todayByStatus('pending', true)} />
               </div>
-              <div className="glass-card rounded-lg p-4">
-                <p className="text-2xl font-bold text-indigo-400">{activeApps.filter(a => a.status === 'application_submitted').length}</p>
-                <p className="text-sm text-muted-foreground">Apps Submitted</p>
+              <div className="glass-card rounded-lg p-2.5">
+                <p className="text-xl font-bold text-indigo-400 leading-none">{activeApps.filter(a => a.status === 'application_submitted').length}</p>
+                <p className="text-[11px] text-muted-foreground mt-1">Apps Submitted</p>
                 <Sub n={todayByStatus('application_submitted')} />
               </div>
-              <div className="glass-card rounded-lg p-4">
-                <p className="text-2xl font-bold text-emerald-300">{activeApps.filter(a => a.status === 'ready_to_submit').length}</p>
-                <p className="text-sm text-muted-foreground">Ready to Submit</p>
+              <div className="glass-card rounded-lg p-2.5">
+                <p className="text-xl font-bold text-emerald-300 leading-none">{activeApps.filter(a => a.status === 'ready_to_submit').length}</p>
+                <p className="text-[11px] text-muted-foreground mt-1">Ready to Submit</p>
                 <Sub n={todayByStatus('ready_to_submit')} />
               </div>
-              <div className="glass-card rounded-lg p-4">
-                <p className="text-2xl font-bold text-teal-400">{activeApps.filter(a => a.status === 'pre_approved').length}</p>
-                <p className="text-sm text-muted-foreground">Pre-Approved</p>
+              <div className="glass-card rounded-lg p-2.5">
+                <p className="text-xl font-bold text-teal-400 leading-none">{activeApps.filter(a => a.status === 'pre_approved').length}</p>
+                <p className="text-[11px] text-muted-foreground mt-1">Pre-Approved</p>
                 <Sub n={todayByStatus('pre_approved')} />
               </div>
-              <div className="glass-card rounded-lg p-4">
-                <p className="text-2xl font-bold text-blue-400">{activeApps.filter(a => a.status === 'validations_pending').length}</p>
-                <p className="text-sm text-muted-foreground">Vals Submitted</p>
+              <div className="glass-card rounded-lg p-2.5">
+                <p className="text-xl font-bold text-blue-400 leading-none">{activeApps.filter(a => a.status === 'validations_pending').length}</p>
+                <p className="text-[11px] text-muted-foreground mt-1">Vals Submitted</p>
                 <Sub n={todayByStatus('validations_pending')} />
               </div>
-              <div className="glass-card rounded-lg p-4">
-                <p className="text-2xl font-bold text-cyan-400">{activeApps.filter(a => a.status === 'validations_complete').length}</p>
-                <p className="text-sm text-muted-foreground">Vals Complete</p>
+              <div className="glass-card rounded-lg p-2.5">
+                <p className="text-xl font-bold text-cyan-400 leading-none">{activeApps.filter(a => a.status === 'validations_complete').length}</p>
+                <p className="text-[11px] text-muted-foreground mt-1">Vals Complete</p>
                 <Sub n={todayByStatus('validations_complete')} />
               </div>
-              <div className="glass-card rounded-lg p-4">
-                <p className="text-2xl font-bold text-red-400">{declinedCount}</p>
-                <p className="text-sm text-muted-foreground">Declined</p>
-                <div className={`text-xs mt-1 ${declinedToday > 0 ? 'text-red-300' : 'text-zinc-400'}`}>+{declinedToday} today</div>
+              <div className="glass-card rounded-lg p-2.5">
+                <p className="text-xl font-bold text-red-400 leading-none">{declinedCount}</p>
+                <p className="text-[11px] text-muted-foreground mt-1">Declined</p>
+                <div className={`text-[10px] mt-0.5 ${declinedToday > 0 ? 'text-red-300' : 'text-zinc-400'}`}>+{declinedToday} today</div>
               </div>
-              <div className="glass-card rounded-lg p-4">
-                <p className="text-2xl font-bold">{activeApps.length}</p>
-                <p className="text-sm text-muted-foreground">Active</p>
+              <div className="glass-card rounded-lg p-2.5">
+                <p className="text-xl font-bold leading-none">{activeApps.length}</p>
+                <p className="text-[11px] text-muted-foreground mt-1">Active</p>
                 <Sub n={totalActiveToday} />
               </div>
             </motion.div>
@@ -852,7 +852,7 @@ const AdminFinance = () => {
             </div>
           ) : (
             <div className="overflow-x-auto">
-            <Table>
+            <Table className="min-w-[1040px] [&_td]:py-2 [&_th]:py-2">
               <TableHeader>
                 <TableRow className="border-white/10 hover:bg-white/5">
                   <TableHead className="text-muted-foreground">Name</TableHead>
