@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { buildCorsHeaders, checkInternalKey } from "../_shared/publicGuard.ts";
 
 serve(async (req) => {
-  const cors = buildCorsHeaders(req.headers.get("origin"));
+  const cors = buildCorsHeaders(req.headers.get("origin"), req.headers.get("access-control-request-headers"));
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
   const guard = checkInternalKey(req);
