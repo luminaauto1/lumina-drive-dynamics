@@ -40,6 +40,7 @@ export const APP_SECTIONS: AppSection[] = [
   { key: 'invoices',      label: 'Invoice Creator',  description: 'Standalone invoice builder', paths: ['/admin/invoices'], home: '/admin/invoices' },
   { key: 'analytics',     label: 'Analytics',        description: 'Business analytics dashboards', paths: ['/admin/analytics'], home: '/admin/analytics' },
   { key: 'export',        label: 'Export CSV',       description: 'Custom finance-application CSV export builder', paths: ['/admin/export'], home: '/admin/export' },
+  { key: 'deal_desk',     label: 'Deal Desk',        description: 'Back-office cost sheet, delivery & Natis, payables (additive on finalized deals)', paths: ['/admin/deal-desk'], home: '/admin/deal-desk' },
 ];
 
 export const SECTION_KEYS = APP_SECTIONS.map((s) => s.key);
