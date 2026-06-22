@@ -65,6 +65,7 @@ const SystemFix = lazy(() => import("./pages/admin/SystemFix"));
 const AdminJuristic = lazy(() => import("./pages/admin/AdminJuristic"));
 const AdminVendors = lazy(() => import("./pages/admin/AdminVendors"));
 const AdminInvoiceCreator = lazy(() => import("./pages/admin/AdminInvoiceCreator"));
+const AdminExport = lazy(() => import("./pages/admin/AdminExport"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -137,6 +138,7 @@ const AppLayout = () => {
             <Route path="/admin/extra-incomes" element={<ProtectedRoute section="extra_incomes"><AdminExtraIncomes /></ProtectedRoute>} />
             <Route path="/admin/cars-to-buy" element={<ProtectedRoute section="cars_to_buy"><AdminCarsToBuy /></ProtectedRoute>} />
             <Route path="/admin/analytics" element={<ProtectedRoute section="analytics"><AdminAnalytics /></ProtectedRoute>} />
+            <Route path="/admin/export" element={<ProtectedRoute section="export"><AdminExport /></ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute requireSuperAdmin><AdminSettings /></ProtectedRoute>} />
             <Route path="/admin/settings/email" element={<ProtectedRoute requireSuperAdmin><AdminEmailSettings /></ProtectedRoute>} />
             <Route path="/admin/reports/partner-payout/:dealId" element={<ProtectedRoute section="reports"><AdminPartnerPayout /></ProtectedRoute>} />

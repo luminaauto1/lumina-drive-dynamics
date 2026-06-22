@@ -38,6 +38,7 @@ export const APP_SECTIONS: AppSection[] = [
   { key: 'vendors',       label: 'Vendors',          description: 'Suppliers & finance houses', paths: ['/admin/vendors'], home: '/admin/vendors' },
   { key: 'invoices',      label: 'Invoice Creator',  description: 'Standalone invoice builder', paths: ['/admin/invoices'], home: '/admin/invoices' },
   { key: 'analytics',     label: 'Analytics',        description: 'Business analytics dashboards', paths: ['/admin/analytics'], home: '/admin/analytics' },
+  { key: 'export',        label: 'Export CSV',       description: 'Custom finance-application CSV export builder', paths: ['/admin/export'], home: '/admin/export' },
 ];
 
 export const SECTION_KEYS = APP_SECTIONS.map((s) => s.key);
