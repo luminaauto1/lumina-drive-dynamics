@@ -65,31 +65,42 @@
     const el = inputByLabel(/^suburb$/i) || inputByLabel(/town\/?city|^city$/i);
     return !!(el && String(el.value || '').trim());
   }
+  // Select the "Search by Suburb" / "Search by Postal Code" radio before searching.
+  function setSearchMode(byPostal) {
+    const r = [...document.querySelectorAll('input[type=radio]')].find((x) =>
+      (byPostal ? /postal/i : /suburb/i).test(labelFor(x) + ' ' + ((x.parentElement && x.parentElement.innerText) || '')));
+    if (r && !r.checked) r.click();
+  }
   // Address Lookup: try each candidate (suburb name, then postal code). Type → Search →
-  // click the best result <button> → wait for the locked Suburb/Town/Postal/Province to fill.
-  // Returns true only once the Suburb field is actually populated.
-  async function addressLookup(candidates) {
+  // click the best result row → wait for the locked Suburb/Town/Postal/Province to fill.
+  // NB: result rows are <button>s whose innerText reads EMPTY in some runtimes, so we
+  // match on textContent. When a postal code is known, prefer the row that contains it
+  // (a suburb search can return several rows, e.g. Sandton 2146 vs 2196).
+  async function addressLookup(candidates, preferPostal) {
     const queries = (Array.isArray(candidates) ? candidates : [candidates])
       .map((c) => (c == null ? '' : String(c).trim())).filter(Boolean);
     if (!queries.length) return false;
     const box = inputByLabel(/suburb name|postal code/i) ||
       [...document.querySelectorAll('input')].find((e) => /suburb name|postal code/i.test(e.placeholder || ''));
     if (!box) return false;
+    const rowText = (b) => String((b.innerText && b.innerText.trim()) || b.textContent || '').trim();
     for (const q of queries) {
+      setSearchMode(/^\d{4}$/.test(q));
+      await sleep(150);
       setVal(box, q);
-      clickButtonText(/^search$/i);
-      // Result rows are <button>s with a comma-separated "Suburb, Town, 1234, Province" label.
+      clickButtonText(/^\s*search\s*$/i);
       const btn = await waitFor(() => {
         const rows = [...document.querySelectorAll('button')].filter((b) => {
-          const t = (b.innerText || '').trim();
-          return t.length > 3 && t.length < 90 && !/^search$/i.test(t) && t.includes(',');
+          const t = rowText(b);
+          return t.length > 3 && t.length < 90 && !/^\s*search\s*$/i.test(t) && t.includes(',');
         });
         if (!rows.length) return null;
-        return rows.find((b) => norm(b.innerText).includes(norm(q))) || rows[0];
-      }, { timeout: 3500 });
+        return (preferPostal && rows.find((b) => rowText(b).includes(String(preferPostal)))) ||
+               rows.find((b) => norm(rowText(b)).includes(norm(q))) || rows[0];
+      }, { timeout: 4000 });
       if (!btn) continue;
       btn.click();
-      await sleep(700); // let React populate the locked Suburb/City/Postal/Province
+      await sleep(800); // let React populate the locked Suburb/City/Postal/Province
       if (suburbFilled()) return true;
     }
     return false;
@@ -213,7 +224,7 @@
     setSelect(/education/i, EDUCATION[norm(d.qualification)] || null, { contains: true });
     setSelect(/marital status/i, MARITAL[norm(d.marital_status)] || null);
     if (d.street_address) setText(/address line 1/i, String(d.street_address).slice(0, 50));
-    const resOk = await addressLookup([d.suburb, d.area_code]);
+    const resOk = await addressLookup([d.suburb, d.area_code], d.area_code);
     if (!resOk) flag('Residential address not auto-resolved — in the Address Lookup box type the suburb or postal code, Search, and pick the result (fills Suburb/Town/Postal/Province).');
     if (d.years_at_address != null) setText(/^years$/i, d.years_at_address); else setText(/^years$/i, '3');
     setText(/^months$/i, d.months_at_address != null ? d.months_at_address : '0');
@@ -225,7 +236,7 @@
     // Relation: Lumina doesn't capture it, so DEFAULT to a safe option ("Other") so the
     // required field never blocks the step. (Pick the real one on the form if known.)
     const relSet = selectRelation(d.kin_relation);
-    if (!d.kin_relation && relSet) flag('Next-of-Kin Relation defaulted to "Other" (not captured in Lumina) — change it on the form if you know it.');
+    if (!d.kin_relation && relSet) flag('Next-of-Kin Relation defaulted (not captured in Lumina) — change it on the form if you know it.');
     else if (!relSet) flag('Next-of-Kin "Relation" could not be set — pick it on the form (required).');
     if (d.kin_first_name) setText(/^first name$/i, d.kin_first_name);
     if (d.kin_surname) setText(/^surname$/i, d.kin_surname);
@@ -242,7 +253,7 @@
     setSelect(/employment type/i, EMP_TYPE[norm(d.employment_type)] || 'Permanent', { contains: true });
     setSelect(/client type/i, CLIENT_TYPE(EMP_TYPE[norm(d.employment_type)] || ''), { contains: true });
     if (d.employer_address) setText(/^address 1$|address line 1/i, String(d.employer_address).slice(0, 50));
-    if (d.employer_suburb) { const eOk = await addressLookup([d.employer_suburb]); if (!eOk) flag('Employer address not auto-resolved — pick the suburb/postal in the employer Address Lookup.'); }
+    if (d.employer_suburb) { const eOk = await addressLookup([d.employer_suburb], d.employer_area_code); if (!eOk) flag('Employer address not auto-resolved — pick the suburb/postal in the employer Address Lookup.'); }
     setText(/account holder/i, d.full_name);
     setSelect(/account type/i, ACCOUNT_TYPE[norm(d.account_type)] || d.account_type, { contains: true });
     const bank = canonicalBank(d.bank_name);
