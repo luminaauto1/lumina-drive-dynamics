@@ -98,8 +98,8 @@ export function DealsTable({ deals, onOpen }: { deals: Deal[]; onOpen: (d: Deal)
         </table>
       </div>
       <p className="text-[11px] text-muted-foreground">
-        GP shown is the deal's recorded <strong>ledger</strong> gross profit (from Finalize Deal). The Cost Sheet tab's
-        "Correct Total" is analytical and may differ — it never overrides this value.
+        GP shown here is the deal's official recorded profit (set in <strong>Finalize Deal</strong>). The Cost Sheet tab is
+        for internal/operational tracking only and never changes this value, so its "Correct Total" may differ.
       </p>
     </div>
   );

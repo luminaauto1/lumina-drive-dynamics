@@ -15,7 +15,8 @@ export function NotesFeed({ app }: { app: FinanceApplication }) {
   const qc = useQueryClient();
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
-  const notes = (app as any).notes as string | null;
+  // notes is a text column, but guard the type defensively before string ops.
+  const notes = typeof (app as any).notes === 'string' ? ((app as any).notes as string) : null;
   const entries = (notes || '').split(/\n\n+/).map((s) => s.trim()).filter(Boolean);
 
   const add = async () => {

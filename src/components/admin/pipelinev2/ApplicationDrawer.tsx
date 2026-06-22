@@ -31,7 +31,7 @@ export function ApplicationDrawer({
   const [feed, setFeed] = useState<'notes' | 'history'>('notes');
   if (!app) return null;
   const any = app as any;
-  const statusCls = STATUS_STYLES[any.status] || 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+  const statusCls = STATUS_STYLES[any.status] || 'bg-muted text-muted-foreground border-border';
   const vehicleText = app.vehicle
     ? `${app.vehicle.year} ${app.vehicle.make} ${app.vehicle.model}`
     : any.preferred_vehicle_text || null;

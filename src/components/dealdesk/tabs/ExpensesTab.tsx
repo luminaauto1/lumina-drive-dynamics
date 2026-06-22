@@ -42,25 +42,25 @@ export function ExpensesTab({ deal }: { deal: Deal }) {
       </div>
       <p className="text-[11px] text-muted-foreground -mt-2">Payables tracker — does not affect the deal's recorded profit.</p>
 
-      {/* Add row */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 rounded-lg border border-border p-3">
-        <Input placeholder="Amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-8" />
+      {/* Add row — stacks on mobile, 5-col grid on md+ */}
+      <div className="flex flex-col md:grid md:grid-cols-5 gap-2 rounded-lg border border-border p-3">
+        <Input aria-label="Expense amount" placeholder="Amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-8" />
         <Select value={reason} onValueChange={(v) => setReason(v as ExpenseReason)}>
-          <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-8" aria-label="Expense reason"><SelectValue /></SelectTrigger>
           <SelectContent>{EXPENSE_REASON_OPTIONS.map((r) => <SelectItem key={r} value={r}>{EXPENSE_REASON_LABEL[r]}</SelectItem>)}</SelectContent>
         </Select>
         <Select value={payeeId} onValueChange={setPayeeId}>
-          <SelectTrigger className="h-8"><SelectValue placeholder="Payee" /></SelectTrigger>
+          <SelectTrigger className="h-8" aria-label="Payee"><SelectValue placeholder="Payee" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="none">No payee</SelectItem>
             {payees.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-8" />
+        <Input aria-label="Expense date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-8" />
         <Button onClick={add} disabled={saveExpense.isPending} className="h-8 gap-1">
           {saveExpense.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />} Add
         </Button>
-        <Input placeholder="Comments" value={comments} onChange={(e) => setComments(e.target.value)} className="h-8 col-span-2 md:col-span-5" />
+        <Input aria-label="Comments" placeholder="Comments" value={comments} onChange={(e) => setComments(e.target.value)} className="h-8 md:col-span-5" />
       </div>
 
       {isLoading ? (
