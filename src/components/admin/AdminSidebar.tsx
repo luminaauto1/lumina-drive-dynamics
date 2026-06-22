@@ -80,6 +80,13 @@ const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
     onCollapse?.(collapsed);
   }, [collapsed, onCollapse]);
 
+  // The Finance applications table is wide — auto-collapse the sidebar when entering
+  // it to free up horizontal space (desktop only; the mobile drawer has no onCollapse).
+  const onFinance = location.pathname.startsWith('/admin/finance');
+  useEffect(() => {
+    if (onFinance && onCollapse) setCollapsed(true);
+  }, [onFinance, onCollapse]);
+
   const isPathActive = (path: string) =>
     location.pathname === path || (path !== '/admin' && location.pathname.startsWith(path));
 
