@@ -107,7 +107,7 @@ function renderCell(
         </>
       );
     case 'status': {
-      const cls = STATUS_STYLES[any.status] || 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+      const cls = STATUS_STYLES[any.status] || 'bg-muted text-muted-foreground border-border';
       const label = ADMIN_STATUS_LABELS[any.status] || any.status || '—';
       return onChangeStatus ? (
         <button type="button" onClick={(e) => { e.stopPropagation(); onChangeStatus(a); }} title="Click to change status"

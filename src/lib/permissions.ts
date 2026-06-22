@@ -50,7 +50,7 @@ export const SECTION_KEYS = APP_SECTIONS.map((s) => s.key);
 export const DEFAULT_ROLE_SECTIONS: Record<ConfigurableRole, string[]> = {
   sales_agent:    ['inventory', 'crm', 'finance', 'quotes'],
   f_and_i:        ['finance'],
-  senior_f_and_i: ['finance', 'pipeline_v2', 'crm', 'quotes'],
+  senior_f_and_i: ['finance', 'pipeline_v2', 'crm', 'quotes', 'deal_desk'],
   accountant:     ['reports', 'vendors', 'invoices'],
 };
 

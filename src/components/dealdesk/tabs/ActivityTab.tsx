@@ -14,10 +14,14 @@ export function ActivityTab({ deal }: { deal: Deal }) {
     const ids = Array.from(new Set(events.map((e) => e.actor_id).filter(Boolean))) as string[];
     if (!ids.length) return;
     (async () => {
-      const { data } = await (supabase as any).from('profiles').select('user_id, full_name, email').in('user_id', ids);
-      const map: Record<string, string> = {};
-      (data || []).forEach((p: any) => { map[p.user_id] = p.full_name || p.email || ''; });
-      setActors(map);
+      try {
+        const { data } = await (supabase as any).from('profiles').select('user_id, full_name, email').in('user_id', ids);
+        const map: Record<string, string> = {};
+        (data || []).forEach((p: any) => { map[p.user_id] = p.full_name || p.email || ''; });
+        setActors(map);
+      } catch (e) {
+        console.error('[dealdesk] ActivityTab actor resolution failed (non-fatal):', e);
+      }
     })();
   }, [events]);
 

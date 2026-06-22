@@ -138,7 +138,7 @@ export function useSavePayee() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (payee: Partial<Payee>) => {
-      const { error } = await db.from('deal_payees').upsert({ ...payee, updated_at: new Date().toISOString() });
+      const { error } = await db.from('deal_payees').upsert({ ...payee, updated_at: new Date().toISOString() }, { onConflict: 'id' });
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['dealdesk', 'payees'] }); toast.success('Payee saved'); },
@@ -163,7 +163,7 @@ export function useSaveExpense() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (exp: Partial<Expense>) => {
-      const { error } = await db.from('deal_expense_items').upsert({ ...exp, updated_at: new Date().toISOString() });
+      const { error } = await db.from('deal_expense_items').upsert({ ...exp, updated_at: new Date().toISOString() }, { onConflict: 'id' });
       if (error) throw error;
     },
     onSuccess: () => {
