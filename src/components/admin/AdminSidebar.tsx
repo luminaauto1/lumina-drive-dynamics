@@ -51,6 +51,7 @@ const menuItems: MenuItem[] = [
       { title: 'Reports', path: '/admin/reports' },
       { title: 'Vendors', path: '/admin/vendors' },
       { title: 'Invoice Creator', path: '/admin/invoices' },
+      { title: 'Export Builder', path: '/admin/export' },
       { title: 'Lead Analytics', path: '/admin/reports/lead-analytics' },
       { title: 'Analytics', path: '/admin/analytics' },
     ],
