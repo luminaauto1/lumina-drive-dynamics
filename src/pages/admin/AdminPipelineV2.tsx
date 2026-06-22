@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useFinanceApplications, useUpdateFinanceApplication, type FinanceApplication } from '@/hooks/useFinanceApplications';
 import { useFAndIUsers } from '@/hooks/useFAndIUsers';
+import { useStatusConfig } from '@/hooks/useZtcSettings';
 import { PIPELINE_TABS, inTab } from '@/lib/pipelinev2/tabs';
 import { colorForUser } from '@/lib/pipelinev2/presence';
 import { loadConfig, type TableConfig } from '@/lib/pipelinev2/columns';
@@ -32,6 +33,7 @@ const AdminPipelineV2 = () => {
   const { data: apps = [], isLoading } = useFinanceApplications();
   const { data: fniUsers = [] } = useFAndIUsers();
   const updateApplication = useUpdateFinanceApplication();
+  const { labels: statusLabels, styles: statusStyles } = useStatusConfig();
 
   const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch] = useState('');
@@ -211,6 +213,8 @@ const AdminPipelineV2 = () => {
             onToggleSelect={toggleSelect}
             onToggleSelectAll={toggleSelectAll}
             busyByApp={busyByApp}
+            statusLabels={statusLabels}
+            statusStyles={statusStyles}
           />
         )}
       </div>

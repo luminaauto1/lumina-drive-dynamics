@@ -12,6 +12,7 @@ const appName = (a: FinanceApplication) =>
 export function ApplicationTable({
   applications, config, onSelect, onChangeStatus,
   selectable, selectedIds, onToggleSelect, onToggleSelectAll, busyByApp,
+  statusLabels, statusStyles,
 }: {
   applications: FinanceApplication[];
   config: TableConfig;
@@ -22,6 +23,9 @@ export function ApplicationTable({
   onToggleSelect?: (id: string) => void;
   onToggleSelectAll?: (ids: string[], select: boolean) => void;
   busyByApp?: Map<string, Busy>;
+  /** Optional admin-configured overrides (from status_overrides); fall back to statusConfig. */
+  statusLabels?: Record<string, string>;
+  statusStyles?: Record<string, string>;
 }) {
   const colByKey = new Map(TABLE_COLUMNS.map((c) => [c.key, c]));
   const visible = config.visible.map((k) => colByKey.get(k)).filter(Boolean) as TableColumnDef[];
@@ -68,7 +72,7 @@ export function ApplicationTable({
                 )}
                 {visible.map((col) => (
                   <td key={col.key} className={'px-3 py-2 align-top ' + classFor(col.key) + (col.align === 'right' ? ' text-right tabular-nums' : '')}>
-                    {renderCell(col.key, a, busy, onChangeStatus)}
+                    {renderCell(col.key, a, busy, onChangeStatus, statusLabels, statusStyles)}
                   </td>
                 ))}
               </tr>
@@ -90,6 +94,8 @@ export function ApplicationTable({
 function renderCell(
   key: string, a: FinanceApplication, busy: Busy | undefined,
   onChangeStatus?: (app: FinanceApplication) => void,
+  statusLabels?: Record<string, string>,
+  statusStyles?: Record<string, string>,
 ): React.ReactNode {
   const any = a as any;
   switch (key) {
@@ -107,8 +113,8 @@ function renderCell(
         </>
       );
     case 'status': {
-      const cls = STATUS_STYLES[any.status] || 'bg-muted text-muted-foreground border-border';
-      const label = ADMIN_STATUS_LABELS[any.status] || any.status || '—';
+      const cls = statusStyles?.[any.status] || STATUS_STYLES[any.status] || 'bg-muted text-muted-foreground border-border';
+      const label = statusLabels?.[any.status] || ADMIN_STATUS_LABELS[any.status] || any.status || '—';
       return onChangeStatus ? (
         <button type="button" onClick={(e) => { e.stopPropagation(); onChangeStatus(a); }} title="Click to change status"
           className={'rounded border px-1.5 py-0.5 text-xs font-semibold transition hover:brightness-110 ' + cls}>
