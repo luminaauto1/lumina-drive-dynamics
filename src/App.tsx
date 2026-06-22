@@ -66,6 +66,7 @@ const AdminJuristic = lazy(() => import("./pages/admin/AdminJuristic"));
 const AdminVendors = lazy(() => import("./pages/admin/AdminVendors"));
 const AdminInvoiceCreator = lazy(() => import("./pages/admin/AdminInvoiceCreator"));
 const AdminExport = lazy(() => import("./pages/admin/AdminExport"));
+const AdminPipelineV2 = lazy(() => import("./pages/admin/AdminPipelineV2"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -129,6 +130,7 @@ const AppLayout = () => {
             <Route path="/admin/finance" element={<ProtectedRoute section="finance"><AdminFinance /></ProtectedRoute>} />
             <Route path="/admin/finance/create" element={<ProtectedRoute section="finance"><AdminCreateApplication /></ProtectedRoute>} />
             <Route path="/admin/finance/:id" element={<ProtectedRoute section="finance"><AdminDealRoom /></ProtectedRoute>} />
+            <Route path="/admin/pipeline-v2" element={<ProtectedRoute section="pipeline_v2"><AdminPipelineV2 /></ProtectedRoute>} />
             <Route path="/admin/quotes" element={<ProtectedRoute section="quotes"><AdminQuoteGenerator /></ProtectedRoute>} />
             <Route path="/admin/aftersales" element={<ProtectedRoute section="deal_ledger"><AdminAftersales /></ProtectedRoute>} />
             <Route path="/admin/reports" element={<ProtectedRoute section="reports"><AdminReports /></ProtectedRoute>} />

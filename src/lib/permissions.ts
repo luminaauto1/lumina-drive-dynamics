@@ -24,6 +24,7 @@ export interface AppSection {
 // Every section an admin can grant/revoke per role. Order = display order.
 export const APP_SECTIONS: AppSection[] = [
   { key: 'finance',       label: 'Finance',          description: 'Finance applications & deal room', paths: ['/admin/finance'], home: '/admin/finance' },
+  { key: 'pipeline_v2',   label: 'Pipeline',         description: 'New pipeline view of finance applications (same data, fires same notifications)', paths: ['/admin/pipeline-v2'], home: '/admin/pipeline-v2' },
   { key: 'crm',           label: 'CRM / Leads',      description: 'Pipeline, leads and client management', paths: ['/admin/crm', '/admin/leads', '/admin/crm-sheet'], home: '/admin/crm' },
   { key: 'inventory',     label: 'Inventory',        description: 'Active stock', paths: ['/admin/inventory'], home: '/admin/inventory' },
   { key: 'cars_to_buy',   label: 'Cars to Buy',      description: 'Sourcing / buy list', paths: ['/admin/cars-to-buy'], home: '/admin/cars-to-buy' },
@@ -48,7 +49,7 @@ export const SECTION_KEYS = APP_SECTIONS.map((s) => s.key);
 export const DEFAULT_ROLE_SECTIONS: Record<ConfigurableRole, string[]> = {
   sales_agent:    ['inventory', 'crm', 'finance', 'quotes'],
   f_and_i:        ['finance'],
-  senior_f_and_i: ['finance', 'crm', 'quotes'],
+  senior_f_and_i: ['finance', 'pipeline_v2', 'crm', 'quotes'],
   accountant:     ['reports', 'vendors', 'invoices'],
 };
 
