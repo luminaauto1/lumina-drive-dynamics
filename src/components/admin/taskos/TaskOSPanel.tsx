@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import {
   Loader2, Send, Inbox, ListTodo, Sparkles, Settings as SettingsIcon, Trash2, Copy, Check,
   MessageCircle, Plug, Library as LibraryIcon, Link2, Clock, AlertTriangle, Save, ChevronRight,
-  CalendarClock,
+  CalendarClock, Lightbulb, RefreshCw, Target, TrendingUp, X,
 } from 'lucide-react';
 import { formatDistanceToNow, format, isPast } from 'date-fns';
 import { toast } from 'sonner';
@@ -20,6 +20,7 @@ import {
   useTelegramStatus, useGenerateTelegramCode, useUnlinkTelegram,
   useTaskOSSettings, useUpdateTaskOSSettings, useTaskOSSpendToday,
   useTaskOSQuery, TaskOSTask, TaskOSEntity,
+  useTaskOSInsights, useRefreshInsights, useDismissInsight, TaskOSInsight,
 } from '@/hooks/useTaskOS';
 
 const statusColor = (s: string) => {
@@ -314,6 +315,79 @@ const AskTab = () => {
   );
 };
 
+// ---------------- FORESIGHT / INSIGHTS ----------------
+const INSIGHT_META: Record<string, { icon: any; label: string }> = {
+  foresight:   { icon: CalendarClock, label: 'Foresight' },
+  goal_health: { icon: Target,        label: 'Goal' },
+  pattern:     { icon: TrendingUp,    label: 'Pattern' },
+  suggestion:  { icon: Lightbulb,     label: 'Suggestion' },
+  anomaly:     { icon: AlertTriangle, label: 'Flag' },
+  reflection:  { icon: Sparkles,      label: 'Today' },
+};
+const sevClass = (s: number) =>
+  s >= 4 ? 'border-red-500/40 bg-red-500/5' :
+  s === 3 ? 'border-amber-500/40 bg-amber-500/5' :
+  s === 2 ? 'border-blue-500/30 bg-blue-500/5' : 'border-border bg-card';
+
+const InsightsTab = () => {
+  const { data: insights = [], isLoading } = useTaskOSInsights();
+  const refresh = useRefreshInsights();
+  const dismiss = useDismissInsight();
+
+  const headline = insights.find((i) => i.kind === 'reflection');
+  const rest = insights.filter((i) => i.kind !== 'reflection');
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="p-3 border-b border-border flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-primary" /> Foresight</p>
+          <p className="text-[10px] text-muted-foreground">Look-ahead, goal health & patterns — refreshed nightly.</p>
+        </div>
+        <Button size="sm" variant="outline" onClick={() => refresh.mutate()} disabled={refresh.isPending} className="shrink-0">
+          {refresh.isPending ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-1" />} Refresh
+        </Button>
+      </div>
+      <ScrollArea className="flex-1">
+        <div className="p-3 space-y-2">
+          {isLoading ? (
+            <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+          ) : insights.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-8">No foresight yet. Tap Refresh, or it generates automatically each morning once you have tasks &amp; goals.</p>
+          ) : (
+            <>
+              {headline && (
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+                  <p className="text-sm font-medium flex items-start gap-1.5"><Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" /> {headline.title}</p>
+                </div>
+              )}
+              {rest.map((it: TaskOSInsight) => {
+                const meta = INSIGHT_META[it.kind] ?? { icon: Lightbulb, label: it.kind };
+                const Icon = meta.icon;
+                return (
+                  <div key={it.id} className={`rounded-lg border p-2.5 ${sevClass(it.severity)}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <Icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                          <Badge variant="outline" className="text-[9px]">{meta.label}</Badge>
+                        </div>
+                        <p className="text-sm mt-1">{it.title}</p>
+                        {it.body && <p className="text-[11px] text-muted-foreground mt-0.5 whitespace-pre-wrap">{it.body}</p>}
+                      </div>
+                      <button onClick={() => dismiss.mutate(it.id)} title="Dismiss" className="text-muted-foreground hover:text-foreground shrink-0"><X className="w-3.5 h-3.5" /></button>
+                    </div>
+                  </div>
+                );
+              })}
+            </>
+          )}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+};
+
 // ---------------- SETTINGS ----------------
 const SettingsTab = () => {
   const { data: status } = useTelegramStatus();
@@ -422,7 +496,7 @@ const SettingsTab = () => {
             <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
               <div className="h-full bg-primary" style={{ width: `${Math.min(100, ((spend?.total ?? 0) / Math.max(0.01, Number(effCap))) * 100)}%` }} />
             </div>
-            <p className="text-[10px] text-muted-foreground mt-2">Classification uses fast Haiku and escalates to Opus only when unsure. Hitting the budget pauses auto-organising (capture still works).</p>
+            <p className="text-[10px] text-muted-foreground mt-2">Classification uses a fast model and escalates to a deeper one only when unsure; nightly foresight adds one deeper run. Hitting the budget pauses auto-organising (capture still works).</p>
           </div>
         </div>
       </div>
@@ -433,16 +507,18 @@ const SettingsTab = () => {
 const TaskOSPanel = () => (
   <Tabs defaultValue="inbox" className="flex flex-col h-full">
     <div className="px-3 pt-3">
-      <TabsList className="grid grid-cols-5 w-full h-9">
+      <TabsList className="grid grid-cols-6 w-full h-9">
         <TabsTrigger value="inbox" className="text-xs gap-1"><Inbox className="w-3.5 h-3.5" /> Inbox</TabsTrigger>
         <TabsTrigger value="tasks" className="text-xs gap-1"><ListTodo className="w-3.5 h-3.5" /> Tasks</TabsTrigger>
-        <TabsTrigger value="library" className="text-xs gap-1"><LibraryIcon className="w-3.5 h-3.5" /></TabsTrigger>
-        <TabsTrigger value="ask" className="text-xs gap-1"><Sparkles className="w-3.5 h-3.5" /> Ask</TabsTrigger>
-        <TabsTrigger value="settings" className="text-xs gap-1"><SettingsIcon className="w-3.5 h-3.5" /></TabsTrigger>
+        <TabsTrigger value="foresight" className="text-xs gap-1" title="Foresight"><Sparkles className="w-3.5 h-3.5" /></TabsTrigger>
+        <TabsTrigger value="library" className="text-xs gap-1" title="Library"><LibraryIcon className="w-3.5 h-3.5" /></TabsTrigger>
+        <TabsTrigger value="ask" className="text-xs gap-1"><MessageCircle className="w-3.5 h-3.5" /> Ask</TabsTrigger>
+        <TabsTrigger value="settings" className="text-xs gap-1" title="Settings"><SettingsIcon className="w-3.5 h-3.5" /></TabsTrigger>
       </TabsList>
     </div>
     <TabsContent value="inbox" className="flex-1 mt-2 overflow-hidden"><InboxTab /></TabsContent>
     <TabsContent value="tasks" className="flex-1 mt-2 overflow-hidden"><TasksTab /></TabsContent>
+    <TabsContent value="foresight" className="flex-1 mt-2 overflow-hidden"><InsightsTab /></TabsContent>
     <TabsContent value="library" className="flex-1 mt-2 overflow-hidden"><LibraryTab /></TabsContent>
     <TabsContent value="ask" className="flex-1 mt-2 overflow-hidden"><AskTab /></TabsContent>
     <TabsContent value="settings" className="flex-1 mt-2 overflow-hidden"><SettingsTab /></TabsContent>
