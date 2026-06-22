@@ -7,12 +7,15 @@
 // whole engine (public/signio-fill.js, inlined into the bookmarklet) reads window.name and
 // fills steps 1–5, stopping at the Declaration (reCAPTCHA stays human).
 //
-// Why a bookmarklet (not a Tampermonkey userscript): no browser extension to install —
-// the bookmarklet inlines the engine, so it also isn't affected by Signio's CSP.
+// Why a bookmarklet (not a Tampermonkey userscript): no browser extension to install.
+// The bookmarklet is a tiny LOADER that pulls the latest engine (public/signio-fill.js)
+// from this site at click-time (cache-busted) — so the user drags it to the bookmarks bar
+// ONCE and every future engine fix applies automatically with no re-dragging. Confirmed
+// live that Signio loads external scripts (no CSP block on this origin).
 // The fill logic is UNCHANGED (React native-setter technique); only delivery changed.
 
-import { useEffect, useState } from 'react';
-import { Send, ExternalLink, Loader2, AlertTriangle, Check } from 'lucide-react';
+import { useState } from 'react';
+import { Send, ExternalLink, AlertTriangle, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
@@ -93,22 +96,21 @@ function computeChecks(app: any, payload: any): string[] {
 
 export function PushToSignioButton({ application }: { application: any }) {
   const [open, setOpen] = useState(false);
-  const [bookmarklet, setBookmarklet] = useState<string | null>(null);
-  const [bmError, setBmError] = useState(false);
 
   const payload = application ? buildSignioPayload(application) : null;
   const checks = application && payload ? computeChecks(application, payload) : [];
 
-  // Build the bookmarklet by inlining the hosted engine (CSP-proof; single source).
-  useEffect(() => {
-    if (!open || bookmarklet || bmError) return;
-    let cancelled = false;
-    fetch('/signio-fill.js?v=' + Date.now())
-      .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.text(); })
-      .then((src) => { if (!cancelled) setBookmarklet('javascript:' + encodeURIComponent(src + ';void 0;')); })
-      .catch(() => { if (!cancelled) setBmError(true); });
-    return () => { cancelled = true; };
-  }, [open, bookmarklet, bmError]);
+  // Loader bookmarklet: injects the latest engine from THIS origin (baked in at build
+  // time so it resolves correctly when clicked on the Signio tab), cache-busted so every
+  // fix applies without re-dragging. Tiny + static → drags reliably to the bookmarks bar.
+  const engineBase = typeof window !== 'undefined' ? window.location.origin : '';
+  const bookmarklet =
+    'javascript:' +
+    encodeURIComponent(
+      "(function(){var s=document.createElement('script');s.src='" +
+        engineBase +
+        "/signio-fill.js?t='+Date.now();s.onerror=function(){alert('Could not load the Signio filler \\u2014 check your connection, then click the bookmark again.');};document.head.appendChild(s);})();void 0",
+    );
 
   const openSignio = () => {
     const win = window.open('about:blank', '_blank');
@@ -158,25 +160,19 @@ export function PushToSignioButton({ application }: { application: any }) {
           <div className="rounded-md border border-border bg-card p-3 space-y-2">
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">First time only</p>
             <p className="text-xs text-muted-foreground">Drag this button up to your browser's bookmarks bar (then you never do it again):</p>
-            {bmError ? (
-              <p className="text-xs text-red-400">Couldn't build the auto-fill bookmark — refresh and try again.</p>
-            ) : !bookmarklet ? (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Preparing…</div>
-            ) : (
-              <a
-                href={bookmarklet}
-                draggable
-                onClick={(e) => e.preventDefault()}
-                onDragStart={(e) => {
-                  e.dataTransfer.setData('text/uri-list', bookmarklet);
-                  e.dataTransfer.setData('text/plain', bookmarklet);
-                }}
-                title="Drag me to your bookmarks bar (don't click here)"
-                className="inline-flex items-center gap-1.5 rounded-md bg-yellow-400 px-3 py-1.5 text-sm font-semibold text-black no-underline cursor-grab active:cursor-grabbing"
-              >
-                ⚡ Fill Signio
-              </a>
-            )}
+            <a
+              href={bookmarklet}
+              draggable
+              onClick={(e) => e.preventDefault()}
+              onDragStart={(e) => {
+                e.dataTransfer.setData('text/uri-list', bookmarklet);
+                e.dataTransfer.setData('text/plain', bookmarklet);
+              }}
+              title="Drag me to your bookmarks bar (don't click here)"
+              className="inline-flex items-center gap-1.5 rounded-md bg-yellow-400 px-3 py-1.5 text-sm font-semibold text-black no-underline cursor-grab active:cursor-grabbing"
+            >
+              ⚡ Fill Signio
+            </a>
             <p className="text-[10px] text-muted-foreground">If your bookmarks bar is hidden, press Ctrl/⌘+Shift+B to show it first.</p>
           </div>
         </DialogContent>
