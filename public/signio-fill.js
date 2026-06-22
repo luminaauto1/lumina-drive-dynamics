@@ -60,18 +60,39 @@
     if (b) { b.scrollIntoView({ block: 'center' }); b.click(); }
     return !!b;
   }
-  async function addressLookup(suburb) {
+  // Did the locked Suburb/Town field get populated by a lookup result?
+  function suburbFilled() {
+    const el = inputByLabel(/^suburb$/i) || inputByLabel(/town\/?city|^city$/i);
+    return !!(el && String(el.value || '').trim());
+  }
+  // Address Lookup: try each candidate (suburb name, then postal code). Type → Search →
+  // click the best result <button> → wait for the locked Suburb/Town/Postal/Province to fill.
+  // Returns true only once the Suburb field is actually populated.
+  async function addressLookup(candidates) {
+    const queries = (Array.isArray(candidates) ? candidates : [candidates])
+      .map((c) => (c == null ? '' : String(c).trim())).filter(Boolean);
+    if (!queries.length) return false;
     const box = inputByLabel(/suburb name|postal code/i) ||
       [...document.querySelectorAll('input')].find((e) => /suburb name|postal code/i.test(e.placeholder || ''));
-    if (!box || !suburb) return false;
-    setVal(box, suburb);
-    clickButtonText(/^search$/i);
-    const btn = await waitFor(() =>
-      [...document.querySelectorAll('button')].find((b) => norm(b.innerText).includes(norm(suburb)) && b.innerText.length < 70));
-    if (!btn) return false;
-    btn.click();
-    await sleep(600);
-    return true;
+    if (!box) return false;
+    for (const q of queries) {
+      setVal(box, q);
+      clickButtonText(/^search$/i);
+      // Result rows are <button>s with a comma-separated "Suburb, Town, 1234, Province" label.
+      const btn = await waitFor(() => {
+        const rows = [...document.querySelectorAll('button')].filter((b) => {
+          const t = (b.innerText || '').trim();
+          return t.length > 3 && t.length < 90 && !/^search$/i.test(t) && t.includes(',');
+        });
+        if (!rows.length) return null;
+        return rows.find((b) => norm(b.innerText).includes(norm(q))) || rows[0];
+      }, { timeout: 3500 });
+      if (!btn) continue;
+      btn.click();
+      await sleep(700); // let React populate the locked Suburb/City/Postal/Province
+      if (suburbFilled()) return true;
+    }
+    return false;
   }
 
   const TITLE = (g, marital) => {
@@ -175,7 +196,8 @@
     setSelect(/education/i, EDUCATION[norm(d.qualification)] || null, { contains: true });
     setSelect(/marital status/i, MARITAL[norm(d.marital_status)] || null);
     if (d.street_address) setText(/address line 1/i, String(d.street_address).slice(0, 50));
-    if (d.suburb) await addressLookup(d.suburb);
+    const resOk = await addressLookup([d.suburb, d.area_code]);
+    if (!resOk) flag('Residential address not auto-resolved — in the Address Lookup box type the suburb or postal code, Search, and pick the result (fills Suburb/Town/Postal/Province).');
     if (d.years_at_address != null) setText(/^years$/i, d.years_at_address); else setText(/^years$/i, '3');
     setText(/^months$/i, d.months_at_address != null ? d.months_at_address : '0');
     if (norm(d.marital_status) === 'married') {
@@ -184,6 +206,7 @@
       setText(/spouse surname/i, d.spouse_surname);
     }
     if (d.kin_relation) setSelect(/relation/i, d.kin_relation, { contains: true });
+    else flag('Next-of-Kin "Relation" not set in Lumina — pick it on the form (required).');
     if (d.kin_first_name) setText(/^first name$/i, d.kin_first_name);
     if (d.kin_surname) setText(/^surname$/i, d.kin_surname);
     setSelect(/contact method/i, 'Cellphone');
@@ -199,7 +222,7 @@
     setSelect(/employment type/i, EMP_TYPE[norm(d.employment_type)] || 'Permanent', { contains: true });
     setSelect(/client type/i, CLIENT_TYPE(EMP_TYPE[norm(d.employment_type)] || ''), { contains: true });
     if (d.employer_address) setText(/^address 1$|address line 1/i, String(d.employer_address).slice(0, 50));
-    if (d.employer_suburb) await addressLookup(d.employer_suburb);
+    if (d.employer_suburb) { const eOk = await addressLookup([d.employer_suburb]); if (!eOk) flag('Employer address not auto-resolved — pick the suburb/postal in the employer Address Lookup.'); }
     setText(/account holder/i, d.full_name);
     setSelect(/account type/i, ACCOUNT_TYPE[norm(d.account_type)] || d.account_type, { contains: true });
     const bank = canonicalBank(d.bank_name);
@@ -248,23 +271,35 @@
       employment: fillEmployment, income: fillIncomeExpenses };
     // Give step 1 a moment to render if the bookmark is clicked early.
     await waitFor(() => document.querySelectorAll('select').length >= 2, { timeout: 10000 });
-    for (let i = 0; i < 6; i++) {
-      const step = currentStep();
+    let filledStep = null;     // fill each step ONCE (no glitchy re-fill loop)
+    let stuckStep = null;      // the step we couldn't advance past (needs human input)
+    for (let i = 0; i < 10; i++) {
+      let step = currentStep();
+      if (step === 'unknown') { await sleep(700); step = currentStep(); }
       if (step === 'declaration' || step === 'documents') break;
       const fn = fills[step];
-      if (!fn) { console.warn('[Lumina] unknown step, stopping for human.'); break; }
-      await fn(d);
-      await sleep(400);
-      if (step === 'income') break;
+      if (!fn) { console.warn('[Lumina] unknown step — stopping for human.'); break; }
+      if (step !== filledStep) { await fn(d); filledStep = step; await sleep(400); }
+      if (step === 'income') break; // last auto-fill step; human reviews + submits
       clickButtonText(/^next$/i);
-      await waitFor(() => currentStep() !== step, { timeout: 6000 });
+      const advanced = await waitFor(() => currentStep() !== step, { timeout: 6000 });
+      if (!advanced) {
+        // A required field on this step couldn't be filled from Lumina (e.g. the
+        // residential Suburb/Town via Address Lookup, or the Next-of-Kin Relation).
+        // Stop cleanly here instead of fighting the form's validation.
+        stuckStep = step;
+        break;
+      }
       await sleep(500);
     }
-    const msg = flags.length
-      ? 'Lumina auto-fill done, but ' + flags.length + ' item(s) need a human:\n\n• ' + flags.join('\n• ') +
-        '\n\nFix these, tick the declaration, then Submit.'
-      : 'Lumina auto-fill done — no issues flagged. Review, tick the declaration, then Submit.';
-    alert(msg);
+    const head = stuckStep
+      ? 'Filled everything I could, then stopped on the "' + stuckStep + '" step — it has required fields I can\'t fill from your data.'
+      : 'Lumina auto-fill done.';
+    const tail = stuckStep
+      ? '\n\nComplete the highlighted required fields above (e.g. use the Address Lookup for Suburb/Town, pick the Next-of-Kin Relation), then click Next and continue. Everything else is already filled.'
+      : '\n\nReview, tick the declaration, then Submit.';
+    const body = flags.length ? '\n\nAlso check:\n• ' + flags.join('\n• ') : '';
+    alert(head + body + tail);
   }
 
   const HANDOFF_PREFIX = 'LUMINA_SIGNIO:';
