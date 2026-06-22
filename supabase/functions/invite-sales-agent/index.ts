@@ -4,13 +4,20 @@
 //   - manualPassword: createUser with a temp password the admin can WhatsApp
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 
-const corsHeaders = {
+// Reflect whatever headers the browser asks for in the CORS preflight. supabase-js
+// sends headers (e.g. x-supabase-api-version) beyond a fixed allow-list; if any
+// requested header isn't allowed the browser blocks the POST, which surfaces in the
+// client as "Failed to send a request to the Edge Function".
+const buildCors = (req: Request) => ({
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    req.headers.get("access-control-request-headers") ??
+    "authorization, x-client-info, apikey, content-type, x-supabase-api-version",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+});
 
 Deno.serve(async (req) => {
+  const corsHeaders = buildCors(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
