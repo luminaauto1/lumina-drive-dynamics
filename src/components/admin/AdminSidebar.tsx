@@ -37,6 +37,7 @@ const menuItems: MenuItem[] = [
   },
   { title: 'CRM', icon: Users, path: '/admin/crm' },
   { title: 'Finance', icon: CreditCard, path: '/admin/finance' },
+  { title: 'Pipeline', icon: TableProperties, path: '/admin/pipeline-v2' },
   { title: 'Documents Hub', icon: FolderOpen, path: '/admin/documents' },
   { title: 'Quote Generator', icon: Calculator, path: '/admin/quotes' },
   { title: 'Juristic Capture', icon: Building2, path: '/admin/juristic' },
@@ -83,7 +84,7 @@ const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
 
   // The Finance applications table is wide — auto-collapse the sidebar when entering
   // it to free up horizontal space (desktop only; the mobile drawer has no onCollapse).
-  const onFinance = location.pathname.startsWith('/admin/finance');
+  const onFinance = location.pathname.startsWith('/admin/finance') || location.pathname.startsWith('/admin/pipeline-v2');
   useEffect(() => {
     if (onFinance && onCollapse) setCollapsed(true);
   }, [onFinance, onCollapse]);
