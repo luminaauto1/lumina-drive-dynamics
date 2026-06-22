@@ -795,15 +795,6 @@ const AdminDealRoom = () => {
                     <span className="hidden sm:inline">Download</span> PDF
                   </Button>
                   {application && <PushToSignioButton application={application} />}
-                  <a
-                    href="/signio-autofill.user.js"
-                    target="_blank"
-                    rel="noreferrer"
-                    title="One-time: install the Tampermonkey auto-fill script so Push to Signio can fill the form"
-                    className="self-center text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                  >
-                    Install auto-fill
-                  </a>
                   <Button
                     variant="ghost"
                     size="sm"
