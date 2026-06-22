@@ -6,6 +6,18 @@ serve(async (req) => {
   const cors = buildCorsHeaders(req.headers.get("origin"), req.headers.get("access-control-request-headers"));
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
+  // Per-notification on/off gate (Admin → Settings → WhatsApp). Fail-open: on error, send.
+  try {
+    const SU = Deno.env.get("SUPABASE_URL"); const SK = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (SU && SK) {
+      const gate = await fetch(`${SU}/rest/v1/whatsapp_templates?key=eq.client_cancelled&select=active`, { headers: { apikey: SK, Authorization: `Bearer ${SK}` } });
+      const rows = await gate.json().catch(() => []);
+      if (Array.isArray(rows) && rows[0] && rows[0].active === false) {
+        return new Response(JSON.stringify({ success: true, skipped: "disabled" }), { headers: { ...cors, "Content-Type": "application/json" } });
+      }
+    }
+  } catch (_) { /* fail-open */ }
+
   try {
     const body = await req.json();
     let { application_id, phone_number, client_name } = body;

@@ -9,6 +9,14 @@
 //   old_status?: string;
 //   flags?: string[]; // optional: 'low_income' | 'bad_credit' | 'no_licence'
 // }
+//
+// Settings (Admin → Settings → EasySocial, table integration_settings key='easysocial'):
+//   active=false      → sync is skipped (returns skipped:'disabled')
+//   config.api_key    → overrides the bundled key
+//   config.tag_add_overrides {status: tagName} → remaps which tag is ADDED for a status
+// All optional & fallback-safe: no row / empty config = current behaviour.
+
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -220,11 +228,40 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Hardcoded EasySocial bearer token (env secret rotation unavailable).
-  const apiKey = "eSt2dc1be4b95a4ccdabf289645ba0bf8ea85c016b5cde84430c3749430fbca43c627fa3b46e9db9fa9fe217aa74136ba";
+  // Bundled EasySocial bearer token (fallback when no key is set in settings).
+  let apiKey = "eSt2dc1be4b95a4ccdabf289645ba0bf8ea85c016b5cde84430c3749430fbca43c627fa3b46e9db9fa9fe217aa74136ba";
+
+  // Load EasySocial settings (active gate + key + per-status add-tag overrides).
+  // Fallback-safe: any failure or missing row keeps the current default behaviour.
+  let tagAddOverrides: Record<string, string> = {};
+  try {
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (SUPABASE_URL && SERVICE) {
+      const svc = createClient(SUPABASE_URL, SERVICE);
+      const { data: cfg } = await svc.from("integration_settings").select("active, config").eq("key", "easysocial").maybeSingle();
+      if (cfg) {
+        if (cfg.active === false) {
+          console.log("[tag-sync] EasySocial sync disabled in settings — skipping", { phone, newStatus });
+          return new Response(JSON.stringify({ ok: true, skipped: "disabled" }), {
+            status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const c: any = cfg.config ?? {};
+        if (typeof c.api_key === "string" && c.api_key.trim()) apiKey = c.api_key.trim();
+        if (c.tag_add_overrides && typeof c.tag_add_overrides === "object") tagAddOverrides = c.tag_add_overrides;
+      }
+    }
+  } catch (e) {
+    console.error("[tag-sync] settings load failed, using defaults", String((e as Error).message ?? e));
+  }
 
   // Build the plan (by name) from the state machine + flags.
   const plan = planForStatus(newStatus);
+  // Admin remap: replace the ADD tag for this status if configured.
+  if (typeof tagAddOverrides[newStatus] === "string" && tagAddOverrides[newStatus].trim()) {
+    plan.add = [tagAddOverrides[newStatus].trim()];
+  }
   for (const f of flags) {
     const tagName = FLAG_TO_TAG[f];
     if (tagName) {

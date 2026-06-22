@@ -13,6 +13,18 @@ serve(async (req) => {
   const guard = checkInternalKey(req);
   if (guard) return guard;
 
+  // Per-notification on/off gate (Admin → Settings → WhatsApp). Fail-open: on error, send.
+  try {
+    const SU = Deno.env.get("SUPABASE_URL"); const SK = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (SU && SK) {
+      const gate = await fetch(`${SU}/rest/v1/whatsapp_templates?key=eq.pre_approval_internal&select=active`, { headers: { apikey: SK, Authorization: `Bearer ${SK}` } });
+      const rows = await gate.json().catch(() => []);
+      if (Array.isArray(rows) && rows[0] && rows[0].active === false) {
+        return new Response(JSON.stringify({ success: true, skipped: "disabled" }), { headers: { ...cors, "Content-Type": "application/json" } });
+      }
+    }
+  } catch (_) { /* fail-open */ }
+
   try {
     const payload = await req.json();
     console.log("[notify-pre-approval-internal] incoming payload:", JSON.stringify(payload));
