@@ -135,6 +135,22 @@ function localYMD(tz: string, at: Date): string {
 const localWeekday = (tz: string, at: Date) => new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "long" }).format(at);
 const localHM = (tz: string, at: Date) => new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(at);
 
+// The model is unreliable about the UTC offset it attaches to the times it emits —
+// it often tags a local clock time with "Z", "+00:00" or even a random offset, which
+// would store the task hours off and fire reminders at the wrong moment. The WALL-CLOCK
+// (date + HH:MM) it produces IS the user's intended local time, so we ignore whatever
+// offset it attached and re-anchor those components in the user's timezone before
+// converting to a UTC instant.
+function localWallToUtcISO(v: any, tz: string): string | null {
+  if (typeof v !== "string") return null;
+  const m = v.match(/(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+  if (!m) return null;
+  const [, y, mo, d, hh, mm] = m;
+  const offset = localOffset(tz, new Date(`${y}-${mo}-${d}T12:00:00Z`)); // tz offset on that calendar day
+  const anchored = new Date(`${y}-${mo}-${d}T${hh}:${mm}:00${offset}`);
+  return Number.isNaN(anchored.getTime()) ? null : anchored.toISOString();
+}
+
 // Precise anchors handed to the model so it never has to do date arithmetic.
 function buildTimeContext(now: Date, tz: string) {
   const offset = localOffset(tz, now);
@@ -265,13 +281,13 @@ async function processOne(svc: any, inboxId: string): Promise<{ status: string; 
       if (!ALLOWED_TYPES.has(type)) continue; // whitelist — drop hallucinated types
       const title = String(ent?.title ?? "").slice(0, 500) || "(untitled)";
       const body = typeof ent?.body === "string" ? ent.body : "";
-      let dueAt = isoOrNull(ent?.due_at);
+      let dueAt = localWallToUtcISO(ent?.due_at, tz);
       // Time backstop: model dropped the time, but the text has a clear clock time.
       if (!dueAt && TIME_BOUND.has(type)) {
         const t = extractClockTime(row.raw_text);
         if (t) dueAt = nextLocalTimeISO(now, tz, t.hh, t.mm);
       }
-      let remindAt = isoOrNull(ent?.remind_at);
+      let remindAt = localWallToUtcISO(ent?.remind_at, tz);
       // Reminder backstop: anything time-bound with a due time MUST nudge the user.
       if (!remindAt && dueAt && TIME_BOUND.has(type)) remindAt = dueAt;
       // Urgency is always derived from the due date — deterministic time-criticality,
