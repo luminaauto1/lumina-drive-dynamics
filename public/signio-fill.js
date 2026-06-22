@@ -71,23 +71,38 @@
       (byPostal ? /postal/i : /suburb/i).test(labelFor(x) + ' ' + ((x.parentElement && x.parentElement.innerText) || '')));
     if (r && !r.checked) r.click();
   }
+  // The single lookup text box (its placeholder flips between "Enter suburb name" and
+  // "Enter postal code" with the radio). Match it by PLACEHOLDER among text inputs —
+  // never by label: the "Search by Suburb / Search by Postal Code" RADIO labels also
+  // contain "postal code", so a label match would grab the radio and setVal would write
+  // onto it, leaving the real box empty (the actual cause of the no-results stall).
+  // Re-query it on demand — never cache the reference (the node is replaced on toggle).
+  function lookupBox() {
+    return [...document.querySelectorAll('input')].find((e) =>
+      (e.type === 'text' || !e.type) && /suburb name|postal code|enter (suburb|postal)/i.test(e.placeholder || ''));
+  }
   // Address Lookup: try each candidate (suburb name, then postal code). Type → Search →
   // click the best result row → wait for the locked Suburb/Town/Postal/Province to fill.
-  // NB: result rows are <button>s whose innerText reads EMPTY in some runtimes, so we
+  // NB 1: result rows are <button>s whose innerText reads EMPTY in some runtimes, so we
   // match on textContent. When a postal code is known, prefer the row that contains it
   // (a suburb search can return several rows, e.g. Sandton 2146 vs 2196).
+  // NB 2: toggling the Suburb/Postal radio RE-RENDERS (replaces) the text box, so we must
+  // re-query the box AFTER switching mode — a reference grabbed earlier goes stale and
+  // setVal would silently write to a detached node (the original cause of the stall).
   async function addressLookup(candidates, preferPostal) {
     const queries = (Array.isArray(candidates) ? candidates : [candidates])
       .map((c) => (c == null ? '' : String(c).trim())).filter(Boolean);
     if (!queries.length) return false;
-    const box = inputByLabel(/suburb name|postal code/i) ||
-      [...document.querySelectorAll('input')].find((e) => /suburb name|postal code/i.test(e.placeholder || ''));
-    if (!box) return false;
     const rowText = (b) => String((b.innerText && b.innerText.trim()) || b.textContent || '').trim();
     for (const q of queries) {
       setSearchMode(/^\d{4}$/.test(q));
-      await sleep(150);
+      await sleep(300);                 // let the input re-render after the mode switch
+      let box = lookupBox();
+      if (!box) continue;
       setVal(box, q);
+      await sleep(150);
+      box = lookupBox();
+      if (box && box.value !== String(q)) { setVal(box, q); await sleep(120); }  // retry if the re-render cleared it
       clickButtonText(/^\s*search\s*$/i);
       const btn = await waitFor(() => {
         const rows = [...document.querySelectorAll('button')].filter((b) => {
@@ -97,10 +112,10 @@
         if (!rows.length) return null;
         return (preferPostal && rows.find((b) => rowText(b).includes(String(preferPostal)))) ||
                rows.find((b) => norm(rowText(b)).includes(norm(q))) || rows[0];
-      }, { timeout: 4000 });
+      }, { timeout: 4500 });
       if (!btn) continue;
       btn.click();
-      await sleep(800); // let React populate the locked Suburb/City/Postal/Province
+      await sleep(900); // let React populate the locked Suburb/City/Postal/Province
       if (suburbFilled()) return true;
     }
     return false;
