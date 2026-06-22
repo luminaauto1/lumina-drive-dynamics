@@ -38,6 +38,7 @@ import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, getWhatsAppMessage,
 import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
 import { useAuth } from '@/contexts/AuthContext';
 import { generateFinancePDF } from '@/lib/generateFinancePDF';
+import { PushToSignioButton } from '@/components/finance/PushToSignioButton';
 import { useDocumentSettings } from '@/hooks/useDocumentSettings';
 import { toast } from 'sonner';
 
@@ -793,6 +794,16 @@ const AdminDealRoom = () => {
                     <Download className="w-4 h-4 mr-1 md:mr-2" />
                     <span className="hidden sm:inline">Download</span> PDF
                   </Button>
+                  {application && <PushToSignioButton application={application} />}
+                  <a
+                    href="/signio-autofill.user.js"
+                    target="_blank"
+                    rel="noreferrer"
+                    title="One-time: install the Tampermonkey auto-fill script so Push to Signio can fill the form"
+                    className="self-center text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                  >
+                    Install auto-fill
+                  </a>
                   <Button
                     variant="ghost"
                     size="sm"
