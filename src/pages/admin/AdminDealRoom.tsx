@@ -38,6 +38,7 @@ import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, getWhatsAppMessage,
 import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
 import { useAuth } from '@/contexts/AuthContext';
 import { generateFinancePDF } from '@/lib/generateFinancePDF';
+import { useDocumentSettings } from '@/hooks/useDocumentSettings';
 import { toast } from 'sonner';
 
 const AdminDealRoom = () => {
@@ -45,6 +46,7 @@ const AdminDealRoom = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { role, isSuperAdmin, isSeniorFAndI } = useAuth();
+  const { data: docSettings } = useDocumentSettings();
   // Only full admins and senior F&I may finalize deals (deal_records hold figures).
   const canFinalize = isSuperAdmin || isSeniorFAndI;
   
@@ -339,7 +341,7 @@ const AdminDealRoom = () => {
     const vehicleDetails = activeVehicle 
       ? `${activeVehicle.year} ${activeVehicle.make} ${activeVehicle.model}`
       : undefined;
-    await generateFinancePDF(application, vehicleDetails);
+    await generateFinancePDF(application, vehicleDetails, false, docSettings?.bankBranches);
     toast.success('PDF downloaded');
   };
 
@@ -348,7 +350,7 @@ const AdminDealRoom = () => {
     const vehicleDetails = activeVehicle 
       ? `${activeVehicle.year} ${activeVehicle.make} ${activeVehicle.model}`
       : undefined;
-    await generateFinancePDF(application, vehicleDetails, true);
+    await generateFinancePDF(application, vehicleDetails, true, docSettings?.bankBranches);
     toast.success('Unbranded PDF downloaded');
   };
 
