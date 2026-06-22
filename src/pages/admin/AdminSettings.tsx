@@ -15,6 +15,7 @@ import { useSiteSettings, useUpdateSiteSettings, SiteSettings } from '@/hooks/us
 
 import BankIntegrationsTab from '@/components/admin/BankIntegrationsTab';
 import TeamManagementTab from '@/components/admin/TeamManagementTab';
+import RolePermissionsTab from '@/components/admin/RolePermissionsTab';
 import DocumentSettingsTab from '@/components/admin/DocumentSettingsTab';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -869,8 +870,9 @@ const AdminSettings = () => {
             </TabsContent>
 
             {isSuperAdmin && (
-              <TabsContent value="team">
+              <TabsContent value="team" className="space-y-6">
                 <TeamManagementTab />
+                <RolePermissionsTab />
               </TabsContent>
             )}
 
