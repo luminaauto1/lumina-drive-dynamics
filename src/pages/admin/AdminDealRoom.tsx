@@ -65,6 +65,9 @@ const AdminDealRoom = () => {
   const [otpModalOpen, setOtpModalOpen] = useState(false);
   const [contractSentModalOpen, setContractSentModalOpen] = useState(false);
   const [bankRefModalOpen, setBankRefModalOpen] = useState(false);
+  // Which submission status the bank-ref popup is capturing for (ready_to_submit
+  // vs application_submitted) — mirrors the Finance list view.
+  const [bankRefTargetStatus, setBankRefTargetStatus] = useState<string>('application_submitted');
   const [editBankRefOpen, setEditBankRefOpen] = useState(false);
   const [creditCheckModalOpen, setCreditCheckModalOpen] = useState(false);
   const [creditCheckOutcome, setCreditCheckOutcome] = useState<CreditCheckOutcome>('passed');
@@ -132,10 +135,15 @@ const AdminDealRoom = () => {
       return;
     }
 
-    // Intercept application_submitted to capture Bank Reference first
-    if (newStatus === 'application_submitted') {
-      setBankRefModalOpen(true);
-      return;
+    // Intercept application_submitted / ready_to_submit to capture the Bank Reference
+    // (or copy the Lightstone message) first — identical flow to the Finance list view.
+    // Only when no reference exists yet; otherwise fall through to a plain status update.
+    if (newStatus === 'application_submitted' || newStatus === 'ready_to_submit') {
+      if (!(application as any)?.bank_reference) {
+        setBankRefTargetStatus(newStatus);
+        setBankRefModalOpen(true);
+        return;
+      }
     }
 
     try {
@@ -1584,17 +1592,19 @@ const AdminDealRoom = () => {
         onSuccess={handleContractSentSuccess}
       />
 
-      {/* Bank Reference capture for Application Submitted */}
+      {/* Bank Reference capture for Ready to Submit / Application Submitted */}
       <BankReferenceModal
         open={bankRefModalOpen}
         onOpenChange={setBankRefModalOpen}
         defaultValue={(application as any)?.bank_reference || ''}
         showFAndIAssignment
         defaultFAndIId={(application as any)?.assigned_f_and_i || null}
+        clientName={`${(application as any)?.first_name || ''} ${(application as any)?.last_name || ''}`.trim() || (application as any)?.full_name || ''}
+        docsReceived={!!((application as any)?.docs_email || (application as any)?.docs_whatsapp)}
         onConfirm={async (reference, fniId) => {
           if (!application) return;
           try {
-            const updates: any = { status: 'application_submitted', bank_reference: reference };
+            const updates: any = { status: bankRefTargetStatus, bank_reference: reference };
             if (fniId !== undefined) {
               updates.assigned_f_and_i = fniId;
               updates.assigned_f_and_i_at = fniId ? new Date().toISOString() : null;
@@ -1602,7 +1612,7 @@ const AdminDealRoom = () => {
             await updateApplication.mutateAsync({ id: application.id, updates });
             setApplication(prev => prev ? ({ ...prev, ...updates } as any) : null);
             // Submission email + WhatsApp are sent by updateApplication (the hook).
-            toast.success('Application submitted to bank');
+            toast.success(bankRefTargetStatus === 'ready_to_submit' ? 'Marked ready to submit' : 'Application submitted to bank');
           } catch (err) {
             console.error('Bank ref submission failed:', err);
           }
@@ -1616,6 +1626,8 @@ const AdminDealRoom = () => {
         defaultValue={(application as any)?.bank_reference || ''}
         showFAndIAssignment
         defaultFAndIId={(application as any)?.assigned_f_and_i || null}
+        clientName={`${(application as any)?.first_name || ''} ${(application as any)?.last_name || ''}`.trim() || (application as any)?.full_name || ''}
+        docsReceived={!!((application as any)?.docs_email || (application as any)?.docs_whatsapp)}
         onConfirm={async (reference, fniId) => {
           if (!application) return;
           try {
