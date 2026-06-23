@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Tables } from '@/integrations/supabase/types';
@@ -17,6 +18,23 @@ export type FinanceApplication = Tables<'finance_applications'> & {
 };
 
 export const useFinanceApplications = () => {
+  const queryClient = useQueryClient();
+
+  // LIVE updates — subscribe to any change on finance_applications and invalidate
+  // the cache so the table AND the directed-note Action Feed refresh in realtime,
+  // with no manual refresh. Unique channel name so multiple mounts never collide.
+  useEffect(() => {
+    const channel = supabase
+      .channel(`finance-applications-rt-${Math.random().toString(36).slice(2)}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'finance_applications' },
+        () => queryClient.invalidateQueries({ queryKey: ['finance-applications'] }),
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
+
   return useQuery({
     queryKey: ['finance-applications'],
     queryFn: async () => {
