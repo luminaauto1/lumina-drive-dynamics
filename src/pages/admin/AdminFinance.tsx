@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import UniversalClientHub from '@/components/admin/UniversalClientHub';
 import { Textarea } from '@/components/ui/textarea';
@@ -144,9 +144,19 @@ const AdminFinance = () => {
   // Action Feed → row scroll/highlight
   const [highlightedAppId, setHighlightedAppId] = useState<string | null>(null);
 
+  // Render-as-you-scroll window: how many rows are mounted right now. The full
+  // filtered list still drives counts/search/feeds — only the DOM grows in batches.
+  const [visibleCount, setVisibleCount] = useState(40);
+  const loadMoreRef = useRef<HTMLTableRowElement | null>(null);
+  // Row to scroll to after the window expands enough to mount it (Action Feed jump).
+  const [pendingScrollId, setPendingScrollId] = useState<string | null>(null);
+
   const focusApplicationRow = (app: FinanceApplication) => {
-    const el = document.getElementById(`app-row-${app.id}`);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // With scroll-loading, the target row may be past the current window — expand it
+    // so the row is mounted, then let the effect below scroll once React commits it.
+    const idx = filteredApplications.findIndex((a) => a.id === app.id);
+    if (idx >= 0) setVisibleCount((c) => Math.max(c, idx + 5));
+    setPendingScrollId(app.id);
     setHighlightedAppId(app.id);
     window.setTimeout(() => setHighlightedAppId(prev => (prev === app.id ? null : prev)), 2000);
     // Auto-open the CRM notes modal so F&I immediately sees what was resolved.
@@ -249,6 +259,44 @@ const AdminFinance = () => {
     return matchesSearch && matchesStatus && matchesFni && matchesViewMode;
   });
 
+  // Only the first `visibleCount` rows are rendered to the DOM; the rest mount as
+  // the sentinel row scrolls into view. Keeps the whole list on one page, but the
+  // browser never has to lay out hundreds of heavy rows at once.
+  const visibleApplications = filteredApplications.slice(0, visibleCount);
+
+  // Reset the window whenever the filtered set changes (search/filter/tab switch).
+  useEffect(() => {
+    setVisibleCount(40);
+  }, [searchQuery, statusFilter, fniFilter, viewMode]);
+
+  // Grow the window as the sentinel nears the viewport (load-more-on-scroll).
+  useEffect(() => {
+    if (visibleCount >= filteredApplications.length) return;
+    const el = loadMoreRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setVisibleCount((c) => Math.min(c + 40, filteredApplications.length));
+        }
+      },
+      { rootMargin: '800px 0px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [visibleCount, filteredApplications.length]);
+
+  // Scroll to an Action-Feed-targeted row once the window has grown to mount it
+  // (runs after React commits, so the element is guaranteed present — no rAF race).
+  useEffect(() => {
+    if (!pendingScrollId) return;
+    const el = document.getElementById(`app-row-${pendingScrollId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setPendingScrollId(null);
+    }
+  }, [pendingScrollId, visibleCount, visibleApplications.length]);
+
   const handleStatusDropdownChange = (app: any, newStatus: string) => {
     setPendingApp(app);
     setPendingStatus(newStatus);
@@ -256,12 +304,15 @@ const AdminFinance = () => {
     setStatusModalOpen(true);
   };
 
-  const confirmStatusUpdate = async () => {
-    if (!pendingApp || !pendingStatus) return;
+  const confirmStatusUpdate = async (overrideStatus?: string) => {
+    // overrideStatus lets the preset "Send to Senior F&I / back to F&I" buttons route
+    // a note in one click; otherwise use the internal status chosen on the row.
+    const statusKey = overrideStatus ?? pendingStatus;
+    if (!pendingApp || !statusKey) return;
     // GUARDRAIL: This handler ONLY updates the internal CRM status column.
     // It must NEVER touch the finance application `status` column. Reject any
     // value that is not a valid INTERNAL_STATUSES key.
-    if (!INTERNAL_STATUSES[pendingStatus as keyof typeof INTERNAL_STATUSES]) {
+    if (!INTERNAL_STATUSES[statusKey as keyof typeof INTERNAL_STATUSES]) {
       toast({ title: "Invalid internal status", variant: "destructive" });
       setStatusModalOpen(false);
       setPendingApp(null);
@@ -292,7 +343,7 @@ const AdminFinance = () => {
       let updatedNotes = pendingApp.notes || '';
       {
         const timestamp = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-        const statusLabel = INTERNAL_STATUSES[pendingStatus as keyof typeof INTERNAL_STATUSES]?.label || pendingStatus;
+        const statusLabel = INTERNAL_STATUSES[statusKey as keyof typeof INTERNAL_STATUSES]?.label || statusKey;
         const body = statusNote.trim() || '(no comment)';
         // Sentinel «ROLE» lets the renderer color-code reliably.
         const newEntry = `[${timestamp}] «${roleTag}» ${actingName} — ${statusLabel}: ${body}`;
@@ -301,7 +352,7 @@ const AdminFinance = () => {
 
       // Directed-routing model: the selected status is used as-is. No
       // auto-escalation flips — Admin / F&I / Senior F&I notes are explicit.
-      const effectiveStatus = pendingStatus;
+      const effectiveStatus = statusKey;
 
       const updatePayload: any = {
         internal_status: effectiveStatus,
@@ -330,7 +381,7 @@ const AdminFinance = () => {
       await supabase.from('client_audit_logs').insert([{
         client_email: pendingApp.email || null,
         client_phone: pendingApp.phone || null,
-        note: `«${roleTag}» ${actingName} — [Internal Status → ${INTERNAL_STATUSES[pendingStatus as keyof typeof INTERNAL_STATUSES]?.label || pendingStatus}] ${statusNote || 'No comment'}`,
+        note: `«${roleTag}» ${actingName} — [Internal Status → ${INTERNAL_STATUSES[statusKey as keyof typeof INTERNAL_STATUSES]?.label || statusKey}] ${statusNote || 'No comment'}`,
         author_id: actingUser?.id || null,
         author_name: actingName,
         action_type: 'Internal Status Update'
@@ -583,7 +634,9 @@ const AdminFinance = () => {
             const norm = normalizeInternalStatus(a.internal_status);
             return norm === targetStatus;
           });
-          if (feed.length === 0 && !canToggle) return null;
+          // Always show the F&I their own feed (even empty) so notifications are
+          // discoverable; only hide an empty feed for non-F&I roles without a toggle.
+          if (feed.length === 0 && !canToggle && effectiveView !== 'f_and_i') return null;
           const isFAndI = effectiveView !== 'admin';
           const headerLabel =
             effectiveView === 'admin' ? 'Admin Action Feed'
@@ -866,7 +919,7 @@ const AdminFinance = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredApplications.map((app) => {
+                {visibleApplications.map((app) => {
                   const cleanedPhone = app.phone?.replace(/\D/g, '') || '';
                   const whatsAppPhone = cleanedPhone.startsWith('0') ? `27${cleanedPhone.slice(1)}` : cleanedPhone;
                   
@@ -1374,6 +1427,13 @@ const AdminFinance = () => {
                   </TableRow>
                   );
                 })}
+                {visibleCount < filteredApplications.length && (
+                  <TableRow ref={loadMoreRef} className="border-white/10 hover:bg-transparent">
+                    <TableCell colSpan={7} className="py-6 text-center text-xs text-muted-foreground">
+                      Loading more… showing {visibleApplications.length} of {filteredApplications.length}
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
             </div>
@@ -1679,9 +1739,35 @@ const AdminFinance = () => {
                 </div>
               );
             })()}
+            {/* Preset directed-note buttons — one click stamps the typed comment AND
+                routes it to the right team's Action Feed (which is live/realtime). */}
+            {(role === 'f_and_i' || role === 'senior_f_and_i' || role === 'super_admin') && (
+              <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                {(role === 'f_and_i' || role === 'super_admin') && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => confirmStatusUpdate('note_to_senior_f_and_i')}
+                    className="flex-1 border-purple-500/50 text-purple-300 hover:bg-purple-900/30"
+                  >
+                    ⬆ Send note to Senior F&amp;I
+                  </Button>
+                )}
+                {(role === 'senior_f_and_i' || role === 'super_admin') && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => confirmStatusUpdate('note_to_f_and_i')}
+                    className="flex-1 border-emerald-500/50 text-emerald-300 hover:bg-emerald-900/30"
+                  >
+                    ↩ Save &amp; send update back to F&amp;I
+                  </Button>
+                )}
+              </div>
+            )}
             <DialogFooter>
               <Button variant="ghost" onClick={() => setStatusModalOpen(false)}>Cancel</Button>
-              <Button onClick={confirmStatusUpdate} className="bg-emerald-600 hover:bg-emerald-700 text-white">Save Update</Button>
+              <Button onClick={() => confirmStatusUpdate()} className="bg-emerald-600 hover:bg-emerald-700 text-white">Save Update</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
