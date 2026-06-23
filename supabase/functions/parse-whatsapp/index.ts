@@ -47,7 +47,14 @@ CRITICAL RULE FOR EXPENSES: For the 'living_expenses' field, DO NOT strip out th
 
 CRITICAL RULE FOR EMPLOYMENT: The current date is ${currentDate}. For the 'employment_start' field, you must calculate the exact duration in years and months from their start date to the current date. Format the output exactly like this: "[Original Date] (X Years, Y Months)". Example: "June 2022 (3 Years, 10 Months)". If they already provided the duration instead of a date, just use what they provided.
 
-Keys: first_name, last_name, id_number, email, phone, gender, marital_status, physical_address, employer_name, workplace_address, job_title, employment_start, employment_status, gross_income, net_income, living_expenses, bank_name, account_number, kin_name, kin_phone.
+Keys: first_name, last_name, id_number, email, phone, gender, marital_status, physical_address, area_code, employer_name, workplace_address, job_title, employment_start, employment_status, employment_type, gross_income, net_income, living_expenses, bank_name, account_type, account_number, highest_qualification, credit_status, kin_name, kin_phone.
+
+EXTRA FIELD HINTS:
+- 'area_code': the residential postal/area code (4 digits) if given separately — also still include it in physical_address.
+- 'account_type': bank account type → one of "Cheque", "Savings", "Transmission" (map "Current" → "Cheque").
+- 'employment_type': normalise to one of "Permanent", "Self employed", "Contract", "Part time", "Pensioner", "Student", "Unemployed". If the client clearly runs their own business / is a director / sole proprietor, use "Self employed"; otherwise default to "Permanent".
+- 'highest_qualification': e.g. "Matric", "Diploma", "Degree", "Higher Certificate", or whatever they state (label may be "Highest Qualification" / "Education").
+- 'credit_status': whatever the client says about their credit profile (label "Credit Profile Status"), verbatim.
 
 For 'workplace_address': only fill if the client EXPLICITLY provides the company's street/business address. Do NOT guess or duplicate the residential address. If absent, return "" — the backend will auto-resolve it via Google Places.`;
 

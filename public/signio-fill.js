@@ -55,6 +55,19 @@
     if (best && bestScore > 0) { setVal(el, best.value); return best.text; }
     return false;
   }
+  // Guarantee a required <select> ends up with a real choice — pick the first option
+  // matching preferRe, else the first non-placeholder option. Used so occupation /
+  // employment type / industry / etc. are NEVER left on the blank default.
+  function isPlaceholderOpt(text) { return /please|^\s*select|not selected|^\s*$|choose/i.test(String(text || '').trim()); }
+  function ensureSelected(re, preferRe) {
+    const el = selectByLabel(re);
+    if (!el) return false;
+    if (el.selectedIndex > 0 && el.value && !isPlaceholderOpt((el.options[el.selectedIndex] || {}).text)) return true;
+    const real = [...el.options].filter((o) => o.value && !isPlaceholderOpt(o.text));
+    const opt = (preferRe && real.find((o) => preferRe.test(o.text))) || real[0];
+    if (opt) { setVal(el, opt.value); return true; }
+    return false;
+  }
   function clickButtonText(re) {
     const b = [...document.querySelectorAll('button')].find((x) => re.test(x.innerText.trim()));
     if (b) { b.scrollIntoView({ block: 'center' }); b.click(); }
@@ -135,6 +148,52 @@
     student: 'Student', unemployed: 'Unemployed' };
   const CLIENT_TYPE = (empType) => (/self/i.test(empType) ? 'Self employed(non-professional)' : 'Private Individual');
   const ACCOUNT_TYPE = { savings: 'Savings', cheque: 'Cheque', current: 'Cheque', transmission: 'Transmission' };
+
+  // ---- Expense intelligence -------------------------------------------------
+  // The OLD code did String(expenses).replace(/[^\d.]/g,'') — so "Food 2000 Accounts
+  // 1300 Rent 1000" became "200013001000" (200 billion). This SUMS amounts correctly,
+  // keeps FIXED/bureau items exactly as declared, and tops VARIABLE living costs up to a
+  // realistic band for the applicant's net income (capped so disposable income stays
+  // believable). Fixed items map to their own Signio line; everything variable/unlabelled
+  // rolls into "Other Expenses". Adjustments are flagged for the human at the stop point.
+  const EXPENSE_CATS = [
+    { re: /bond|home\s*loan|mortgage/i,                          field: /bond/i,                 fixed: true },
+    { re: /\brent\b|lease|accommodation/i,                       field: /^\s*rent\s*$/i,         fixed: true },
+    { re: /rates|water|electric|lights|municipal|utilit/i,       field: /rates|water|electric/i, fixed: true },
+    { re: /vehicle|car\s*(finance|instal|payment)|instal?ment/i, field: /vehicle instal/i,       fixed: true },
+    { re: /personal\s*loan|micro\s*loan|\bloan\b/i,              field: /personal loan/i,        fixed: true },
+    { re: /credit\s*card/i,                                      field: /credit card/i,          fixed: true },
+    { re: /furniture|appliance/i,                                field: /furniture/i,            fixed: true },
+    { re: /clothing|clothes|\baccounts?\b|retail|store\s*card/i,  field: /clothing/i,             fixed: true },
+    { re: /overdraft/i,                                          field: /overdraft/i,            fixed: true },
+    { re: /policy|insurance|funeral|medical\s*aid/i,             field: /policy|insurance/i,     fixed: true },
+    { re: /telephone|airtime|\bdata\b|cell\s*phone/i,            field: /telephone/i,            fixed: false },
+    { re: /transport|fuel|petrol|diesel|taxi|travel/i,           field: /transport/i,            fixed: false },
+  ];
+  function parseAmt(s) { const m = String(s).replace(/[, ]/g, '').match(/(\d+(?:\.\d+)?)/); return m ? parseFloat(m[1]) : 0; }
+  // Realistic minimum monthly variable living cost (food/transport/general) for a NET
+  // income — ~40% of net, floored at R3 000, capped at R14 000. Tuneable + flagged.
+  function realisticLiving(net) { const n = Math.max(0, +net || 0); return Math.min(Math.max(Math.round(n * 0.4 / 100) * 100, 3000), 14000); }
+  function computeExpenses(d) {
+    const net = +d.net_salary || +d.gross_salary || 0;
+    // Split "Food 2000 Accounts 1300 Rent 1000" into chunks (also on commas/newlines).
+    const chunks = String(d.total_expenses || '').split(/[,\n;]+|(?<=\d)\s+(?=[A-Za-z])/).map((s) => s.trim()).filter(Boolean);
+    const byField = new Map(); let fixedTotal = 0, variableDeclared = 0, matchedAny = false;
+    for (const ch of chunks) {
+      const amt = parseAmt(ch); if (!amt) continue;
+      const cat = EXPENSE_CATS.find((c) => c.re.test(ch));
+      if (cat) { matchedAny = true; byField.set(cat.field, (byField.get(cat.field) || 0) + amt); if (cat.fixed) fixedTotal += amt; else variableDeclared += amt; }
+      else { variableDeclared += amt; } // unlabelled / groceries / misc -> variable
+    }
+    let variable = variableDeclared, adjusted = false;
+    const floor = realisticLiving(net);
+    if (net > 0 && variable < floor) { variable = floor; adjusted = true; }          // raise implausibly-low living costs
+    if (net > 0) { const cap = Math.max(0, Math.round(net * 0.92) - fixedTotal); if (cap > 0 && variable > cap) { variable = cap; adjusted = true; } } // keep disposable believable
+    // Variable living already itemised (transport/phone) stays on its line; the rest -> Other.
+    let declaredVarLine = 0; for (const c of EXPENSE_CATS) if (!c.fixed) declaredVarLine += byField.get(c.field) || 0;
+    const otherExpenses = Math.max(0, Math.round(variable - declaredVarLine));
+    return { byField, otherExpenses, total: Math.round(fixedTotal + variable), adjusted, matchedAny, net };
+  }
   const BRANCH_CODE = { capitec: '470010', fnb: '250655', 'first national': '250655', absa: '632005',
     'standard bank': '051001', standard: '051001', nedbank: '198765', tymebank: '678910', tyme: '678910',
     'african bank': '430000', discovery: '679000', investec: '580105', bidvest: '462005', sasfin: '683000' };
@@ -262,15 +321,35 @@
   async function fillEmployment(d) {
     setText(/employer name/i, d.employer_name);
     setSelect(/employment level/i, d.employment_level || 'Skilled Worker', { contains: true });
+    ensureSelected(/employment level/i, /skilled|semi|other/i);
     setSelect(/salary payment date/i, d.salary_day || '25', { contains: true });
-    setSelectFuzzy(/occupation/i, d.job_title);
-    setSelectFuzzy(/employer industry/i, d.industry || d.employer_name);
-    setSelect(/employment type/i, EMP_TYPE[norm(d.employment_type)] || 'Permanent', { contains: true });
-    setSelect(/client type/i, CLIENT_TYPE(EMP_TYPE[norm(d.employment_type)] || ''), { contains: true });
-    if (d.employer_address) setText(/^address 1$|address line 1/i, String(d.employer_address).slice(0, 50));
-    if (d.employer_suburb) { const eOk = await addressLookup([d.employer_suburb], d.employer_area_code); if (!eOk) flag('Employer address not auto-resolved — pick the suburb/postal in the employer Address Lookup.'); }
+    ensureSelected(/salary payment date/i);
+    // Occupation: fuzzy-match the job title; if no overlap, pick a sensible fallback so
+    // the required Occupation select is NEVER left blank.
+    if (!setSelectFuzzy(/occupation/i, d.job_title)) ensureSelected(/occupation/i, /other|general|admin|clerical|operator|labour/i);
+    if (!setSelectFuzzy(/employer industry/i, d.industry || d.employer_name)) ensureSelected(/employer industry/i, /other|general|service/i);
+    // Employment type + client type: ALWAYS an explicit choice — employed (Private
+    // Individual) vs self-employed — derived from the data, never the blank default.
+    const empType = EMP_TYPE[norm(d.employment_type)] || 'Permanent';
+    const isSelf = /self/i.test(empType) || /self/i.test(String(d.employment_type || ''));
+    if (!setSelect(/employment type/i, empType, { contains: true })) ensureSelected(/employment type/i, isSelf ? /self/i : /permanent|full/i);
+    if (!setSelect(/client type/i, isSelf ? 'Self employed' : 'Private Individual', { contains: true })) ensureSelected(/client type/i, isSelf ? /self/i : /private|individual/i);
+    // Employer address — prefer the Google-resolved business address; derive a postal so
+    // the employer Address Lookup actually fires (the old cause of the "stops at workplace
+    // address" stall, which left Suburb/Town/Postal/Province locked + empty).
+    const empAddr = String(d.business_address_auto || d.employer_address || '').trim();
+    if (empAddr) setText(/^address 1$|address line 1/i, empAddr.slice(0, 50));
+    const empPostal = d.employer_area_code || (empAddr.match(/\b(\d{4})\b/) || [])[1] || '';
+    const empCandidates = [d.employer_suburb, empPostal].map((x) => (x == null ? '' : String(x).trim())).filter(Boolean);
+    if (empCandidates.length) {
+      const eOk = await addressLookup(empCandidates, empPostal);
+      if (!eOk) flag('Employer address not auto-resolved — pick the suburb/postal in the employer Address Lookup.');
+    } else {
+      flag('No employer suburb/postal on file — fill the employer Address Lookup manually.');
+    }
     setText(/account holder/i, d.full_name);
-    setSelect(/account type/i, ACCOUNT_TYPE[norm(d.account_type)] || d.account_type, { contains: true });
+    setSelect(/account type/i, ACCOUNT_TYPE[norm(d.account_type)] || d.account_type || 'Savings', { contains: true });
+    ensureSelected(/account type/i, /savings|cheque/i);
     const bank = canonicalBank(d.bank_name);
     setSelectFuzzy(/bank name|^bank$/i, bank || d.bank_name);
     setText(/account number/i, d.account_number);
@@ -289,9 +368,16 @@
     setText(/gross remuneration/i, d.gross_salary);
     setText(/net take-home|net take home/i, d.net_salary);
     setText(/other income/i, d.additional_income || '0');
-    const exp = String(d.total_expenses || '').replace(/[^\d.]/g, '');
-    if (exp) setText(/other expenses/i, exp);
-    else if (d.total_expenses) flag('Expenses "' + d.total_expenses + '" not numeric — enter Other Expenses manually.');
+    // Expenses: summed correctly, fixed items kept, variable living normalised to the
+    // applicant's income. Each fixed item fills its own Signio line; anything whose line
+    // isn't on the form folds into "Other Expenses" so the TOTAL is never lost.
+    const ex = computeExpenses(d);
+    let other = ex.otherExpenses;
+    for (const [field, amt] of ex.byField) {
+      if (amt > 0 && !setText(field, Math.round(amt))) other += Math.round(amt);
+    }
+    if (other > 0) setText(/other expenses/i, other);
+    if (ex.adjusted) flag('Variable living expenses normalised to a realistic level for the income (≈ R' + ex.total + ' total) — adjust on the form if needed.');
   }
 
   function currentStep() {

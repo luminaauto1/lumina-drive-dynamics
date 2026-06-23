@@ -26,6 +26,22 @@ const HANDOFF_PREFIX = 'LUMINA_SIGNIO:';
 
 // Pass RAW fields — the engine handles all normalization (gender, bank→branch,
 // employment_type, qualification, ID-Luhn, etc.) and flags anything it can't fill.
+// Pull a suburb + 4-digit postal out of a free-text / Google-formatted address so the
+// Signio employer Address Lookup has something to search (postal is the reliable key).
+function parseEmployerAddr(addr: string) {
+  const s = String(addr || '');
+  const postal = (s.match(/\b(\d{4})\b/) || [])[1] || '';
+  const segs = s.split(/[,\n]/).map((x) => x.trim()).filter(Boolean);
+  let suburb = '';
+  for (const seg of segs) {
+    if (/south africa/i.test(seg)) continue;
+    if (/^\d{4}$/.test(seg)) continue;
+    if (/^\d+\b/.test(seg)) continue; // skip the street line ("70 7th Avenue")
+    suburb = seg; break;
+  }
+  return { suburb, postal };
+}
+
 function buildSignioPayload(app: any) {
   const parts = String(app.street_address || '')
     .split(/[,\n]/)
@@ -33,6 +49,9 @@ function buildSignioPayload(app: any) {
     .filter(Boolean);
   const suburb = app.suburb || (parts.length >= 2 ? parts[parts.length - 2] : '');
   const kinTokens = String(app.kin_name || '').trim().split(/\s+/).filter(Boolean);
+  // Prefer the Google-resolved business address; derive suburb + postal for the lookup.
+  const empAddrFull = app.business_address_auto || app.employer_address || '';
+  const empParsed = parseEmployerAddr(empAddrFull);
 
   return {
     id_number: app.id_number,
@@ -60,8 +79,10 @@ function buildSignioPayload(app: any) {
     job_title: app.job_title,
     employment_type: app.employment_type,
     employment_period: app.employment_period,
-    employer_address: app.employer_address,
-    employer_suburb: app.employer_suburb,
+    employer_address: app.employer_address || undefined,
+    business_address_auto: app.business_address_auto || undefined,
+    employer_suburb: app.employer_suburb || empParsed.suburb || undefined,
+    employer_area_code: app.employer_postal_code || empParsed.postal || undefined,
     bank_name: app.bank_name,
     account_type: app.account_type,
     account_number: app.account_number,
@@ -87,6 +108,8 @@ function computeChecks(app: any, payload: any): string[] {
   if (!luhnValid(app.id_number)) out.push('ID number missing or not a valid SA ID — fix before submit.');
   if (+app.gross_salary && +app.net_salary && +app.net_salary > +app.gross_salary) out.push('Net salary is higher than gross — likely swapped; verify.');
   if (!payload.suburb) out.push('No suburb on file — pick the suburb/town result on the form.');
+  if (app.employer_name && !payload.employer_area_code && !payload.employer_suburb) out.push(`No workplace address resolved for "${app.employer_name}" — Signio may stall on the employer Address Lookup.`);
+  if (!app.job_title) out.push('No job title — occupation will default to a generic option; set it if you can.');
   if (app.bank_name && !KNOWN_BANKS.test(String(app.bank_name))) out.push(`Bank "${app.bank_name}" isn't auto-mapped — pick the bank + branch code.`);
   if (!app.employment_period) out.push('Employer tenure unknown — defaults to 1 yr; verify the years/months.');
   if (!app.kin_relation) out.push('Next-of-kin relation not set — pick it on the form.');
