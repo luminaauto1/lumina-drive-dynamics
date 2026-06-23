@@ -437,19 +437,73 @@ async function replanUserDay(svc: any, userId: string, ymd: string, now: Date, t
   return updated;
 }
 
-// Replan today + tomorrow for one user (uses their work-hour settings, defaults 08–17).
+// Lay a user's FLOATING tasks across consecutive WORKING DAYS — start today if work-time
+// remains (else tomorrow), and ROLL overflow onto the next day so a day is never crammed
+// and an after-hours replan lands on a fresh morning, not tonight. Calls first, realistic
+// durations, routing around anchored (user-timed) tasks.
 async function replanForUser(svc: any, userId: string, tz: string, settings: any, now: Date): Promise<number> {
   const ws = (settings ?? {}) as any;
-  const opts: PlanOpts = {
-    workStartHour: clampHour(ws.work_start_hour, 8), workEndHour: clampHour(ws.work_end_hour, 17),
-    slotMin: 45, callsFirst: ws.calls_first !== false,
+  const workStart = clampHour(ws.work_start_hour, 8) * 60;
+  const workEnd = clampHour(ws.work_end_hour, 17) * 60;
+  const callsFirst = ws.calls_first !== false;
+  const todayYMD = localYMD(tz, now);
+  const nowMin = localMinutes(tz, now.toISOString());
+  const dayYMD = (o: number) => localYMD(tz, new Date(now.getTime() + o * 86_400_000));
+
+  // Open tasks due in a 4-day horizon (today..+3) — enough to absorb overflow.
+  const startISO = localMinutesToISO(tz, todayYMD, 0);
+  const endISO = localMinutesToISO(tz, dayYMD(3), 23 * 60 + 59);
+  const { data: rows } = await svc.from("taskos_tasks")
+    .select("id, title, due_at, importance, priority_score, tags, metadata")
+    .eq("user_id", userId).not("status", "in", "(done,cancelled)")
+    .gte("due_at", startISO).lte("due_at", endISO);
+  const tasks = (rows ?? []) as any[];
+  if (!tasks.length) return 0;
+  const isFloating = (t: any) => {
+    const m = t.metadata || {};
+    if (m.anchored === true) return false;
+    if (m.planned === true) return true;
+    return DEFAULT_PLAN_MIN.has(localMinutes(tz, t.due_at));
   };
-  let total = 0;
-  for (const offDays of [0, 1]) {
-    const d = new Date(now.getTime() + offDays * 86_400_000);
-    total += await replanUserDay(svc, userId, localYMD(tz, d), now, tz, opts);
+  const floating = tasks.filter(isFloating);
+  if (!floating.length) return 0;
+  const callish = (t: any) => isCallish({ category: (t.metadata || {}).category, title: t.title });
+  floating.sort((a, b) => cmpTuple(
+    [callsFirst && callish(a) ? 0 : 1, -(a.priority_score ?? 0), -(a.importance ?? 3)],
+    [callsFirst && callish(b) ? 0 : 1, -(b.priority_score ?? 0), -(b.importance ?? 3)],
+  ));
+  // Anchored (user-timed) tasks are per-day obstacles the plan routes around.
+  const anchoredByDay = new Map<string, number[]>();
+  for (const t of tasks) if (!isFloating(t)) {
+    const d = localYMD(tz, new Date(t.due_at));
+    const arr = anchoredByDay.get(d) ?? [];
+    arr.push(localMinutes(tz, t.due_at));
+    anchoredByDay.set(d, arr);
   }
-  return total;
+
+  // First schedulable day: today if >=20 min of work-time remains, else tomorrow.
+  let dayOff = nowMin < workEnd - 20 ? 0 : 1;
+  let ymd = dayYMD(dayOff);
+  let cursor = dayOff === 0 ? Math.max(workStart, Math.ceil((nowMin + 10) / 15) * 15) : workStart;
+  let updated = 0;
+  for (const t of floating) {
+    const dur = estimateDuration({ title: t.title, category: (t.metadata || {}).category, tags: t.tags });
+    let guard = 0;
+    if (cursor + dur > workEnd && guard++ < 21) { dayOff++; ymd = dayYMD(dayOff); cursor = workStart; } // roll to next working day
+    for (let g = 0; g < 96; g++) { // route around anchored times (re-rolling if it pushes past work-end)
+      const aMins = anchoredByDay.get(ymd) ?? [];
+      if (!aMins.some((am) => Math.abs(am - cursor) < Math.min(dur, 45))) break;
+      cursor += 15;
+      if (cursor + dur > workEnd && guard++ < 21) { dayOff++; ymd = dayYMD(dayOff); cursor = workStart; }
+    }
+    const iso = localMinutesToISO(tz, ymd, cursor);
+    const meta = { ...(t.metadata || {}), planned: true };
+    await svc.from("taskos_tasks").update({ start_at: iso, due_at: iso, remind_at: iso, urgency: deriveUrgency(iso, now), metadata: meta })
+      .eq("id", t.id).eq("user_id", userId);
+    updated++;
+    cursor += dur;
+  }
+  return updated;
 }
 
 // Replan every linked user (cron / on-demand). Covers users with no settings row.
@@ -671,18 +725,13 @@ async function processOne(svc: any, inboxId: string): Promise<{ status: string; 
         .in("id", [...goalTargets]).in("kind", ["goal", "project"]).eq("user_id", ownerUserId);
     }
 
-    // Re-plan EVERY day this capture touched, across ALL of the user's tasks on that day
-    // (not just this batch) — so the whole day stays a coherent schedule, calls first,
-    // with realistic durations. This is what keeps single-task captures from piling up.
+    // Re-plan the user's WHOLE schedule (not just this capture's batch) so the day stays
+    // coherent — calls first, realistic durations, overflow rolling to the next working
+    // day. This is what keeps single-task captures from piling up at one time.
     try {
-      const ws2 = (settings?.settings ?? {}) as any;
-      const opts2: PlanOpts = {
-        workStartHour: clampHour(ws2.work_start_hour, 8), workEndHour: clampHour(ws2.work_end_hour, 17),
-        slotMin: 45, callsFirst: ws2.calls_first !== false,
-      };
-      const days = new Set<string>();
-      for (const p of prepared) if (p.type === "task" && p.dueAt) days.add(localYMD(tz, new Date(p.dueAt)));
-      for (const ymd of days) await replanUserDay(svc, ownerUserId, ymd, now, tz, opts2);
+      if (prepared.some((p) => p.type === "task" && p.dueAt)) {
+        await replanForUser(svc, ownerUserId, tz, settings?.settings, now);
+      }
     } catch (e) { console.error("[taskos-process-inbox] replan", e instanceof Error ? e.message : e); }
 
     // created===0 alone no longer means "needs review": a pure-dedup capture (handled
