@@ -107,6 +107,8 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
       'duration at employer': 'employment_start',
       'employment start': 'employment_start',
       'employment period': 'employment_start',
+      'employment type': 'employment_type',
+      'employment status': 'employment_type',
       'credit profile status': 'credit_status',
       'highest qualification': 'highest_qualification',
       'spouse name and surname': 'spouse_name',
@@ -162,6 +164,10 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
     const addrParts = [out.__street, out.__city, out.__province, out.__area_code]
       .filter(Boolean);
     if (addrParts.length) out.physical_address = addrParts.join(', ');
+    // Keep the postal/area code as a standalone field — Signio needs the residential
+    // area_code for its address lookup, so it must survive to the DB (city already folds
+    // into physical_address above).
+    if (out.__area_code) out.area_code = out.__area_code;
     delete out.__street; delete out.__city; delete out.__province; delete out.__area_code;
 
     // Ensure all expected keys exist (default empty string)
@@ -169,7 +175,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
       'first_name','last_name','email','id_number','phone','gender','marital_status',
       'employer_name','job_title','gross_income','net_income','physical_address',
       'workplace_address','bank_name','account_number','account_type','living_expenses',
-      'kin_name','kin_phone','employment_start',
+      'kin_name','kin_phone','employment_start','employment_type','area_code','highest_qualification','credit_status',
     ];
     EXPECTED.forEach((k) => { if (!(k in out)) out[k] = ''; });
 
@@ -350,15 +356,21 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
           gender: parsedData.gender || null,
           marital_status: parsedData.marital_status || null,
           street_address: parsedData.physical_address || null,
+          area_code: parsedData.area_code || null,
           employer_name: parsedData.employer_name || null,
-          employer_address: resolvedWorkplace || null,
+          employer_address: resolvedWorkplace || parsedData.workplace_address || null,
+          business_address_auto: resolvedWorkplace || null,
           job_title: parsedData.job_title || null,
           employment_period: parsedData.employment_start || null,
+          employment_type: parsedData.employment_type || null,
+          account_type: parsedData.account_type || null,
           gross_salary: grossNum,
           net_salary: netNum,
           expenses_summary: parsedData.living_expenses || null,
           bank_name: parsedData.bank_name || null,
           account_number: parsedData.account_number || null,
+          qualification: parsedData.highest_qualification || null,
+          credit_score_status: parsedData.credit_status || null,
           kin_name: parsedData.kin_name || null,
           kin_contact: parsedData.kin_phone || null,
           status: 'pending',
