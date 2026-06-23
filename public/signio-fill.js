@@ -144,7 +144,8 @@
     postgraduate: 'HONOURS OR HIGHER', honours: 'HONOURS OR HIGHER' };
   const MARITAL = { single: 'Single', married: 'Married', divorced: 'Divorced', widowed: 'Widow/er', 'widow/er': 'Widow/er' };
   const EMP_TYPE = { permanently_employed: 'Permanent', permanent: 'Permanent', self_employed: 'Self employed',
-    contract: 'Contractual', contractual: 'Contractual', part_time: 'Part time', pensioner: 'Pensioner',
+    'self employed': 'Self employed', contract: 'Contractual', contractual: 'Contractual',
+    part_time: 'Part time', 'part time': 'Part time', pensioner: 'Pensioner',
     student: 'Student', unemployed: 'Unemployed' };
   const CLIENT_TYPE = (empType) => (/self/i.test(empType) ? 'Self employed(non-professional)' : 'Private Individual');
   const ACCOUNT_TYPE = { savings: 'Savings', cheque: 'Cheque', current: 'Cheque', transmission: 'Transmission' };
@@ -176,23 +177,35 @@
   function realisticLiving(net) { const n = Math.max(0, +net || 0); return Math.min(Math.max(Math.round(n * 0.4 / 100) * 100, 3000), 14000); }
   function computeExpenses(d) {
     const net = +d.net_salary || +d.gross_salary || 0;
-    // Split "Food 2000 Accounts 1300 Rent 1000" into chunks (also on commas/newlines).
-    const chunks = String(d.total_expenses || '').split(/[,\n;]+|(?<=\d)\s+(?=[A-Za-z])/).map((s) => s.trim()).filter(Boolean);
-    const byField = new Map(); let fixedTotal = 0, variableDeclared = 0, matchedAny = false;
+    // Strip thousands separators ("R5,000" / "5 000" -> 5000) BEFORE chunking, so a comma
+    // or space between digit-groups is never mistaken for an item delimiter. Only remove a
+    // separator that sits between a digit and a 3-digit group (real thousands grouping).
+    const cleaned = String(d.total_expenses || '').replace(/(?<=\d)[ ,](?=\d{3}(\D|$))/g, '');
+    const chunks = cleaned.split(/[,\n;]+|(?<=\d)\s+(?=[A-Za-z])/).map((s) => s.trim()).filter(Boolean);
+    const fixed = new Map(), variableLines = new Map();
+    let fixedTotal = 0, variableDeclared = 0;
     for (const ch of chunks) {
       const amt = parseAmt(ch); if (!amt) continue;
       const cat = EXPENSE_CATS.find((c) => c.re.test(ch));
-      if (cat) { matchedAny = true; byField.set(cat.field, (byField.get(cat.field) || 0) + amt); if (cat.fixed) fixedTotal += amt; else variableDeclared += amt; }
-      else { variableDeclared += amt; } // unlabelled / groceries / misc -> variable
+      if (cat) {
+        (cat.fixed ? fixed : variableLines).set(cat.field, ((cat.fixed ? fixed : variableLines).get(cat.field) || 0) + amt);
+        if (cat.fixed) fixedTotal += amt; else variableDeclared += amt;
+      } else { variableDeclared += amt; } // unlabelled / groceries / misc -> variable "Other"
     }
     let variable = variableDeclared, adjusted = false;
     const floor = realisticLiving(net);
     if (net > 0 && variable < floor) { variable = floor; adjusted = true; }          // raise implausibly-low living costs
     if (net > 0) { const cap = Math.max(0, Math.round(net * 0.92) - fixedTotal); if (cap > 0 && variable > cap) { variable = cap; adjusted = true; } } // keep disposable believable
-    // Variable living already itemised (transport/phone) stays on its line; the rest -> Other.
-    let declaredVarLine = 0; for (const c of EXPENSE_CATS) if (!c.fixed) declaredVarLine += byField.get(c.field) || 0;
-    const otherExpenses = Math.max(0, Math.round(variable - declaredVarLine));
-    return { byField, otherExpenses, total: Math.round(fixedTotal + variable), adjusted, matchedAny, net };
+    // Scale itemised variable lines (transport/phone) so they fit the final `variable`
+    // total — the cap then applies to EVERYTHING (not just the residual), and the flagged
+    // total matches what's actually filled.
+    const declaredVarLine = [...variableLines.values()].reduce((a, b) => a + b, 0);
+    const scale = declaredVarLine > 0 ? Math.min(1, variable / declaredVarLine) : 1;
+    const byField = new Map(fixed);
+    let scaledVar = 0;
+    for (const [field, amt] of variableLines) { const v = Math.round(amt * scale); byField.set(field, v); scaledVar += v; }
+    const otherExpenses = Math.max(0, Math.round(variable - scaledVar));
+    return { byField, otherExpenses, total: Math.round(fixedTotal + variable), adjusted, net };
   }
   const BRANCH_CODE = { capitec: '470010', fnb: '250655', 'first national': '250655', absa: '632005',
     'standard bank': '051001', standard: '051001', nedbank: '198765', tymebank: '678910', tyme: '678910',
@@ -324,9 +337,13 @@
     ensureSelected(/employment level/i, /skilled|semi|other/i);
     setSelect(/salary payment date/i, d.salary_day || '25', { contains: true });
     ensureSelected(/salary payment date/i);
-    // Occupation: fuzzy-match the job title; if no overlap, pick a sensible fallback so
-    // the required Occupation select is NEVER left blank.
-    if (!setSelectFuzzy(/occupation/i, d.job_title)) ensureSelected(/occupation/i, /other|general|admin|clerical|operator|labour/i);
+    // Occupation: fuzzy-match the job title; if no overlap, pick a sensible fallback so the
+    // required Occupation select is NEVER left blank — but FLAG it (a guessed occupation on
+    // a credit application must be verified by the human).
+    if (!setSelectFuzzy(/occupation/i, d.job_title)) {
+      ensureSelected(/occupation/i, /other|general|admin|clerical|operator|labour|worker|assistant/i);
+      flag('Occupation "' + (d.job_title || '(blank)') + '" had no exact match — a generic option was selected; verify Occupation before submit.');
+    }
     if (!setSelectFuzzy(/employer industry/i, d.industry || d.employer_name)) ensureSelected(/employer industry/i, /other|general|service/i);
     // Employment type + client type: ALWAYS an explicit choice — employed (Private
     // Individual) vs self-employed — derived from the data, never the blank default.
@@ -339,8 +356,11 @@
     // address" stall, which left Suburb/Town/Postal/Province locked + empty).
     const empAddr = String(d.business_address_auto || d.employer_address || '').trim();
     if (empAddr) setText(/^address 1$|address line 1/i, empAddr.slice(0, 50));
-    const empPostal = d.employer_area_code || (empAddr.match(/\b(\d{4})\b/) || [])[1] || '';
-    const empCandidates = [d.employer_suburb, empPostal].map((x) => (x == null ? '' : String(x).trim())).filter(Boolean);
+    // Use the LAST 4-digit token (the trailing SA postal), never the first — a 4-digit
+    // STREET number (common in townships) would otherwise be mistaken for the postal.
+    const empPostal = d.employer_area_code || (empAddr.match(/\b\d{4}\b/g) || []).pop() || '';
+    // Postal first — it's the reliable lookup key; the suburb (often a building name) is a fallback.
+    const empCandidates = [empPostal, d.employer_suburb].map((x) => (x == null ? '' : String(x).trim())).filter(Boolean);
     if (empCandidates.length) {
       const eOk = await addressLookup(empCandidates, empPostal);
       if (!eOk) flag('Employer address not auto-resolved — pick the suburb/postal in the employer Address Lookup.');

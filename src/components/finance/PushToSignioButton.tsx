@@ -30,7 +30,8 @@ const HANDOFF_PREFIX = 'LUMINA_SIGNIO:';
 // Signio employer Address Lookup has something to search (postal is the reliable key).
 function parseEmployerAddr(addr: string) {
   const s = String(addr || '');
-  const postal = (s.match(/\b(\d{4})\b/) || [])[1] || '';
+  // LAST 4-digit token = the trailing SA postal (avoids grabbing a 4-digit street number).
+  const postal = (s.match(/\b\d{4}\b/g) || []).pop() || '';
   const segs = s.split(/[,\n]/).map((x) => x.trim()).filter(Boolean);
   let suburb = '';
   for (const seg of segs) {
