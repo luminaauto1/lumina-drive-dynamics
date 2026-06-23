@@ -44,7 +44,25 @@ IMPORTANCE = stakes / consequence, INDEPENDENT of timing. Anchors:
   2 = minor / low-stakes. 1 = trivial.
   DO NOT inflate importance. A routine "call so-and-so" with no stakes is 3, not 5. Reserve 4-5 for genuine consequence. A far-off task is NOT automatically important.
 
+========== DAY PLANNING — when the input is a batch / to-do list for a day ==========
+The user often dumps several things to do in one day ("important today, schedule accordingly", a bullet list, "things for tomorrow"). NEVER stamp them all at the same time — that is the single worst thing you can do. Instead lay out a sensible day:
+- Give EACH task a "category" and a "plan_order" (1 = do first, 2 = next, …) for a logical running order. You do NOT need to invent a clock time for floating to-dos — leave due_at on the correct DAY (use 09:00 on that day as a placeholder) and set time_explicit:false; the system spreads them across working hours in your plan_order.
+- HARD RULE — CALLS & FEEDBACK GO FIRST. Phoning/calling someone, following up, chasing a person, getting or giving client feedback, any outreach → category "call"/"feedback"/"outreach" and the LOWEST plan_order numbers. The owner ALWAYS does these first thing in the day. Everything else (admin, building, loading, research, content, errands) comes after.
+- ORDER LOGICALLY by dependency and stakes: if task A must happen before task B (A unblocks/enables B), give A the lower plan_order AND emit a link { from:A, to:B, relation:"blocks" }. Quick enabling steps before the big thing they unlock; higher-stakes before lower.
+- time_explicit: TRUE only when the text gives THAT task its own clock time or hard deadline ("call Sam at 10", "submit by 4pm") — then put that exact time in due_at. Otherwise FALSE.
+
 ========== EXAMPLES (assume now_local = 2026-06-18T08:30:00+02:00, a Thursday) ==========
+Input (a day-dump): "important today, schedule accordingly: finalise Auto Investments onboarding; make the explainer video for Siobhan; load the apps; make sure the system works; follow up on credit checks; get client feedback"
+-> entities (ALL due TODAY; system time-slots them in plan_order, calls/feedback first):
+     { temp_id:"t1", type:"task", title:"Follow up on credit checks", due_at:"2026-06-18T09:00:00+02:00", category:"call", plan_order:1, time_explicit:false, importance:4, urgency:5 },
+     { temp_id:"t2", type:"task", title:"Get client feedback", due_at:"2026-06-18T09:00:00+02:00", category:"feedback", plan_order:2, time_explicit:false, importance:4, urgency:5 },
+     { temp_id:"t3", type:"task", title:"Finalise Auto Investments onboarding", due_at:"2026-06-18T09:00:00+02:00", category:"admin", plan_order:3, time_explicit:false, importance:4, urgency:5 },
+     { temp_id:"t4", type:"task", title:"Load the apps", due_at:"2026-06-18T09:00:00+02:00", category:"admin", plan_order:4, time_explicit:false, importance:3, urgency:5 },
+     { temp_id:"t5", type:"task", title:"Make sure the system works", due_at:"2026-06-18T09:00:00+02:00", category:"admin", plan_order:5, time_explicit:false, importance:3, urgency:5 },
+     { temp_id:"t6", type:"task", title:"Make explainer video for Siobhan", due_at:"2026-06-18T09:00:00+02:00", category:"content", plan_order:6, time_explicit:false, importance:3, urgency:5 } ]
+   // none have an explicit time -> time_explicit:false on all -> the system spreads them from the start of the workday, calls/feedback first.
+
+
 Input: "Call roedolf @ 10:00 and arrange for vehicle switching"
 -> entities: [
      { temp_id:"t1", type:"task", title:"Call Roedolf to arrange vehicle switching", due_at:"2026-06-18T10:00:00+02:00", remind_at:"2026-06-18T10:00:00+02:00", urgency:5, importance:3 },
@@ -91,6 +109,9 @@ const CLASSIFY_SCHEMA = {
           importance: { type: "integer", enum: [1, 2, 3, 4, 5] },
           tags: { type: "array", items: { type: "string" } },
           duplicate_of: { type: "string", description: "id of an existing OPEN task in related_memory this duplicates; set instead of creating a second task" },
+          category: { type: "string", enum: ["call", "feedback", "outreach", "meeting", "deep_work", "admin", "errand", "research", "content", "finance", "personal", "other"], description: "what KIND of work this is — used for day-planning (call/feedback/outreach are scheduled first)" },
+          plan_order: { type: "integer", description: "intended running order within the day for a batch/to-do list; 1 = do first, then 2, 3… Lower = earlier. Calls/feedback get the lowest." },
+          time_explicit: { type: "boolean", description: "TRUE only if the text gives THIS task its own clock time or hard deadline; then put that time in due_at. FALSE = a floating to-do the system will time-slot." },
         },
       },
     },
@@ -218,6 +239,128 @@ function deriveUrgency(dueISO: string | null, now: Date): number {
 }
 const TIME_BOUND = new Set(["task", "reminder", "deadline", "meeting", "event"]);
 const clampImportance = (v: any) => ([1, 2, 3, 4, 5].includes(v) ? v : 3);
+const clampHour = (v: any, d: number) => (Number.isFinite(v) && v >= 0 && v <= 23 ? Math.floor(v) : d);
+
+// ---------------------------------------------------------------------------
+// DAY PLANNER. When ONE capture yields a batch of tasks for the same day (a
+// "schedule accordingly" / to-do-list dump), the model picks a running order
+// but should NOT pin clock times. This lays that batch across the working day
+// deterministically so it can NEVER all land at one time again:
+//   • CALLS & FEEDBACK FIRST — the owner's hard rule (earliest slots).
+//   • then by the model's plan_order, importance, urgency.
+//   • spaced by a fixed cadence inside working hours, routing around any task
+//     that DOES have an explicit time (those stay put as fixed anchors).
+// The AI guides the order; this code guarantees the spread + the calls-first law.
+// ---------------------------------------------------------------------------
+const pad = pad2;
+// minutes from local midnight for an instant, in tz
+function localMinutes(tz: string, iso: string): number {
+  const [h, m] = localHM(tz, new Date(iso)).split(":").map(Number);
+  return h * 60 + m;
+}
+// ISO+offset for minutes-from-midnight on a given local calendar day (YYYY-MM-DD)
+function localMinutesToISO(tz: string, ymd: string, minutes: number): string {
+  const mins = Math.max(0, Math.min(23 * 60 + 59, Math.round(minutes)));
+  const offset = localOffset(tz, new Date(`${ymd}T12:00:00Z`));
+  return new Date(`${ymd}T${pad(Math.floor(mins / 60))}:${pad(mins % 60)}:00${offset}`).toISOString();
+}
+// Local minute-of-day the day-planner uses as the "floating to-do" placeholder. A task
+// whose due time equals this (and isn't flagged explicit) is treated as un-timed → planned.
+const PLACEHOLDER_MIN = 9 * 60; // 09:00 — matches the prompt's batch placeholder
+// How many distinct clock times the text mentions (so the backstop only borrows a
+// capture-wide time when there's exactly one — never guessing which task it belongs to).
+function clockTimeCount(text: string): number {
+  const s = String(text ?? "");
+  const a = s.match(/(?:^|[^\d])(\d{1,2})\s*(am|pm)\b/ig) || [];
+  const b = s.match(/(?:^|[^\d])(\d{1,2})[:h.](\d{2})(?![\d])/g) || [];
+  return a.length + b.length;
+}
+// Calls / feedback / outreach — these get the earliest slots (owner's rule).
+const CALL_RE = /\b(call|calling|phone|phoning|ring|dial|follow[\s-]?ups?|following up|reach\s?out|reaching out|touch\s?base|check[\s-]?in|cold\s?call)\b/i;
+const FEEDBACK_RE = /\b(client'?s?|customer'?s?|clients|get|getting|give|giving|gather|gathering|collect|request)\s+feedback\b/i;
+const CALL_CATS = new Set(["call", "feedback", "outreach"]);
+function isCallish(t: { category?: string | null; title?: string }): boolean {
+  if (t.category && CALL_CATS.has(String(t.category))) return true;
+  const s = t.title ?? "";
+  return CALL_RE.test(s) || FEEDBACK_RE.test(s);
+}
+function cmpTuple(a: number[], b: number[]): number {
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] - b[i];
+  return 0;
+}
+interface PlanTask {
+  title: string; dueAt: string | null; startAt?: string | null; remindAt?: string | null;
+  importance: number; urgency?: number; anchored: boolean; category?: string | null;
+  planOrder?: number | null; tags: string[]; planned?: boolean;
+}
+interface PlanOpts { workStartHour: number; workEndHour: number; slotMin: number; callsFirst: boolean }
+
+// Lay a same-day batch of unanchored tasks across the working day. Mutates tasks
+// in place (sets startAt / dueAt / remindAt / planned / tags). No-op unless there
+// is a genuine same-day cluster (>=2 tasks sharing a day) to plan.
+function planDay(tasks: PlanTask[], now: Date, tz: string, opts: PlanOpts): boolean {
+  if (tasks.length < 2) return false;
+  const dayOf = (t: PlanTask) => (t.dueAt ? localYMD(tz, new Date(t.dueAt)) : null);
+  // Find the day the most tasks already fall on.
+  const dayCount = new Map<string, number>();
+  for (const t of tasks) { const d = dayOf(t); if (d) dayCount.set(d, (dayCount.get(d) ?? 0) + 1); }
+  let topDay: string | null = null, best = 0;
+  for (const [d, c] of dayCount) if (c > best || (c === best && topDay && d < topDay)) { best = c; topDay = d; }
+  const todayYMD = localYMD(tz, now);
+  // This is a day-plan batch when EITHER >=2 tasks share a day, OR the model gave
+  // >=2 tasks an explicit plan_order (its signal: "this is a sequenced to-do list").
+  const planOrdered = tasks.filter((t) => Number.isInteger(t.planOrder as any) && (t.planOrder as number) > 0).length;
+  let batchDay: string | null = null;
+  if (best >= 2) batchDay = topDay;
+  else if (planOrdered >= 2) batchDay = topDay ?? todayYMD; // sequenced list with sparse/absent dates
+  if (!batchDay) return false;
+  if (batchDay < todayYMD) return false; // never re-plan a past day
+
+  // Members = tasks dated on the batch day, PLUS undated tasks the model EXPLICITLY
+  // sequenced (positive plan_order) — those are batch items it left undated. An undated
+  // task with NO plan_order is a genuine "someday" to-do and must stay unscheduled.
+  const onBatch = (t: PlanTask) => dayOf(t) === batchDay;
+  const isSequencedUndated = (t: PlanTask) => dayOf(t) === null && Number.isInteger(t.planOrder as any) && (t.planOrder as number) > 0;
+  const members = tasks.filter((t) => onBatch(t) || isSequencedUndated(t));
+  // Anchored = an explicit time on the batch day; they're fixed obstacles.
+  const anchored = members.filter((t) => t.anchored && onBatch(t));
+  const floating = members.filter((t) => !(t.anchored && onBatch(t)));
+  if (floating.length === 0) return false;
+
+  // Order floating tasks: calls/feedback first, then plan_order, importance, urgency.
+  floating.sort((a, b) => cmpTuple(
+    [opts.callsFirst && isCallish(a) ? 0 : 1, a.planOrder ?? 50, -(a.importance ?? 3), -(a.urgency ?? 3)],
+    [opts.callsFirst && isCallish(b) ? 0 : 1, b.planOrder ?? 50, -(b.importance ?? 3), -(b.urgency ?? 3)],
+  ));
+
+  const anchoredMins = anchored.map((t) => localMinutes(tz, t.dueAt!)).sort((x, y) => x - y);
+  let cursor = opts.workStartHour * 60;
+  if (batchDay === todayYMD) {
+    const nowMin = localMinutes(tz, now.toISOString());
+    cursor = Math.max(cursor, Math.ceil((nowMin + 10) / 15) * 15); // never schedule in the past
+  }
+  // Cadence between tasks — COMPRESS it if the batch wouldn't otherwise fit before the
+  // day's end, so an oversized dump still gets DISTINCT times instead of collapsing onto
+  // one timestamp (the very failure the planner exists to prevent).
+  const DAY_END = 21 * 60;
+  let slot = opts.slotMin;
+  const span = DAY_END - cursor;
+  if (floating.length > 1 && (floating.length - 1) * slot > span) {
+    slot = Math.max(10, Math.floor(span / (floating.length - 1)));
+  }
+  for (const t of floating) {
+    for (let guard = 0; guard < 64; guard++) { // step over any anchored (fixed-time) task
+      if (!anchoredMins.some((am) => Math.abs(am - cursor) < slot)) break;
+      cursor += slot;
+    }
+    const iso = localMinutesToISO(tz, batchDay, cursor); // ISO helper clamps to ≤23:59
+    t.startAt = iso; t.dueAt = iso; t.remindAt = iso; t.planned = true;
+    if (isCallish(t) && !t.tags.includes("call")) t.tags.push("call");
+    cursor += slot;
+  }
+  for (const t of anchored) t.startAt = t.dueAt; // keep its scheduled start coherent
+  return true;
+}
 
 // ---- classify a single inbox row, persist its entities/tasks/links/embeddings ----
 async function processOne(svc: any, inboxId: string): Promise<{ status: string; created: number }> {
@@ -304,6 +447,16 @@ async function processOne(svc: any, inboxId: string): Promise<{ status: string; 
     for (const r of related) idMap.set(r.id, { kind: r.kind === "task" ? "task" : "entity", id: r.id });
 
     let created = 0, dedupSkipped = 0;
+    // ---- Phase 1: PREP every entity (no DB writes yet) so the day-planner can
+    // re-time a batch of tasks before any of them is persisted. ----
+    interface Prepared {
+      temp_id?: string; type: string; title: string; body: string;
+      dueAt: string | null; startAt: string | null; remindAt: string | null;
+      importance: number; urgency: number; anchored: boolean;
+      category: string | null; planOrder: number | null; tags: string[];
+      embLit: string | null; planned?: boolean;
+    }
+    const prepared: Prepared[] = [];
     for (const ent of entities) {
       const type = String(ent?.type ?? "").toLowerCase();
       if (!ALLOWED_TYPES.has(type)) continue; // whitelist — drop hallucinated types
@@ -321,36 +474,70 @@ async function processOne(svc: any, inboxId: string): Promise<{ status: string; 
       const title = String(ent?.title ?? "").slice(0, 500) || "(untitled)";
       const body = typeof ent?.body === "string" ? ent.body : "";
       let dueAt = localWallToUtcISO(ent?.due_at, tz);
-      // Time backstop: model dropped the time, but the text has a clear clock time.
+      // Time backstop: model dropped the time but the text states one. Prefer THIS
+      // entity's own title/body; fall back to the whole capture ONLY when it contains a
+      // single, unambiguous clock time (so one task's time is never stamped onto another).
+      let recoveredTime = false;
       if (!dueAt && TIME_BOUND.has(type)) {
-        const t = extractClockTime(row.raw_text);
-        if (t) dueAt = nextLocalTimeISO(now, tz, t.hh, t.mm);
+        const t = extractClockTime(`${title}\n${body}`) ??
+          (clockTimeCount(row.raw_text) === 1 ? extractClockTime(row.raw_text) : null);
+        if (t) { dueAt = nextLocalTimeISO(now, tz, t.hh, t.mm); recoveredTime = true; }
       }
       let remindAt = localWallToUtcISO(ent?.remind_at, tz);
       // Reminder backstop: anything time-bound with a due time MUST nudge the user.
       if (!remindAt && dueAt && TIME_BOUND.has(type)) remindAt = dueAt;
-      // Urgency is always derived from the due date — deterministic time-criticality,
-      // so a far-off task can never read as urgent regardless of what the model said.
-      const urgency = deriveUrgency(dueAt, now);
-      const importance = clampImportance(ent?.importance);
       const tags = Array.isArray(ent?.tags) ? ent.tags.map((t: any) => String(t)).slice(0, 20) : [];
+      // "Anchored" = a FIXED clock time the day-planner must NOT move: the model flagged it
+      // (time_explicit), we recovered an explicit time from the text, OR it carries a real
+      // due time that isn't the 09:00 day-plan placeholder. This protects real appointments
+      // even if the model forgets the time_explicit flag.
+      const anchored = ent?.time_explicit === true || recoveredTime ||
+        (dueAt != null && localMinutes(tz, dueAt) !== PLACEHOLDER_MIN);
       const emb = await embedText(`${title}\n${body}`);
-      const embLit = emb ? toVectorLiteral(emb) : null;
+      prepared.push({
+        temp_id: ent?.temp_id ? String(ent.temp_id) : undefined,
+        type, title, body, dueAt, startAt: null, remindAt,
+        importance: clampImportance(ent?.importance), urgency: 3,
+        anchored,
+        category: typeof ent?.category === "string" ? ent.category : null,
+        planOrder: Number.isInteger(ent?.plan_order) ? ent.plan_order : null,
+        tags, embLit: emb ? toVectorLiteral(emb) : null,
+      });
+    }
 
-      if (type === "task") {
+    // ---- Phase 2: PLAN the day. Lay a same-day batch of floating tasks across
+    // working hours (calls/feedback first). Mutates each task record's times. ----
+    const ws = (settings?.settings ?? {}) as any;
+    planDay(prepared.filter((p) => p.type === "task") as unknown as PlanTask[], now, tz, {
+      workStartHour: clampHour(ws.work_start_hour, 8),
+      workEndHour: clampHour(ws.work_end_hour, 17),
+      slotMin: Number.isFinite(ws.plan_slot_minutes) ? Math.max(15, Math.min(180, Number(ws.plan_slot_minutes))) : 45,
+      callsFirst: ws.calls_first !== false, // default ON — the owner's "calls first" rule
+    });
+
+    // ---- Phase 3: INSERT. Urgency is derived AFTER planning so a freshly-slotted
+    // today task reads as correctly urgent. ----
+    for (const p of prepared) {
+      const urgency = deriveUrgency(p.dueAt, now);
+      if (p.type === "task") {
+        const metadata: Record<string, unknown> = {};
+        if (p.planned) metadata.planned = true;
+        if (p.category) metadata.category = p.category;
         const { data: ins } = await svc.from("taskos_tasks").insert({
-          user_id: ownerUserId, title, description: body || null, due_at: dueAt,
-          remind_at: remindAt ?? dueAt, urgency, importance, tags, source_inbox_id: inboxId,
-          ...(embLit ? { embedding: embLit } : {}),
+          user_id: ownerUserId, title: p.title, description: p.body || null,
+          due_at: p.dueAt, start_at: p.startAt ?? null, remind_at: p.remindAt ?? p.dueAt,
+          urgency, importance: p.importance, tags: p.tags, source_inbox_id: inboxId,
+          ...(Object.keys(metadata).length ? { metadata } : {}),
+          ...(p.embLit ? { embedding: p.embLit } : {}),
         }).select("id").maybeSingle();
-        if (ins?.id && ent?.temp_id) idMap.set(String(ent.temp_id), { kind: "task", id: ins.id });
+        if (ins?.id && p.temp_id) idMap.set(p.temp_id, { kind: "task", id: ins.id });
       } else {
         const { data: ins } = await svc.from("taskos_entities").insert({
-          user_id: ownerUserId, kind: type, title, body,
-          due_at: dueAt, remind_at: remindAt, importance, tags, source_inbox_id: inboxId,
-          ...(embLit ? { embedding: embLit } : {}),
+          user_id: ownerUserId, kind: p.type, title: p.title, body: p.body,
+          due_at: p.dueAt, remind_at: p.remindAt, importance: p.importance, tags: p.tags, source_inbox_id: inboxId,
+          ...(p.embLit ? { embedding: p.embLit } : {}),
         }).select("id").maybeSingle();
-        if (ins?.id && ent?.temp_id) idMap.set(String(ent.temp_id), { kind: "entity", id: ins.id });
+        if (ins?.id && p.temp_id) idMap.set(p.temp_id, { kind: "entity", id: ins.id });
       }
       created++;
     }
