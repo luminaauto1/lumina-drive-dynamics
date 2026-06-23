@@ -362,6 +362,112 @@ function planDay(tasks: PlanTask[], now: Date, tz: string, opts: PlanOpts): bool
   return true;
 }
 
+// ===========================================================================
+// WHOLE-DAY REPLANNER. planDay() above only sequences ONE capture's batch. This
+// re-sequences a user's ENTIRE day every time anything changes, so the board is
+// always a coherent schedule (calls first, realistic per-task durations, no
+// end-of-day pile) instead of everything defaulting to 17:00. Idempotent.
+// ===========================================================================
+
+// Estimated minutes a task needs — so the plan blocks out a 2-hour video properly
+// and doesn't cram it into a 20-minute slot. Category first, then title keywords.
+function estimateDuration(t: { title?: string; category?: string | null; tags?: string[] }): number {
+  const cat = String(t.category || "").toLowerCase();
+  const s = `${t.title || ""} ${(t.tags || []).join(" ")}`.toLowerCase();
+  if (cat === "call" || cat === "feedback" || cat === "outreach" || /\bcall|phone|ring|follow[- ]?up|feedback|check in|reach out\b/.test(s)) return 20;
+  if (cat === "content" || /video|record|edit\b|design|write|content|film|shoot|presentation/.test(s)) return 120;
+  if (cat === "research" || /research|investigate|figure out|explore|compare|look into|plan\b/.test(s)) return 60;
+  if (cat === "meeting" || /meeting|\bmeet\b|appointment|interview|viewing/.test(s)) return 60;
+  if (cat === "errand" || /pickup|pick up|collect|drop off|fetch|deliver|fitment|fit\b|go to|visit/.test(s)) return 60;
+  if (cat === "finance" || cat === "admin" || /invoice|paperwork|submit|load\b|sort|onboard|email|capture|update|process|license|disc/.test(s)) return 30;
+  return 30;
+}
+
+// Local minute-of-day values the OLD capture used as a "today" default. UNFLAGGED tasks
+// sitting on one of these (17:00) are treated as floating and re-planned; everything
+// else with a real user-given time is left alone.
+const DEFAULT_PLAN_MIN = new Set([17 * 60]);
+
+// Re-plan ALL of a user's floating tasks for one local day into a coherent schedule.
+async function replanUserDay(svc: any, userId: string, ymd: string, now: Date, tz: string, opts: PlanOpts): Promise<number> {
+  const todayYMD = localYMD(tz, now);
+  if (ymd < todayYMD) return 0; // never re-plan a past day
+  const off = localOffset(tz, new Date(`${ymd}T12:00:00Z`));
+  const dayStart = new Date(`${ymd}T00:00:00${off}`).toISOString();
+  const dayEnd = new Date(`${ymd}T23:59:59${off}`).toISOString();
+  const { data: rows } = await svc.from("taskos_tasks")
+    .select("id, title, due_at, importance, urgency, priority_score, tags, metadata")
+    .eq("user_id", userId).not("status", "in", "(done,cancelled)")
+    .gte("due_at", dayStart).lte("due_at", dayEnd);
+  const tasks = (rows ?? []) as any[];
+  if (!tasks.length) return 0;
+  // Floating = planner-owned, or sitting on the legacy 17:00 default; never a task the
+  // user (or capture) explicitly time-stamped.
+  const isFloating = (t: any) => {
+    const m = t.metadata || {};
+    if (m.anchored === true) return false;
+    if (m.planned === true) return true;
+    return DEFAULT_PLAN_MIN.has(localMinutes(tz, t.due_at));
+  };
+  const floating = tasks.filter(isFloating);
+  if (!floating.length) return 0;
+  const anchored = tasks.filter((t) => !isFloating(t));
+  const callish = (t: any) => isCallish({ category: (t.metadata || {}).category, title: t.title });
+  // Calls/feedback first, then by computed priority, then importance.
+  floating.sort((a, b) => cmpTuple(
+    [opts.callsFirst && callish(a) ? 0 : 1, -(a.priority_score ?? 0), -(a.importance ?? 3)],
+    [opts.callsFirst && callish(b) ? 0 : 1, -(b.priority_score ?? 0), -(b.importance ?? 3)],
+  ));
+  const anchoredMins = anchored.map((t) => localMinutes(tz, t.due_at)).sort((x, y) => x - y);
+  let cursor = opts.workStartHour * 60;
+  if (ymd === todayYMD) cursor = Math.max(cursor, Math.ceil((localMinutes(tz, now.toISOString()) + 10) / 15) * 15);
+  const DAY_END = 21 * 60;
+  let updated = 0;
+  for (const t of floating) {
+    const dur = estimateDuration({ title: t.title, category: (t.metadata || {}).category, tags: t.tags });
+    for (let g = 0; g < 96; g++) { if (!anchoredMins.some((am) => Math.abs(am - cursor) < Math.min(dur, 45))) break; cursor += 15; }
+    const minutes = Math.min(cursor, DAY_END);
+    const iso = localMinutesToISO(tz, ymd, minutes);
+    const meta = { ...(t.metadata || {}), planned: true };
+    await svc.from("taskos_tasks").update({ start_at: iso, due_at: iso, remind_at: iso, urgency: deriveUrgency(iso, now), metadata: meta })
+      .eq("id", t.id).eq("user_id", userId);
+    updated++;
+    cursor = minutes + dur;
+  }
+  return updated;
+}
+
+// Replan today + tomorrow for one user (uses their work-hour settings, defaults 08–17).
+async function replanForUser(svc: any, userId: string, tz: string, settings: any, now: Date): Promise<number> {
+  const ws = (settings ?? {}) as any;
+  const opts: PlanOpts = {
+    workStartHour: clampHour(ws.work_start_hour, 8), workEndHour: clampHour(ws.work_end_hour, 17),
+    slotMin: 45, callsFirst: ws.calls_first !== false,
+  };
+  let total = 0;
+  for (const offDays of [0, 1]) {
+    const d = new Date(now.getTime() + offDays * 86_400_000);
+    total += await replanUserDay(svc, userId, localYMD(tz, d), now, tz, opts);
+  }
+  return total;
+}
+
+// Replan every linked user (cron / on-demand). Covers users with no settings row.
+async function replanAll(svc: any): Promise<any> {
+  const now = new Date();
+  const { data: settingsRows } = await svc.from("taskos_user_settings").select("user_id, timezone, settings");
+  const byUser = new Map<string, any>();
+  for (const s of settingsRows ?? []) byUser.set(s.user_id, s);
+  const { data: links } = await svc.from("taskos_telegram_links").select("user_id").eq("is_active", true);
+  for (const l of links ?? []) if (!byUser.has(l.user_id)) byUser.set(l.user_id, { user_id: l.user_id, timezone: null, settings: {} });
+  let users = 0, tasks = 0;
+  for (const s of byUser.values()) {
+    const n = await replanForUser(svc, s.user_id, s.timezone ?? "Africa/Johannesburg", s.settings, now);
+    if (n) { users++; tasks += n; }
+  }
+  return { ok: true, users, tasks };
+}
+
 // ---- classify a single inbox row, persist its entities/tasks/links/embeddings ----
 async function processOne(svc: any, inboxId: string): Promise<{ status: string; created: number }> {
   // Atomic claim: only one worker processes a pending/failed item.
@@ -522,6 +628,7 @@ async function processOne(svc: any, inboxId: string): Promise<{ status: string; 
       if (p.type === "task") {
         const metadata: Record<string, unknown> = {};
         if (p.planned) metadata.planned = true;
+        if (p.anchored) metadata.anchored = true; // user gave it a real time — replanner won't move it
         if (p.category) metadata.category = p.category;
         const { data: ins } = await svc.from("taskos_tasks").insert({
           user_id: ownerUserId, title: p.title, description: p.body || null,
@@ -563,6 +670,20 @@ async function processOne(svc: any, inboxId: string): Promise<{ status: string; 
       await svc.from("taskos_entities").update({ last_activity_at: nowISO() })
         .in("id", [...goalTargets]).in("kind", ["goal", "project"]).eq("user_id", ownerUserId);
     }
+
+    // Re-plan EVERY day this capture touched, across ALL of the user's tasks on that day
+    // (not just this batch) — so the whole day stays a coherent schedule, calls first,
+    // with realistic durations. This is what keeps single-task captures from piling up.
+    try {
+      const ws2 = (settings?.settings ?? {}) as any;
+      const opts2: PlanOpts = {
+        workStartHour: clampHour(ws2.work_start_hour, 8), workEndHour: clampHour(ws2.work_end_hour, 17),
+        slotMin: 45, callsFirst: ws2.calls_first !== false,
+      };
+      const days = new Set<string>();
+      for (const p of prepared) if (p.type === "task" && p.dueAt) days.add(localYMD(tz, new Date(p.dueAt)));
+      for (const ymd of days) await replanUserDay(svc, ownerUserId, ymd, now, tz, opts2);
+    } catch (e) { console.error("[taskos-process-inbox] replan", e instanceof Error ? e.message : e); }
 
     // created===0 alone no longer means "needs review": a pure-dedup capture (handled
     // against an existing task) is a successful, fully-processed outcome.
@@ -650,6 +771,13 @@ Deno.serve(async (req) => {
   if (bodyJson?.mode === "sweep") {
     try { return json(await sweep(svc)); }
     catch (e) { console.error("[taskos-process-inbox] sweep", e instanceof Error ? e.message : e); return json({ error: "sweep failed" }, 500); }
+  }
+
+  // Re-plan today+tomorrow for all linked users (cron / on-demand). Idempotent — safe to
+  // re-run; rebuilds a coherent daily schedule from each user's open tasks.
+  if (bodyJson?.mode === "replan") {
+    try { return json(await replanAll(svc)); }
+    catch (e) { console.error("[taskos-process-inbox] replan", e instanceof Error ? e.message : e); return json({ error: "replan failed" }, 500); }
   }
 
   const inboxId = bodyJson?.inbox_item_id;
