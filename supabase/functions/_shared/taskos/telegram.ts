@@ -1,9 +1,11 @@
 // LuminaTaskOS — shared Telegram sendMessage for edge functions.
+// `replyMarkup` attaches an inline keyboard (tappable buttons) — taps come back as
+// a `callback_query` update handled in taskos-telegram-webhook.
 export async function sendTelegram(
   token: string,
   chatId: number,
   text: string,
-  opts?: { markdown?: boolean },
+  opts?: { markdown?: boolean; replyMarkup?: unknown },
 ): Promise<boolean> {
   try {
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
@@ -13,6 +15,7 @@ export async function sendTelegram(
         chat_id: chatId,
         text,
         ...(opts?.markdown ? { parse_mode: "Markdown" } : {}),
+        ...(opts?.replyMarkup ? { reply_markup: opts.replyMarkup } : {}),
         disable_web_page_preview: true,
       }),
     });
@@ -22,6 +25,28 @@ export async function sendTelegram(
     console.error("[taskos] sendTelegram failed", e instanceof Error ? e.message : e);
     return false;
   }
+}
+
+// Acknowledge an inline-button tap (shows a brief toast in Telegram, stops the spinner).
+export async function answerCallback(token: string, callbackQueryId: string, text?: string): Promise<void> {
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/answerCallbackQuery`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callback_query_id: callbackQueryId, ...(text ? { text } : {}) }),
+    });
+  } catch (e) { console.error("[taskos] answerCallback failed", e instanceof Error ? e.message : e); }
+}
+
+// Replace a message's text and REMOVE its buttons (so a tapped action can't be re-tapped).
+export async function editTelegramText(token: string, chatId: number, messageId: number, text: string): Promise<void> {
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/editMessageText`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, message_id: messageId, text, reply_markup: { inline_keyboard: [] } }),
+    });
+  } catch (e) { console.error("[taskos] editTelegramText failed", e instanceof Error ? e.message : e); }
 }
 
 // Download a Telegram file (e.g. a voice note) as bytes via getFile + file path.
