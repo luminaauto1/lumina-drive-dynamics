@@ -1531,8 +1531,19 @@ const AdminFinance = () => {
             {(() => {
               const norm = normalizeInternalStatus((pendingApp as any)?.internal_status);
               if (norm !== 'note_to_admin' && norm !== 'note_to_f_and_i' && norm !== 'note_to_senior_f_and_i') return null;
+              // F&I claims ownership when they action a note (mirrors the existing behaviour).
+              const fniClaim = role === 'f_and_i' && user?.id
+                ? { assigned_f_and_i: user.id, assigned_f_and_i_at: new Date().toISOString() }
+                : {};
+              const closeModal = () => {
+                setStatusModalOpen(false);
+                setPendingApp(null);
+                setPendingStatus('');
+                setStatusNote('');
+                refetch();
+              };
               return (
-                <div className="pt-1 pb-2">
+                <div className="pt-1 pb-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <Button
                     onClick={async () => {
                       if (!pendingApp) return;
@@ -1542,20 +1553,12 @@ const AdminFinance = () => {
                           .update({
                             internal_status: 'no_notes',
                             attention_updated_at: new Date().toISOString(),
-                            ...(role === 'f_and_i' && user?.id ? {
-                              assigned_f_and_i: user.id,
-                              assigned_f_and_i_at: new Date().toISOString(),
-                            } : {}),
-
+                            ...fniClaim,
                           })
                           .eq('id', pendingApp.id);
                         if (error) throw error;
                         toast({ title: 'Marked as attended' });
-                        setStatusModalOpen(false);
-                        setPendingApp(null);
-                        setPendingStatus('');
-                        setStatusNote('');
-                        refetch();
+                        closeModal();
                       } catch (e: any) {
                         toast({ title: 'Failed to clear note', variant: 'destructive' });
                       }
@@ -1563,6 +1566,34 @@ const AdminFinance = () => {
                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                   >
                     ✓ Mark as Attended (Clear Note)
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      if (!pendingApp) return;
+                      try {
+                        // Route through the shared update hook so the standard
+                        // cancellation side-effects fire (WhatsApp "Application
+                        // Closed" + EasySocial tag reset + status_history), AND
+                        // clear the note + archive in the same write.
+                        await updateApplication.mutateAsync({
+                          id: pendingApp.id,
+                          updates: {
+                            status: 'client_cancelled',
+                            is_archived: true,
+                            internal_status: 'no_notes',
+                            attention_updated_at: new Date().toISOString(),
+                            ...fniClaim,
+                          },
+                        });
+                        toast({ title: 'Cancelled / Ghosted', description: 'Status set, note cleared, archived.' });
+                        closeModal();
+                      } catch (e: any) {
+                        toast({ title: 'Failed to cancel', description: e?.message, variant: 'destructive' });
+                      }
+                    }}
+                    className="w-full bg-zinc-700 hover:bg-zinc-600 text-white border border-zinc-500"
+                  >
+                    🚫 Cancel / Ghost (Clear Note)
                   </Button>
                 </div>
               );
