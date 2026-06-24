@@ -78,6 +78,36 @@ Deno.serve(async (req) => {
     return tz;
   }
 
+  // Quiet-hours window. Per the owner's rule, auto-reminders must STOP at 17:30.
+  // Only send between the user's local start hour (default 07:00) and 17:30
+  // (both configurable via taskos_user_settings.settings). OUTSIDE the window we
+  // SKIP the send WITHOUT marking the row — so it simply resurfaces at the next
+  // in-window run (next morning), never lost, never sent after hours.
+  const winCache = new Map<string, { tz: string; startMin: number; endMin: number }>();
+  async function windowFor(userId: string) {
+    if (winCache.has(userId)) return winCache.get(userId)!;
+    const { data } = await svc.from("taskos_user_settings").select("timezone, settings").eq("user_id", userId).maybeSingle();
+    const tz = (data?.timezone as string) || "Africa/Johannesburg";
+    const s: any = (data as any)?.settings ?? {};
+    const num = (v: unknown, d: number) => (Number.isFinite(Number(v)) ? Number(v) : d);
+    const startMin = Math.round(num(s.reminder_start_hour, 7) * 60);                              // default 07:00
+    const endMin = Math.round(num(s.reminder_end_hour, 17) * 60 + num(s.reminder_end_minute, 30)); // default 17:30
+    const w = { tz, startMin, endMin };
+    winCache.set(userId, w);
+    if (!tzCache.has(userId)) tzCache.set(userId, tz);
+    return w;
+  }
+  function localMinutes(tz: string): number {
+    const p: Record<string, string> = {};
+    for (const x of new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date())) p[x.type] = x.value;
+    return (Number(p.hour) % 24) * 60 + Number(p.minute);
+  }
+  async function sendAllowed(userId: string): Promise<boolean> {
+    const w = await windowFor(userId);
+    const m = localMinutes(w.tz);
+    return m >= w.startMin && m < w.endMin;
+  }
+
   try {
     // 1. Tasks whose reminder time has arrived and haven't been notified yet.
     const { data: dueTasks } = await svc.from("taskos_tasks")
@@ -86,6 +116,7 @@ Deno.serve(async (req) => {
       .not("status", "in", "(done,cancelled)").limit(100);
     for (const t of dueTasks ?? []) {
       if (sent >= MAX_SENDS) break;
+      if (!(await sendAllowed(t.user_id))) continue; // outside 07:00–17:30 → defer, don't mark
       const chat = await chatFor(t.user_id);
       if (!chat) { await svc.from("taskos_tasks").update({ notified_at: nowISO(), escalation_level: 1 }).eq("id", t.id); continue; }
       const due = t.due_at ? ` (due ${fmtDue(t.due_at, await tzFor(t.user_id))})` : "";
@@ -99,6 +130,7 @@ Deno.serve(async (req) => {
       .lte("remind_at", nowISO()).is("notified_at", null).limit(100);
     for (const e of dueEnts ?? []) {
       if (sent >= MAX_SENDS) break;
+      if (!(await sendAllowed(e.user_id))) continue; // outside 07:00–17:30 → defer, don't mark
       const chat = await chatFor(e.user_id);
       if (!chat) { await svc.from("taskos_entities").update({ notified_at: nowISO(), escalation_level: 1 }).eq("id", e.id); continue; }
       const due = e.due_at ? ` (${fmtDue(e.due_at, await tzFor(e.user_id))})` : "";
@@ -113,6 +145,7 @@ Deno.serve(async (req) => {
       .not("status", "in", "(done,cancelled)").limit(200);
     for (const t of overdue ?? []) {
       if (sent >= MAX_SENDS) break;
+      if (!(await sendAllowed(t.user_id))) continue; // outside 07:00–17:30 → defer, don't mark
       const hrs = (now.getTime() - new Date(t.due_at).getTime()) / 3_600_000;
       const want = desiredLevel(hrs);
       if (want <= (t.escalation_level ?? 0)) continue;

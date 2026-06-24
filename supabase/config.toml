@@ -7,6 +7,9 @@ project_id = "geovwgfbbfhhmommyasj"
 [functions.taskos-telegram-webhook]
 verify_jwt = false
 
+[functions.taskos-telegram-setup]
+verify_jwt = false
+
 [functions.taskos-process-inbox]
 verify_jwt = false
 
