@@ -9,7 +9,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useUpdateFinanceApplication } from '@/hooks/useFinanceApplications';
+import { STATUS_OPTIONS } from '@/lib/statusConfig';
+import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { Clock, Car, User, FileText, Calculator, Copy, Check, Plus, X, Eye, Trophy, Trash2, Phone, Brain, Wallet, CalendarClock, AlertOctagon, Banknote, Fingerprint, Briefcase } from 'lucide-react';
@@ -44,6 +50,23 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
   const [otpOpen, setOtpOpen] = useState(false);
   const [otpApp, setOtpApp] = useState<any | null>(null);
   const [otpVehicle, setOtpVehicle] = useState<any | null>(null);
+  // Shared status-change path: fires the same side-effects as the Finance page
+  // (client emails / WhatsApp / EasySocial tag sync / status_history).
+  const updateApplication = useUpdateFinanceApplication();
+  const { role } = useAuth();
+  // Terminal / customer-messaging transitions get a confirm step (a single mis-tap
+  // would otherwise WhatsApp/email the client and archive the deal).
+  const [pendingStatusChange, setPendingStatusChange] = useState<{ app: any; status: string } | null>(null);
+
+  // Role-appropriate options, and always include the app's CURRENT status so the
+  // trigger renders a label even for legacy statuses not in STATUS_OPTIONS.
+  const statusOptionsFor = (app: any) => {
+    const opts = filterStatusOptionsForRole(STATUS_OPTIONS, role, app?.status);
+    if (app?.status && !opts.some((o) => o.value === app.status)) {
+      return [{ value: app.status, label: app.status.replace(/_/g, ' ') }, ...opts];
+    }
+    return opts;
+  };
 
   const openOtpForApp = useCallback(async (app: any) => {
     setOtpApp(app);
@@ -295,6 +318,42 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
     fetchGlobalProfile();
   };
 
+  // Change a finance application's pipeline status from the hub. Routes through
+  // useUpdateFinanceApplication so the standard side-effects fire (client email /
+  // WhatsApp / EasySocial tag sync / status_history). Terminal statuses also
+  // archive (mirrors the Finance page's archiveOnTerminal rule).
+  // Statuses that message the client (bad-news / closure) or remove the deal from
+  // the active list — these require an explicit confirm before firing.
+  const CONFIRM_STATUSES = new Set([
+    'declined', 'declined_conditional', 'blacklisted', 'client_cancelled',
+    'finalized', 'vehicle_delivered', 'archived',
+  ]);
+
+  const requestStatusChange = (app: any, newStatus: string) => {
+    if (!app || !newStatus || newStatus === app.status) return;
+    if (CONFIRM_STATUSES.has(newStatus)) { setPendingStatusChange({ app, status: newStatus }); return; }
+    handleStatusChange(app, newStatus);
+  };
+
+  const handleStatusChange = async (app: any, newStatus: string) => {
+    if (!app || !newStatus || newStatus === app.status) return;
+    const archiveOnTerminal = ['declined', 'blacklisted', 'lost', 'client_cancelled'].includes(newStatus);
+    try {
+      // The hook persists the change + fires side-effects + shows its own toast.
+      await updateApplication.mutateAsync({
+        id: app.id,
+        updates: { status: newStatus, is_archived: archiveOnTerminal },
+      });
+    } catch (e: any) {
+      toast.error('Failed to update status: ' + (e?.message || 'unknown error'));
+      return;
+    }
+    // Status is saved; the audit note + refresh are best-effort (never undo the change).
+    const label = STATUS_OPTIONS.find((o) => o.value === newStatus)?.label || newStatus.replace(/_/g, ' ');
+    try { await writeAuditEntry(`Status changed to ${label}`, 'status_change'); } catch { /* non-fatal */ }
+    fetchGlobalProfile();
+  };
+
   const copyPhoneToClipboard = async () => {
     if (!clientPhone) return;
     await navigator.clipboard.writeText(clientPhone);
@@ -455,9 +514,18 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
               </h3>
               {activeApps.length === 0 ? <p className="text-xs text-zinc-600 italic">No active applications.</p> : activeApps.map(app => (
                 <div key={app.id} className="bg-black/50 border border-emerald-500/20 p-3 rounded-md mb-2 shadow-[0_0_10px_rgba(16,185,129,0.05)]">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-bold text-white">{app.preferred_vehicle_text || app.full_name || 'Vehicle Pending'}</span>
-                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase font-bold tracking-wider">{app.status?.replace('_', ' ')}</span>
+                  <div className="flex justify-between items-center gap-2 mb-1">
+                    <span className="text-xs font-bold text-white truncate">{app.preferred_vehicle_text || app.full_name || 'Vehicle Pending'}</span>
+                    <Select value={app.status || undefined} onValueChange={(v) => requestStatusChange(app, v)} disabled={updateApplication.isPending}>
+                      <SelectTrigger className="h-7 w-auto min-w-[150px] shrink-0 text-[10px] uppercase font-bold tracking-wider bg-emerald-500/15 border-emerald-500/30 text-emerald-300 px-2 gap-1">
+                        <SelectValue placeholder="Set status" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[320px]">
+                        {statusOptionsFor(app).map((o) => (
+                          <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <p className="text-[10px] text-zinc-500 font-mono">App ID: {app.id.slice(0,8)}</p>
                   {(() => {
@@ -780,6 +848,31 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
           </DialogContent>
         </Dialog>
       </SheetContent>
+      <AlertDialog open={!!pendingStatusChange} onOpenChange={(o) => { if (!o) setPendingStatusChange(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Change status to "{STATUS_OPTIONS.find((o) => o.value === pendingStatusChange?.status)?.label || pendingStatusChange?.status?.replace(/_/g, ' ')}"?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This updates {masterName} and may send the client an automated WhatsApp/email and reset their EasySocial tags. Terminal statuses also move the deal out of the active list. This can't be auto-undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const p = pendingStatusChange;
+                setPendingStatusChange(null);
+                if (p) handleStatusChange(p.app, p.status);
+              }}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <OTPModal
         open={otpOpen}
         onOpenChange={setOtpOpen}
