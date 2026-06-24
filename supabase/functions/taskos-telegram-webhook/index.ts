@@ -72,22 +72,44 @@ Deno.serve(async (req) => {
     if (cqChatId) {
       const { data: cbLink } = await svc.from("taskos_telegram_links")
         .select("user_id").eq("telegram_chat_id", cqChatId).eq("is_active", true).maybeSingle();
-      const m = data.match(/^pa_(done|skip):([0-9a-f-]{36})$/i);
+      const baseText = String(cq?.message?.text ?? "").split("\n").slice(0, 2).join("\n");
+      const pa = data.match(/^pa_(done|skip):([0-9a-f-]{36})$/i);
+      const tk = data.match(/^task_(done|skip):([0-9a-f-]{36})$/i);
       if (!cbLink) {
         await answerCallback(botToken, cq.id, "This chat isn't linked.");
-      } else if (m) {
-        const action = m[1], appId = m[2];
-        const baseText = String(cq?.message?.text ?? "").split("\n").slice(0, 2).join("\n");
-        if (action === "done") {
+      } else if (pa) {
+        const appId = pa[2];
+        if (pa[1] === "done") {
+          // ✅ → mark contacted TODAY on the deal (the Finance/Deal Room pages read this).
           await svc.from("finance_applications")
             .update({ docs_contacted: true, docs_contacted_at: new Date().toISOString() }).eq("id", appId);
-          await answerCallback(botToken, cq.id, "✅ Marked as contacted");
-          await editTelegramText(botToken, cqChatId, cq.message.message_id, `${baseText}\n\n✅ Contacted — nice work.`);
+          await answerCallback(botToken, cq.id, "✅ Marked as contacted today");
+          await editTelegramText(botToken, cqChatId, cq.message.message_id, `${baseText}\n\n✅ Contacted today — logged on the deal.`);
         } else {
+          // ⏳ Not yet → keep pending, but reset the ping clock so I ask again in ~1h (not now).
           await svc.from("finance_applications")
             .update({ docs_contacted: false, docs_contacted_at: null }).eq("id", appId);
-          await answerCallback(botToken, cq.id, "⏳ Kept on the list — I'll remind you tomorrow at 09:00");
-          await editTelegramText(botToken, cqChatId, cq.message.message_id, `${baseText}\n\n⏳ Not yet — I'll chase again tomorrow 09:00.`);
+          await svc.from("taskos_preapproval_pings").upsert({
+            user_id: cbLink.user_id, application_id: appId,
+            last_pinged_at: new Date().toISOString(), last_message_id: cq.message.message_id,
+          });
+          await answerCallback(botToken, cq.id, "⏳ Okay — I'll ask again in about an hour");
+          await editTelegramText(botToken, cqChatId, cq.message.message_id, `${baseText}\n\n⏳ Not yet — I'll ask again in ~1 hour.`);
+        }
+      } else if (tk) {
+        const taskId = tk[2];
+        if (tk[1] === "done") {
+          await svc.from("taskos_tasks").update({ status: "done", completed_at: new Date().toISOString() })
+            .eq("id", taskId).eq("user_id", cbLink.user_id);
+          await answerCallback(botToken, cq.id, "✅ Marked done");
+          await editTelegramText(botToken, cqChatId, cq.message.message_id, `${baseText}\n\n✅ Done — nice work.`);
+        } else {
+          // ⏳ Not yet → snooze the reminder ~1h so it nudges again.
+          const in1h = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+          await svc.from("taskos_tasks").update({ remind_at: in1h, notified_at: null, escalation_level: 0 })
+            .eq("id", taskId).eq("user_id", cbLink.user_id);
+          await answerCallback(botToken, cq.id, "⏳ Snoozed ~1 hour");
+          await editTelegramText(botToken, cqChatId, cq.message.message_id, `${baseText}\n\n⏳ Not yet — I'll remind you again in ~1 hour.`);
         }
       } else {
         await answerCallback(botToken, cq.id);

@@ -97,6 +97,18 @@ const AdminDealRoom = () => {
     }
   }, [id]);
 
+  // Live-update this page when the deal changes elsewhere — e.g. tapping "✅ Contacted"
+  // on the Telegram pre-approval digest flips docs_contacted on this row.
+  useEffect(() => {
+    if (!id) return;
+    const ch = supabase
+      .channel(`dealroom-${id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'finance_applications', filter: `id=eq.${id}` },
+        (payload) => { setApplication((prev) => (prev ? ({ ...prev, ...(payload.new as any) }) : (payload.new as any))); })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [id]);
+
   const fetchApplication = async () => {
     if (!id) return;
     setIsLoading(true);
@@ -862,6 +874,38 @@ const AdminDealRoom = () => {
                       Copy Upload Link
                     </Button>
                   )}
+                  {/* Docs-requested tracker for pre_approved — reflects the Telegram
+                      "✅ Contacted" tap and lets you toggle it here too. */}
+                  {application.status === 'pre_approved' && (() => {
+                    const at = (application as any).docs_contacted_at;
+                    const contactedToday = !!(application as any).docs_contacted && at &&
+                      new Date(at).toDateString() === new Date().toDateString();
+                    return (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          const next = !contactedToday;
+                          const payload = next
+                            ? { docs_contacted: true, docs_contacted_at: new Date().toISOString() }
+                            : { docs_contacted: false, docs_contacted_at: null };
+                          try {
+                            const { error } = await supabase.from('finance_applications').update(payload as any).eq('id', application.id);
+                            if (error) throw error;
+                            setApplication((prev) => prev ? ({ ...prev, ...payload } as any) : null);
+                            toast.success(next ? 'Marked: documents requested today' : 'Cleared documents-requested');
+                          } catch {
+                            toast.error('Failed to update');
+                          }
+                        }}
+                        className={contactedToday
+                          ? 'text-xs md:text-sm border-emerald-500/40 text-emerald-600 bg-emerald-500/10'
+                          : 'text-xs md:text-sm border-zinc-500/30 text-zinc-500 hover:bg-zinc-500/10'}
+                      >
+                        {contactedToday ? '✅ Docs requested today' : '📩 Mark docs requested'}
+                      </Button>
+                    );
+                  })()}
                   {canShowDealActions(application.status) && (
                     <>
                       <Button
