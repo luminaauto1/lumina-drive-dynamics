@@ -1,12 +1,14 @@
 // LuminaTaskOS — shared Telegram sendMessage for edge functions.
 // `replyMarkup` attaches an inline keyboard (tappable buttons) — taps come back as
 // a `callback_query` update handled in taskos-telegram-webhook.
+// Returns the sent message_id on success (truthy — existing `if (await sendTelegram())`
+// callers still work), or null on failure.
 export async function sendTelegram(
   token: string,
   chatId: number,
   text: string,
   opts?: { markdown?: boolean; replyMarkup?: unknown },
-): Promise<boolean> {
+): Promise<number | null> {
   try {
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: "POST",
@@ -19,11 +21,12 @@ export async function sendTelegram(
         disable_web_page_preview: true,
       }),
     });
-    if (!res.ok) console.error("[taskos] sendTelegram", res.status, await res.text());
-    return res.ok;
+    if (!res.ok) { console.error("[taskos] sendTelegram", res.status, await res.text()); return null; }
+    const j = await res.json().catch(() => null);
+    return j?.result?.message_id ?? 0;
   } catch (e) {
     console.error("[taskos] sendTelegram failed", e instanceof Error ? e.message : e);
-    return false;
+    return null;
   }
 }
 

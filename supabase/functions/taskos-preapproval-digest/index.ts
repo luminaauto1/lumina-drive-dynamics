@@ -9,7 +9,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildCorsHeaders, checkInternalKey } from "../_shared/publicGuard.ts";
 import { checkCronSecret } from "../_shared/taskos/cron.ts";
-import { sendTelegram } from "../_shared/taskos/telegram.ts";
+import { editTelegramText, sendTelegram } from "../_shared/taskos/telegram.ts";
 
 function localParts(tz: string) {
   const f = new Intl.DateTimeFormat("en-CA", {
@@ -54,44 +54,52 @@ Deno.serve(async (req) => {
     const settingsByUser = new Map<string, any>();
     for (const s of settingsRows ?? []) settingsByUser.set(s.user_id, s);
 
+    const PING_INTERVAL_MS = 55 * 60 * 1000; // re-ask the same client at most ~hourly
+    const nameOf = (a: any) => [a.first_name, a.last_name].filter(Boolean).join(" ").trim() || a.full_name || "Client";
     let sent = 0;
     for (const l of links ?? []) {
       const s = settingsByUser.get(l.user_id);
       const tz = s?.timezone ?? "Africa/Johannesburg";
-      const preHour = Number(s?.settings?.preapproval_hour ?? 9);
-      const { date, hour } = localParts(tz);
-      if (!force && hour !== preHour) continue;
-
-      // Atomic once-per-morning claim (skip if already sent today, unless forced).
-      const { error: claimErr } = await svc.from("taskos_briefings")
-        .insert({ user_id: l.user_id, kind: "preapproval", for_date: date });
-      if (claimErr && !force) continue;
+      const preHour = Number(s?.settings?.preapproval_hour ?? 9);     // first ask of the day
+      const endHour = Number(s?.settings?.preapproval_end_hour ?? 18); // stop re-asking after this
+      const { hour } = localParts(tz);
+      if (!force && (hour < preHour || hour >= endHour)) continue;     // only ask within the working window
 
       // Pre-approved deals dealership-wide that still need documents requested.
       const { data: apps } = await svc.from("finance_applications")
         .select("id, first_name, last_name, full_name, phone, bank_reference, docs_contacted, docs_contacted_at, is_archived, status")
         .eq("status", "pre_approved").order("status_updated_at", { ascending: true });
       const pending = (apps ?? []).filter((a: any) => !a.is_archived && needsContact(a));
+      if (pending.length === 0) continue; // no chase needed → stay quiet
 
-      if (pending.length === 0) {
-        await sendTelegram(token, l.telegram_chat_id, "☀️ Pre-approval check: every pre-approved client has been contacted for documents. Nice — nothing to chase.");
-        sent++;
-        continue;
-      }
+      // Last ping per pending client, so we wait ~1h between asks (and don't double-send
+      // within the 15-min cron cadence).
+      const ids = pending.map((a: any) => a.id);
+      const { data: pingRows } = await svc.from("taskos_preapproval_pings")
+        .select("application_id, last_pinged_at, last_message_id").eq("user_id", l.user_id).in("application_id", ids);
+      const pingByApp = new Map((pingRows ?? []).map((p: any) => [p.application_id, p]));
 
-      await sendTelegram(token, l.telegram_chat_id,
-        `☀️ Pre-approval follow-ups — ${pending.length} client${pending.length === 1 ? "" : "s"} still need documents requested. Have you contacted them?`);
       for (const a of pending) {
-        const name = [a.first_name, a.last_name].filter(Boolean).join(" ").trim() || a.full_name || "Client";
+        const p = pingByApp.get(a.id);
+        const due = force || !p || (Date.now() - new Date(p.last_pinged_at).getTime() >= PING_INTERVAL_MS);
+        if (!due) continue;
+        // Supersede the previous unanswered ask so only the newest is actionable.
+        if (p?.last_message_id) {
+          await editTelegramText(token, l.telegram_chat_id, p.last_message_id, `📋 ${nameOf(a)} — re-asking below ⤵️`);
+        }
         const bits = [a.phone ? `📞 ${a.phone}` : null, a.bank_reference ? `Ref ${a.bank_reference}` : null].filter(Boolean).join(" · ");
-        await sendTelegram(token, l.telegram_chat_id,
-          `📋 ${name}${bits ? `\n${bits}` : ""}\nPre-approved — request their documents.`,
+        const msgId = await sendTelegram(token, l.telegram_chat_id,
+          `📋 ${nameOf(a)}${bits ? `\n${bits}` : ""}\nPre-approved — have you requested their documents?`,
           { replyMarkup: { inline_keyboard: [[
             { text: "✅ Contacted", callback_data: `pa_done:${a.id}` },
             { text: "⏳ Not yet", callback_data: `pa_skip:${a.id}` },
           ]] } });
+        await svc.from("taskos_preapproval_pings").upsert({
+          user_id: l.user_id, application_id: a.id,
+          last_pinged_at: new Date().toISOString(), last_message_id: msgId ?? null,
+        });
+        sent++;
       }
-      sent++;
     }
     return json({ ok: true, sent });
   } catch (e) {

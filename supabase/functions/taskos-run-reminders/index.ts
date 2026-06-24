@@ -10,6 +10,15 @@ import { sendTelegram } from "../_shared/taskos/telegram.ts";
 
 const nowISO = () => new Date().toISOString();
 
+// Every task nudge carries Done / Not-yet buttons (handled in taskos-telegram-webhook):
+// ✅ Done -> status done; ⏳ Not yet -> snooze the reminder ~1h.
+const taskButtons = (taskId: string) => ({
+  inline_keyboard: [[
+    { text: "✅ Done", callback_data: `task_done:${taskId}` },
+    { text: "⏳ Not yet", callback_data: `task_skip:${taskId}` },
+  ]],
+});
+
 // Format a due timestamp in the user's LOCAL timezone. The edge runtime is UTC,
 // so toLocaleString without an explicit timeZone rendered times 2h behind for SAST
 // users (e.g. a 09:00 task showed "07:00").
@@ -80,7 +89,7 @@ Deno.serve(async (req) => {
       const chat = await chatFor(t.user_id);
       if (!chat) { await svc.from("taskos_tasks").update({ notified_at: nowISO(), escalation_level: 1 }).eq("id", t.id); continue; }
       const due = t.due_at ? ` (due ${fmtDue(t.due_at, await tzFor(t.user_id))})` : "";
-      const okSend = await sendTelegram(token, chat, `⏰ Reminder: ${t.title}${due}`);
+      const okSend = await sendTelegram(token, chat, `⏰ Reminder: ${t.title}${due}`, { replyMarkup: taskButtons(t.id) });
       if (okSend) { await svc.from("taskos_tasks").update({ notified_at: nowISO(), escalation_level: 1 }).eq("id", t.id); sent++; }
     }
 
@@ -111,7 +120,7 @@ Deno.serve(async (req) => {
       if (!chat) { await svc.from("taskos_tasks").update({ escalation_level: want }).eq("id", t.id); continue; }
       const days = Math.floor(hrs / 24);
       const ago = days >= 1 ? `${days}d` : `${Math.floor(hrs)}h`;
-      const okSend = await sendTelegram(token, chat, `🔴 Overdue ${ago}: ${t.title}\nStill open — knock it out or reschedule it.`);
+      const okSend = await sendTelegram(token, chat, `🔴 Overdue ${ago}: ${t.title}\nStill open — knock it out or reschedule it.`, { replyMarkup: taskButtons(t.id) });
       if (okSend) { await svc.from("taskos_tasks").update({ escalation_level: want, notified_at: nowISO() }).eq("id", t.id); sent++; }
     }
 
