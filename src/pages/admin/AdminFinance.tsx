@@ -242,16 +242,16 @@ const AdminFinance = () => {
       matchesFni = owner === fniFilter;
     }
 
-    // Filter by active/archived. For F&I, terminal success statuses and 'archived'
-    // go to the Archive tab. Declined/Blacklisted stay in Active. All other roles
-    // keep the legacy auto-archive behaviour.
+    // Filter by active/archived. For F&I, terminal success statuses, 'archived' and
+    // cancelled/ghosted ('client_cancelled') go to the Archive tab. Declined/Blacklisted
+    // stay in Active. All other roles keep the legacy auto-archive behaviour.
     const s = (app.status || '').toLowerCase().trim();
     let isArchived: boolean;
     if ((role === 'f_and_i' || role === 'senior_f_and_i')) {
-      const fAndIArchived = ['archived', 'vehicle_delivered', 'finalized'];
+      const fAndIArchived = ['archived', 'vehicle_delivered', 'finalized', 'client_cancelled'];
       isArchived = fAndIArchived.includes(s);
     } else {
-      const legacyTerminal = ['finalized', 'delivered', 'vehicle_delivered', 'archived'].includes(s);
+      const legacyTerminal = ['finalized', 'delivered', 'vehicle_delivered', 'archived', 'client_cancelled'].includes(s);
       isArchived = (app as any).is_archived === true || legacyTerminal;
     }
     const matchesViewMode = viewMode === 'archived' ? isArchived : !isArchived;
@@ -468,9 +468,9 @@ const AdminFinance = () => {
   const activeApps = applications.filter(a => {
     const s = (a.status || '').toLowerCase().trim();
     if ((role === 'f_and_i' || role === 'senior_f_and_i')) {
-      return !['archived', 'vehicle_delivered', 'finalized'].includes(s);
+      return !['archived', 'vehicle_delivered', 'finalized', 'client_cancelled'].includes(s);
     }
-    return !((a as any).is_archived === true) && !['finalized', 'delivered', 'vehicle_delivered', 'archived'].includes(s);
+    return !((a as any).is_archived === true) && !['finalized', 'delivered', 'vehicle_delivered', 'archived', 'client_cancelled'].includes(s);
   });
 
   return (
@@ -1140,7 +1140,7 @@ const AdminFinance = () => {
                             console.warn('[finance-status] rejected invalid value:', newStatus);
                             return;
                           }
-                          const archiveOnTerminal = ['declined', 'blacklisted', 'lost'].includes(newStatus);
+                          const archiveOnTerminal = ['declined', 'blacklisted', 'lost', 'client_cancelled'].includes(newStatus);
                           const clearInternal = newStatus === 'sent_to_banks';
                           try {
                             await updateApplication.mutateAsync({
