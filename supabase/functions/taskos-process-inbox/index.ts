@@ -12,6 +12,9 @@ import { callGemini, checkDailyCap, GUARDRAIL, HEAVY, logAiRun, MID, wrapUntrust
 import { checkCronSecret } from "../_shared/taskos/cron.ts";
 import { embedText, toVectorLiteral } from "../_shared/taskos/embeddings.ts";
 
+// deno-lint-ignore no-explicit-any
+declare const EdgeRuntime: any;
+
 const ENTITY_KINDS = ["note","memory","idea","opportunity","decision","risk","reference","journal","contact","reminder","goal","project","person","event","meeting","deadline"];
 const ALLOWED_TYPES = new Set(["task", ...ENTITY_KINDS]);
 const REL_ENUM = ["assigned_to","about","blocks","part_of","relates_to","scheduled_for","mentions","depends_on"];
@@ -24,6 +27,9 @@ You are the brain of LuminaTaskOS — a private second brain for ONE busy car-de
 Return a single JSON object: entities[], links[], confidence (0-1), needs_review (bool).
 Allowed types (exact strings): task, reminder, goal, project, person, contact, event, meeting, deadline, memory, note, idea, opportunity, decision, risk, reference, journal.
 One item often yields MULTIPLE entities — e.g. a task + the person it involves + a link between them. Create a person/contact entity for any named human and link the task to them.
+
+========== GOALS & DEADLINES — multi-step objectives become a "goal", not one task ==========
+If the input is an OUTCOME the user wants achieved by a date that clearly takes SEVERAL steps — "get/have X sorted/done/ready/registered by <date>", "finish the Y by month-end", "sort out all the paperwork for Z", "set up …", "launch …" — classify it as ONE entity of type "goal" (use "deadline" if it's mostly a hard date), set due_at = the deadline, and do NOT pre-invent the steps yourself. The system breaks the goal into candidate sub-tasks and confirms them with the user. A GOAL is an outcome that needs several actions; a TASK is one concrete action. Still emit a single "task" when the input is one concrete action ("call Sam", "send the invoice", "renew the licence") even if dated. When a NEW task clearly advances an existing goal/project in related_memory, link it { from:<task>, to:<goal id>, relation:"part_of" } (this is how tasks auto-sync to goals).
 
 ========== TIME — THIS IS CRITICAL, GET IT RIGHT ==========
 You are given a "time_context" object with the user's current local time, today's & tomorrow's dates, the timezone offset, and an "upcoming_days" map (weekday name -> the next date that weekday falls on). USE IT. Never guess the date math — read it from upcoming_days.
@@ -607,6 +613,7 @@ async function processOne(svc: any, inboxId: string): Promise<{ status: string; 
     for (const r of related) idMap.set(r.id, { kind: r.kind === "task" ? "task" : "entity", id: r.id });
 
     let created = 0, dedupSkipped = 0;
+    const newGoalIds: string[] = []; // NEW goal/deadline entities to decompose into sub-tasks
     // ---- Phase 1: PREP every entity (no DB writes yet) so the day-planner can
     // re-time a batch of tasks before any of them is persisted. ----
     interface Prepared {
@@ -699,6 +706,8 @@ async function processOne(svc: any, inboxId: string): Promise<{ status: string; 
           ...(p.embLit ? { embedding: p.embLit } : {}),
         }).select("id").maybeSingle();
         if (ins?.id && p.temp_id) idMap.set(p.temp_id, { kind: "entity", id: ins.id });
+        // A NEW deadline-goal (has a due date) → decompose into candidate sub-tasks.
+        if (ins?.id && (p.type === "goal" || p.type === "deadline") && p.dueAt) newGoalIds.push(ins.id);
       }
       created++;
     }
@@ -733,6 +742,26 @@ async function processOne(svc: any, inboxId: string): Promise<{ status: string; 
         await replanForUser(svc, ownerUserId, tz, settings?.settings, now);
       }
     } catch (e) { console.error("[taskos-process-inbox] replan", e instanceof Error ? e.message : e); }
+
+    // Goal/Deadline engine: break each NEW deadline-goal into candidate sub-tasks and
+    // DM the user per-step ✅ Add / ⏭ Skip questions. Fire-and-forget (kept alive past
+    // the response via waitUntil) so capture never blocks on the model + Telegram round-trip.
+    // Wrapped so a trigger hiccup can NEVER flip an already-successful capture to 'failed'.
+    try {
+      if (newGoalIds.length) {
+        const baseUrl = Deno.env.get("SUPABASE_URL");
+        const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+        const internalKey = Deno.env.get("LUMINA_INTERNAL_API_KEY") ?? "";
+        for (const gid of newGoalIds) {
+          const p = fetch(`${baseUrl}/functions/v1/taskos-goal-decompose`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${service}`, "x-lumina-key": internalKey },
+            body: JSON.stringify({ goal_entity_id: gid }),
+          }).catch((e) => console.error("[taskos-process-inbox] decompose trigger", e instanceof Error ? e.message : e));
+          if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) EdgeRuntime.waitUntil(p); else await p;
+        }
+      }
+    } catch (e) { console.error("[taskos-process-inbox] decompose", e instanceof Error ? e.message : e); }
 
     // created===0 alone no longer means "needs review": a pure-dedup capture (handled
     // against an existing task) is a successful, fully-processed outcome.

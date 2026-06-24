@@ -13,6 +13,9 @@ verify_jwt = false
 [functions.taskos-process-inbox]
 verify_jwt = false
 
+[functions.taskos-goal-decompose]
+verify_jwt = false
+
 [functions.taskos-telegram-link]
 verify_jwt = false
 
