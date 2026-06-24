@@ -24,6 +24,9 @@ verify_jwt = false
 [functions.taskos-run-briefings]
 verify_jwt = false
 
+[functions.taskos-preapproval-digest]
+verify_jwt = false
+
 [functions.process-delayed-followups]
 verify_jwt = false
 

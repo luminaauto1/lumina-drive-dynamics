@@ -4,7 +4,7 @@
 // taskos_telegram_links; unknown chats are rejected. user_id for captured rows
 // always comes from the chat->user map, NEVER from message content.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { downloadTelegramFile } from "../_shared/taskos/telegram.ts";
+import { answerCallback, downloadTelegramFile, editTelegramText } from "../_shared/taskos/telegram.ts";
 import { transcribeAudio, transcriptionAvailable } from "../_shared/taskos/transcribe.ts";
 import { embedText, toVectorLiteral } from "../_shared/taskos/embeddings.ts";
 import { callGemini, FAST, MID, GUARDRAIL, logAiRun, wrapUntrusted } from "../_shared/taskos/gemini.ts";
@@ -60,6 +60,40 @@ Deno.serve(async (req) => {
     const { error: dErr } = await svc.from("webhook_events")
       .insert({ event_id: `tg:${update.update_id}`, source: "telegram" });
     if (dErr && (dErr as any).code === "23505") return ok(); // already processed
+  }
+
+  // Inline-button taps (e.g. the pre-approval doc-chase) arrive as callback_query, NOT a
+  // message. Handle them here: flip the deal's docs_contacted flag, ack the tap, and edit
+  // the message so it can't be tapped twice.
+  if (update?.callback_query) {
+    const cq = update.callback_query;
+    const cqChatId = cq?.message?.chat?.id;
+    const data = String(cq?.data ?? "");
+    if (cqChatId) {
+      const { data: cbLink } = await svc.from("taskos_telegram_links")
+        .select("user_id").eq("telegram_chat_id", cqChatId).eq("is_active", true).maybeSingle();
+      const m = data.match(/^pa_(done|skip):([0-9a-f-]{36})$/i);
+      if (!cbLink) {
+        await answerCallback(botToken, cq.id, "This chat isn't linked.");
+      } else if (m) {
+        const action = m[1], appId = m[2];
+        const baseText = String(cq?.message?.text ?? "").split("\n").slice(0, 2).join("\n");
+        if (action === "done") {
+          await svc.from("finance_applications")
+            .update({ docs_contacted: true, docs_contacted_at: new Date().toISOString() }).eq("id", appId);
+          await answerCallback(botToken, cq.id, "✅ Marked as contacted");
+          await editTelegramText(botToken, cqChatId, cq.message.message_id, `${baseText}\n\n✅ Contacted — nice work.`);
+        } else {
+          await svc.from("finance_applications")
+            .update({ docs_contacted: false, docs_contacted_at: null }).eq("id", appId);
+          await answerCallback(botToken, cq.id, "⏳ Kept on the list — I'll remind you tomorrow at 09:00");
+          await editTelegramText(botToken, cqChatId, cq.message.message_id, `${baseText}\n\n⏳ Not yet — I'll chase again tomorrow 09:00.`);
+        }
+      } else {
+        await answerCallback(botToken, cq.id);
+      }
+    }
+    return ok();
   }
 
   const msg = update?.message ?? update?.edited_message;
