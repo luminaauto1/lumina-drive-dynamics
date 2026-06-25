@@ -11,10 +11,10 @@ import { useFAndIUsers } from '@/hooks/useFAndIUsers';
 type Platform = 'intelliapp' | 'lightstone';
 
 // Lightstone returns no reference code — we store NOTHING in bank_reference, but give
-// the operator a ready-made message to copy into WhatsApp. The wording depends on
-// whether supporting docs were already received (via email/WhatsApp).
+// the operator a ready-made message to copy into WhatsApp. Only mention docs when the
+// client ACTUALLY has them (most don't) — never state the absence of docs.
 const buildLightstoneMsg = (name?: string, docsReceived?: boolean) =>
-  `App Submitted for ${(name && name.trim()) || 'Client'}, ${docsReceived ? 'documents will be mailed' : 'no supporting docs yet'}`;
+  `App Submitted for ${(name && name.trim()) || 'Client'}${docsReceived ? ', documents will be mailed' : ''}`;
 
 interface BankReferenceModalProps {
   open: boolean;

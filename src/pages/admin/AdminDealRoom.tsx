@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
@@ -71,6 +71,7 @@ const AdminDealRoom = () => {
   const [editBankRefOpen, setEditBankRefOpen] = useState(false);
   const [creditCheckModalOpen, setCreditCheckModalOpen] = useState(false);
   const [creditCheckOutcome, setCreditCheckOutcome] = useState<CreditCheckOutcome>('passed');
+  const [revisionConfirmOpen, setRevisionConfirmOpen] = useState(false);
 
   const { data: vehicles = [], refetch: refetchVehicles } = useVehicles();
   const { data: matches = [], isLoading: matchesLoading, refetch: refetchMatches } = useApplicationMatches(id || '');
@@ -596,21 +597,32 @@ const AdminDealRoom = () => {
     label: string;
   }
 
-  const DetailItem = ({ 
-    label, 
-    value, 
-    copyable = false, 
+  // Live edit context read by DetailItem. Updated every render so the (stable) component
+  // always sees current values.
+  const editCtxRef = useRef<any>({});
+  editCtxRef.current = { isEditing, editedData, handleEditChange, copyToClipboard, copiedField };
+
+  // DetailItem MUST keep a stable identity across renders. It was previously declared
+  // inline, so each keystroke (which updates editedData → re-render) created a brand-new
+  // component type, remounting the <Input> and dropping keyboard focus after every
+  // character. Creating it once via useRef fixes that; it reads live state from editCtxRef.
+  const DetailItem = useRef(({
+    label,
+    value,
+    copyable = false,
     field,
     inputType = 'text',
     selectOptions = []
-  }: { 
-    label: string; 
-    value: string | number | null | undefined; 
-    copyable?: boolean; 
+  }: {
+    label: string;
+    value: string | number | null | undefined;
+    copyable?: boolean;
     field?: string;
     inputType?: InputType;
     selectOptions?: SelectOption[];
-  }) => (
+  }) => {
+    const { isEditing, editedData, handleEditChange, copyToClipboard, copiedField } = editCtxRef.current;
+    return (
     <div className="space-y-1">
       <p className="text-xs text-muted-foreground">{label}</p>
       {isEditing && field ? (
@@ -667,7 +679,8 @@ const AdminDealRoom = () => {
         </div>
       )}
     </div>
-  );
+    );
+  }).current;
 
   const maritalStatusOptions: SelectOption[] = [
     { value: 'Single', label: 'Single' },
@@ -767,22 +780,23 @@ const AdminDealRoom = () => {
                     Cancel
                   </Button>
                   <Button
+                    variant="outline"
                     size="sm"
-                    onClick={() => saveEdits(true)}
-                    className="text-xs md:text-sm bg-red-600/20 text-red-500 hover:bg-red-600/30 border border-red-500/30"
-                    title="Save changes without emailing the client"
+                    onClick={() => saveEdits(false)}
+                    className="text-xs md:text-sm border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                    title="Save changes and email the client to re-sign"
                   >
-                    <Save className="w-4 h-4 mr-1 md:mr-2" />
-                    Force Save (Silent)
+                    <Mail className="w-4 h-4 mr-1 md:mr-2" />
+                    Save &amp; Request Signature
                   </Button>
                   <Button
                     size="sm"
-                    onClick={() => saveEdits(false)}
+                    onClick={() => saveEdits(true)}
                     className="bg-emerald-600 hover:bg-emerald-700 text-xs md:text-sm"
-                    title="Save changes and email client to re-sign"
+                    title="Save changes without emailing the client (default)"
                   >
-                    <Mail className="w-4 h-4 mr-1 md:mr-2" />
-                    Save & Request Signature
+                    <Save className="w-4 h-4 mr-1 md:mr-2" />
+                    Force Save
                   </Button>
                 </>
               ) : (
@@ -790,11 +804,12 @@ const AdminDealRoom = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleRequestRevision}
-                    className="text-xs md:text-sm border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                    onClick={() => setRevisionConfirmOpen(true)}
+                    className="h-7 px-2 text-xs border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                    title="Request Revision from client"
                   >
-                    <MessageCircle className="w-4 h-4 mr-1 md:mr-2" />
-                    Request Revision
+                    <MessageCircle className="w-3.5 h-3.5 md:mr-1" />
+                    <span className="hidden md:inline">Revision</span>
                   </Button>
                   <Button
                     variant="outline"
@@ -1500,6 +1515,35 @@ const AdminDealRoom = () => {
             </Button>
             <Button variant="destructive" onClick={handleConfirmDecline}>
               Confirm Decline
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Request Revision — warning confirmation before emailing the client */}
+      <Dialog open={revisionConfirmOpen} onOpenChange={setRevisionConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-400" />
+              Request Revision?
+            </DialogTitle>
+            <DialogDescription>
+              This emails {application.first_name} a secure re-sign link and sets the application
+              status to <strong>Needs Revision</strong>. Only do this when you actually need the
+              client to review and re-sign. Continue?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRevisionConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={async () => { setRevisionConfirmOpen(false); await handleRequestRevision(); }}
+            >
+              <MessageCircle className="w-4 h-4 mr-2" />
+              Yes, Request Revision
             </Button>
           </DialogFooter>
         </DialogContent>
