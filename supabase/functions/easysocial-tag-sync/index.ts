@@ -313,20 +313,17 @@ Deno.serve(async (req) => {
   // STEP 2 — Safe-list filter: never remove protected traffic-source/ops tags.
   const removeIds = intersectionFiltered.filter((id) => !safeIds.has(id));
 
-  const payload = {
-    remove_tags: removeIds,
-    add_tags: addResolved.ids,
-  };
+  // Single combined PUT exactly as EasySocial documents/blesses: add_tags + remove_tags
+  // (underscored field names) in one /leads/{phone}/update call. Only include a field
+  // when it has ids, so we never send an empty array that could be misread.
+  const payload: { add_tags?: number[]; remove_tags?: number[] } = {};
+  if (addResolved.ids.length > 0) payload.add_tags = addResolved.ids;
+  if (removeIds.length > 0) payload.remove_tags = removeIds;
 
-  // The EasySocial /leads/{phone}/update endpoint MERGES tags: when a single PUT
-  // carries BOTH add_tags and remove_tags, it applies the adds but silently no-ops
-  // the removes (verified: combined PUT returns 201 yet old tags survive on the lead,
-  // and there is no dedicated detach endpoint — /update is the only tag route). The
-  // fix is to isolate each operation in its own PUT: REMOVE first, then ADD. Each
-  // request carries a single tag field so the endpoint can't drop one for the other.
-  const doPut = async (op: 'remove' | 'add', ids: number[]) => {
-    const reqBody = op === 'remove' ? { remove_tags: ids } : { add_tags: ids };
-    console.log(`[tag-sync] PUT (${op}-only)`, ES_LEAD_UPDATE(phone), 'body=', reqBody);
+  let upstreamStatus = 0;
+  let upstreamBody: any = null;
+  try {
+    console.log('[tag-sync] PUT', ES_LEAD_UPDATE(phone), 'body=', payload);
     const res = await fetch(ES_LEAD_UPDATE(phone), {
       method: 'PUT',
       headers: {
@@ -334,49 +331,30 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
-      body: JSON.stringify(reqBody),
+      body: JSON.stringify(payload),
     });
-    const status = res.status;
+    upstreamStatus = res.status;
     const text = await res.text();
-    let parsed: any;
-    try { parsed = JSON.parse(text); } catch { parsed = text; }
-    if (res.ok) console.log(`[tag-sync] ${op}-only OK status=`, status, 'body=', text.slice(0, 400));
-    else console.error(`[tag-sync] ${op}-only UPSTREAM ERROR status=`, status, 'body=', text.slice(0, 400));
-    return { status, body: parsed };
-  };
-
-  const steps: { op: string; status: number; body: any }[] = [];
-  try {
-    // STEP 1 — remove old tags in a dedicated request (isolation guarantees they apply).
-    if (removeIds.length > 0) {
-      const r = await doPut('remove', removeIds);
-      steps.push({ op: 'remove', ...r });
-    }
-    // STEP 2 — add the new tag(s) in their own request.
-    if (addResolved.ids.length > 0) {
-      const a = await doPut('add', addResolved.ids);
-      steps.push({ op: 'add', ...a });
-    }
+    try { upstreamBody = JSON.parse(text); } catch { upstreamBody = text; }
+    if (res.ok) console.log('[tag-sync] OK status=', upstreamStatus, 'body=', text.slice(0, 400));
+    else console.error('[tag-sync] UPSTREAM ERROR status=', upstreamStatus, 'body=', text.slice(0, 400));
   } catch (e) {
     console.error('[tag-sync] fetch failed', { phone, error: String((e as Error).message ?? e) });
-    return new Response(JSON.stringify({ ok: false, plan, payload, steps, error: String((e as Error).message ?? e) }), {
+    return new Response(JSON.stringify({ ok: false, plan, payload, error: String((e as Error).message ?? e) }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
-  // ok = every request we actually made returned 2xx (an all-empty plan is also ok).
-  const ok = steps.every((s) => s.status >= 200 && s.status < 300);
-  console.log('[tag-sync] DONE', { phone, newStatus, plan, payload, steps });
+  const ok = upstreamStatus >= 200 && upstreamStatus < 300;
+  console.log('[tag-sync] DONE', { phone, newStatus, plan, payload, upstreamStatus });
 
   return new Response(JSON.stringify({
     ok,
     phone,
     plan,
     payload,
-    steps,
     missing_tags: { add: addResolved.missing, remove: removeResolved.missing },
     safe_list_ids: Array.from(safeIds),
-    // Back-compat: surface the last step's upstream result under the old key.
-    upstream: steps.length ? { status: steps[steps.length - 1].status, body: steps[steps.length - 1].body } : { status: 0, body: null },
+    upstream: { status: upstreamStatus, body: upstreamBody },
   }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 });

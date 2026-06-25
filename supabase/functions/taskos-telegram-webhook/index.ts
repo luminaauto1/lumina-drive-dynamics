@@ -47,6 +47,35 @@ const deriveUrgency = (dueIso: string | null): number => {
   return 1;
 };
 
+// VARIABLE "not yet" snooze. Instead of a fixed 5-min/1h re-nudge, pick a delay that
+// fits the KIND of task and the situation: quick touch-points (a call, a reply) come
+// back fast; deep work / content gets real space; a task that keeps getting deferred
+// gets a longer breather; and we never snooze past a near-term hard deadline.
+const snoozeMsForTask = (task: any): number => {
+  const cat = String(task?.metadata?.category || "").toLowerCase();
+  const s = `${task?.title || ""} ${Array.isArray(task?.tags) ? task.tags.join(" ") : ""}`.toLowerCase();
+  let mins = 60; // default
+  if (cat === "call" || cat === "feedback" || cat === "outreach" ||
+      /\bcall|phone|ring|follow[\s-]?up|feedback|chase|reach\s?out|whatsapp|reply|text\b/.test(s)) mins = 30;
+  else if (cat === "meeting" || /\bmeeting|appointment|viewing|demo\b/.test(s)) mins = 120;
+  else if (cat === "content" || cat === "research" || /\bvideo|record|edit|design|write|content|research|build|draft|prepare\b/.test(s)) mins = 180;
+  else if (cat === "errand" || /\bcollect|pick\s?up|drop\s?off|deliver|fetch|go to|visit\b/.test(s)) mins = 120;
+  else if (cat === "admin" || cat === "finance" || /\binvoice|paperwork|submit|load|capture|update|process|sort|file|document\b/.test(s)) mins = 60;
+  // Repeatedly deferred → it's clearly not happening now; give a longer gap.
+  if (Number(task?.snooze_count || 0) >= 3) mins = Math.round(mins * 1.5);
+  let ms = mins * 60_000;
+  // Never snooze past a real near-term deadline — re-nudge before it's due.
+  if (task?.due_at) {
+    const dueMs = new Date(task.due_at).getTime() - Date.now();
+    if (dueMs > 10 * 60_000 && ms > dueMs * 0.5) ms = Math.max(10 * 60_000, Math.round(dueMs * 0.5));
+  }
+  return ms;
+};
+const humanizeMs = (ms: number): string => {
+  const m = Math.round(ms / 60_000);
+  return m >= 60 ? `${Math.round((m / 60) * 10) / 10}h` : `${m} min`;
+};
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
@@ -117,12 +146,20 @@ Deno.serve(async (req) => {
           await answerCallback(botToken, cq.id, "✅ Marked done");
           await editTelegramText(botToken, cqChatId, cq.message.message_id, `${baseText}\n\n✅ Done — nice work.`);
         } else {
-          // ⏳ Not yet → snooze the reminder ~1h so it nudges again.
-          const in1h = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-          await svc.from("taskos_tasks").update({ remind_at: in1h, notified_at: null, escalation_level: 0 })
-            .eq("id", taskId).eq("user_id", cbLink.user_id);
-          await answerCallback(botToken, cq.id, "⏳ Snoozed ~1 hour");
-          await editTelegramText(botToken, cqChatId, cq.message.message_id, `${baseText}\n\n⏳ Not yet — I'll remind you again in ~1 hour.`);
+          // ⏳ Not yet → snooze by a VARIABLE delay based on the task's kind/situation.
+          // We do NOT reset escalation_level (that, plus the every-5-min overdue loop,
+          // caused the constant 5-min re-nudge); the overdue loop now also honors remind_at.
+          const { data: t } = await svc.from("taskos_tasks")
+            .select("title, tags, metadata, due_at, snooze_count")
+            .eq("id", taskId).eq("user_id", cbLink.user_id).maybeSingle();
+          const ms = snoozeMsForTask(t || {});
+          const remindAt = new Date(Date.now() + ms).toISOString();
+          await svc.from("taskos_tasks").update({
+            remind_at: remindAt, notified_at: null, snooze_count: Number(t?.snooze_count || 0) + 1,
+          }).eq("id", taskId).eq("user_id", cbLink.user_id);
+          const human = humanizeMs(ms);
+          await answerCallback(botToken, cq.id, `⏳ Snoozed ~${human}`);
+          await editTelegramText(botToken, cqChatId, cq.message.message_id, `${baseText}\n\n⏳ Not yet — I'll remind you again in ~${human}.`);
         }
       } else if (gs) {
         // Goal sub-task suggestion: ✅ Add creates the task + links it to the goal; ⏭ Skip dismisses it.

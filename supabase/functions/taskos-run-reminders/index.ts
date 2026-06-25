@@ -140,11 +140,15 @@ Deno.serve(async (req) => {
 
     // 3. Escalation: overdue, still-open tasks get stronger nudges over time.
     const { data: overdue } = await svc.from("taskos_tasks")
-      .select("id, user_id, title, due_at, escalation_level")
+      .select("id, user_id, title, due_at, escalation_level, remind_at")
       .lt("due_at", nowISO()).not("due_at", "is", null)
       .not("status", "in", "(done,cancelled)").limit(200);
     for (const t of overdue ?? []) {
       if (sent >= MAX_SENDS) break;
+      // Honor an active snooze: if remind_at is still in the future the user tapped
+      // "Not yet" — don't re-escalate until the snooze elapses (this is what stopped
+      // the constant ~5-min overdue re-nudge after a snooze).
+      if (t.remind_at && new Date(t.remind_at).getTime() > now.getTime()) continue;
       if (!(await sendAllowed(t.user_id))) continue; // outside 07:00–17:30 → defer, don't mark
       const hrs = (now.getTime() - new Date(t.due_at).getTime()) / 3_600_000;
       const want = desiredLevel(hrs);
