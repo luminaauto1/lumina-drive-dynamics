@@ -35,6 +35,18 @@ async function sendMessage(token: string, chatId: number, text: string): Promise
 
 const ok = () => new Response("ok", { status: 200 });
 
+// Urgency (1-5) from time-to-due — mirrors taskos-process-inbox.deriveUrgency so a
+// goal sub-task accepted here is prioritised like any other task, not stuck at neutral.
+const deriveUrgency = (dueIso: string | null): number => {
+  if (!dueIso) return 2;
+  const h = (new Date(dueIso).getTime() - Date.now()) / 3_600_000;
+  if (h <= 24) return 5;
+  if (h <= 72) return 4;
+  if (h <= 24 * 7) return 3;
+  if (h <= 24 * 14) return 2;
+  return 1;
+};
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
@@ -75,6 +87,7 @@ Deno.serve(async (req) => {
       const baseText = String(cq?.message?.text ?? "").split("\n").slice(0, 2).join("\n");
       const pa = data.match(/^pa_(done|skip):([0-9a-f-]{36})$/i);
       const tk = data.match(/^task_(done|skip):([0-9a-f-]{36})$/i);
+      const gs = data.match(/^gsug_(add|skip):([0-9a-f-]{36})$/i);
       if (!cbLink) {
         await answerCallback(botToken, cq.id, "This chat isn't linked.");
       } else if (pa) {
@@ -110,6 +123,53 @@ Deno.serve(async (req) => {
             .eq("id", taskId).eq("user_id", cbLink.user_id);
           await answerCallback(botToken, cq.id, "⏳ Snoozed ~1 hour");
           await editTelegramText(botToken, cqChatId, cq.message.message_id, `${baseText}\n\n⏳ Not yet — I'll remind you again in ~1 hour.`);
+        }
+      } else if (gs) {
+        // Goal sub-task suggestion: ✅ Add creates the task + links it to the goal; ⏭ Skip dismisses it.
+        const sugId = gs[2];
+        const { data: sug } = await svc.from("taskos_goal_suggestions")
+          .select("id, goal_id, title, body, suggested_due_at, status")
+          .eq("id", sugId).eq("user_id", cbLink.user_id).maybeSingle();
+        if (!sug) {
+          await answerCallback(botToken, cq.id, "That suggestion is gone.");
+        } else if (sug.status !== "pending") {
+          await answerCallback(botToken, cq.id, sug.status === "added" ? "Already added." : "Already skipped.");
+          await editTelegramText(botToken, cqChatId, cq.message.message_id, `${baseText}\n\n${sug.status === "added" ? "✅ Added." : "⏭ Skipped."}`);
+        } else if (gs[1] === "add") {
+          // Atomically CLAIM the suggestion (status pending→added) so two rapid taps
+          // can't create two tasks. Only the tap that wins the claim proceeds.
+          const { data: claimed } = await svc.from("taskos_goal_suggestions")
+            .update({ status: "added" }).eq("id", sugId).eq("user_id", cbLink.user_id).eq("status", "pending")
+            .select("id").maybeSingle();
+          if (!claimed) {
+            await answerCallback(botToken, cq.id, "Already handled.");
+          } else {
+            const dueIso = sug.suggested_due_at ?? null;
+            const { data: task } = await svc.from("taskos_tasks").insert({
+              user_id: cbLink.user_id, title: sug.title, description: sug.body ?? null,
+              due_at: dueIso, remind_at: dueIso, urgency: deriveUrgency(dueIso), importance: 3,
+              tags: ["goal"], metadata: { from_goal: sug.goal_id },
+            }).select("id").maybeSingle();
+            if (task?.id) {
+              // Link task → goal (part_of); ignore a duplicate-edge unique violation.
+              await svc.from("taskos_links").insert({
+                user_id: cbLink.user_id, from_kind: "task", from_id: task.id,
+                to_kind: "entity", to_id: sug.goal_id, relation: "part_of",
+              }).then(() => {}, () => {});
+              await svc.from("taskos_goal_suggestions").update({ task_id: task.id }).eq("id", sugId);
+              await svc.from("taskos_entities").update({ last_activity_at: new Date().toISOString() }).eq("id", sug.goal_id).eq("user_id", cbLink.user_id);
+              await answerCallback(botToken, cq.id, "✅ Added to your tasks");
+              await editTelegramText(botToken, cqChatId, cq.message.message_id, `${baseText}\n\n✅ Added to your tasks.`);
+            } else {
+              // Insert failed — revert the claim so the user can retry; KEEP the buttons.
+              await svc.from("taskos_goal_suggestions").update({ status: "pending" }).eq("id", sugId);
+              await answerCallback(botToken, cq.id, "Couldn't save that — tap ✅ Add again.");
+            }
+          }
+        } else {
+          await svc.from("taskos_goal_suggestions").update({ status: "skipped" }).eq("id", sugId).eq("status", "pending");
+          await answerCallback(botToken, cq.id, "⏭ Skipped");
+          await editTelegramText(botToken, cqChatId, cq.message.message_id, `${baseText}\n\n⏭ Skipped.`);
         }
       } else {
         await answerCallback(botToken, cq.id);
