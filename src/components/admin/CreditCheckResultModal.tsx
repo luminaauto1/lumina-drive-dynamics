@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -33,6 +34,7 @@ const FAIL_OPTIONS = [
 const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, onSaved }: Props) => {
   const updateApp = useUpdateFinanceApplication();
   const [mainStatus, setMainStatus] = useState<string>('');
+  const [creditScore, setCreditScore] = useState<string>('');
   const [conditionalComment, setConditionalComment] = useState<string>('');
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -44,6 +46,7 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
   useEffect(() => {
     if (open) {
       setMainStatus('');
+      setCreditScore('');
       setConditionalComment('');
       setFile(null);
       setPreviewUrl(null);
@@ -133,6 +136,7 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
           credit_check_status: outcome,
           status: mainStatus,
           status_screenshot_url: path,
+          ...(creditScore.trim() ? { credit_score: parseInt(creditScore, 10) } : {}),
           ...(updatedNotes !== undefined ? { notes: updatedNotes } : {}),
           ...(firstCheckedAt ? { credit_check_first_checked_at: firstCheckedAt } : {}),
         } as any,
@@ -180,6 +184,21 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-white/70 text-xs uppercase tracking-wider">
+              Credit Score <span className="text-white/40 normal-case tracking-normal">— optional</span>
+            </Label>
+            <Input
+              type="number"
+              inputMode="numeric"
+              value={creditScore}
+              onChange={(e) => setCreditScore(e.target.value)}
+              placeholder="e.g. 645"
+              className="bg-black/60 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-white/30"
+            />
+            <p className="text-[11px] text-white/40">The bureau score the customer received, if shown.</p>
           </div>
 
           {mainStatus === 'declined_conditional' && (
