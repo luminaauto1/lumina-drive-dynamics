@@ -1,8 +1,9 @@
 import type { FinanceApplication } from '@/hooks/useFinanceApplications';
 import { STATUS_STYLES, ADMIN_STATUS_LABELS } from '@/lib/statusConfig';
 import { INTERNAL_STATUSES, normalizeInternalStatus, type InternalStatus } from '@/lib/internalStatusConfig';
-import { formatCurrencyR, formatDate, formatTime, formatPhone } from '@/lib/pipelinev2/format';
+import { formatCurrencyR, formatDate, formatTime, formatPhone, relativeTime } from '@/lib/pipelinev2/format';
 import { TABLE_COLUMNS, columnClass, type TableConfig } from '@/lib/pipelinev2/columns';
+import { latestPipelineNote, noteCategory } from '@/lib/pipelinev2/notes';
 
 interface Busy { userId: string; name: string; color: string }
 
@@ -125,6 +126,25 @@ function renderCell(
       );
     }
     case 'internal': {
+      // Prefer the most recent structured pipeline note (with author + time);
+      // fall back to the directed internal-status label, then to nothing.
+      const latest = latestPipelineNote(a);
+      if (latest) {
+        const cat = noteCategory(latest.category);
+        return (
+          <div className="space-y-0.5">
+            {latest.category !== 'note' && (
+              <span className={'inline-flex items-center rounded border px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide ' + cat.color}>
+                {cat.label}{cat.emoji ? ` ${cat.emoji}` : ''}
+              </span>
+            )}
+            <div className="line-clamp-2 text-xs text-foreground">{latest.body}</div>
+            <div className="text-[10px] text-muted-foreground">
+              {latest.author_name || 'Unknown'}{latest.created_at ? ` · ${relativeTime(latest.created_at)}` : ''}
+            </div>
+          </div>
+        );
+      }
       const k = (normalizeInternalStatus(any.internal_status) || 'no_notes') as InternalStatus;
       const lbl = INTERNAL_STATUSES[k]?.label;
       return k === 'no_notes' ? <span className="text-xs text-muted-foreground/50">—</span>

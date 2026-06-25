@@ -21,6 +21,7 @@ import { BulkStatusModal } from '@/components/admin/pipelinev2/BulkStatusModal';
 
 interface Busy { userId: string; name: string; color: string }
 type FniFilter = 'all' | 'self' | 'unassigned';
+type SearchScope = 'tab' | 'all';
 
 const appSearchBlob = (a: FinanceApplication): string => {
   const any = a as any;
@@ -37,6 +38,7 @@ const AdminPipelineV2 = () => {
 
   const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch] = useState('');
+  const [searchScope, setSearchScope] = useState<SearchScope>('tab');
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
   const [fniFilter, setFniFilter] = useState<FniFilter>(isSuperAdmin || isSeniorFAndI ? 'all' : 'self');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -126,14 +128,19 @@ const AdminPipelineV2 = () => {
     return c;
   }, [baseFiltered]);
 
+  // When searching with scope = 'all', results span every lane (the active-tab
+  // filter is bypassed); otherwise rows stay scoped to the active tab.
+  const searchingAllTabs = searchScope === 'all' && search.trim().length > 0;
   const rows = useMemo(() => {
-    const list = baseFiltered.filter((a) => inTab(activeTab, (a as any).status));
+    const list = searchingAllTabs
+      ? baseFiltered
+      : baseFiltered.filter((a) => inTab(activeTab, (a as any).status));
     return [...list].sort((x, y) => {
       const dx = new Date((x as any).created_at || 0).getTime();
       const dy = new Date((y as any).created_at || 0).getTime();
       return sortDir === 'desc' ? dy - dx : dx - dy;
     });
-  }, [baseFiltered, activeTab, sortDir]);
+  }, [baseFiltered, activeTab, sortDir, searchingAllTabs]);
 
   // ---- Selection -----------------------------------------------------------
   const toggleSelect = (id: string) => setSelectedIds((prev) => {
@@ -171,6 +178,16 @@ const AdminPipelineV2 = () => {
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, email, phone, ID, bank ref…" className="pl-8 h-9" />
           </div>
+          {/* Search scope: limit matches to the current lane, or sweep every lane. */}
+          <div className="inline-flex h-9 items-center rounded-md border border-border bg-background p-0.5 text-xs" title="Choose whether search looks only inside the current tab or across all tabs">
+            {([['tab', 'This tab'], ['all', 'All tabs']] as const).map(([val, label]) => (
+              <button key={val} type="button" onClick={() => setSearchScope(val)}
+                className={'rounded px-2.5 py-1 font-medium transition ' +
+                  (searchScope === val ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground')}>
+                {label}
+              </button>
+            ))}
+          </div>
           {showFniFilter && (
             <Select value={fniFilter} onValueChange={(v) => setFniFilter(v as FniFilter)}>
               <SelectTrigger className="h-9 w-[150px]"><SelectValue /></SelectTrigger>
@@ -188,6 +205,13 @@ const AdminPipelineV2 = () => {
         </div>
 
         <PipelineTabNav counts={counts} activeKey={activeTab} onChange={setActiveTab} />
+
+        {searchingAllTabs && (
+          <div className="flex items-center gap-1.5 rounded-md border border-border bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground">
+            <Search className="w-3.5 h-3.5" />
+            Showing <span className="font-medium text-foreground">{rows.length.toLocaleString()}</span> match{rows.length === 1 ? '' : 'es'} for “{search.trim()}” across all tabs.
+          </div>
+        )}
 
         {/* Bulk action bar */}
         {selectedIds.size > 0 && (

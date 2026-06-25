@@ -11,7 +11,7 @@ export interface PipelineTabDef {
 
 export const PIPELINE_TABS: PipelineTabDef[] = [
   { key: 'all',        label: 'All',         statuses: [], accent: 'text-foreground' },
-  { key: 'intake',     label: 'Intake',      statuses: ['pending', 'draft', 'needs_revision', 'revision_submitted'], accent: 'text-gray-300' },
+  { key: 'intake',     label: 'New Applications', statuses: ['pending', 'draft', 'needs_revision', 'revision_submitted'], accent: 'text-gray-300' },
   { key: 'submitted',  label: 'Submitted',   statuses: ['application_submitted', 'ready_to_submit', 'sent_to_banks'], accent: 'text-blue-400' },
   { key: 'approved',   label: 'Approved',    statuses: ['pre_approved', 'documents_received', 'approved', 'vehicle_selected'], accent: 'text-yellow-400' },
   { key: 'validations', label: 'Validations', statuses: ['validations_pending', 'validations_complete'], accent: 'text-green-400' },
