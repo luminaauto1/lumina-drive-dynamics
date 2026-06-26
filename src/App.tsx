@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Navbar from "@/components/Navbar";
@@ -61,7 +61,6 @@ const AdminEmailSettings = lazy(() => import("./pages/admin/AdminEmailSettings")
 const AdminCRM = lazy(() => import("./pages/admin/AdminCRM"));
 const ClientProfile = lazy(() => import("./pages/admin/ClientProfile"));
 const AdminDocumentsHub = lazy(() => import("./pages/admin/AdminDocumentsHub"));
-const SystemFix = lazy(() => import("./pages/admin/SystemFix"));
 const AdminJuristic = lazy(() => import("./pages/admin/AdminJuristic"));
 const AdminVendors = lazy(() => import("./pages/admin/AdminVendors"));
 const AdminInvoiceCreator = lazy(() => import("./pages/admin/AdminInvoiceCreator"));
@@ -126,7 +125,8 @@ const AppLayout = () => {
             <Route path="/admin/inventory" element={<ProtectedRoute section="inventory"><AdminInventoryPage /></ProtectedRoute>} />
             {/* Pipeline + CRM Sheet replaced by the unified CRM. Old paths still
                 resolve (login landing + existing links) and render the new CRM. */}
-            <Route path="/admin/leads" element={<ProtectedRoute section="crm"><AdminCRM /></ProtectedRoute>} />
+            {/* Legacy CRM aliases — collapsed to redirects (one CRM page, one URL). */}
+            <Route path="/admin/leads" element={<Navigate to="/admin/crm" replace />} />
             <Route path="/admin/contacts" element={<ProtectedRoute requireSuperAdmin><AdminContacts /></ProtectedRoute>} />
             <Route path="/admin/finance" element={<ProtectedRoute section="finance"><AdminFinance /></ProtectedRoute>} />
             <Route path="/admin/finance/create" element={<ProtectedRoute section="finance"><AdminCreateApplication /></ProtectedRoute>} />
@@ -151,10 +151,9 @@ const AppLayout = () => {
             <Route path="/admin/juristic" element={<ProtectedRoute section="juristic"><AdminJuristic /></ProtectedRoute>} />
             <Route path="/admin/clients/:id" element={<ProtectedRoute requireSuperAdmin><ClientProfile /></ProtectedRoute>} />
             <Route path="/admin/documents" element={<ProtectedRoute section="documents"><AdminDocumentsHub /></ProtectedRoute>} />
-            <Route path="/admin/crm-sheet" element={<ProtectedRoute section="crm"><AdminCRM /></ProtectedRoute>} />
+            <Route path="/admin/crm-sheet" element={<Navigate to="/admin/crm" replace />} />
             <Route path="/admin/crm" element={<ProtectedRoute section="crm"><AdminCRM /></ProtectedRoute>} />
             <Route path="/update-password" element={<UpdatePassword />} />
-            <Route path="/system-fix" element={<ProtectedRoute requireSuperAdmin><SystemFix /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

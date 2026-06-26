@@ -291,7 +291,7 @@ export const LeadCockpit = ({ leadId, isOpen, onClose, onUpdate }: LeadCockpitPr
                 <Button variant="outline" size="sm" className="border-zinc-700 text-blue-400 hover:bg-blue-950/30 h-9 px-4 text-xs font-bold gap-1.5" onClick={() => window.open(`tel:${lead.client_phone}`)}>
                   <Phone className="w-4 h-4" /> Call
                 </Button>
-                <Button variant="outline" size="sm" className="border-zinc-700 h-9 text-xs gap-1.5" onClick={() => navigate(`/admin/clients/${lead.linkedApp?.user_id || leadId}`)} disabled={!lead.linkedApp}>
+                <Button variant="outline" size="sm" className="border-zinc-700 h-9 text-xs gap-1.5" onClick={() => navigate(`/admin/clients/${lead.linkedApp?.id}`)} disabled={!lead.linkedApp}>
                   <User className="w-3.5 h-3.5" /> File
                 </Button>
                 <Button variant="ghost" size="sm" className="text-zinc-500 hover:text-red-400 text-xs h-9" onClick={archiveLead}>

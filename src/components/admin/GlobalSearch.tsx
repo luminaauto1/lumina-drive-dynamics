@@ -184,7 +184,7 @@ const GlobalSearch = () => {
         {leads.length > 0 && (
           <CommandGroup heading="Leads">
             {leads.map((l) => (
-              <CommandItem key={`lead-${l.id}`} value={`${l.search} ${l.id}`} onSelect={() => go('/admin/leads')}>
+              <CommandItem key={`lead-${l.id}`} value={`${l.search} ${l.id}`} onSelect={() => go('/admin/crm')}>
                 <FileText className="mr-2 h-4 w-4 text-amber-400" />
                 <div className="flex flex-col">
                   <span className="text-sm">{l.name}</span>

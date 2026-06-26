@@ -25,7 +25,7 @@ export interface AppSection {
 export const APP_SECTIONS: AppSection[] = [
   { key: 'finance',       label: 'Finance',          description: 'Finance applications & deal room', paths: ['/admin/finance'], home: '/admin/finance' },
   { key: 'pipeline_v2',   label: 'Pipeline',         description: 'New pipeline view of finance applications (same data, fires same notifications)', paths: ['/admin/pipeline-v2'], home: '/admin/pipeline-v2' },
-  { key: 'crm',           label: 'CRM / Leads',      description: 'Pipeline, leads and client management', paths: ['/admin/crm', '/admin/leads', '/admin/crm-sheet'], home: '/admin/crm' },
+  { key: 'crm',           label: 'CRM / Leads',      description: 'Pipeline, leads and client management', paths: ['/admin/crm'], home: '/admin/crm' },
   { key: 'inventory',     label: 'Inventory',        description: 'Active stock', paths: ['/admin/inventory'], home: '/admin/inventory' },
   { key: 'cars_to_buy',   label: 'Cars to Buy',      description: 'Sourcing / buy list', paths: ['/admin/cars-to-buy'], home: '/admin/cars-to-buy' },
   { key: 'quotes',        label: 'Quote Generator',  description: 'Build customer quotes', paths: ['/admin/quotes'], home: '/admin/quotes' },
