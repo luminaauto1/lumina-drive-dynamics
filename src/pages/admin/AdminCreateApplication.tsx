@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils';
 import AdminLayout from '@/components/admin/AdminLayout';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import { supabase } from '@/integrations/supabase/client';
+import { logActivity } from '@/lib/activityLog';
 import { toast } from 'sonner';
 
 const STEPS = [
@@ -398,6 +399,15 @@ const AdminCreateApplication = () => {
       }
 
       console.log('Application created successfully:', data?.id);
+
+      // Universal activity trail (fire-and-forget).
+      void logActivity({
+        actionType: 'application_created',
+        note: `Application created for ${applicationData.full_name}`,
+        applicationId: data?.id ?? null,
+        clientEmail: applicationData.email ?? null,
+        clientPhone: applicationData.phone ?? null,
+      });
 
       // Also create a lead entry if this is a new client (no existing profile)
       if (!existingProfile) {

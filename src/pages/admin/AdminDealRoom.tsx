@@ -1145,6 +1145,7 @@ const AdminDealRoom = () => {
               clientEmail={application.email}
               clientPhone={application.phone}
               clientName={application.first_name || application.full_name || 'Client'}
+              applicationId={application.id}
             />
 
             {/* Status Controller */}
