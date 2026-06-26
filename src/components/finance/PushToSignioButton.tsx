@@ -19,15 +19,18 @@ import { Send, ExternalLink, AlertTriangle, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
+// New LIGHTSTONE skin (single-page e-application). The engine (public/signio-fill.js) was
+// rewritten to fill this form by field `name` and to fill addresses DIRECTLY (the old fuzzy
+// Address Lookup was the cause of the inaccurate addresses the F&I reported).
 const SIGNIO_URL =
-  'https://goa.signio.co.za/ThirdPartyIntegration/?uuid=0000019d-8b14-51e0-a0c4-f22179bee56a';
+  'https://thirdparty.signio.co.za/ThirdPartyIntegration/application?skin=LIGHTSTONE&uuid=0000019e-fdf8-8197-9b9e-d86384f9e897';
 
 const HANDOFF_PREFIX = 'LUMINA_SIGNIO:';
 
 // Pass RAW fields — the engine handles all normalization (gender, bank→branch,
 // employment_type, qualification, ID-Luhn, etc.) and flags anything it can't fill.
 // Pull a suburb + 4-digit postal out of a free-text / Google-formatted address so the
-// Signio employer Address Lookup has something to search (postal is the reliable key).
+// engine can fill the employer suburb + postal DIRECTLY (no fuzzy lookup).
 function parseEmployerAddr(addr: string) {
   const s = String(addr || '');
   // LAST 4-digit token = the trailing SA postal (avoids grabbing a 4-digit street number).
@@ -58,19 +61,24 @@ function buildSignioPayload(app: any) {
     id_number: app.id_number,
     id_type: app.id_type,
     first_name: app.first_name,
+    middle_name: app.middle_name || undefined,
     last_name: app.last_name,
     full_name: app.full_name || [app.first_name, app.last_name].filter(Boolean).join(' '),
+    date_of_birth: app.date_of_birth || undefined, // engine derives from ID if absent
     email: app.email,
     phone: app.phone,
     gender: app.gender,
+    language: app.preferred_language || undefined,
     marital_status: app.marital_status,
     marriage_type: app.marriage_type,
     spouse_first_name: app.spouse_first_name,
     spouse_surname: app.spouse_surname,
     nationality: app.nationality,
     qualification: app.qualification,
+    residence_type: app.residence_type || undefined,
     street_address: app.street_address,
     suburb,
+    city: app.city || app.town || undefined,
     area_code: app.area_code,
     kin_relation: app.kin_relation,
     kin_first_name: app.kin_first_name || kinTokens[0],
@@ -78,12 +86,15 @@ function buildSignioPayload(app: any) {
     kin_contact: app.kin_contact,
     employer_name: app.employer_name,
     job_title: app.job_title,
+    industry: app.industry || undefined,
     employment_type: app.employment_type,
+    employment_level: app.employment_level || undefined,
     employment_period: app.employment_period,
     employer_address: app.employer_address || undefined,
     business_address_auto: app.business_address_auto || undefined,
     employer_suburb: app.employer_suburb || empParsed.suburb || undefined,
-    employer_area_code: app.employer_postal_code || empParsed.postal || undefined,
+    employer_city: app.employer_city || undefined,
+    employer_postal_code: app.employer_postal_code || empParsed.postal || undefined,
     bank_name: app.bank_name,
     account_type: app.account_type,
     account_number: app.account_number,
@@ -91,6 +102,8 @@ function buildSignioPayload(app: any) {
     net_salary: app.net_salary,
     additional_income: app.additional_income,
     total_expenses: app.expenses_summary,
+    purchase_price: app.purchase_price || undefined,
+    vehicle_condition: app.vehicle_condition || undefined,
   };
 }
 
@@ -108,8 +121,8 @@ function computeChecks(app: any, payload: any): string[] {
   const out: string[] = [];
   if (!luhnValid(app.id_number)) out.push('ID number missing or not a valid SA ID — fix before submit.');
   if (+app.gross_salary && +app.net_salary && +app.net_salary > +app.gross_salary) out.push('Net salary is higher than gross — likely swapped; verify.');
-  if (!payload.suburb) out.push('No suburb on file — pick the suburb/town result on the form.');
-  if (app.employer_name && !payload.employer_area_code && !payload.employer_suburb) out.push(`No workplace address resolved for "${app.employer_name}" — Signio may stall on the employer Address Lookup.`);
+  if (!payload.suburb) out.push('No residential suburb on file — that field will be blank; fill it on the form.');
+  if (app.employer_name && !payload.employer_postal_code && !payload.employer_suburb) out.push(`No workplace suburb/postal resolved for "${app.employer_name}" — the employer address may be incomplete; verify it.`);
   if (!app.job_title) out.push('No job title — occupation will default to a generic option; set it if you can.');
   if (app.bank_name && !KNOWN_BANKS.test(String(app.bank_name))) out.push(`Bank "${app.bank_name}" isn't auto-mapped — pick the bank + branch code.`);
   if (!app.employment_period) out.push('Employer tenure unknown — defaults to 1 yr; verify the years/months.');
