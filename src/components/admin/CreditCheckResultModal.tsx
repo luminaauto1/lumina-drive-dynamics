@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
+import { compressImage } from '@/lib/imageCompression';
 import { useUpdateFinanceApplication } from '@/hooks/useFinanceApplications';
 import { toast } from 'sonner';
 import { ImageIcon, Upload, X } from 'lucide-react';
@@ -98,11 +99,12 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
     try {
       let path: string | null = null;
       if (file) {
-        const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+        const compressed = await compressImage(file);
+        const ext = (compressed.name.split('.').pop() || 'png').toLowerCase();
         path = `${applicationId}/${outcome}-${Date.now()}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from('credit-check-screenshots')
-          .upload(path, file, { contentType: file.type, upsert: false });
+          .upload(path, compressed, { contentType: compressed.type, upsert: false });
         if (upErr) throw upErr;
       }
 

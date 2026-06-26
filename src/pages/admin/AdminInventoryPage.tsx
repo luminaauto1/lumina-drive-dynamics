@@ -46,6 +46,7 @@ import { useVehicles, useCreateVehicle, useUpdateVehicle, useDeleteVehicle, form
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getOptimizedImage } from '@/lib/utils';
+import { compressImage } from '@/lib/imageCompression';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDocumentSettings } from '@/hooks/useDocumentSettings';
@@ -433,14 +434,15 @@ const AdminInventoryPage = () => {
     const uploadedUrls: string[] = [];
 
     try {
-      for (const file of Array.from(files)) {
+      for (const original of Array.from(files)) {
+        const file = await compressImage(original);
         const fileExt = file.name.split('.').pop();
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
         const filePath = `vehicles/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from('vehicle-images')
-          .upload(filePath, file);
+          .upload(filePath, file, { contentType: file.type, cacheControl: '3600' });
 
         if (uploadError) throw uploadError;
 
