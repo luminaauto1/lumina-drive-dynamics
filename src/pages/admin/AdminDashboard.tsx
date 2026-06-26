@@ -342,7 +342,7 @@ const AdminDashboard = () => {
 
             <div className="grid grid-cols-3 gap-3">
               <button
-                onClick={() => navigate("/admin/lead-analytics")}
+                onClick={() => navigate("/admin/reports/lead-analytics")}
                 className="text-left p-4 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors border border-border/50"
               >
                 <div className="flex items-center gap-2 mb-2 text-emerald-400">
@@ -378,7 +378,7 @@ const AdminDashboard = () => {
             <div className="mt-4 pt-4 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
               <span>Top-of-funnel volume from WhatsApp + web</span>
               <button
-                onClick={() => navigate("/admin/lead-analytics")}
+                onClick={() => navigate("/admin/reports/lead-analytics")}
                 className="text-foreground hover:text-emerald-400 transition-colors inline-flex items-center"
               >
                 Full analytics <ArrowRight className="w-3.5 h-3.5 ml-1" />

@@ -53,7 +53,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
       </div>
 
       {/* Main Content - flex-1 fills remaining space, min-w-0 prevents overflow */}
-      <main className="flex-1 min-w-0 min-h-screen pt-14 md:pt-0 overflow-x-hidden">
+      <main className="desk-root flex-1 min-w-0 min-h-screen pt-14 md:pt-0 overflow-x-hidden">
         {children}
       </main>
 
