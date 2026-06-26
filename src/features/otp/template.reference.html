@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lumina Auto — Offer to Purchase</title>
+
+<!--
+================================================================================
+  LUMINA AUTO — OFFER TO PURCHASE (OTP) TEMPLATE
+  Makhulu Holdings (Pty) Ltd t/a Lumina Auto
+================================================================================
+
+  PURPOSE
+  This is a print/PDF-ready HTML template for generating Offers to Purchase on
+  the Lumina Auto website. Layout is modelled on a franchise-grade dealer OTP;
+  branding, typography and palette are Lumina Auto.
+
+  HOW TO USE IN CLAUDE CODE / THE WEBSITE
+  - Replace every {{token}} below with a value from the deal record.
+  - Render this HTML, then print-to-PDF (A4). The @page + page-break rules
+    already paginate it into clean sheets.
+  - Empty optional fields: pass an empty string "" (the row stays, label only),
+    OR strip the row server-side if you prefer.
+
+  DATA SCHEMA (suggested object to populate)
+  {
+    "company": {
+      "legal_name": "MAKHULU HOLDINGS (PTY) LTD",
+      "trading_name": "Lumina Auto",
+      "address": "Pretoria, South Africa",
+      "email": "info@luminaauto.co.za",
+      "phone": "068 601 7462",
+      "reg_no": "",            // company registration number
+      "vat_no": "N/A"          // "N/A" until VAT registered
+    },
+    "vat_registered": false,   // FLAG. false = not VAT registered (current state)
+    "offer": {
+      "ref": "OTP-2026-1234",
+      "date": "2026/06/26",    // YYYY/MM/DD
+      "valid_until": "2026/07/03"
+    },
+    "client": {
+      "title": "Mr.",
+      "name": "Jenome Van Zyl",
+      "id": "9001015800082",
+      "address": "12 Oak Avenue, Waterkloof, Pretoria",
+      "postal": "",
+      "email": "jenome@gmail.com",
+      "cell": "082 123 4567"
+    },
+    "sales": {
+      "exec_name": "Albert Prinsloo",
+      "exec_phone": ""
+    },
+    "vehicle": {
+      "make": "Volkswagen",
+      "model": "Golf 7 GTI",
+      "year": "2019",
+      "reg_no": "CA 123-456",
+      "colour": "Tornado Red",
+      "trim": "",
+      "vin": "WVWZZZAUZJW123456",
+      "engine_no": "CLP457676",
+      "mileage": "42 000 km",
+      "stock_no": "",
+      "mm_code": "",
+      "order_type": "Used"      // Used | New | Demo
+    },
+    "finance": {
+      "method": "Bank Finance",  // Cash | Bank Finance | Unspecified
+      "financed_by": "",
+      "bank_branch": "",
+      "branch_phone": "",
+      "branch_contact": ""
+    },
+    "notes": "",
+    "financials": {             // all amounts pre-formatted as "R 0 000,00"
+      "base_price": "R 260 000,00",
+      "extras": "R 0,00",
+      "vap": "R 0,00",            // value added products
+      "admin_fee": "R 0,00",
+      "delivery_fee": "R 7 000,00",
+      "licensing": "R 2 500,00",  // Licensing & Registration — NON-VATABLE disbursement
+      "subtotal_excl": "R 269 500,00", // vatable_incl / 1.15 when registered; ignored otherwise
+      "vat": "n/a",               // "n/a" when vat_registered = false
+      "total_incl": "R 269 500,00",
+      "deposit": "R 21 300,00",
+      "balance": "R 248 200,00",
+      "novat_tag": "",            // "" when not registered; " (no VAT)" when registered
+      "vat_note": "Makhulu Holdings (Pty) Ltd is not currently registered for VAT."
+    }
+  }
+
+  LINE-ITEM VAT TREATMENT
+    VATABLE lines (carry VAT once registered): base_price, extras, vap, admin_fee, delivery_fee
+    NON-VATABLE lines (never carry VAT):        licensing  (statutory disbursement)
+
+  CALCULATION RULES (server-side)
+    vatable_incl  = base_price + extras + vap + admin_fee + delivery_fee
+    non_vatable   = licensing
+    total_incl    = vatable_incl + non_vatable
+    balance       = total_incl - deposit
+
+    IF vat_registered = false (current):
+      vat        = "n/a"   ;  novat_tag = ""
+      vat_note   = "Makhulu Holdings (Pty) Ltd is not currently registered for VAT."
+      (Summary shows VAT n/a only — no Subtotal row; line labels carry no VAT qualifier)
+
+    IF vat_registered = true (after registration):
+      subtotal_excl = vatable_incl / 1.15
+      vat           = vatable_incl - subtotal_excl     (VAT @ 15%, vatable lines only)
+      novat_tag     = " (no VAT)"  ;  vat_note = ""
+      (restore the Subtotal row + "(incl. VAT)" labels; licensing stays excluded from VAT)
+================================================================================
+-->
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,500&display=swap');
+
+:root{
+  --obsidian:#0B0B0C;
+  --charcoal:#1C1C1E;
+  --ink:#0B0B0C;
+  --grey:#8A8A8E;
+  --line:#D9D9DB;
+  --line-soft:#ECECEE;
+  --paper:#FFFFFF;
+  --band:#0B0B0C;
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+
+html,body{
+  background:#3a3a3c;
+  font-family:'Montserrat',Arial,sans-serif;
+  color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ---- A4 sheet ---- */
+.page{
+  width:210mm;
+  min-height:297mm;
+  background:var(--paper);
+  margin:14px auto;
+  padding:16mm 15mm 14mm;
+  position:relative;
+  box-shadow:0 4px 24px rgba(0,0,0,.4);
+  display:flex;
+  flex-direction:column;
+}
+
+/* ============ MASTHEAD ============ */
+.masthead{
+  background:var(--obsidian);
+  color:#fff;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:14px 20px;
+  margin:-16mm -15mm 0;
+}
+.wordmark{line-height:1;}
+.wordmark .lm{
+  font-weight:800;
+  font-size:25px;
+  letter-spacing:.34em;
+  display:block;
+  padding-left:.34em;
+}
+.wordmark .au{
+  font-weight:500;
+  font-size:9px;
+  letter-spacing:.62em;
+  text-align:right;
+  display:block;
+  margin-top:3px;
+  color:#cfcfd1;
+}
+.co-block{text-align:right;font-size:8.5px;line-height:1.5;color:#d6d6d8;}
+.co-block .co-name{font-weight:700;font-size:10px;color:#fff;letter-spacing:.04em;}
+
+/* ============ TITLE ROW ============ */
+.title-row{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  margin:18px 0 6px;
+}
+.title-row .rule{flex:1;height:1px;background:var(--ink);}
+.title-row h1{
+  font-weight:700;
+  font-size:17px;
+  letter-spacing:.32em;
+  white-space:nowrap;
+}
+.ref-row{
+  display:flex;
+  justify-content:space-between;
+  font-size:9px;
+  color:var(--grey);
+  letter-spacing:.05em;
+  margin-bottom:14px;
+}
+.ref-row b{color:var(--ink);font-weight:600;}
+
+/* ============ LETTER INTRO ============ */
+.intro-grid{
+  display:grid;
+  grid-template-columns:1.15fr 1fr;
+  gap:22px;
+  margin-bottom:12px;
+}
+.kv{font-size:9px;line-height:1.55;}
+.kv .lbl{
+  display:inline-block;
+  width:74px;
+  color:var(--grey);
+  font-weight:500;
+  letter-spacing:.03em;
+}
+.kv .val{font-weight:600;}
+.block-title{
+  font-size:8px;
+  font-weight:700;
+  letter-spacing:.18em;
+  text-transform:uppercase;
+  color:var(--grey);
+  border-bottom:1px solid var(--line);
+  padding-bottom:4px;
+  margin-bottom:6px;
+}
+.greeting{font-size:9px;line-height:1.6;margin:6px 0 16px;}
+.greeting .dear{font-weight:600;margin-bottom:5px;}
+
+/* ============ DETAILS / PRICE GRID ============ */
+.deal-grid{
+  display:grid;
+  grid-template-columns:1.25fr 1fr;
+  gap:14px;
+  align-items:start;
+}
+.panel{border:1px solid var(--line);}
+.panel + .panel{margin-top:10px;}
+.panel-head{
+  background:var(--band);
+  color:#fff;
+  font-size:9px;
+  font-weight:700;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  padding:6px 10px;
+}
+.spec{width:100%;border-collapse:collapse;font-size:8.7px;}
+.spec td{padding:4px 10px;vertical-align:top;border-bottom:1px solid var(--line-soft);}
+.spec tr:last-child td{border-bottom:none;}
+.spec .k{color:var(--grey);font-weight:500;width:34%;}
+.spec .v{font-weight:600;color:var(--ink);}
+.spec .k2{color:var(--grey);font-weight:500;width:22%;}
+
+/* price panel */
+.price-row{
+  display:flex;
+  justify-content:space-between;
+  font-size:8.7px;
+  padding:5px 10px;
+  border-bottom:1px solid var(--line-soft);
+}
+.price-row .lbl{color:var(--grey);}
+.price-row .amt{font-weight:600;}
+.price-head{
+  display:flex;
+  justify-content:space-between;
+  background:var(--band);
+  color:#fff;
+  padding:7px 10px;
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.05em;
+}
+.subtotal-row{
+  display:flex;
+  justify-content:space-between;
+  font-size:8.7px;
+  padding:5px 10px;
+  border-bottom:1px solid var(--line-soft);
+  font-weight:700;
+}
+.subtotal-row.tot{border-top:2px solid var(--ink);}
+.balance-bar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background:var(--obsidian);
+  color:#fff;
+  padding:11px 10px;
+  margin-top:10px;
+  font-weight:700;
+  font-size:12px;
+  letter-spacing:.04em;
+}
+.notes-body{font-size:8.5px;line-height:1.5;color:var(--ink);padding:8px 10px;min-height:34px;}
+
+/* ===== SIGNATURE ROWS (VW style: inline "Label: ····" line, name centred beneath) ===== */
+.sign-block{margin-top:26px;}
+.vw-sign-row{display:grid;grid-template-columns:1fr 1fr 120px;gap:30px;align-items:end;}
+.vw-sign-row.pd{margin-top:24px;}
+.vw-sign{font-size:8.5px;}
+.vw-line{display:flex;align-items:flex-end;gap:6px;}
+.vw-lbl{white-space:nowrap;color:var(--ink);}
+.vw-rule{flex:1;border-bottom:1px dotted #6a6a6c;margin-bottom:2px;}
+.vw-name{font-size:8.5px;font-weight:600;text-align:center;margin-top:4px;}
+.vw-otp{font-size:8.5px;color:var(--grey);text-align:right;}
+.vw-otp b{color:var(--ink);font-weight:700;}
+
+/* ============ SERVICE FOOTNOTES ============ */
+.servicenote{
+  margin-top:auto;
+  padding-top:14px;
+  font-size:7.6px;
+  line-height:1.55;
+  color:var(--grey);
+  border-top:1px solid var(--line-soft);
+}
+.servicenote b{color:var(--ink);font-weight:600;}
+.servicenote ul{list-style:none;margin-top:4px;}
+.servicenote li{padding-left:10px;position:relative;}
+.servicenote li:before{content:"–";position:absolute;left:0;color:var(--grey);}
+
+/* ============ LEGAL SHEETS ============ */
+.legal-head{
+  display:flex;
+  justify-content:space-between;
+  font-size:7.5px;
+  color:var(--grey);
+  letter-spacing:.04em;
+  border-bottom:1px solid var(--line);
+  padding-bottom:5px;
+  margin-bottom:3px;
+}
+.legal-head b{color:var(--ink);}
+.legal-title{
+  font-size:9px;
+  font-weight:700;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  margin:8px 0 2px;
+}
+.legal-sub{
+  font-size:7.5px;
+  font-weight:600;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--grey);
+  margin-bottom:8px;
+}
+.legal{font-size:7.7px;line-height:1.5;color:#222;}
+.legal h2{
+  font-size:8.4px;
+  font-weight:700;
+  letter-spacing:.04em;
+  margin:9px 0 3px;
+  color:var(--ink);
+}
+.legal p{margin:2px 0;}
+.legal .c{padding-left:14px;text-indent:-14px;margin:1.5px 0;}
+.legal .cc{padding-left:26px;text-indent:-12px;margin:1px 0;}
+.legal .ccc{padding-left:38px;text-indent:-12px;margin:1px 0;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;}
+.dec-box{border:1px solid var(--line);}
+.dec-box .dh{font-size:7.6px;font-weight:700;padding:5px 8px;border-bottom:1px solid var(--line);}
+.dec-box .dl{height:15px;border-bottom:1px solid var(--line-soft);}
+.dec-box .dl:last-child{border-bottom:none;}
+.fill{border-bottom:1px solid #aaa;display:inline-block;min-width:120px;}
+.fill-sm{border-bottom:1px solid #aaa;display:inline-block;min-width:42px;}
+
+.legal-sign{margin-top:16px;padding-top:10px;border-top:1px solid var(--line);}
+.legal-sign .vw-sign{font-size:7.6px;}
+.legal-sign .vw-name{font-size:7.4px;margin-top:3px;}
+.legal-sign .vw-otp{font-size:7.4px;}
+
+.ack-bar{
+  border:1px solid var(--ink);
+  background:#f6f6f6;
+  padding:8px 10px;
+  font-size:7.8px;
+  line-height:1.5;
+  margin:10px 0;
+  font-weight:600;
+}
+.consent-line{font-size:7.8px;margin:5px 0;line-height:1.6;}
+.final-sign{margin-top:16px;font-size:7.8px;line-height:2.2;}
+.contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;}
+.contact-box{border:1px solid var(--line);padding:9px 11px;font-size:7.4px;line-height:1.55;}
+.contact-box .ch{font-weight:700;font-size:7.8px;margin-bottom:5px;letter-spacing:.03em;}
+.internal-box{border:1px solid var(--line);padding:9px 11px;margin-top:12px;font-size:7.4px;color:var(--grey);}
+.internal-box .ih{font-weight:600;color:var(--ink);}
+
+/* ============ PRINT ============ */
+@page{size:A4;margin:0;}
+@media print{
+  html,body{background:#fff;}
+  .page{
+    margin:0;
+    box-shadow:none;
+    page-break-after:always;
+    width:210mm;
+    min-height:297mm;
+  }
+  .page:last-child{page-break-after:auto;}
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================= PAGE 1 -->
+<section class="page">
+
+  <div class="masthead">
+    <div class="wordmark">
+      <span class="lm">LUMINA</span>
+      <span class="au">AUTO</span>
+    </div>
+    <div class="co-block">
+      <div class="co-name">{{company_legal_name}}</div>
+      <div>t/a {{trading_name}}</div>
+      <div>{{company_address}}</div>
+      <div>{{company_email}} &bull; {{company_phone}}</div>
+      <div>Reg: {{company_reg}} &nbsp; VAT: {{company_vat}}</div>
+    </div>
+  </div>
+
+  <div class="title-row">
+    <span class="rule"></span>
+    <h1>OFFER TO PURCHASE</h1>
+    <span class="rule"></span>
+  </div>
+  <div class="ref-row">
+    <span>Quote Ref: <b>{{otp_ref}}</b></span>
+    <span>Date: <b>{{otp_date}}</b> &nbsp;|&nbsp; Valid Until: <b>{{valid_until}}</b></span>
+  </div>
+
+  <div class="intro-grid">
+    <div>
+      <div class="block-title">Contact Information</div>
+      <div class="kv"><span class="lbl">Name</span><span class="val">{{client_title}} {{client_name}}</span></div>
+      <div class="kv"><span class="lbl">ID</span><span class="val">{{client_id}}</span></div>
+      <div class="kv"><span class="lbl">Address</span><span class="val">{{client_address}}</span></div>
+      <div class="kv"><span class="lbl">Postal</span><span class="val">{{client_postal}}</span></div>
+      <div class="kv"><span class="lbl">Email</span><span class="val">{{client_email}}</span></div>
+      <div class="kv"><span class="lbl">Cell</span><span class="val">{{client_cell}}</span></div>
+    </div>
+    <div>
+      <div class="block-title">Offer Details</div>
+      <div class="kv"><span class="lbl">From</span><span class="val">{{sales_exec_name}} {{sales_exec_phone}}</span></div>
+      <div class="kv"><span class="lbl">Re</span><span class="val">Quote {{otp_ref}} — {{vehicle_make}} {{vehicle_model}}</span></div>
+      <div class="kv"><span class="lbl">Date</span><span class="val">{{otp_date}}</span></div>
+      <div class="kv"><span class="lbl">Valid Until</span><span class="val">{{valid_until}}</span></div>
+    </div>
+  </div>
+
+  <div class="greeting">
+    <div class="dear">Dear {{client_title}} {{client_name}},</div>
+    Thank you for your enquiry. As per your request, it gives us great pleasure to submit the following
+    offer to purchase, prepared according to your individual requirements. This document, once accepted in
+    writing by an authorised manager of {{trading_name}}, constitutes a binding agreement subject to the
+    Conditions of Offer set out herein.
+  </div>
+
+  <div class="deal-grid">
+
+    <!-- LEFT: vehicle + finance + notes -->
+    <div>
+      <div class="panel">
+        <div class="panel-head">Vehicle Details</div>
+        <table class="spec">
+          <tr><td class="k">Make</td><td class="v">{{vehicle_make}}</td><td class="k2">Year</td><td class="v">{{vehicle_year}}</td></tr>
+          <tr><td class="k">Model</td><td class="v">{{vehicle_model}}</td><td class="k2">Order Type</td><td class="v">{{order_type}}</td></tr>
+          <tr><td class="k">Reg No.</td><td class="v">{{vehicle_reg}}</td><td class="k2">Mileage</td><td class="v">{{vehicle_mileage}}</td></tr>
+          <tr><td class="k">Colour</td><td class="v">{{vehicle_colour}}</td><td class="k2">Trim</td><td class="v">{{vehicle_trim}}</td></tr>
+          <tr><td class="k">VIN No.</td><td class="v">{{vehicle_vin}}</td><td class="k2">Engine No.</td><td class="v">{{vehicle_engine}}</td></tr>
+          <tr><td class="k">Stock No.</td><td class="v">{{vehicle_stock}}</td><td class="k2">M&amp;M Code</td><td class="v">{{vehicle_mm_code}}</td></tr>
+        </table>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">Vehicle Finance Details</div>
+        <table class="spec">
+          <tr><td class="k">Finance Method</td><td class="v">{{finance_method}}</td></tr>
+          <tr><td class="k">Financed By</td><td class="v">{{financed_by}}</td></tr>
+          <tr><td class="k">Bank / Branch</td><td class="v">{{bank_branch}}</td></tr>
+          <tr><td class="k">Branch Phone</td><td class="v">{{branch_phone}}</td></tr>
+          <tr><td class="k">Branch Contact</td><td class="v">{{branch_contact}}</td></tr>
+        </table>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">Notes</div>
+        <div class="notes-body">{{notes}}</div>
+      </div>
+    </div>
+
+    <!-- RIGHT: price + summary + balance -->
+    <div>
+      <div class="panel">
+        <div class="price-head"><span>Vehicle Price</span><span>{{total_incl}}</span></div>
+        <div class="price-row"><span class="lbl">Base Vehicle Price</span><span class="amt">{{base_price}}</span></div>
+        <div class="price-row"><span class="lbl">Extras</span><span class="amt">{{extras}}</span></div>
+        <div class="price-row"><span class="lbl">Value Added Products</span><span class="amt">{{vap}}</span></div>
+        <div class="price-row"><span class="lbl">Administration Fee</span><span class="amt">{{admin_fee}}</span></div>
+        <div class="price-row"><span class="lbl">Delivery Fee</span><span class="amt">{{delivery_fee}}</span></div>
+        <div class="price-row"><span class="lbl">Licensing &amp; Registration{{novat_tag}}</span><span class="amt">{{licensing}}</span></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">Summary</div>
+        <!-- vat_registered = false: VAT shows n/a, no subtotal split.
+             When registered, restore: <div class="subtotal-row"><span>Subtotal (excl. VAT)</span><span>{{subtotal_excl}}</span></div>
+             and set the VAT amount + "Total Price (incl. VAT)" label. -->
+        <div class="price-row"><span class="lbl">VAT</span><span class="amt">{{vat}}</span></div>
+        <div class="subtotal-row tot"><span>Total Price</span><span>{{total_incl}}</span></div>
+        <div class="price-row"><span class="lbl">Less: Deposit</span><span class="amt">- {{deposit}}</span></div>
+      </div>
+
+      <div class="balance-bar"><span>Balance Payable</span><span>{{balance}}</span></div>
+      <div style="font-size:7px;color:var(--grey);text-align:right;padding:5px 2px 0;line-height:1.4;">{{vat_note}}</div>
+    </div>
+  </div>
+
+  <div class="sign-block">
+    <div class="vw-sign-row">
+      <div class="vw-sign">
+        <div class="vw-line"><span class="vw-lbl">Client:</span><span class="vw-rule"></span></div>
+        <div class="vw-name">{{client_title}} {{client_name}}</div>
+      </div>
+      <div class="vw-sign">
+        <div class="vw-line"><span class="vw-lbl">Sales Executive:</span><span class="vw-rule"></span></div>
+        <div class="vw-name">{{sales_exec_name}} {{sales_exec_phone}}</div>
+      </div>
+      <div class="vw-otp">OTP No: <b>{{otp_ref}}</b></div>
+    </div>
+    <div class="vw-sign-row pd">
+      <div class="vw-sign">
+        <div class="vw-line"><span class="vw-lbl">Place:</span><span class="vw-rule"></span></div>
+      </div>
+      <div class="vw-sign">
+        <div class="vw-line"><span class="vw-lbl">Date:</span><span class="vw-rule"></span></div>
+      </div>
+      <div class="vw-otp"></div>
+    </div>
+  </div>
+
+  <div class="servicenote">
+    <b>{{trading_name}}</b> offers a comprehensive suite of services to ensure a seamless buying experience:
+    <ul>
+      <li>Vehicle finance applications, negotiation and processing at all major banks.</li>
+      <li>Vehicle insurance, extended warranty, service and maintenance plans.</li>
+      <li>Risk products such as credit cover and tyre warranty.</li>
+      <li>Value added accessories: tracker, smash &amp; grab, paint protection and more.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================= PAGE 2 -->
+<section class="page">
+  <div class="legal-head"><span>OTP No: <b>{{otp_ref}}</b></span><span>Dated: <b>{{otp_date}}</b></span></div>
+  <div class="legal-title">Conditions of Offer — All Vehicle Sales</div>
+  <div class="legal-sub">Please refer to special conditions for new / pre-owned</div>
+
+  <div class="legal">
+    <h2>1. Definitions</h2>
+    <p class="c">1.1 "I", "me" and "my" refer to the Purchaser; "you", "they" and "Company" refer to Makhulu Holdings (Pty) Ltd t/a {{trading_name}}, which is the Seller; and "us" or "we" refer to the Company and me jointly.</p>
+    <p class="c">1.2 "Offer" means this offer to purchase that I have made to the Company on the terms and conditions contained in this document. Once the Company has accepted this offer, I acknowledge that it will become a binding contract between us.</p>
+    <p class="c">1.3 "Risk" refers to the possibility of suffering harm or loss of a physical or financial nature, and the responsibility for the harm or loss suffered.</p>
+
+    <h2>2. General Conditions of Offer</h2>
+    <p class="c">2.1 I acknowledge and agree that you will not be obliged to make the vehicle available or deliver it to me until a duly authorised manager on behalf of the Company accepts this offer in writing.</p>
+    <p class="c">2.2 If you accept this offer, I acknowledge and agree that:</p>
+    <p class="cc">2.2.1 I will be liable for, and agree to pay against delivery of the vehicle, the balance of the purchase price, which includes, amongst others, those additional items calculated on the vehicle price as contained in this offer;</p>
+    <p class="cc">2.2.2 risk in the vehicle shall pass to me on delivery;</p>
+    <p class="cc">2.2.3 you will continue to own the vehicle until I have paid all monies outstanding;</p>
+    <p class="cc">2.2.4 I have had a proper opportunity to consider the implications of this offer, which is made of my own free will.</p>
+    <p class="c">2.3 The offer will lapse if I am not able to provide satisfactory proof of my ability to pay for the vehicle, or written approval or guarantee of financing of the vehicle by a registered credit provider, within fourteen (14) days of the date of this offer or any extension given by you.</p>
+
+    <h2>3. Delivery</h2>
+    <p class="c">3.1 I accept and agree that delivery of the vehicle (plus any additional items and services I order) will be made:</p>
+    <p class="cc">3.1.1 on the date and at the time as agreed with you, at the Company premises; or</p>
+    <p class="cc">3.1.2 on another date, time and/or premises as you may advise me;</p>
+    <p class="cc">3.1.3 in the event that clause 3.1.2 applies, you agree to advise me of any arrangements or changes within a reasonable period and to take the convenience of both parties into account, and I in turn agree to do the same.</p>
+    <p class="c">3.2 In the event that delivery at the agreed date and time is not possible or proves difficult, you undertake to inform me timeously and to arrange delivery on the soonest possible business day thereafter.</p>
+    <p class="c">3.3 Prior to taking delivery I have the right to examine the vehicle for the purpose of quality and description, without removing the vehicle from your premises or in any way altering it.</p>
+
+    <h2>4. Warranty, Service and Maintenance Plans — If Applicable</h2>
+    <p class="c">In the event that the vehicle still carries a manufacturer's warranty and/or a service plan and/or a maintenance plan, then:</p>
+    <p class="c">4.1 I confirm that the sale of the goods is subject to the applicable manufacturer's warranty, service and/or maintenance plans.</p>
+    <p class="c">4.2 I acknowledge that you have advised me that the vehicle may only be used according to the manufacturer's specifications.</p>
+    <p class="c">4.3 I will read the manufacturer's warranty and user's manual and make myself fully aware of what must and must not be done with and to the goods — being the vehicle, the tyres and the extras — in order for the goods to function correctly and safely.</p>
+    <p class="c">4.4 I will make myself familiar with my obligations in respect of the warranty, the warranty periods, the service requirements, and the terms and conditions which fall outside of the manufacturer's warranty.</p>
+    <p class="c">4.5 I confirm that I have been advised that any manufacturer's warranty, service and/or maintenance plans may be void or cancelled (in whole or in part) if the terms and conditions in those documents or the owner's manual have not been complied with.</p>
+    <p class="c">4.6 The warranty runs concurrently with any other statutory warranty applicable to the vehicle.</p>
+    <p class="c">4.7 I acknowledge that no other warranties, undertakings or representations have been given (express or implied) other than those contained in this offer to purchase.</p>
+
+    <h2>5. Ordering Fee</h2>
+    <p class="c">If I have paid an ordering fee, you will hold this ordering fee until you accept the offer. Should you accept the offer, the ordering fee will be deducted from the balance of the purchase price. If I am in breach of this contract, or if I am entitled to cancel it, I will remain liable for any amounts that were due to you in terms of this agreement up to and including the date of cancellation. I agree that you may deduct a reasonable charge for cancellation.</p>
+  </div>
+
+  <div class="legal-sign">
+    <div class="vw-sign-row">
+      <div class="vw-sign">
+        <div class="vw-line"><span class="vw-lbl">Client:</span><span class="vw-rule"></span></div>
+        <div class="vw-name">{{client_title}} {{client_name}}</div>
+      </div>
+      <div class="vw-sign">
+        <div class="vw-line"><span class="vw-lbl">Sales Executive:</span><span class="vw-rule"></span></div>
+        <div class="vw-name">{{sales_exec_name}}</div>
+      </div>
+      <div class="vw-otp">OTP No: <b>{{otp_ref}}</b></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================= PAGE 3 -->
+<section class="page">
+  <div class="legal-head"><span>OTP No: <b>{{otp_ref}}</b></span><span>Dated: <b>{{otp_date}}</b></span></div>
+
+  <div class="legal">
+    <h2>6. Special Conditions Relating to Trade-Ins — If Applicable</h2>
+    <div class="two-col">
+      <div>
+        <p class="c">6.1 I warrant that:</p>
+        <p class="cc">6.1.1 the traded-in vehicle is my sole property;</p>
+        <p class="cc">6.1.2 no other person has any right in or to it;</p>
+        <p class="cc">6.1.3 it is not subject to any right of retention or other legal impediment;</p>
+        <p class="cc">6.1.4 all defects in the trade-in vehicle have been disclosed prior to the valuation by you;</p>
+        <p class="cc">6.1.5 I have disclosed all modifications on the vehicle to you;</p>
+        <p class="cc">6.1.6 the vehicle has not suffered any accident damage exceeding R20 000.</p>
+        <p class="c">6.2 I hereby authorise you to settle any amount owing to the financial institution, or any third party, for my traded-in vehicle.</p>
+        <p class="c">6.3 I warrant that the date of first registration and/or the year of manufacture of the traded-in vehicle, together with all other information I supply in respect of the vehicle, is correct, and I agree that you based your valuation on this warranty.</p>
+        <p class="c">6.4 I agree that you may, at your election, reduce the value of the vehicle traded-in if, in your opinion, it is not in the same condition as when you valued it, or if the year of manufacture and/or date of first registration or any other information I supplied is incorrect; or, in the alternative, cancel this agreement.</p>
+      </div>
+      <div>
+        <div class="dec-box">
+          <div class="dh">Trade-in declarations</div>
+          <div class="dl"></div><div class="dl"></div><div class="dl"></div><div class="dl"></div><div class="dl"></div>
+        </div>
+      </div>
+    </div>
+
+    <h2>7. Hazardous Nature of Motor Vehicle</h2>
+    <p class="c">I am aware that a motor vehicle, and its various parts, are goods that could be dangerous and hazardous, and that if used contrary to specifications and/or instructions, or if used incorrectly or inappropriately, or in a manner or for a purpose for which these goods were not designed, or if I abuse or misuse the items, then these goods could cause damage and harm.</p>
+
+    <h2>8. Fit for Purpose</h2>
+    <p class="c">8.1 If I require the vehicle for a specific purpose, I will communicate this purpose to you in writing prior to making this offer.</p>
+    <p class="c">8.2 I have read all of the material made available to me by you setting out the specifications and capabilities of the vehicle, and I confirm that this vehicle appears fit for the purpose for which I am purchasing it.</p>
+    <p class="c">8.3 The vehicle that I propose to purchase meets my needs in all material respects. I have had sufficient opportunity to inspect the vehicle and am satisfied that I have been made fully aware of the operating instructions and dangers inherent in its operation. I further confirm that the vehicle matches my lifestyle needs and that I have not been subject to any untoward influence by any person in the employ of {{trading_name}} to purchase the vehicle.</p>
+
+    <h2>9. Return</h2>
+    <p class="c">If I am entitled to return the vehicle to you:</p>
+    <p class="cc">9.1 for any reason whatsoever and I want to cancel the sale, then I understand that by returning it and cancelling the sale, the value of this vehicle may drop. If I choose to do this, I understand that:</p>
+    <p class="ccc">9.1.1 I will have to immediately pay to you the full difference between the price I paid for the vehicle and the price at which you will sell the vehicle to somebody else; and</p>
+    <p class="ccc">9.1.2 I will then also be liable for all the costs that you will reasonably incur to restock the vehicle.</p>
+
+    <h2>10. Miscellaneous Conditions</h2>
+    <p class="c">10.1 If a complaint or dispute arises between us, I shall inform you in writing of the extent and nature of the complaint or dispute. The Company will attempt to resolve the matter amicably within ten (10) business days. If we are unable to resolve it within that period, either party shall be entitled to refer the matter to the accredited Motor Industry Ombudsman. This procedure does not affect our rights to approach a competent court.</p>
+    <p class="c">10.2 No variation of these terms and conditions will be of any force or effect unless in writing and signed by both of us.</p>
+    <p class="c">10.3 The failure of either of us to enforce any rights in terms of this offer shall not amount to a waiver of such rights.</p>
+    <p class="c">10.4 I have read the terms and conditions contained in this offer and I understand and accept them in every respect.</p>
+    <p class="c">10.5 If any of the terms and conditions in this agreement are found to be invalid, that will not invalidate the remainder of this agreement.</p>
+    <p class="c">10.6 For the purpose of the service of any legal documents or notices in terms of this offer, we choose the addresses reflected in this schedule.</p>
+  </div>
+
+  <div class="legal-sign">
+    <div class="vw-sign-row">
+      <div class="vw-sign">
+        <div class="vw-line"><span class="vw-lbl">Client:</span><span class="vw-rule"></span></div>
+        <div class="vw-name">{{client_title}} {{client_name}}</div>
+      </div>
+      <div class="vw-sign">
+        <div class="vw-line"><span class="vw-lbl">Sales Executive:</span><span class="vw-rule"></span></div>
+        <div class="vw-name">{{sales_exec_name}}</div>
+      </div>
+      <div class="vw-otp">OTP No: <b>{{otp_ref}}</b></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================= PAGE 4 -->
+<section class="page">
+  <div class="legal-head"><span>OTP No: <b>{{otp_ref}}</b></span><span>Dated: <b>{{otp_date}}</b></span></div>
+
+  <div class="legal">
+    <h2>11. Vehicle Specifications (Specifically Applies to Pre-Owned Vehicles)</h2>
+    <p class="c">11.1 I acknowledge that you and your representatives/employees sell a variety of motor vehicles and may not have knowledge of all of the manufacturer's specifications of the vehicle I am purchasing, and as such I will consider any recommendations made by them to be those of an ordinary person and not an expert.</p>
+    <p class="c">11.2 I further confirm that I have had sufficient opportunity, on my own, to consider whether this vehicle is appropriate for my needs.</p>
+    <p class="c">11.3 I acknowledge that the manufacturer's sales and promotional material containing additional information regarding the vehicle, other than the specifications contained in the owner's manual (if available), may no longer be available.</p>
+    <p class="c">11.4 I particularly accept that, to the best of your knowledge, you believe the date of first registration and/or the year of manufacture to be the date stated in this document, and that the odometer reading on the vehicle is correct, but that you cannot warrant this. I accept that in certain circumstances this information may not be correct.</p>
+    <p class="c">11.5 In the event that the odometer reading, year of manufacture, date of first registration or any other information used in valuing the vehicle proves inaccurate or incorrect, you will at the soonest reasonable opportunity reimburse me the difference between the vehicle value appearing on this offer and the vehicle's correct value at the time of delivery.</p>
+
+    <div class="legal-sub" style="margin-top:8px;">Special Acknowledgment</div>
+    <p class="c">11.6 I accept that you have disclosed the following risk(s), defect(s), failure(s), hazard(s) or unsafe item(s), and that I will accept the vehicle in that condition:</p>
+    <div style="margin:6px 0 4px;">
+      <p style="margin:7px 0;">1. <span class="fill" style="min-width:74%"></span></p>
+      <p style="margin:7px 0;">2. <span class="fill" style="min-width:74%"></span></p>
+      <p style="margin:7px 0;">3. <span class="fill" style="min-width:74%"></span></p>
+      <p style="margin:7px 0;">4. <span class="fill" style="min-width:74%"></span></p>
+      <p style="margin:7px 0;">5. <span class="fill" style="min-width:74%"></span></p>
+    </div>
+    <p style="text-align:right;margin-top:6px;"><span class="fill" style="min-width:160px"></span><br><span style="font-size:7px;color:var(--grey);">Customer Signature if applicable</span></p>
+
+    <h2>12. Vehicle Specifications (Specifically Applies to New Vehicles)</h2>
+    <p class="c">I confirm that you have referred me to the sales and promotional material of the manufacturer, including the specifications of the vehicle, to inform me what the vehicle is capable of, and I confirm that, based on that material, I am satisfied that the vehicle is suited for the purpose for which I have indicated to you and for which I am purchasing it.</p>
+
+    <h2>13. Special Conditions of Sale (Specifically Applies to New Vehicles)</h2>
+    <p class="c">13.1 You have advised me that the list price (the manufacturer's recommended retail price) applicable at the date of delivery may be higher than the price appearing on this offer. I have been advised that, should I opt to cancel the contract on the basis of the price difference, you may deduct a reasonable charge for cancellation.</p>
+    <p class="c">13.2 I agree that the vehicle is new, notwithstanding —</p>
+    <p class="cc">13.2.1 that it may have been driven under its own power (with or without the distance travelled having been recorded on the odometer) from the place of assembly to the place of delivery, for demonstration purposes, or for pre-delivery testing;</p>
+    <p class="cc">13.2.2 that it may have incurred minor wear and tear in the course of the above.</p>
+    <p class="c">13.3 If the vehicle is not in stock and I decide to proceed, you will give me an estimate of when delivery can take place, and I agree to take delivery whether or not delivery takes place on, before or after the estimated date, provided that it: is of the make and model set out in this offer; differs only in minor respects due to manufacturer design changes; and the delay was due to factors outside the dealership's control.</p>
+  </div>
+
+  <div class="legal-sign">
+    <div class="vw-sign-row">
+      <div class="vw-sign">
+        <div class="vw-line"><span class="vw-lbl">Client:</span><span class="vw-rule"></span></div>
+        <div class="vw-name">{{client_title}} {{client_name}}</div>
+      </div>
+      <div class="vw-sign">
+        <div class="vw-line"><span class="vw-lbl">Sales Executive:</span><span class="vw-rule"></span></div>
+        <div class="vw-name">{{sales_exec_name}}</div>
+      </div>
+      <div class="vw-otp">OTP No: <b>{{otp_ref}}</b></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================= PAGE 5 -->
+<section class="page">
+  <div class="legal-head"><span>OTP No: <b>{{otp_ref}}</b></span><span>Dated: <b>{{otp_date}}</b></span></div>
+
+  <div class="legal">
+    <h2>14. Data Protection Information</h2>
+    <p class="c">14.1 I am aware that when I purchase a vehicle from {{trading_name}}, Makhulu Holdings (Pty) Ltd t/a {{trading_name}} processes my personal information as the Responsible Party.</p>
+    <p class="c">14.2 I am aware that you do not sell my information to third parties. However, you may from time to time disclose and jointly process my personal information with your service providers, finance and insurance partners, agents and affiliates, strictly for the purpose of rendering the services I have requested.</p>
+    <p class="c">14.3 I am aware that I have the right to access the personal information you hold about me and to make corrections if necessary, and the right to object to the processing of my personal information. I also have the right to withdraw any consent I have previously given and to ask you to erase or delete information you hold about me.</p>
+    <p class="c">14.4 I am aware that if I am dissatisfied, I have the right to lodge a complaint with {{trading_name}} or directly with the Information Regulator.</p>
+    <p class="c">14.5 I am aware that {{trading_name}} may inform me of necessary vehicle and service information related to the maintenance of my vehicle. I may withdraw consent to this processing at any time.</p>
+    <p class="c">14.6 I am aware that {{trading_name}} may conduct surveys to improve its service and product offerings and may occasionally contact me to request my participation. I may withdraw consent to this processing at any time.</p>
+    <p class="c">14.7 I wish to receive promotional communication (e.g. retail offers, service offers, parts specials). I may withdraw consent at any time. &nbsp; Yes <span class="fill-sm"></span> &nbsp; No <span class="fill-sm"></span></p>
+    <p class="c">14.8 I wish to receive beneficial information (e.g. event invitations, newsletters). I may withdraw consent at any time. &nbsp; Yes <span class="fill-sm"></span> &nbsp; No <span class="fill-sm"></span></p>
+    <p class="c">14.9 I may: refuse to accept; inform you in writing to discontinue; or register a pre-emptive block with the Registry for Direct Marketing against any direct marketing communication from you.</p>
+
+    <h2>15. Consent to Process Personal Information (POPIA, Act 4 of 2013)</h2>
+    <p class="c">15.1 I am required by law to provide you with all documentation in terms of the Financial Intelligence Centre Act, No. 38 of 2001 (FICA), and should I fail to provide the required documentation, this offer cannot proceed.</p>
+    <p class="c">15.2 I authorise you to submit my particulars to the eNaTIS system for registration of the vehicle on the national database of roadworthy vehicles and licensed drivers.</p>
+    <p class="c">15.3 I give my consent to {{trading_name}} to collect, process and distribute my personal information where {{trading_name}} is legally required to do so.</p>
+    <p class="c">15.4 I understand my right to privacy and the right to have my personal information processed in accordance with the conditions for lawful processing.</p>
+    <p class="c">15.5 I acknowledge that I understand the purposes for which my personal information is required and will be used — namely, to enable {{trading_name}} to render the required services to me.</p>
+    <p class="c">15.6 I consent to {{trading_name}} sharing my personal information strictly for reporting to the relevant authorities and to render the services requested by me.</p>
+    <p class="c">15.7 I understand that, should I refuse to provide the required consent and/or information, {{trading_name}} will be unable to assist me with any of the services requested.</p>
+    <p class="c">15.8 I understand that all personal information I provide will be held and/or stored securely for the purpose for which it was collected.</p>
+    <p class="c">15.9 I declare that all personal information supplied is accurate, up-to-date, not misleading, and complete in all respects, and I undertake to immediately advise {{trading_name}} of any changes.</p>
+  </div>
+
+  <div class="ack-bar">
+    By my signature hereto, I acknowledge that {{trading_name}} is required to submit my particulars to the eNaTIS system for registration of the vehicle on the national database of roadworthy vehicles and licensed drivers, and I authorise this submission to the extent required.
+  </div>
+  <div class="consent-line">I would like to receive promotional emails such as retail and service offers and specials from {{trading_name}}: &nbsp; Yes <span class="fill-sm"></span> &nbsp; No <span class="fill-sm"></span></div>
+  <div class="consent-line">I would like to receive beneficial information such as event invitations and newsletters: &nbsp; Yes <span class="fill-sm"></span> &nbsp; No <span class="fill-sm"></span></div>
+  <div class="consent-line" style="color:var(--grey)">You are free to withdraw your consent to the above communications by unsubscribing at any time. By signing this document I acknowledge that it was fully completed with the information you are allowed to use.</div>
+
+  <div class="final-sign">
+    Sales Manager / DP: <span class="fill" style="min-width:200px"></span> &nbsp; Place: <span class="fill" style="min-width:120px"></span> &nbsp; Date: <span class="fill" style="min-width:120px"></span><br><br>
+    Signed at <span class="fill" style="min-width:150px"></span> on <span class="fill" style="min-width:120px"></span>
+    <br><br>
+    <table style="width:100%;font-size:7.8px;margin-top:6px;">
+      <tr>
+        <td style="border-top:1px solid var(--ink);padding-top:4px;width:45%;">{{client_title}} {{client_name}}<br><span style="color:var(--grey);font-size:7px;">Purchaser Signature &amp; Date</span></td>
+        <td style="width:10%;"></td>
+        <td style="border-top:1px solid var(--ink);padding-top:4px;width:45%;">{{sales_exec_name}}<br><span style="color:var(--grey);font-size:7px;">Sales Executive Signature &amp; Date</span></td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="contact-grid">
+    <div class="contact-box">
+      <div class="ch">Information Regulator</div>
+      Physical: JD House, 27 Stiemens Street, Braamfontein, Johannesburg, 2001<br>
+      Postal: P.O. Box 31533, Braamfontein, Johannesburg, 2017<br>
+      Complaints: complaints.IR@justice.gov.za<br>
+      Enquiries: inforeg@justice.gov.za
+    </div>
+    <div class="contact-box">
+      <div class="ch">Motor Industry Ombudsman (MIOSA)</div>
+      Physical: Meiring Naudé Rd, Scientia 627-Jr, Pretoria, 0184<br>
+      How to complain: www.miosa.co.za/how-to-complain.php<br>
+      Complaints: info@miosa.co.za<br>
+      Enquiries: info@miosa.co.za
+    </div>
+  </div>
+
+  <div class="internal-box">
+    <span class="ih">For internal use only — Privacy data loaded.</span><br>
+    By <span class="fill" style="min-width:150px"></span> &nbsp; Date <span class="fill" style="min-width:120px"></span> &nbsp; Sign <span class="fill" style="min-width:150px"></span>
+  </div>
+
+  <div style="margin-top:auto;padding-top:12px;text-align:center;font-size:7px;color:var(--grey);border-top:1px solid var(--line-soft);">
+    Makhulu Holdings (Pty) Ltd t/a {{trading_name}} &bull; Offer to Purchase &bull; {{otp_ref}}
+  </div>
+</section>
+
+</body>
+</html>

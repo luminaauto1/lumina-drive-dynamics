@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { OtpLineToggles, DEFAULT_LINE_TOGGLES } from '@/features/otp/types';
 
 /** Customizable company / invoice / OTP document settings (stored as one JSON
  *  blob on site_settings.document_settings). Read directly from site_settings
@@ -31,6 +32,12 @@ export interface DocumentSettings {
   // OTP (Offer to Purchase)
   otpValidityDays: number;
   otpTerms: string; // optional override; empty = use the built-in legal terms
+  otpPrefix: string; // ref prefix, e.g. "OTP-" (ref = prefix + year + "-" + NNNN)
+  otpNextNumber: number; // next sequence number
+  otpSalesExecutive: string; // default sales executive on new OTPs
+  otpDefaultDeliveryFee: number;
+  otpDefaultLicensing: number;
+  otpLines: OtpLineToggles; // which fee lines are enabled by default
   // Bank branch codes — printed on the finance application PDF based on the client's bank.
   bankBranches: { bank: string; branchName: string; branchCode: string }[];
 }
@@ -84,6 +91,12 @@ export const DEFAULT_DOCUMENT_SETTINGS: DocumentSettings = {
   defaultAdminFee: 2500,
   otpValidityDays: 7,
   otpTerms: '',
+  otpPrefix: 'OTP-',
+  otpNextNumber: 1,
+  otpSalesExecutive: 'Albert Prinsloo',
+  otpDefaultDeliveryFee: 0,
+  otpDefaultLicensing: 0,
+  otpLines: DEFAULT_LINE_TOGGLES,
   bankBranches: DEFAULT_BANK_BRANCHES,
 };
 
@@ -134,4 +147,17 @@ export const consumeInvoiceNumber = async (current: DocumentSettings): Promise<s
     await (supabase as any).from('site_settings').update({ document_settings: merged }).eq('id', row.id);
   }
   return `${current.invoicePrefix || 'INV-'}${num}`;
+};
+
+/** Returns the OTP reference to use now (e.g. OTP-2026-0001) and bumps the stored counter. */
+export const consumeOtpNumber = async (current: DocumentSettings): Promise<string> => {
+  const num = current.otpNextNumber || 1;
+  const year = new Date().getFullYear();
+  const { data: row } = await (supabase as any)
+    .from('site_settings').select('id, document_settings').limit(1).maybeSingle();
+  if (row?.id) {
+    const merged = { ...DEFAULT_DOCUMENT_SETTINGS, ...(row.document_settings || {}), otpNextNumber: num + 1 };
+    await (supabase as any).from('site_settings').update({ document_settings: merged }).eq('id', row.id);
+  }
+  return `${current.otpPrefix || 'OTP-'}${year}-${String(num).padStart(4, '0')}`;
 };

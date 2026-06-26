@@ -1,0 +1,14 @@
+/* Print isolation: when printing, hide the app chrome and show only the OTP document
+   at full A4 scale (the on-screen preview is scaled down via .otp-preview-wrap). */
+@media print {
+  html, body { background: #fff !important; }
+  body * { visibility: hidden !important; }
+  .otp-print-root, .otp-print-root * { visibility: visible !important; }
+  .otp-print-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 210mm;
+    transform: none !important; /* cancel the preview scale for print */
+  }
+}
