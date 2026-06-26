@@ -1,69 +1,83 @@
-import { LayoutDashboard, Car, Users, CreditCard, Settings, ChevronLeft, ChevronRight, ChevronDown, BarChart3, Package, Home, FileBarChart, Banknote, ShoppingCart, Calculator, Contact, Briefcase, TableProperties, Mail, Gift, Building2, FolderOpen, Search } from 'lucide-react';
+import {
+  LayoutDashboard, TableProperties, CreditCard, ClipboardList, Users, Car,
+  Calculator, FileSignature, FolderOpen, Building2, ShoppingCart, Banknote,
+  Receipt, Coins, Truck, FileBarChart, BarChart3, LineChart, Download,
+  Briefcase, Gift, Contact, Settings, Mail, Search, ChevronLeft, ChevronRight, Home,
+} from 'lucide-react';
 import { NavLink, useLocation, Link } from 'react-router-dom';
 import { OPEN_GLOBAL_SEARCH_EVENT } from './GlobalSearch';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useOutstandingReferralCount } from '@/hooks/useReferrals';
 import { useMyAllowedSections } from '@/hooks/useRolePermissions';
 import { sectionForPath } from '@/lib/permissions';
 
-interface NavGroup {
-  title: string;
-  icon: any;
-  children: { title: string; path: string }[];
-}
-
-interface NavItem {
+interface NavLeaf {
   title: string;
   icon: any;
   path: string;
 }
+interface NavSection {
+  label: string;
+  items: NavLeaf[];
+}
 
-type MenuItem = NavItem | NavGroup;
-
-const isGroup = (item: MenuItem): item is NavGroup => 'children' in item;
-
-const menuItems: MenuItem[] = [
-  { title: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
+// Flat, direct-link navigation grouped under quiet section headers (no dropdowns).
+// Daily-use destinations first. Every item navigates straight to its tab.
+const navSections: NavSection[] = [
   {
-    title: 'Inventory',
-    icon: Car,
-    children: [
-      { title: 'Active Stock', path: '/admin/inventory' },
-      { title: 'Cars to Buy', path: '/admin/cars-to-buy' },
-    ],
-  },
-  { title: 'CRM', icon: Users, path: '/admin/crm' },
-  { title: 'Finance', icon: CreditCard, path: '/admin/finance' },
-  { title: 'Pipeline', icon: TableProperties, path: '/admin/pipeline-v2' },
-  { title: 'Documents Hub', icon: FolderOpen, path: '/admin/documents' },
-  { title: 'Quote Generator', icon: Calculator, path: '/admin/quotes' },
-  { title: 'Juristic Capture', icon: Building2, path: '/admin/juristic' },
-  { title: 'Extra Incomes', icon: Banknote, path: '/admin/extra-incomes' },
-  { title: 'Trade Network', icon: Briefcase, path: '/admin/network' },
-  { title: 'Referrals', icon: Gift, path: '/admin/referrals' },
-  {
-    title: 'Financials',
-    icon: Package,
-    children: [
-      { title: 'Deal Ledger', path: '/admin/aftersales' },
-      { title: 'Deal Desk', path: '/admin/deal-desk' },
-      { title: 'Reports', path: '/admin/reports' },
-      { title: 'Vendors', path: '/admin/vendors' },
-      { title: 'Invoice Creator', path: '/admin/invoices' },
-      { title: 'Export Builder', path: '/admin/export' },
-      { title: 'Lead Analytics', path: '/admin/reports/lead-analytics' },
-      { title: 'Analytics', path: '/admin/analytics' },
+    label: 'Main',
+    items: [
+      { title: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
+      { title: 'Pipeline', icon: TableProperties, path: '/admin/pipeline-v2' },
+      { title: 'Finance', icon: CreditCard, path: '/admin/finance' },
+      { title: 'Deal Desk', icon: ClipboardList, path: '/admin/deal-desk' },
+      { title: 'CRM', icon: Users, path: '/admin/crm' },
+      { title: 'Inventory', icon: Car, path: '/admin/inventory' },
     ],
   },
   {
-    title: 'Settings',
-    icon: Settings,
-    children: [
-      { title: 'General', path: '/admin/settings' },
-      { title: 'Email Templates', path: '/admin/settings/email' },
+    label: 'Docs & Sales',
+    items: [
+      { title: 'Quote Generator', icon: Calculator, path: '/admin/quotes' },
+      { title: 'OTP Generator', icon: FileSignature, path: '/admin/otp' },
+      { title: 'Documents Hub', icon: FolderOpen, path: '/admin/documents' },
+      { title: 'Juristic Capture', icon: Building2, path: '/admin/juristic' },
+      { title: 'Cars to Buy', icon: ShoppingCart, path: '/admin/cars-to-buy' },
+    ],
+  },
+  {
+    label: 'Money',
+    items: [
+      { title: 'Deal Ledger', icon: Banknote, path: '/admin/aftersales' },
+      { title: 'Invoice Creator', icon: Receipt, path: '/admin/invoices' },
+      { title: 'Extra Incomes', icon: Coins, path: '/admin/extra-incomes' },
+      { title: 'Vendors', icon: Truck, path: '/admin/vendors' },
+    ],
+  },
+  {
+    label: 'Insights',
+    items: [
+      { title: 'Reports', icon: FileBarChart, path: '/admin/reports' },
+      { title: 'Analytics', icon: BarChart3, path: '/admin/analytics' },
+      { title: 'Lead Analytics', icon: LineChart, path: '/admin/reports/lead-analytics' },
+      { title: 'Export Builder', icon: Download, path: '/admin/export' },
+    ],
+  },
+  {
+    label: 'Network',
+    items: [
+      { title: 'Trade Network', icon: Briefcase, path: '/admin/network' },
+      { title: 'Referrals', icon: Gift, path: '/admin/referrals' },
+      { title: 'Contacts', icon: Contact, path: '/admin/contacts' },
+    ],
+  },
+  {
+    label: 'System',
+    items: [
+      { title: 'Settings', icon: Settings, path: '/admin/settings' },
+      { title: 'Email Templates', icon: Mail, path: '/admin/settings/email' },
     ],
   },
 ];
@@ -83,9 +97,9 @@ const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
     onCollapse?.(collapsed);
   }, [collapsed, onCollapse]);
 
-  // The Finance applications table is wide — auto-collapse the sidebar when entering
-  // it to free up horizontal space (desktop only; the mobile drawer has no onCollapse).
-  const onFinance = location.pathname.startsWith('/admin/finance') || location.pathname.startsWith('/admin/pipeline-v2');
+  // The Finance/Pipeline tables are wide — auto-collapse to free horizontal space.
+  const onFinance =
+    location.pathname.startsWith('/admin/finance') || location.pathname.startsWith('/admin/pipeline-v2');
   useEffect(() => {
     if (onFinance && onCollapse) setCollapsed(true);
   }, [onFinance, onCollapse]);
@@ -93,35 +107,55 @@ const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
   const isPathActive = (path: string) =>
     location.pathname === path || (path !== '/admin' && location.pathname.startsWith(path));
 
-  const isGroupActive = (group: NavGroup) =>
-    group.children.some(c => isPathActive(c.path));
-
-  // A path is visible when the user is an admin, or its governing section is one the
-  // user's role is granted (Settings/Dashboard have no section → admin-only).
+  // A path is visible when the user is an admin, or its governing section is granted.
   const canSeePath = (path: string) => {
     if (isAdmin) return true;
     const section = sectionForPath(path);
     return !!section && allowed.has(section);
   };
 
-  // Filter menu by the per-role section matrix.
-  const visibleMenuItems = menuItems
-    .map((item) => {
-      if (isGroup(item)) {
-        const allowedChildren = item.children.filter(c => canSeePath(c.path));
-        if (allowedChildren.length === 0) return null;
-        return { ...item, children: allowedChildren } as NavGroup;
-      }
-      return canSeePath(item.path) ? item : null;
-    })
-    .filter(Boolean) as MenuItem[];
+  const visibleSections = navSections
+    .map((s) => ({ ...s, items: s.items.filter((i) => canSeePath(i.path)) }))
+    .filter((s) => s.items.length > 0);
 
+  const renderItem = (item: NavLeaf) => {
+    const active = isPathActive(item.path);
+    return (
+      <NavLink
+        key={item.path}
+        to={item.path}
+        onClick={onNavigate}
+        title={collapsed ? item.title : undefined}
+        className={cn(
+          'relative flex items-center gap-2.5 rounded-md transition-colors',
+          collapsed ? 'justify-center px-2 py-2' : 'px-3 py-1.5',
+          active
+            ? 'bg-primary text-primary-foreground'
+            : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
+        )}
+      >
+        <item.icon className="h-[18px] w-[18px] flex-shrink-0" />
+        {!collapsed && <span className="text-sm font-medium flex-1 truncate">{item.title}</span>}
+        {item.path === '/admin/referrals' && outstandingRefs > 0 && (
+          <span
+            className={cn(
+              'inline-flex items-center justify-center rounded-full bg-amber-500/90 text-black text-[10px] font-semibold px-1.5 min-w-[1.25rem] h-4',
+              collapsed && 'absolute right-1 top-1 px-1 min-w-[0.9rem] h-3.5 text-[8px]',
+            )}
+            title={`${outstandingRefs} referral fee${outstandingRefs === 1 ? '' : 's'} outstanding`}
+          >
+            {outstandingRefs}
+          </span>
+        )}
+      </NavLink>
+    );
+  };
 
   return (
     <aside
       className={cn(
         'fixed left-0 top-0 z-40 h-screen bg-card border-r border-border transition-all duration-300',
-        collapsed ? 'w-16' : 'w-64'
+        collapsed ? 'w-16' : 'w-60',
       )}
     >
       {/* Logo */}
@@ -143,111 +177,36 @@ const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
       </div>
 
       {/* Navigation */}
-      <nav className="p-2 space-y-1 overflow-y-auto h-[calc(100vh-8rem)]">
+      <nav className="px-2 py-2 overflow-y-auto h-[calc(100vh-8rem)]">
         {/* Global search trigger (opens the Cmd/Ctrl+K palette) */}
         <button
           type="button"
           onClick={() => { window.dispatchEvent(new CustomEvent(OPEN_GLOBAL_SEARCH_EVENT)); onNavigate?.(); }}
           title="Search clients, applications, vehicles (Ctrl/⌘ K)"
           className={cn(
-            'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors w-full text-left mb-1',
+            'flex items-center gap-2.5 rounded-md transition-colors w-full text-left mb-2',
             'text-muted-foreground hover:bg-secondary hover:text-foreground',
-            collapsed && 'justify-center'
+            collapsed ? 'justify-center px-2 py-2' : 'px-3 py-1.5',
           )}
         >
-          <Search className="h-5 w-5 flex-shrink-0" />
-          {!collapsed && <span className="font-medium flex-1">Search</span>}
+          <Search className="h-[18px] w-[18px] flex-shrink-0" />
+          {!collapsed && <span className="text-sm font-medium flex-1">Search</span>}
           {!collapsed && (
             <kbd className="ml-auto text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5">⌘K</kbd>
           )}
         </button>
 
-        {visibleMenuItems.map((item) => {
-          if (isGroup(item)) {
-            const groupActive = isGroupActive(item);
-
-            // Collapsed mode: show just the icon
-            if (collapsed) {
-              return (
-                <NavLink
-                  key={item.title}
-                  to={item.children[0].path}
-                  onClick={onNavigate}
-                  className={cn(
-                    'flex items-center justify-center px-3 py-2.5 rounded-lg transition-colors',
-                    groupActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
-                  )}
-                >
-                  <item.icon className="h-5 w-5 flex-shrink-0" />
-                </NavLink>
-              );
-            }
-
-            return (
-              <Collapsible key={item.title} defaultOpen={groupActive}>
-                <CollapsibleTrigger className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors w-full text-left text-muted-foreground hover:bg-secondary hover:text-foreground group">
-                  <item.icon className="h-5 w-5 flex-shrink-0" />
-                  <span className="font-medium flex-1">{item.title}</span>
-                  <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="ml-6 mt-1 space-y-0.5 border-l border-border pl-3">
-                    {item.children.map((child) => {
-                      const active = isPathActive(child.path);
-                      return (
-                        <NavLink
-                          key={child.path}
-                          to={child.path}
-                          onClick={onNavigate}
-                          className={cn(
-                            'flex items-center px-3 py-2 rounded-lg text-sm transition-colors',
-                            active
-                              ? 'bg-primary text-primary-foreground'
-                              : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
-                          )}
-                        >
-                          {child.title}
-                        </NavLink>
-                      );
-                    })}
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-            );
-          }
-
-          // Single link item
-          const active = isPathActive(item.path);
-          return (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              onClick={onNavigate}
-              className={cn(
-                'relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
-                active
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
-              )}
-            >
-              <item.icon className="h-5 w-5 flex-shrink-0" />
-              {!collapsed && <span className="font-medium flex-1">{item.title}</span>}
-              {item.path === '/admin/referrals' && outstandingRefs > 0 && (
-                <span
-                  className={cn(
-                    'ml-auto inline-flex items-center justify-center rounded-full bg-amber-500/90 text-black text-[10px] font-semibold px-1.5 min-w-[1.25rem] h-5',
-                    collapsed && 'absolute right-1 top-1 px-1 min-w-[1rem] h-4 text-[9px]',
-                  )}
-                  title={`${outstandingRefs} referral fee${outstandingRefs === 1 ? '' : 's'} outstanding`}
-                >
-                  {outstandingRefs}
-                </span>
-              )}
-            </NavLink>
-          );
-        })}
+        {visibleSections.map((section) => (
+          <div key={section.label} className="mb-1">
+            {!collapsed && (
+              <div className="px-3 pt-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                {section.label}
+              </div>
+            )}
+            {collapsed && <div className="my-1.5 mx-3 border-t border-border/60" />}
+            <div className="space-y-0.5">{section.items.map(renderItem)}</div>
+          </div>
+        ))}
       </nav>
 
       {/* Back to Home */}
@@ -255,13 +214,15 @@ const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
         <Link
           to="/"
           onClick={onNavigate}
+          title={collapsed ? 'Back to Home' : undefined}
           className={cn(
-            'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
-            'text-muted-foreground hover:bg-secondary hover:text-foreground'
+            'flex items-center gap-2.5 rounded-md transition-colors',
+            collapsed ? 'justify-center px-2 py-2' : 'px-3 py-1.5',
+            'text-muted-foreground hover:bg-secondary hover:text-foreground',
           )}
         >
-          <Home className="h-5 w-5 flex-shrink-0" />
-          {!collapsed && <span className="font-medium">Back to Home</span>}
+          <Home className="h-[18px] w-[18px] flex-shrink-0" />
+          {!collapsed && <span className="text-sm font-medium">Back to Home</span>}
         </Link>
       </div>
     </aside>
