@@ -12,6 +12,7 @@ import { formatPrice } from '@/hooks/useVehicles';
 import { useInventoryTasks, useCreateInventoryTask, useUpdateInventoryTask, useDeleteInventoryTask, InventoryTask } from '@/hooks/useInventoryTasks';
 import { useVehicleExpenses, useCreateVehicleExpense, useDeleteVehicleExpense, VehicleExpense, EXPENSE_CATEGORIES } from '@/hooks/useVehicleExpenses';
 import { supabase } from '@/integrations/supabase/client';
+import { compressImage } from '@/lib/imageCompression';
 import { toast } from 'sonner';
 
 interface VehicleOperationsTabProps {
@@ -101,13 +102,14 @@ const VehicleOperationsTab = ({ vehicleId, purchasePrice, sellingPrice }: Vehicl
 
     setIsUploadingReceipt(true);
     try {
-      const fileExt = file.name.split('.').pop();
+      const compressed = await compressImage(file);
+      const fileExt = compressed.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `receipts/${vehicleId}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('vehicle-images')
-        .upload(filePath, file);
+        .upload(filePath, compressed, { contentType: compressed.type, cacheControl: '3600' });
 
       if (uploadError) throw uploadError;
 

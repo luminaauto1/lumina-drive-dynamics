@@ -1,5 +1,10 @@
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import {
+  MONTSERRAT_REGULAR_TTF_BASE64,
+  MONTSERRAT_BOLD_TTF_BASE64,
+  LUMINA_LOGO_DATA_URL,
+} from './otpBrandAssets';
 
 export interface OTPData {
   // Client
@@ -22,11 +27,12 @@ export interface OTPData {
   engineNo: string;
   mileage: string;
 
-  // Financial
+  // Financial (all VAT-inclusive inputs)
   basePrice: number;
   extrasPrice: number;
   vapPrice: number;
   adminFee: number;
+  deposit: number;
 
   signedPlace: string;
   deliveryPlace?: string;
@@ -37,8 +43,27 @@ export interface OTPData {
   companyContactLine?: string;
 }
 
+type RGB = [number, number, number];
+
+// ── Brand palette (platinum / monochrome — matches the white logo & design system) ──
+const FONT = 'Montserrat';
+const BAND: RGB = [13, 13, 13]; // dark header band (matches --background 0 0% 5%)
+const INK: RGB = [26, 26, 26]; // primary text
+const MUTED: RGB = [120, 120, 120]; // secondary text
+const HAIR: RGB = [176, 176, 176]; // silver hairline rules
+const PLATINUM_FILL: RGB = [236, 236, 236]; // subtotal / total-price highlight
+const WHITE: RGB = [255, 255, 255];
+const BAND_SUBTLE: RGB = [205, 205, 205]; // light grey text on the dark band
+
 const fmt = (n: number): string =>
   `R ${n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const registerFonts = (doc: jsPDF) => {
+  doc.addFileToVFS('Montserrat-Regular.ttf', MONTSERRAT_REGULAR_TTF_BASE64);
+  doc.addFont('Montserrat-Regular.ttf', FONT, 'normal');
+  doc.addFileToVFS('Montserrat-Bold.ttf', MONTSERRAT_BOLD_TTF_BASE64);
+  doc.addFont('Montserrat-Bold.ttf', FONT, 'bold');
+};
 
 const OTP_TERMS: { heading: string; body: string }[] = [
   {
@@ -112,53 +137,65 @@ const OTP_TERMS: { heading: string; body: string }[] = [
 
 export const generateOTP = (data: OTPData) => {
   const doc = new jsPDF();
-  const primary: [number, number, number] = [212, 175, 55];
-  const text: [number, number, number] = [26, 26, 26];
-  const muted: [number, number, number] = [102, 102, 102];
+  registerFonts(doc);
+  doc.setFont(FONT, 'normal');
 
   const leftMargin = 15;
   const rightMargin = 195;
   const pageWidth = 180;
-  let y = 14;
 
-  // HEADER — compact
-  doc.setFontSize(15);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...text);
-  doc.text(data.companyLegalName || 'MAKHULU HOLDINGS (PTY) LTD', leftMargin, y);
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'italic');
-  doc.setTextColor(...primary);
-  doc.text(`t/a ${data.companyTradingName || 'Lumina Auto'}`, leftMargin, y + 5);
-  doc.setFontSize(7.5);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...muted);
-  doc.text(data.companyContactLine || 'Pretoria, South Africa  •  info@luminaauto.co.za  •  068 601 7462', leftMargin, y + 10);
+  // ── HEADER: dark band with the white LUMINA AUTO logo + legal entity ──
+  doc.setFillColor(...BAND);
+  doc.rect(0, 0, 210, 30, 'F');
+  // Logo wordmark is 2:1 (white, transparent) — sits on the dark band.
+  doc.addImage(LUMINA_LOGO_DATA_URL, 'PNG', leftMargin, 4, 58, 22);
 
-  y += 14;
-  doc.setDrawColor(...primary);
+  doc.setFont(FONT, 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(...WHITE);
+  doc.text(data.companyLegalName || 'MAKHULU HOLDINGS (PTY) LTD', rightMargin, 13, { align: 'right' });
+  doc.setFont(FONT, 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(...BAND_SUBTLE);
+  doc.text(`t/a ${data.companyTradingName || 'Lumina Auto'}`, rightMargin, 18, { align: 'right' });
+  doc.text(
+    data.companyContactLine || 'Pretoria, South Africa  •  info@luminaauto.co.za  •  068 601 7462',
+    rightMargin,
+    22.5,
+    { align: 'right' },
+  );
+
+  let y = 40;
+  doc.setDrawColor(...HAIR);
   doc.setLineWidth(0.6);
   doc.line(leftMargin, y, rightMargin, y);
-  y += 5;
-  doc.setFontSize(13);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...text);
-  doc.text('OFFER TO PURCHASE', 105, y, { align: 'center' });
-  y += 2;
+  y += 6;
+  doc.setFontSize(14);
+  doc.setFont(FONT, 'bold');
+  doc.setTextColor(...INK);
+  doc.text('OFFER TO PURCHASE', 105, y, { align: 'center', charSpace: 0.6 });
+  y += 2.5;
   doc.setLineWidth(0.3);
   doc.line(leftMargin, y, rightMargin, y);
 
   // Quote ref / date
-  y += 4;
+  y += 5;
   doc.setFontSize(7.5);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...muted);
+  doc.setFont(FONT, 'normal');
+  doc.setTextColor(...MUTED);
   doc.text(`Quote Ref: ${data.quoteRef}`, leftMargin, y);
   doc.text(`Date: ${data.date}`, rightMargin, y, { align: 'right' });
   y += 3;
 
-  const compactHead = { fillColor: [30, 30, 30] as [number, number, number], textColor: [255, 255, 255] as [number, number, number], fontStyle: 'bold' as const, fontSize: 9, cellPadding: 1.4 };
-  const compactBody = { fontSize: 8.5, textColor: text, cellPadding: 1.2 };
+  const compactHead = {
+    fillColor: BAND,
+    textColor: WHITE,
+    fontStyle: 'bold' as const,
+    font: FONT,
+    fontSize: 9,
+    cellPadding: 1.6,
+  };
+  const compactBody = { font: FONT, fontSize: 8.5, textColor: INK, cellPadding: 1.4 };
 
   // SECTION 1: CLIENT
   autoTable(doc, {
@@ -204,10 +241,11 @@ export const generateOTP = (data: OTPData) => {
   });
   y = (doc as any).lastAutoTable.finalY + 3;
 
-  // SECTION 3: FINANCIAL — all inputs are VAT-inclusive
+  // SECTION 3: FINANCIAL — all inputs VAT-inclusive; deposit reduces the balance.
   const total = data.basePrice + data.extrasPrice + data.vapPrice + data.adminFee;
   const vat = total * (15 / 115);
   const excl = total - vat;
+  const balance = total - data.deposit;
 
   autoTable(doc, {
     startY: y,
@@ -220,8 +258,13 @@ export const generateOTP = (data: OTPData) => {
       [{ content: 'Subtotal (excl. VAT)', styles: { fontStyle: 'bold' } }, { content: fmt(excl), styles: { fontStyle: 'bold', halign: 'right' } }],
       ['VAT (15%)', { content: fmt(vat), styles: { halign: 'right' } }],
       [
-        { content: 'TOTAL BALANCE PAYABLE (incl. VAT)', styles: { fontStyle: 'bold', fillColor: [240, 230, 195] } },
-        { content: fmt(total), styles: { fontStyle: 'bold', fillColor: [240, 230, 195], halign: 'right' } },
+        { content: 'Total Price (incl. VAT)', styles: { fontStyle: 'bold', fillColor: PLATINUM_FILL } },
+        { content: fmt(total), styles: { fontStyle: 'bold', fillColor: PLATINUM_FILL, halign: 'right' } },
+      ],
+      ['Less: Deposit', { content: `- ${fmt(data.deposit)}`, styles: { halign: 'right' } }],
+      [
+        { content: 'BALANCE PAYABLE (incl. VAT)', styles: { fontStyle: 'bold', fillColor: BAND, textColor: WHITE } },
+        { content: fmt(balance), styles: { fontStyle: 'bold', fillColor: BAND, textColor: WHITE, halign: 'right' } },
       ],
     ],
     margin: { left: leftMargin },
@@ -231,38 +274,49 @@ export const generateOTP = (data: OTPData) => {
     bodyStyles: compactBody,
     columnStyles: { 0: { cellWidth: 110 }, 1: { cellWidth: 70, halign: 'right' } },
   });
-  y = (doc as any).lastAutoTable.finalY + 7;
+  y = (doc as any).lastAutoTable.finalY + 8;
 
-  // SIGNATURES — anchored directly under totals on page 1
+  // SIGNATURES — names pre-printed above the lines
   doc.setFontSize(9);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...primary);
+  doc.setFont(FONT, 'bold');
+  doc.setTextColor(...INK);
   doc.text('SIGNATURES', leftMargin, y);
   y += 4;
   doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...text);
+  doc.setFont(FONT, 'normal');
+  doc.setTextColor(...INK);
   doc.text(`Signed and delivered at ${data.signedPlace} on ${data.date}`, leftMargin, y);
-  y += 11;
-  doc.setDrawColor(...muted);
+  y += 13;
+
+  const sigRightX = 110;
+  const sigWidth = 75;
+  // Pre-printed names sit just above each signature line.
+  doc.setFont(FONT, 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(...INK);
+  doc.text(data.clientName, leftMargin, y - 2);
+  doc.text(data.salesExecutive, sigRightX, y - 2);
+
+  doc.setDrawColor(...MUTED);
   doc.setLineWidth(0.3);
-  doc.line(leftMargin, y, leftMargin + 75, y);
-  doc.line(110, y, 110 + 75, y);
+  doc.line(leftMargin, y, leftMargin + sigWidth, y);
+  doc.line(sigRightX, y, sigRightX + sigWidth, y);
   y += 3.5;
+  doc.setFont(FONT, 'normal');
   doc.setFontSize(7.5);
-  doc.setTextColor(...muted);
-  doc.text('Client Signature', leftMargin, y);
-  doc.text('Sales Executive Signature', 110, y);
+  doc.setTextColor(...MUTED);
+  doc.text('Client Signature & Date', leftMargin, y);
+  doc.text('Sales Executive Signature & Date', sigRightX, y);
 
   // ============ PAGE 2: TERMS ============
   doc.addPage();
   y = 18;
   doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...text);
+  doc.setFont(FONT, 'bold');
+  doc.setTextColor(...INK);
   doc.text('CONDITIONS OF OFFER — ALL VEHICLE SALES', 105, y, { align: 'center' });
   y += 2;
-  doc.setDrawColor(...primary);
+  doc.setDrawColor(...HAIR);
   doc.setLineWidth(0.4);
   doc.line(leftMargin, y, rightMargin, y);
   y += 5;
@@ -296,17 +350,17 @@ export const generateOTP = (data: OTPData) => {
   };
 
   const writeHeading = (heading: string) => {
-    doc.setFont('helvetica', 'bold');
+    doc.setFont(FONT, 'bold');
     doc.setFontSize(8);
-    doc.setTextColor(...primary);
+    doc.setTextColor(...INK);
     doc.text(heading, colX, colY);
     colY += HEADING_GAP;
   };
 
   const writeBodyLines = (lines: string[]) => {
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(FONT, 'normal');
     doc.setFontSize(7);
-    doc.setTextColor(...text);
+    doc.setTextColor(...INK);
     for (const line of lines) {
       if (colY > COL_BOTTOM) newColumnOrPage();
       doc.text(line, colX, colY, { maxWidth: COL_WIDTH });
@@ -315,7 +369,7 @@ export const generateOTP = (data: OTPData) => {
   };
 
   const measureBody = (body: string): string[] => {
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(FONT, 'normal');
     doc.setFontSize(7);
     return doc.splitTextToSize(body, COL_WIDTH);
   };
@@ -331,38 +385,45 @@ export const generateOTP = (data: OTPData) => {
 
   // Acknowledgement — append inline, no forced page break
   const ackLines = (() => {
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(FONT, 'normal');
     doc.setFontSize(7);
     return doc.splitTextToSize(
       'I confirm I have read, understood and agree to be bound by the Conditions of Offer set out above and consent to the processing of my personal information in accordance with POPIA.',
       COL_WIDTH,
     );
   })();
-  const ackBlockHeight = HEADING_GAP + ackLines.length * LINE_HEIGHT + 14;
+  const ackBlockHeight = HEADING_GAP + ackLines.length * LINE_HEIGHT + 18;
   if (colY + ackBlockHeight > COL_BOTTOM) newColumnOrPage();
 
   colY += 2;
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(FONT, 'bold');
   doc.setFontSize(8);
-  doc.setTextColor(...text);
+  doc.setTextColor(...INK);
   doc.text('ACKNOWLEDGEMENT', colX, colY);
   colY += HEADING_GAP;
   writeBodyLines(ackLines);
-  colY += 6;
-  doc.setDrawColor(...muted);
+  colY += 8;
+  // Pre-print the purchaser name above the line here too.
+  doc.setFont(FONT, 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...INK);
+  doc.text(data.clientName, colX, colY - 2);
+  doc.setDrawColor(...MUTED);
   doc.setLineWidth(0.3);
   doc.line(colX, colY, colX + COL_WIDTH, colY);
   colY += 3;
+  doc.setFont(FONT, 'normal');
   doc.setFontSize(6.5);
-  doc.setTextColor(...muted);
+  doc.setTextColor(...MUTED);
   doc.text('Purchaser Signature & Date', colX, colY);
 
   // Footer on every page
   const pageCount = (doc as any).internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
+    doc.setFont(FONT, 'normal');
     doc.setFontSize(6.5);
-    doc.setTextColor(...muted);
+    doc.setTextColor(...MUTED);
     doc.text(`Makhulu Holdings (Pty) Ltd t/a Lumina Auto  •  Offer to Purchase  •  ${data.quoteRef}`, 105, 292, { align: 'center' });
     doc.text(`Page ${i} of ${pageCount}`, rightMargin, 292, { align: 'right' });
   }

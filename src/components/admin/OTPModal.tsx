@@ -42,7 +42,7 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData }: OTPModal
   const [address, setAddress] = useState('');
   const [email, setEmail] = useState('');
   const [cellPhone, setCellPhone] = useState('');
-  const [salesExecutive, setSalesExecutive] = useState('Albert');
+  const [salesExecutive, setSalesExecutive] = useState('Albert Prinsloo');
   const [signedPlace, setSignedPlace] = useState('Lumina Auto, Pretoria');
 
   // Vehicle
@@ -60,6 +60,7 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData }: OTPModal
   const [extrasPrice, setExtrasPrice] = useState<number>(0);
   const [vapPrice, setVapPrice] = useState<number>(0);
   const [adminFee, setAdminFee] = useState<number>(2500);
+  const [deposit, setDeposit] = useState<number>(0);
 
   const quoteRef = `OTP-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9999)).padStart(4, '0')}`;
   const today = new Date().toLocaleDateString('en-ZA');
@@ -96,9 +97,10 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData }: OTPModal
   }, [applicationData, vehicleData, open]);
 
   // All entered amounts are VAT-inclusive
-  const totalPayable = basePrice + extrasPrice + vapPrice + adminFee;
-  const vatAmount = totalPayable * (15 / 115);
-  const vatableSubtotal = totalPayable - vatAmount;
+  const totalPrice = basePrice + extrasPrice + vapPrice + adminFee;
+  const vatAmount = totalPrice * (15 / 115);
+  const vatableSubtotal = totalPrice - vatAmount;
+  const balancePayable = totalPrice - deposit;
 
   const fmt = (n: number) => `R ${n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -109,7 +111,7 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData }: OTPModal
       address: address || '[PENDING]',
       email: email || '[PENDING]',
       cellPhone: cellPhone || '[PENDING]',
-      salesExecutive: salesExecutive || 'Albert',
+      salesExecutive: salesExecutive || 'Albert Prinsloo',
       date: today,
       quoteRef,
       make: make || '[PENDING]',
@@ -124,6 +126,7 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData }: OTPModal
       extrasPrice,
       vapPrice,
       adminFee,
+      deposit,
       signedPlace,
       companyLegalName: docSettings?.companyLegalName,
       companyTradingName: docSettings?.companyTradingName,
@@ -192,13 +195,16 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData }: OTPModal
                 <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Extras Price</Label><Input type="number" value={extrasPrice} onChange={e=>setExtrasPrice(parseFloat(e.target.value)||0)} className="bg-zinc-900 border-zinc-800"/></div>
                 <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Value Added Products Price</Label><Input type="number" value={vapPrice} onChange={e=>setVapPrice(parseFloat(e.target.value)||0)} className="bg-zinc-900 border-zinc-800"/></div>
                 <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Administration Fee</Label><Input type="number" value={adminFee} onChange={e=>setAdminFee(parseFloat(e.target.value)||0)} className="bg-zinc-900 border-zinc-800"/></div>
+                <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Deposit</Label><Input type="number" value={deposit} onChange={e=>setDeposit(parseFloat(e.target.value)||0)} className="bg-zinc-900 border-zinc-800"/></div>
               </div>
 
               <div className="mt-4 p-4 bg-zinc-900/60 border border-zinc-800 rounded-lg space-y-2">
                 <div className="flex justify-between text-sm text-zinc-400"><span>Subtotal (excl. VAT)</span><span className="font-mono text-zinc-200">{fmt(vatableSubtotal)}</span></div>
                 <div className="flex justify-between text-sm text-zinc-400"><span>VAT (15%) included</span><span className="font-mono text-zinc-200">{fmt(vatAmount)}</span></div>
+                <div className="flex justify-between text-sm text-zinc-400"><span>Total Price (incl. VAT)</span><span className="font-mono text-zinc-200">{fmt(totalPrice)}</span></div>
+                <div className="flex justify-between text-sm text-zinc-400"><span>Less: Deposit</span><span className="font-mono text-zinc-200">- {fmt(deposit)}</span></div>
                 <Separator className="bg-zinc-800 my-2"/>
-                <div className="flex justify-between items-center"><span className="font-semibold text-zinc-100">Total Balance Payable (incl. VAT)</span><span className="text-xl font-bold text-amber-400 font-mono">{fmt(totalPayable)}</span></div>
+                <div className="flex justify-between items-center"><span className="font-semibold text-zinc-100">Balance Payable (incl. VAT)</span><span className="text-xl font-bold text-amber-400 font-mono">{fmt(balancePayable)}</span></div>
               </div>
             </div>
           </div>

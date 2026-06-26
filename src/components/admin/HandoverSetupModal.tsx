@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { compressImage } from "@/lib/imageCompression";
 import { Loader2, Upload, Copy, Gift, Trash2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { APP_DOMAIN } from "@/lib/appConfig";
@@ -40,10 +41,11 @@ export const HandoverSetupModal = ({ dealId, currentPhotos = [], clientName = ''
     setUploading(true);
 
     const newUrls: string[] = [];
-    for (const file of Array.from(e.target.files)) {
+    for (const original of Array.from(e.target.files)) {
+      const file = await compressImage(original);
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const fileName = `${dealId}/${Date.now()}-${safeName}`;
-      const { data, error } = await supabase.storage.from('delivery-photos').upload(fileName, file);
+      const { data, error } = await supabase.storage.from('delivery-photos').upload(fileName, file, { contentType: file.type, cacheControl: '3600' });
       if (!error && data) {
         // Store the storage path; signed URLs are generated on demand for the public handover page
         newUrls.push(fileName);
