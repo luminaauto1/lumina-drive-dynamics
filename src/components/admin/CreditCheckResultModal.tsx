@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { compressImage } from '@/lib/imageCompression';
 import { useUpdateFinanceApplication } from '@/hooks/useFinanceApplications';
+import { logActivity } from '@/lib/activityLog';
 import { toast } from 'sonner';
 import { ImageIcon, Upload, X } from 'lucide-react';
 
@@ -142,6 +143,16 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
           ...(updatedNotes !== undefined ? { notes: updatedNotes } : {}),
           ...(firstCheckedAt ? { credit_check_first_checked_at: firstCheckedAt } : {}),
         } as any,
+      });
+
+      // Universal activity trail — record the credit-check outcome with detail.
+      // (The status change itself is logged by useUpdateFinanceApplication.)
+      void logActivity({
+        actionType: 'credit_check',
+        note: `Credit check ${outcome === 'passed' ? 'PASSED' : 'FAILED'}`
+          + (creditScore.trim() ? ` · score ${creditScore.trim()}` : '')
+          + (path ? ' · screenshot attached' : ''),
+        applicationId,
       });
 
       toast.success(`Credit check ${outcome === 'passed' ? 'passed' : 'failed'} recorded`);

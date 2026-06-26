@@ -18,6 +18,7 @@ import { useCreateDealRecord, useUpdateDealRecord, AftersalesExpense, DealAddOnI
 import { formatPrice, useVehicles, Vehicle } from '@/hooks/useVehicles';
 import { useVehicleExpenses, VehicleExpense, EXPENSE_CATEGORIES } from '@/hooks/useVehicleExpenses';
 import { useVendors } from '@/hooks/useVendors';
+import { logActivity } from '@/lib/activityLog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
@@ -674,7 +675,14 @@ const FinalizeDealModal = ({
         // INSERT new deal
         await createDealRecord.mutateAsync(dealData);
       }
-      
+
+      // Universal activity trail (fire-and-forget; never affects the deal save).
+      void logActivity({
+        actionType: 'deal_finalized',
+        note: isEditMode ? 'Deal updated' : `Deal finalized — sold by ${selectedRepName}`,
+        applicationId: dealData.applicationId ?? null,
+      });
+
       onSuccess();
       onClose();
     } catch (error) {

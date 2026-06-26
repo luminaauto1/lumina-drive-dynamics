@@ -15,19 +15,28 @@ interface Props {
   clientEmail: string;
   clientPhone: string;
   clientName: string;
+  /** When set, also include activity-trail entries linked directly to this application
+   *  (credit checks, uploads, deal finalize…) — not only those keyed by email/phone. */
+  applicationId?: string | null;
 }
 
-export default function ClientCallTimeline({ clientEmail, clientPhone, clientName }: Props) {
+export default function ClientCallTimeline({ clientEmail, clientPhone, clientName, applicationId }: Props) {
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchEntries = async () => {
     setLoading(true);
-    let query = supabase.from('client_audit_logs').select('*').order('created_at', { ascending: false }).limit(40);
-    if (clientEmail) {
-      query = query.eq('client_email', clientEmail);
-    } else if (clientPhone) {
-      query = query.eq('client_phone', clientPhone);
+    let query = supabase.from('client_audit_logs').select('*').order('created_at', { ascending: false }).limit(60);
+    // Match ANY of: this application, the client email, or the client phone — so the
+    // full universal activity trail surfaces here, however each entry was linked.
+    const conds: Array<{ col: string; val: string }> = [];
+    if (applicationId) conds.push({ col: 'application_id', val: applicationId });
+    if (clientEmail) conds.push({ col: 'client_email', val: clientEmail });
+    if (clientPhone) conds.push({ col: 'client_phone', val: clientPhone });
+    if (conds.length === 1) {
+      query = query.eq(conds[0].col, conds[0].val);
+    } else if (conds.length > 1) {
+      query = query.or(conds.map((c) => `${c.col}.eq.${c.val}`).join(','));
     }
     const { data } = await query;
     setEntries((data as AuditEntry[]) || []);
@@ -36,7 +45,7 @@ export default function ClientCallTimeline({ clientEmail, clientPhone, clientNam
 
   useEffect(() => {
     fetchEntries();
-  }, [clientEmail, clientPhone]);
+  }, [clientEmail, clientPhone, applicationId]);
 
   return (
     <div className="glass-card rounded-xl p-6 space-y-4">

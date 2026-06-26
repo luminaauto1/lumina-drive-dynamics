@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { compressIfImage, CompressionLevel } from '@/lib/compressFile';
+import { logActivity } from '@/lib/activityLog';
 
 export type DocCategory = 'client' | 'vehicle' | 'deal' | 'business';
 
@@ -183,9 +184,16 @@ export const useUploadDocument = () => {
       }
       return data as DocRecord;
     },
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ['documents'] });
       queryClient.invalidateQueries({ queryKey: ['storage-stats'] });
+      // Universal activity trail (fire-and-forget).
+      void logActivity({
+        actionType: 'document_upload',
+        note: `Uploaded ${vars.category} document: ${vars.file?.name ?? 'file'}`,
+        applicationId: vars.applicationId ?? null,
+        dealId: vars.dealId ?? null,
+      });
     },
     onError: (error: any) => {
       console.error('Document upload failed:', error);

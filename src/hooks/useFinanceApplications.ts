@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Tables } from '@/integrations/supabase/types';
+import { logActivity, humanizeStatus } from '@/lib/activityLog';
 
 export type FinanceApplication = Tables<'finance_applications'> & {
   vehicle?: {
@@ -149,6 +150,22 @@ export const useUpdateFinanceApplication = () => {
         .maybeSingle();
 
       if (error) throw error;
+
+      // Universal activity trail — record the status change with the acting person's
+      // real name + time (fire-and-forget; never blocks the mutation or its emails).
+      // This is the single choke point for status changes from every surface
+      // (AdminFinance, Pipeline v2, credit/contract modals), so one log here covers
+      // them all. Existing manual audit writes live on separate direct-update paths,
+      // so this adds coverage without duplicating them.
+      if (updates.status && currentApp && updates.status !== (currentApp as any).status) {
+        void logActivity({
+          actionType: 'status_change',
+          note: `Status → ${humanizeStatus(updates.status as string)}`,
+          applicationId: id,
+          clientEmail: (currentApp as any).email ?? null,
+          clientPhone: (currentApp as any).phone ?? null,
+        });
+      }
 
       // 3. Auto-Mailer Engine — STRICT 1:1 Status → Template Mapping
       // Only these statuses are permitted to dispatch a client email.
