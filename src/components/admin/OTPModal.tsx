@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Download, FileText } from 'lucide-react';
+import { Download, FileText, Save } from 'lucide-react';
 import { generateOTP, OTPData } from '@/lib/generateOTP';
 import { useDocumentSettings } from '@/hooks/useDocumentSettings';
 import { toast } from 'sonner';
@@ -35,7 +35,7 @@ interface OTPModalProps {
   dealId?: string;
 }
 
-const OTPModal = ({ open, onOpenChange, applicationData, vehicleData }: OTPModalProps) => {
+const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: OTPModalProps) => {
   // Contact
   const [clientName, setClientName] = useState('');
   const [idNumber, setIdNumber] = useState('');
@@ -67,18 +67,54 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData }: OTPModal
   const quoteRef = `OTP-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9999)).padStart(4, '0')}`;
   const today = new Date().toLocaleDateString('en-ZA');
 
+  // Persist the form so entered data survives closing/reopening (keyed per deal, else per client).
+  const draftKey = `lumina:otp-draft:${dealId || applicationData?.idNumber || 'default'}`;
+
+  const collectDraft = () => ({
+    clientName, idNumber, address, email, cellPhone, salesExecutive, signedPlace,
+    make, model, regNo, year, colorVal, vin, engineNo, mileage,
+    basePrice, extrasPrice, vapPrice, adminFee, deliveryFee, licReg, deposit,
+  });
+
+  const applyDraft = (d: Partial<ReturnType<typeof collectDraft>>) => {
+    setClientName(d.clientName ?? ''); setIdNumber(d.idNumber ?? ''); setAddress(d.address ?? '');
+    setEmail(d.email ?? ''); setCellPhone(d.cellPhone ?? ''); setSalesExecutive(d.salesExecutive ?? 'Albert Prinsloo');
+    setSignedPlace(d.signedPlace ?? 'Lumina Auto, Pretoria');
+    setMake(d.make ?? ''); setModel(d.model ?? ''); setRegNo(d.regNo ?? ''); setYear(d.year ?? '');
+    setColorVal(d.colorVal ?? ''); setVin(d.vin ?? ''); setEngineNo(d.engineNo ?? ''); setMileage(d.mileage ?? '');
+    setBasePrice(d.basePrice ?? 0); setExtrasPrice(d.extrasPrice ?? 0); setVapPrice(d.vapPrice ?? 0);
+    setAdminFee(d.adminFee ?? 2500); setDeliveryFee(d.deliveryFee ?? 0); setLicReg(d.licReg ?? 0); setDeposit(d.deposit ?? 0);
+  };
+
+  const saveDraft = () => {
+    try {
+      localStorage.setItem(draftKey, JSON.stringify(collectDraft()));
+      toast.success('Draft saved');
+    } catch {
+      toast.error('Could not save draft');
+    }
+  };
+
   // Pull customizable company defaults (admin fee, signing place) from settings.
   const { data: docSettings } = useDocumentSettings();
   useEffect(() => {
-    if (docSettings) {
-      setAdminFee(docSettings.defaultAdminFee ?? 2500);
-      if (docSettings.companyTradingName) {
-        setSignedPlace(`${docSettings.companyTradingName}${docSettings.companyAddress ? `, ${docSettings.companyAddress}` : ''}`);
-      }
+    if (!docSettings) return;
+    // Don't override a saved draft with the company defaults.
+    try { if (localStorage.getItem(draftKey)) return; } catch { /* ignore */ }
+    setAdminFee(docSettings.defaultAdminFee ?? 2500);
+    if (docSettings.companyTradingName) {
+      setSignedPlace(`${docSettings.companyTradingName}${docSettings.companyAddress ? `, ${docSettings.companyAddress}` : ''}`);
     }
-  }, [docSettings]);
+  }, [docSettings, draftKey]);
 
   useEffect(() => {
+    if (!open) return;
+    // Restore a saved draft if one exists, so entered data survives closing/reopening.
+    try {
+      const saved = localStorage.getItem(draftKey);
+      if (saved) { applyDraft(JSON.parse(saved)); return; }
+    } catch { /* ignore a corrupt draft */ }
+    // Otherwise prefill from the deal / selected vehicle.
     if (applicationData) {
       setClientName(applicationData.clientName || '');
       setIdNumber(applicationData.idNumber || '');
@@ -96,7 +132,8 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData }: OTPModal
       setColorVal(vehicleData.color || '');
       setBasePrice(vehicleData.price || 0);
     }
-  }, [applicationData, vehicleData, open]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, applicationData, vehicleData, draftKey]);
 
   // Base, extras, VAP, admin fee and delivery fee are VAT-inclusive.
   // Lic & Reg is a non-VATable statutory disbursement (excluded from the VAT calc).
@@ -109,6 +146,8 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData }: OTPModal
   const fmt = (n: number) => `R ${n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const handleDownload = () => {
+    // Persist the latest values too, so a generated OTP can be reopened with the same data.
+    try { localStorage.setItem(draftKey, JSON.stringify(collectDraft())); } catch { /* ignore */ }
     const data: OTPData = {
       clientName: clientName || '[PENDING]',
       idNumber: idNumber || '[PENDING]',
@@ -219,8 +258,11 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData }: OTPModal
           </div>
         </ScrollArea>
 
-        <DialogFooter className="mt-4">
+        <DialogFooter className="mt-4 gap-2 sm:gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} className="bg-transparent border-zinc-800 text-zinc-300 hover:bg-zinc-900">Cancel</Button>
+          <Button variant="outline" onClick={saveDraft} className="gap-2 bg-transparent border-zinc-700 text-zinc-100 hover:bg-zinc-900">
+            <Save className="w-4 h-4" /> Save
+          </Button>
           <Button onClick={handleDownload} className="gap-2 bg-amber-500 hover:bg-amber-600 text-black">
             <Download className="w-4 h-4" /> Download OTP PDF
           </Button>
