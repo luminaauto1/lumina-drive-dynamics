@@ -27,11 +27,13 @@ export interface OTPData {
   engineNo: string;
   mileage: string;
 
-  // Financial (all VAT-inclusive inputs)
+  // Financial inputs (VAT-inclusive, except licReg which is a non-VATable disbursement)
   basePrice: number;
   extrasPrice: number;
   vapPrice: number;
   adminFee: number;
+  deliveryFee: number;
+  licReg: number;
   deposit: number;
 
   signedPlace: string;
@@ -241,10 +243,12 @@ export const generateOTP = (data: OTPData) => {
   });
   y = (doc as any).lastAutoTable.finalY + 3;
 
-  // SECTION 3: FINANCIAL — all inputs VAT-inclusive; deposit reduces the balance.
-  const total = data.basePrice + data.extrasPrice + data.vapPrice + data.adminFee;
-  const vat = total * (15 / 115);
-  const excl = total - vat;
+  // SECTION 3: FINANCIAL — base/extras/VAP/admin/delivery are VAT-inclusive;
+  // Lic & Reg is a non-VATable statutory disbursement; deposit reduces the balance.
+  const vatInclusive = data.basePrice + data.extrasPrice + data.vapPrice + data.adminFee + data.deliveryFee;
+  const vat = vatInclusive * (15 / 115);
+  const excl = vatInclusive - vat;
+  const total = vatInclusive + data.licReg;
   const balance = total - data.deposit;
 
   autoTable(doc, {
@@ -255,8 +259,10 @@ export const generateOTP = (data: OTPData) => {
       ['Extras (incl. VAT)', fmt(data.extrasPrice)],
       ['Value Added Products (incl. VAT)', fmt(data.vapPrice)],
       ['Administration Fee (incl. VAT)', fmt(data.adminFee)],
+      ['Delivery Fee (incl. VAT)', fmt(data.deliveryFee)],
       [{ content: 'Subtotal (excl. VAT)', styles: { fontStyle: 'bold' } }, { content: fmt(excl), styles: { fontStyle: 'bold', halign: 'right' } }],
       ['VAT (15%)', { content: fmt(vat), styles: { halign: 'right' } }],
+      ['Licensing & Registration (no VAT)', { content: fmt(data.licReg), styles: { halign: 'right' } }],
       [
         { content: 'Total Price (incl. VAT)', styles: { fontStyle: 'bold', fillColor: PLATINUM_FILL } },
         { content: fmt(total), styles: { fontStyle: 'bold', fillColor: PLATINUM_FILL, halign: 'right' } },
