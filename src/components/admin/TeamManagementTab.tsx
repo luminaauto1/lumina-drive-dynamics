@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { UserPlus, Loader2, Mail, Shield, Trash2, Copy, Check, KeyRound } from 'lucide-react';
+import { UserPlus, Loader2, Mail, Shield, Trash2, Copy, Check, KeyRound, Building2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,13 @@ interface AgentRow {
   full_name: string | null;
   created_at?: string | null;
   role: StaffRoleKind;
+  company_id?: string | null; // Finance House (vendors.id) this F&I user belongs to
 }
+
+interface FinanceHouse { id: string; name: string }
+const NO_COMPANY = '__none__'; // Select can't use '' as an item value
+// Roles that work for a Finance House (everything except a pure salesperson).
+const isFniRole = (r: StaffRoleKind) => r !== 'sales_agent';
 
 const TeamManagementTab = () => {
   const [mode, setMode] = useState<'invite' | 'manual'>('invite');
@@ -34,6 +40,7 @@ const TeamManagementTab = () => {
   const [role, setRole] = useState<StaffRoleKind>('sales_agent');
   const [inviting, setInviting] = useState(false);
   const [agents, setAgents] = useState<AgentRow[]>([]);
+  const [financeHouses, setFinanceHouses] = useState<FinanceHouse[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastCreds, setLastCreds] = useState<{ email: string; password: string } | null>(null);
   const [copied, setCopied] = useState(false);
@@ -60,9 +67,9 @@ const TeamManagementTab = () => {
       setLoading(false);
       return;
     }
-    const { data: profs } = await supabase
+    const { data: profs } = await (supabase as any)
       .from('profiles')
-      .select('user_id, email, full_name, created_at')
+      .select('user_id, email, full_name, created_at, f_and_i_vendor_id')
       .in('user_id', ids);
     const merged: AgentRow[] = rows.map(r => {
       const p = (profs || []).find((x: any) => x.user_id === r.user_id) as any;
@@ -72,15 +79,43 @@ const TeamManagementTab = () => {
         email: p?.email ?? null,
         full_name: p?.full_name ?? null,
         created_at: p?.created_at ?? null,
+        company_id: p?.f_and_i_vendor_id ?? null,
       };
     });
     setAgents(merged);
     setLoading(false);
   };
 
+  // Finance Houses (vendors of type finance_house/both) available to link F&I users to.
+  const loadFinanceHouses = async () => {
+    const { data } = await (supabase as any)
+      .from('vendors')
+      .select('id, name')
+      .in('vendor_type', ['finance_house', 'both'])
+      .eq('is_active', true)
+      .order('name', { ascending: true });
+    setFinanceHouses((data || []) as FinanceHouse[]);
+  };
+
   useEffect(() => {
     loadAgents();
+    loadFinanceHouses();
   }, []);
+
+  const handleChangeCompany = async (userId: string, vendorId: string | null) => {
+    // Optimistic update so the dropdown reflects the choice immediately.
+    setAgents((prev) => prev.map((a) => (a.user_id === userId ? { ...a, company_id: vendorId } : a)));
+    const { error } = await (supabase as any)
+      .from('profiles')
+      .update({ f_and_i_vendor_id: vendorId })
+      .eq('user_id', userId);
+    if (error) {
+      toast.error('Could not set Finance House: ' + error.message);
+      loadAgents(); // revert to server truth
+      return;
+    }
+    toast.success(vendorId ? 'Finance House linked' : 'Finance House cleared');
+  };
 
   const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
     e?.preventDefault?.();
@@ -237,6 +272,7 @@ const TeamManagementTab = () => {
           <h2 className="text-lg font-semibold">Team Management</h2>
           <p className="text-sm text-muted-foreground">
             Sales Agents get CRM, Finance Apps, Inventory (insert/edit) and Quote Generator access. They cannot delete records or view financial reports.
+            Link each F&I to their <strong>Finance House</strong> (managed under Vendors) to track per-company performance.
           </p>
         </div>
       </div>
@@ -365,6 +401,23 @@ const TeamManagementTab = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {isFniRole(a.role) && (
+                    <Select
+                      value={a.company_id ?? NO_COMPANY}
+                      onValueChange={(v) => handleChangeCompany(a.user_id, v === NO_COMPANY ? null : v)}
+                    >
+                      <SelectTrigger className="h-8 w-[160px] text-xs" title="Finance House this F&I belongs to">
+                        <Building2 className="w-3 h-3 mr-1 shrink-0 opacity-70" />
+                        <SelectValue placeholder="No company" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NO_COMPANY}>No company</SelectItem>
+                        {financeHouses.map((fh) => (
+                          <SelectItem key={fh.id} value={fh.id}>{fh.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   <Select value={a.role} onValueChange={(v) => handleChangeRole(a.user_id, a.full_name || a.email || 'this user', v as StaffRoleKind, a.role)}>
                     <SelectTrigger className="h-8 w-[150px] text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
