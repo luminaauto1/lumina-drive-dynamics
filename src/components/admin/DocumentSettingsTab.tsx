@@ -114,8 +114,30 @@ const DocumentSettingsTab = () => {
       {/* OTP */}
       <section className="space-y-3">
         <div className="flex items-center gap-2 text-sm font-medium"><FileText className="w-4 h-4 text-muted-foreground" /> Offer to Purchase (OTP)</div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Field label="Ref prefix" value={form.otpPrefix} onChange={(v) => set('otpPrefix', v)} placeholder="OTP-" />
+          <Field label="Next number" type="number" value={form.otpNextNumber} onChange={(v) => set('otpNextNumber', v)} />
           <Field label="Validity (days)" type="number" value={form.otpValidityDays} onChange={(v) => set('otpValidityDays', v)} />
+          <Field label="Default sales executive" value={form.otpSalesExecutive} onChange={(v) => set('otpSalesExecutive', v)} />
+          <Field label="Default delivery fee" type="number" value={form.otpDefaultDeliveryFee} onChange={(v) => set('otpDefaultDeliveryFee', v)} />
+          <Field label="Default licensing & reg" type="number" value={form.otpDefaultLicensing} onChange={(v) => set('otpDefaultLicensing', v)} />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-xs text-muted-foreground">Fee lines shown by default</Label>
+          <div className="flex flex-wrap gap-4">
+            {(['extras', 'vap', 'admin_fee', 'delivery_fee', 'licensing'] as const).map((k) => (
+              <label key={k} className="flex items-center gap-2 text-sm cursor-pointer">
+                <Checkbox
+                  checked={!!form.otpLines?.[k]}
+                  onCheckedChange={(c) => set('otpLines', { ...form.otpLines, [k]: c === true })}
+                />
+                {k.replace('_', ' ')}
+              </label>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            VAT shows as <strong>n/a</strong> until “We are VAT registered” (above) is on — Licensing &amp; Registration never carries VAT.
+          </p>
         </div>
         <AreaField
           label="Custom OTP terms (optional — leave blank to use the built-in legal terms)"
