@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { Building2, Plus, Pencil, Trash2, Banknote, Truck } from 'lucide-react';
 import { VendorDocumentsSection } from '@/components/admin/VendorDocumentsSection';
+import { FinanceHousePerformance } from '@/components/admin/FinanceHousePerformance';
 
 const TYPE_LABEL: Record<VendorType, string> = {
   supplier: 'Supplier (we buy from)',
@@ -102,6 +103,9 @@ const AdminVendors = () => {
             <Plus className="w-4 h-4 mr-1" /> Add Vendor
           </Button>
         </div>
+
+        {/* Per-company performance (only renders when a Finance House exists) */}
+        <FinanceHousePerformance />
 
         {/* Filters */}
         <div className="flex flex-wrap gap-3">

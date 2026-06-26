@@ -116,6 +116,47 @@ export const useDeleteVendor = () => {
   });
 };
 
+// ── Per-Finance-House performance stats (read-only aggregate RPC) ──────────────
+// Attributes each finance application to the vendor (Finance House) of its handling
+// F&I user (assigned_f_and_i → else created_by → profiles.f_and_i_vendor_id), within
+// a date window. Used by the Vendors "Finance House Performance" panel. Aggregates
+// only — never reads or writes the deal ledger.
+export interface VendorFinanceStats {
+  vendor_id: string;
+  vendor_name: string;
+  fni_count: number;
+  app_count: number;
+  approved_count: number;
+  declined_count: number;
+  approval_rate: number;
+  finalized_count: number;
+  total_sold_value: number;
+}
+
+export const useVendorFinanceStats = (sinceIso: string, untilIso: string) => {
+  return useQuery({
+    queryKey: ['vendor-finance-stats', sinceIso, untilIso],
+    queryFn: async (): Promise<VendorFinanceStats[]> => {
+      const { data, error } = await (supabase as any).rpc('lum_vendor_finance_stats', {
+        p_since: sinceIso,
+        p_until: untilIso,
+      });
+      if (error) throw error;
+      return ((data || []) as any[]).map((r) => ({
+        vendor_id: r.vendor_id,
+        vendor_name: r.vendor_name,
+        fni_count: Number(r.fni_count) || 0,
+        app_count: Number(r.app_count) || 0,
+        approved_count: Number(r.approved_count) || 0,
+        declined_count: Number(r.declined_count) || 0,
+        approval_rate: Number(r.approval_rate) || 0,
+        finalized_count: Number(r.finalized_count) || 0,
+        total_sold_value: Number(r.total_sold_value) || 0,
+      }));
+    },
+  });
+};
+
 export const useVendorDocuments = (vendorId: string | null) => {
   return useQuery({
     queryKey: ['vendor-documents', vendorId],
