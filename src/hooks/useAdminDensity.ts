@@ -7,9 +7,10 @@ const EVENT = 'lumina-admin-density-change';
 
 const read = (): AdminDensity => {
   try {
-    return localStorage.getItem(KEY) === 'compact' ? 'compact' : 'comfortable';
+    // Default = Compact (the dense look); only Comfortable when the user opts in.
+    return localStorage.getItem(KEY) === 'comfortable' ? 'comfortable' : 'compact';
   } catch {
-    return 'comfortable';
+    return 'compact';
   }
 };
 

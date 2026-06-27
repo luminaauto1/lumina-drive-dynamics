@@ -19,7 +19,7 @@ archive it). Each phase ships as its own PR → merge → deploy. Full diagnosis
 | 1 | Auto-create a Deal Desk draft when status becomes... | ✅ **`contract_signed`** |
 | 2 | Who sees draft deals before finalize | ✅ **Admins only** (not all F&I) |
 | 3 | Status editability | ✅ **ZTC-style**: status keys stay fixed, but **labels + their WhatsApp message bodies** (and colours) are editable in Settings — like Zinan Talks Cars |
-| 4 | Density default | ✅ **Comfortable default + per-user Compact toggle** (done — see Phase 2b) |
+| 4 | Density default | ✅ **Compact default** (the dense look) **+ per-user Comfortable toggle** (done — see Phase 2b) |
 | 5 | Editable nav scope | ✅ owner's choice = mine: **light editable nav** (admins hide/show + reorder top-level via Settings) in Phase 5 |
 | 6 | Phasing | ✅ **whole plan approved**; per-phase PRs; **deliver a final acceptance-checklist doc at the end** |
 
