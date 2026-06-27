@@ -1,8 +1,8 @@
 import {
-  LayoutDashboard, TableProperties, CreditCard, ClipboardList, Users, Car,
+  LayoutDashboard, TableProperties, CreditCard, ClipboardList, Car,
   Calculator, FileSignature, FolderOpen, Building2, ShoppingCart, Banknote,
   Receipt, Coins, Truck, FileBarChart, BarChart3, LineChart, Download,
-  Briefcase, Gift, Contact, Settings, Mail, Search, ChevronLeft, ChevronRight, Home, Rows3,
+  Briefcase, Gift, Contact, Settings, Search, ChevronLeft, ChevronRight, Home, Rows3,
 } from 'lucide-react';
 import { NavLink, useLocation, Link } from 'react-router-dom';
 import { OPEN_GLOBAL_SEARCH_EVENT } from './GlobalSearch';
@@ -39,7 +39,6 @@ export const NAV_SECTIONS: NavSection[] = [
       { title: 'Pipeline', icon: TableProperties, path: '/admin/pipeline-v2' },
       { title: 'Finance', icon: CreditCard, path: '/admin/finance' },
       { title: 'Deal Desk', icon: ClipboardList, path: '/admin/deal-desk' },
-      { title: 'CRM', icon: Users, path: '/admin/crm' },
       { title: 'Inventory', icon: Car, path: '/admin/inventory' },
     ],
   },
@@ -83,7 +82,6 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'System',
     items: [
       { title: 'Settings', icon: Settings, path: '/admin/settings' },
-      { title: 'Email Templates', icon: Mail, path: '/admin/settings/email' },
     ],
   },
 ];

@@ -105,7 +105,7 @@ const Navbar = () => {
 
               {/* Auth Button */}
               {user ? <div className="hidden md:flex items-center gap-2">
-                  {isStaff && <Link to={isSuperAdmin ? "/admin" : "/admin/crm"}>
+                  {isStaff && <Link to={isSuperAdmin ? "/admin" : "/admin/pipeline-v2"}>
                       <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
                         <Settings className="w-4 h-4 mr-1" />
                         Admin
@@ -172,7 +172,7 @@ const Navbar = () => {
               delay: navLinks.length * 0.1
             }} className="pt-6 border-t border-border">
                   {user ? <div className="flex flex-col gap-4">
-                      {isStaff && <Link to={isSuperAdmin ? "/admin" : "/admin/crm"}>
+                      {isStaff && <Link to={isSuperAdmin ? "/admin" : "/admin/pipeline-v2"}>
                           <Button variant="outline" className="w-full justify-start">
                             <Settings className="w-4 h-4 mr-2" />
                             Admin Dashboard

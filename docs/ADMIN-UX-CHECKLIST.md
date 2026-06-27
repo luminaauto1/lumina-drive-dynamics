@@ -307,6 +307,126 @@ and keyboard nav with no data impact; saved-view presets simply disappear from e
 
 ---
 
+## Phase 7 — Admin v2: nav cleanup, settings-as-pages, customizable dashboard
+
+**What changed:** three things shipped together on the `feat/admin-ux-v2` branch.
+1. **Nav slimming** — the **CRM** and **Email Templates** items were removed from the sidebar; the
+   **Pipeline** now manages client flow.
+2. **Settings became real pages** — each setting opens on its own URL (`/admin/settings/<key>`) instead of an
+   in-page tab. The Settings landing page is now a grouped **directory of links**.
+3. **A new customizable, month-filtered dashboard** (the "Command Center").
+
+> **Supersedes parts of Phase 5.** The Phase 5 items about a Settings **tab strip**, the **"Save All
+> Settings"** bar, and Email Templates being a **`?tab=email` tab** no longer apply — settings are pages now,
+> each form has its **own** Save button, and Email Templates is a page at `/admin/settings/email`. Use the
+> Phase 7 items below instead where they overlap.
+
+### Nav: CRM and Email-Templates removed; CRM URLs redirect to Pipeline
+
+- [ ] **CRM and Email Templates are gone from the sidebar.**
+  Steps: scan the left sidebar (Main and System groups).
+  Expected: there's **no** "CRM" item and **no** "Email Templates" item. Pipeline, Finance, Deal Desk and
+  Inventory are still under **Main**; **Settings** is still under **System**.
+
+- [ ] **Old CRM links still land somewhere sensible (redirect to Pipeline).**
+  Steps: in the browser address bar visit `/admin/crm`, then `/admin/crm-sheet`, then `/admin/leads`.
+  Expected: each one lands on the **Pipeline** (`/admin/pipeline-v2`) — no 404, no blank page.
+
+- [ ] **Command palette / search no longer offers a dead "CRM" page, and lead results open the Pipeline.**
+  Steps: press **⌘K / Ctrl-K** and type "CRM"; also search a lead name and click a **Leads** result.
+  Expected: typing "CRM" surfaces the **Pipeline** (it carries the crm/leads keywords); clicking a lead
+  result opens the **Pipeline**, not a dead CRM page.
+
+- [ ] **Non-admin staff are not stranded by the CRM removal. _(needs a non-admin login)_**
+  Steps: log in as a **non-admin** staff member (e.g. a Salesperson) and click the **"Admin"** button in the
+  public site's top nav; also try opening `/admin/crm` directly.
+  Expected: you land on a page you're **allowed** to see (the Pipeline if your role permits it, otherwise your
+  first allowed section) — you are **never** bounced back and forth between two pages and never see a blank
+  screen. _(This was the bug fixed during review: a role granted the legacy "CRM" access is now also allowed
+  into the Pipeline it redirects to.)_
+
+### Settings as individual pages
+
+- [ ] **The Settings landing page is a directory of links.**
+  Steps: open **Settings** from the sidebar.
+  Expected: a grouped list of settings (**Business Profile / Finance & Deals / Workflow / Communications /
+  Access & Team / System**), each a clickable card that opens its **own page**. No in-page tab strip.
+
+- [ ] **Every setting opens at its own URL and shows the right form.**
+  Steps: click each setting in turn (Contact & Social, Location, Documents, Finance Calculator, Banks, Sales
+  Team & Target, Bank Branch Codes, Statuses, Appearance & Navigation, Email Templates, WhatsApp Templates,
+  EasySocial, Team & Permissions, Features & Diagnostics).
+  Expected: each opens at `/admin/settings/<key>` with the correct title and controls. **Nothing from the old
+  tabbed Settings is missing** except **Branding** (intentionally removed — see the note below).
+
+- [ ] **Each settings form saves on its own — saving one never overwrites another.**
+  Steps: change a value on **Contact & Social** and Save; then change a value on **Finance Calculator** and
+  Save.
+  Expected: each page has its **own** Save button; saving one page only writes that page's fields. (No single
+  global "Save All" bar anymore.)
+
+- [ ] **A made-up settings URL doesn't break anything.**
+  Steps: visit `/admin/settings/does-not-exist`.
+  Expected: you're sent back to the Settings landing page (no crash, no blank screen).
+
+- [ ] **Admin-only settings stay admin-only — by link AND by URL. _(needs a non-admin login)_**
+  Steps: as a **non-admin**, open Settings (if your role can) and note which settings are listed; then try to
+  open an admin-only one directly by URL (e.g. `/admin/settings/team`, `/admin/settings/statuses`,
+  `/admin/settings/email`).
+  Expected: admin-only settings are **not listed** for them, and typing the URL bounces them back to the
+  Settings landing page rather than opening the page.
+
+- [ ] **Branding settings were intentionally removed — confirm you don't need them.**
+  Steps: there is no longer a Branding page. The old Branding tab edited the homepage **Hero Headline**,
+  **Hero Subheadline**, and a **Maintenance Mode** toggle.
+  Expected: confirm you're OK losing the **in-admin editor** for the hero text. _(The hero text still shows on
+  the public homepage from its saved values; it just can't be edited from admin anymore. Maintenance Mode was
+  not wired to anything, so losing its toggle has no effect.)_ If you DO want to edit hero text again, flag it
+  — it needs a small page added back.
+
+### Command Center dashboard (customizable + month filter)
+
+- [ ] **The dashboard shows real KPIs, not placeholder numbers.**
+  Steps: open the **Dashboard** (Command Center) and read the KPI tiles (Total GP, Total Units, New Apps
+  Today, Approvals, Valuations Done, Client Deposits, Closed Deals, Pending Apps, Avg Yield, Total Turnover).
+  Expected: the numbers match what you'd expect from real deals/applications — spot-check one or two against
+  Finance / Deal Desk. Nothing is a fixed or obviously fake figure.
+
+- [ ] **The period (month) filter changes the figures.**
+  Steps: use the period dropdown at the top right. Switch between **this month**, a **previous month**, and
+  **Overall (All-Time)**.
+  Expected: the period-based KPIs recompute for the chosen month; the subtitle shows the selected period.
+  ("New Apps Today" always shows **today's** count regardless of period — that's intended.)
+
+- [ ] **Empty / quiet periods don't break the dashboard.**
+  Steps: pick a past month with little or no activity (or use a fresh environment).
+  Expected: tiles read **0** (or **R 0**), "Avg Yield" doesn't error, the "Requires Action" panel shows
+  **"Inbox Zero"** — no crash, no blank page, no `NaN`.
+
+- [ ] **You can customize which widgets show, their size, and their order — and it sticks.**
+  Steps: click **Customize**. Use **Show / Hide widgets** to hide one, click a widget's **size** icon to
+  resize it, and **drag** a widget to reorder. Click **Done**, then **reload** the page.
+  Expected: your hidden/resized/reordered layout is exactly as you left it after reload. Layout is **per-user**
+  (your changes don't affect anyone else).
+
+- [ ] **Reset restores the default layout.**
+  Steps: in Customize mode click **Reset**.
+  Expected: all widgets return to their default visibility, size and order.
+
+- [ ] **The action panels still work.**
+  Steps: check **Requires Action** (urgent leads) and **Lead & Communication Activity (Today)**; click a few
+  of their links/buttons.
+  Expected: the urgent-leads list and today's volume/leads/apps figures show; the links open the right pages
+  (Pipeline, Finance, Lead Analytics).
+
+**How to roll back (Phase 7):** all three changes are revertable on the branch with no database impact.
+- **Dashboard:** layout customizations are per-user localStorage; reverting the dashboard commit restores the
+  old dashboard and the saved layouts simply stop being read.
+- **Settings-as-pages:** revert the settings commit to bring back the tabbed Settings page.
+- **Nav/CRM:** revert the nav commit to restore the CRM and Email-Templates nav items and the CRM route.
+
+---
+
 ## Final sign-off
 
 - [ ] All boxes above checked, or any exceptions noted (especially **[needs migration]** items).
