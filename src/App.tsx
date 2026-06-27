@@ -45,6 +45,7 @@ const AdminInventoryPage = lazy(() => import("./pages/admin/AdminInventoryPage")
 const AdminFinance = lazy(() => import("./pages/admin/AdminFinance"));
 const AdminDealRoom = lazy(() => import("./pages/admin/AdminDealRoom"));
 const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
+const AdminSettingPage = lazy(() => import("./pages/admin/AdminSettingPage"));
 const AdminAnalytics = lazy(() => import("./pages/admin/AdminAnalytics"));
 const AdminAftersales = lazy(() => import("./pages/admin/AdminAftersales"));
 const AdminCreateApplication = lazy(() => import("./pages/admin/AdminCreateApplication"));
@@ -58,7 +59,6 @@ const AdminPartnerPayout = lazy(() => import("./pages/admin/AdminPartnerPayout")
 const AdminNetwork = lazy(() => import("./pages/admin/AdminNetwork"));
 const AdminContacts = lazy(() => import("./pages/admin/AdminContacts"));
 const AdminReferrals = lazy(() => import("./pages/admin/AdminReferrals"));
-const AdminEmailSettings = lazy(() => import("./pages/admin/AdminEmailSettings"));
 // AdminCRM retired from routing (CRM nav removed; legacy URLs redirect to Pipeline).
 // Component file kept in the codebase to avoid collateral breakage.
 const ClientProfile = lazy(() => import("./pages/admin/ClientProfile"));
@@ -148,7 +148,10 @@ const AppLayout = () => {
             <Route path="/admin/export" element={<ProtectedRoute section="export"><AdminExport /></ProtectedRoute>} />
             <Route path="/admin/deal-desk" element={<ProtectedRoute section="deal_desk"><AdminDealDesk /></ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute requireSuperAdmin><AdminSettings /></ProtectedRoute>} />
-            <Route path="/admin/settings/email" element={<ProtectedRoute requireSuperAdmin><AdminEmailSettings /></ProtectedRoute>} />
+            {/* Each setting renders on its own page at /admin/settings/<key>
+                (incl. /admin/settings/email — Email Templates). Same super-admin
+                gate as the index; the page also re-checks per-setting gating. */}
+            <Route path="/admin/settings/:key" element={<ProtectedRoute requireSuperAdmin><AdminSettingPage /></ProtectedRoute>} />
             <Route path="/admin/reports/partner-payout/:dealId" element={<ProtectedRoute section="reports"><AdminPartnerPayout /></ProtectedRoute>} />
             <Route path="/admin/network" element={<ProtectedRoute section="network"><AdminNetwork /></ProtectedRoute>} />
             <Route path="/admin/referrals" element={<ProtectedRoute section="referrals"><AdminReferrals /></ProtectedRoute>} />

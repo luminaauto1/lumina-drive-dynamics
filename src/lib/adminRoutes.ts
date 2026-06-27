@@ -96,3 +96,6 @@ export const clientProfilePath = (clientId: string) => `/admin/clients/${clientI
 /** Partner payout report for a deal: `/admin/reports/partner-payout/:dealId`. */
 export const partnerPayoutPath = (dealId: string) =>
   `${ADMIN_ROUTES.partnerPayout}/${dealId}`;
+
+/** Individual setting page: `/admin/settings/:key` (e.g. settingPath('email')). */
+export const settingPath = (key: string) => `${ADMIN_ROUTES.settings}/${key}`;
