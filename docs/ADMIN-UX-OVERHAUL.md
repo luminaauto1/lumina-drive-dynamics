@@ -12,16 +12,16 @@ archive it). Each phase ships as its own PR → merge → deploy. Full diagnosis
 
 ---
 
-## Open decisions (defaults chosen so work isn't blocked — confirm when convenient)
+## Open decisions — ALL CONFIRMED by owner 2026-06-27 (whole plan approved)
 
-| # | Question | Default in use | Confirmed? |
-|---|---|---|---|
-| 1 | Auto-create a Deal Desk draft on `contract_signed` (not `contract_sent`) | **contract_signed** | ✅ confirmed |
-| 2 | Who sees draft deals before finalize | same admin/senior-F&I gate as today | ✅ confirmed |
-| 3 | Status keys fixed; only labels/colours/wording editable | **keys fixed** | ✅ confirmed |
-| 4 | Density default | **Compact default + per-user Comfortable toggle** | ⬜ |
-| 5 | Editable nav scope | start with fixed 8-tab rail; editable nav later (Phase 5) | ⬜ |
-| 6 | Phasing | per-phase PRs, merge as each is approved | ✅ (proceeding) |
+| # | Question | Final answer |
+|---|---|---|
+| 1 | Auto-create a Deal Desk draft when status becomes... | ✅ **`contract_signed`** |
+| 2 | Who sees draft deals before finalize | ✅ **Admins only** (not all F&I) |
+| 3 | Status editability | ✅ **ZTC-style**: status keys stay fixed, but **labels + their WhatsApp message bodies** (and colours) are editable in Settings — like Zinan Talks Cars |
+| 4 | Density default | ✅ **Comfortable default + per-user Compact toggle** (done — see Phase 2b) |
+| 5 | Editable nav scope | ✅ owner's choice = mine: **light editable nav** (admins hide/show + reorder top-level via Settings) in Phase 5 |
+| 6 | Phasing | ✅ **whole plan approved**; per-phase PRs; **deliver a final acceptance-checklist doc at the end** |
 
 ---
 
@@ -44,12 +44,13 @@ page edits and zero storefront impact. Fully reversible (delete the block).
 - [x] Preserved role filtering, Referrals badge, collapse-to-icon-rail, auto-collapse on Finance/Pipeline
 - [x] Verify: tsc + build clean (live screenshot after merge — sidebar is auth-gated)
 
-## Phase 2b — Shared primitives + in-page tabs — ⬜ (next)
-- ⬜ Extract `<PageHeader compact>` + `<StatTile>` primitives; refactor pages onto them
-- ⬜ Fold Cars-to-Buy, CRM Sheet into in-page tabs (further reduce nav count)
-- ⬜ Centralize admin route paths in `lib/adminRoutes.ts`; keep old routes as redirects
+## Phase 2b — Shared primitives + in-page tabs — [~] in progress
+- [x] **Per-user density toggle (Q4)** — `.desk-root` base = Comfortable (default); `.density-compact` = denser. `useAdminDensity` hook (localStorage) + sidebar footer toggle; AdminLayout applies `density-<mode>`. (PR feat/admin-ux-density-toggle)
+- [ ] Extract `<PageHeader compact>` + `<StatTile>` primitives; refactor pages onto them
+- [ ] Fold Cars-to-Buy, CRM Sheet into in-page tabs (further reduce nav count)
+- [ ] Centralize admin route paths in `lib/adminRoutes.ts`; keep old routes as redirects
 
-## Phase 3 — Contract-signed → Deal Desk automation — ⬜ (Q1–Q3 ✅ confirmed; ready to build)
+## Phase 3 — Contract-signed → Deal Desk automation — ⬜ (ready; drafts visible to **Admins only**)
 - ⬜ Idempotent draft `deal_records` create on `contract_signed` in `useUpdateFinanceApplication`
 - ⬜ Optional Postgres `AFTER UPDATE` trigger for non-hook write paths
 - ⬜ Repurpose `FinalizeDealModal` to enrich the existing draft (no parallel row)
@@ -72,6 +73,7 @@ page edits and zero storefront impact. Fully reversible (delete the block).
 ---
 
 ## Changelog (most recent first)
-- 2026-06-26 — **Phase 2a** (`feat/admin-ux-phase2-nav`): sidebar flattened to direct links under section headers (no dropdowns); OTP added, Contacts homed. Q1–Q3 confirmed (defaults). Phase 3 unblocked.
+- 2026-06-27 — **All decisions confirmed; whole plan approved.** Phase 2b started with the **density toggle** (`feat/admin-ux-density-toggle`): Comfortable default + per-user Compact toggle in the sidebar.
+- 2026-06-26 — **Phase 2a merged** (PR #78): sidebar flattened to direct links under section headers (no dropdowns); OTP added, Contacts homed.
 - 2026-06-26 — **Phase 1 merged** (`feat/admin-ux-phase1`, PR #77): `.desk-root` admin density theme + 404 fix. Verified before/after (~50% denser, glow removed).
 - 2026-06-26 — Plan created; Phase 1 started on `feat/admin-ux-phase1`.

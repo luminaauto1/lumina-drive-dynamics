@@ -8,6 +8,7 @@ import TaskOSButton from './taskos/TaskOSButton';
 import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { useAdminDensity } from '@/hooks/useAdminDensity';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -15,6 +16,7 @@ interface AdminLayoutProps {
 
 const AdminLayout = ({ children }: AdminLayoutProps) => {
   const { user, isStaff, loading } = useAuth();
+  const { density } = useAdminDensity();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -53,7 +55,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
       </div>
 
       {/* Main Content - flex-1 fills remaining space, min-w-0 prevents overflow */}
-      <main className="desk-root flex-1 min-w-0 min-h-screen pt-14 md:pt-0 overflow-x-hidden">
+      <main className={`desk-root density-${density} flex-1 min-w-0 min-h-screen pt-14 md:pt-0 overflow-x-hidden`}>
         {children}
       </main>
 

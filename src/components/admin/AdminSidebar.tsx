@@ -2,7 +2,7 @@ import {
   LayoutDashboard, TableProperties, CreditCard, ClipboardList, Users, Car,
   Calculator, FileSignature, FolderOpen, Building2, ShoppingCart, Banknote,
   Receipt, Coins, Truck, FileBarChart, BarChart3, LineChart, Download,
-  Briefcase, Gift, Contact, Settings, Mail, Search, ChevronLeft, ChevronRight, Home,
+  Briefcase, Gift, Contact, Settings, Mail, Search, ChevronLeft, ChevronRight, Home, Rows3,
 } from 'lucide-react';
 import { NavLink, useLocation, Link } from 'react-router-dom';
 import { OPEN_GLOBAL_SEARCH_EVENT } from './GlobalSearch';
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { useOutstandingReferralCount } from '@/hooks/useReferrals';
 import { useMyAllowedSections } from '@/hooks/useRolePermissions';
 import { sectionForPath } from '@/lib/permissions';
+import { useAdminDensity } from '@/hooks/useAdminDensity';
 
 interface NavLeaf {
   title: string;
@@ -92,6 +93,7 @@ const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
   const location = useLocation();
   const { allowed, isAdmin } = useMyAllowedSections();
   const { data: outstandingRefs = 0 } = useOutstandingReferralCount();
+  const { density, toggle: toggleDensity } = useAdminDensity();
 
   useEffect(() => {
     onCollapse?.(collapsed);
@@ -209,8 +211,25 @@ const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
         ))}
       </nav>
 
-      {/* Back to Home */}
-      <div className="absolute bottom-0 left-0 right-0 p-2 border-t border-border bg-card">
+      {/* Footer: density toggle + back to home */}
+      <div className="absolute bottom-0 left-0 right-0 p-2 border-t border-border bg-card space-y-0.5">
+        <button
+          type="button"
+          onClick={toggleDensity}
+          title={`Density: ${density === 'compact' ? 'Compact' : 'Comfortable'} — click to switch`}
+          className={cn(
+            'flex items-center gap-2.5 rounded-md transition-colors w-full text-left',
+            collapsed ? 'justify-center px-2 py-2' : 'px-3 py-1.5',
+            'text-muted-foreground hover:bg-secondary hover:text-foreground',
+          )}
+        >
+          <Rows3 className="h-[18px] w-[18px] flex-shrink-0" />
+          {!collapsed && (
+            <span className="text-sm font-medium flex-1 truncate">
+              {density === 'compact' ? 'Compact' : 'Comfortable'}
+            </span>
+          )}
+        </button>
         <Link
           to="/"
           onClick={onNavigate}
