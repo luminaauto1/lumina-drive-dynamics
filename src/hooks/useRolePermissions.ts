@@ -60,7 +60,14 @@ export const useMyAllowedSections = () => {
     if (effective === 'admin') return new Set(SECTION_KEYS);
     if (!effective) return new Set<string>();
     const list = map?.[effective] ?? DEFAULT_ROLE_SECTIONS[effective];
-    return new Set(list);
+    const set = new Set(list);
+    // CRM was retired in admin-v2: its nav/route now redirect to the Pipeline.
+    // Any role granted the legacy `crm` section must therefore also be able to
+    // open `pipeline_v2` — otherwise the redirect lands them on a section they
+    // lack and ProtectedRoute bounces them away (and for a crm-first role can
+    // ping-pong between /admin/crm and /admin/pipeline-v2). Treat crm ⇒ pipeline_v2.
+    if (set.has('crm')) set.add('pipeline_v2');
+    return set;
   }, [effective, map]);
 
   return { allowed, isAdmin: effective === 'admin', isLoading: effective !== 'admin' && isLoading, effective };
