@@ -27,7 +27,7 @@ import {
   useEasySocialSettings,
   useUpdateEasySocialSettings,
 } from '@/hooks/useZtcSettings';
-import { getWhatsAppMessage } from '@/lib/statusConfig';
+import { getWhatsAppMessage, STATUS_OPTIONS } from '@/lib/statusConfig';
 
 // Expanded palette (the 7 from the inline StatusesTab editor + 5 more).
 const STATUS_COLOR_PRESETS: { label: string; cls: string }[] = [
@@ -110,10 +110,17 @@ export function StatusEditModal({
       if (isClientCreate) {
         writeSlug = slugifyClientLabel(label);
         if (!writeSlug || writeSlug === 'client_') { setError('Enter a label with at least one letter or number.'); return; }
-        // Collision check against existing client slugs (finance slugs can't collide
-        // due to the 'client_' prefix).
+        // Collision check against existing client slugs.
         if (allClientStatuses.some((c) => c.value === writeSlug)) {
           setError('A client status with that name already exists.');
+          return;
+        }
+        // Guard against colliding with a fixed FINANCE slug. The 'client_' prefix
+        // makes this rare, but a finance slug already starts with it
+        // (client_cancelled), so e.g. a label of "Cancelled" would slugify into it
+        // and the onConflict:'slug' upsert would clobber the finance row.
+        if (STATUS_OPTIONS.some((o: { value: string }) => o.value === writeSlug)) {
+          setError('That name conflicts with a built-in finance status. Pick a different label.');
           return;
         }
         sortOrder = allClientStatuses.reduce((mx, c) => Math.max(mx, c.sortOrder), 0) + 1;
