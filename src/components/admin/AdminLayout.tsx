@@ -33,7 +33,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   return (
     <div className="min-h-screen bg-background flex w-full">
       {/* Desktop Sidebar - spacer div matches fixed sidebar width */}
-      <div className={`hidden md:block flex-shrink-0 transition-all duration-300 ${collapsed ? 'w-16' : 'w-64'}`}>
+      <div className={`hidden md:block flex-shrink-0 transition-all duration-300 ${collapsed ? 'w-16' : 'w-60'}`}>
         <AdminSidebar onCollapse={setCollapsed} />
       </div>
 
