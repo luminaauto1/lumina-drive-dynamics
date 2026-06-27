@@ -49,7 +49,7 @@ export interface FinanceQuoteInput {
   /** Residual / balloon as a percentage of the VEHICLE PRICE, e.g. 35 */
   residualPct: number;
   /** Payment timing: 0 = END (arrears, default), 1 = BEG (advance) */
-  begEnd: 0 | 1;
+  begEnd?: 0 | 1;
   /** Bank documentation fee, spread linearly over the term (not financed) */
   bankDocFee: number;
   /** Optional financed add-ons (Admin Fee, License & Reg, etc.) */
@@ -95,7 +95,7 @@ export function calcFinanceQuote(input: FinanceQuoteInput): FinanceQuoteResult {
     annualRatePct,
     term,
     residualPct,
-    begEnd,
+    begEnd = 0,
     bankDocFee,
   } = input;
 
