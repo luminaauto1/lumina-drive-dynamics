@@ -52,7 +52,7 @@ const AdminDealRoom = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { role, isSuperAdmin, isSeniorFAndI } = useAuth();
-  const { labels: financeLabels, styles: financeStyles } = useStatusConfig();
+  const { labels: financeLabels, styles: financeStyles, whatsappMessageFor } = useStatusConfig();
   const { data: docSettings } = useDocumentSettings();
   // Only full admins and senior F&I may finalize deals (deal_records hold figures).
   const canFinalize = isSuperAdmin || isSeniorFAndI;
@@ -271,7 +271,7 @@ const AdminDealRoom = () => {
     }
     const formattedPhone = phone.startsWith('0') ? `27${phone.slice(1)}` : phone;
     const name = application.first_name || application.full_name?.split(' ')[0] || 'Customer';
-    const message = getWhatsAppMessage(application.status, name, matches.length);
+    const message = getWhatsAppMessage(application.status, name, matches.length, whatsappMessageFor(application.status));
     window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 

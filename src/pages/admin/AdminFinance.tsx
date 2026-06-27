@@ -27,6 +27,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useFinanceApplications, useUpdateFinanceApplication, useDeleteFinanceApplication, FinanceApplication } from '@/hooks/useFinanceApplications';
 import { formatPrice } from '@/hooks/useVehicles';
 import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, STATUS_STEP_ORDER, getWhatsAppMessage, canShowDealActions } from '@/lib/statusConfig';
+import { useStatusConfig } from '@/hooks/useZtcSettings';
 import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
 import { INTERNAL_STATUSES, type InternalStatus, normalizeInternalStatus } from '@/lib/internalStatusConfig';
 
@@ -77,6 +78,7 @@ const AdminFinance = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { isSuperAdmin, isSeniorFAndI, isFAndI, role, user } = useAuth();
+  const { whatsappMessageFor } = useStatusConfig();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   // F&I owner filter. Everyone can change it.
@@ -412,7 +414,7 @@ const AdminFinance = () => {
     const phone = app.phone?.replace(/\D/g, '') || '';
     const formattedPhone = phone.startsWith('0') ? `27${phone.slice(1)}` : phone;
     const name = app.first_name || app.full_name?.split(' ')[0] || 'Customer';
-    const message = getWhatsAppMessage(app.status, name);
+    const message = getWhatsAppMessage(app.status, name, undefined, whatsappMessageFor(app.status));
     window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 

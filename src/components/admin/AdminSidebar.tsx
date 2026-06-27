@@ -13,20 +13,25 @@ import { useOutstandingReferralCount } from '@/hooks/useReferrals';
 import { useMyAllowedSections } from '@/hooks/useRolePermissions';
 import { sectionForPath } from '@/lib/permissions';
 import { useAdminDensity } from '@/hooks/useAdminDensity';
+import { useDocumentSettings } from '@/hooks/useDocumentSettings';
+import { applyNavConfig } from '@/lib/navConfig';
 
-interface NavLeaf {
+export interface NavLeaf {
   title: string;
   icon: any;
   path: string;
 }
-interface NavSection {
+export interface NavSection {
   label: string;
   items: NavLeaf[];
 }
 
 // Flat, direct-link navigation grouped under quiet section headers (no dropdowns).
 // Daily-use destinations first. Every item navigates straight to its tab.
-const navSections: NavSection[] = [
+// Exported as the canonical code default — the Appearance & Navigation settings
+// tab renders/reorders this same list, and an admin-saved nav config is applied
+// on top of it (see lib/navConfig).
+export const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Main',
     items: [
@@ -94,6 +99,7 @@ const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
   const { allowed, isAdmin } = useMyAllowedSections();
   const { data: outstandingRefs = 0 } = useOutstandingReferralCount();
   const { density, toggle: toggleDensity } = useAdminDensity();
+  const { data: docSettings } = useDocumentSettings();
 
   useEffect(() => {
     onCollapse?.(collapsed);
@@ -116,7 +122,11 @@ const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
     return !!section && allowed.has(section);
   };
 
-  const visibleSections = navSections
+  // 1) Apply the admin's saved appearance/order config (hide/show + reorder).
+  // 2) Then apply role filtering — a config can only ever hide/reorder what the
+  //    user could already see, never grant access.
+  const configuredSections = applyNavConfig(NAV_SECTIONS, docSettings?.navConfig);
+  const visibleSections = configuredSections
     .map((s) => ({ ...s, items: s.items.filter((i) => canSeePath(i.path)) }))
     .filter((s) => s.items.length > 0);
 

@@ -58,13 +58,13 @@ export const useUpdateWhatsAppTemplate = () => {
 };
 
 /* ---------------- Status display overrides ---------------- */
-export interface StatusOverride { slug: string; label: string | null; color_class: string | null; sort_order: number | null; is_hidden: boolean }
+export interface StatusOverride { slug: string; label: string | null; color_class: string | null; sort_order: number | null; is_hidden: boolean; whatsapp_message: string | null }
 
 export const useStatusOverrides = () =>
   useQuery({
     queryKey: ['status-overrides'],
     queryFn: async (): Promise<StatusOverride[]> => {
-      const { data, error } = await db.from('status_overrides').select('slug, label, color_class, sort_order, is_hidden');
+      const { data, error } = await db.from('status_overrides').select('slug, label, color_class, sort_order, is_hidden, whatsapp_message');
       if (error) throw error;
       return data ?? [];
     },
@@ -80,6 +80,7 @@ export const useUpsertStatusOverride = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['status-overrides'] });
       qc.invalidateQueries({ queryKey: ['status-config'] });
+      toast.success('Status saved');
     },
     onError: (e: any) => toast.error('Save failed: ' + e.message),
   });
@@ -89,7 +90,7 @@ export const useUpsertStatusOverride = () => {
    SLUGS ARE FIXED — overrides only change label/colour/order/visibility, so the
    mailer/notify/pipeline slug contracts are never affected. Consumers (Pipeline v2)
    call labelFor/classFor for the effective presentation. */
-export interface MergedStatus { value: string; label: string; colorClass: string; sortOrder: number; hidden: boolean }
+export interface MergedStatus { value: string; label: string; colorClass: string; sortOrder: number; hidden: boolean; whatsappMessage: string }
 
 export const useStatusConfig = () => {
   const { data: overrides = [] } = useStatusOverrides();
@@ -104,6 +105,7 @@ export const useStatusConfig = () => {
       colorClass: ov?.color_class || STATUS_STYLES[o.value] || FALLBACK_CLASS,
       sortOrder: ov?.sort_order ?? i,
       hidden: !!ov?.is_hidden,
+      whatsappMessage: ov?.whatsapp_message || '',
     };
   }).sort((a, b) => a.sortOrder - b.sortOrder);
 
@@ -111,11 +113,13 @@ export const useStatusConfig = () => {
     byslug.get(slug)?.label || ADMIN_STATUS_LABELS[slug] || slug;
   const classFor = (slug: string) =>
     byslug.get(slug)?.color_class || STATUS_STYLES[slug] || FALLBACK_CLASS;
+  // Effective editable WhatsApp body for a slug ('' = use the built-in default).
+  const whatsappMessageFor = (slug: string) => byslug.get(slug)?.whatsapp_message || '';
 
   // Maps for components that take label/style dictionaries.
   const labels: Record<string, string> = {};
   const styles: Record<string, string> = {};
   for (const o of STATUS_OPTIONS as any[]) { labels[o.value] = labelFor(o.value); styles[o.value] = classFor(o.value); }
 
-  return { merged, labelFor, classFor, labels, styles };
+  return { merged, labelFor, classFor, whatsappMessageFor, labels, styles };
 };

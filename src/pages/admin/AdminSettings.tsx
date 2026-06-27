@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { publicApiHeaders } from '@/lib/publicApi';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Settings, DollarSign, Phone, Palette, Loader2, MapPin, CreditCard, Users, Plus, X, Target, Mail, TestTube, Building2, Shield, FileText, Landmark, Plug, MessageCircle, ListChecks } from 'lucide-react';
+import { Settings, DollarSign, Phone, Palette, Loader2, MapPin, CreditCard, Users, Plus, X, Target, Mail, TestTube, Building2, Shield, FileText, Landmark, Plug, MessageCircle, ListChecks, LayoutDashboard } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Switch } from '@/components/ui/switch';
@@ -21,6 +22,8 @@ import BankBranchCodesTab from '@/components/admin/BankBranchCodesTab';
 import EasySocialTab from '@/components/admin/EasySocialTab';
 import WhatsAppTemplatesTab from '@/components/admin/WhatsAppTemplatesTab';
 import StatusesTab from '@/components/admin/StatusesTab';
+import EmailTemplatesTab from '@/components/admin/EmailTemplatesTab';
+import AppearanceNavTab from '@/components/admin/AppearanceNavTab';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -251,10 +254,26 @@ const TestEmailButton = () => {
   );
 };
 
+// Tabs whose fields are bound to the global react-hook-form `register()` and
+// therefore need the global "Save All Settings" bar. Every other tab saves
+// itself, so the global bar is hidden on those (fixes the confusing save model).
+const FORM_BOUND_TABS = new Set(['finance', 'sales', 'contact', 'location', 'branding', 'features']);
+
 const AdminSettings = () => {
   const { isSuperAdmin } = useAuth();
   const { data: settings, isLoading } = useSiteSettings();
   const updateSettings = useUpdateSiteSettings();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Controlled active tab — initialised from ?tab= (so the /admin/settings/email
+  // redirect deep-links into the Email tab) and kept in the URL for shareable links.
+  const initialTab = searchParams.get('tab') || 'finance';
+  const [activeTab, setActiveTab] = useState(initialTab);
+  const onTabChange = (v: string) => {
+    setActiveTab(v);
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', v);
+    setSearchParams(next, { replace: true });
+  };
 
   const { register, handleSubmit, reset, watch, setValue } = useForm<SettingsFormData>({
     defaultValues: {
@@ -377,73 +396,71 @@ const AdminSettings = () => {
         </motion.div>
 
         <form onSubmit={handleSubmit(onSubmit)}>
-          <Tabs defaultValue="finance" className="max-w-3xl">
-            <TabsList className="flex flex-wrap gap-1 h-auto w-full mb-6">
-              <TabsTrigger value="finance" className="gap-2">
-                <DollarSign className="w-4 h-4" />
-                Finance
-              </TabsTrigger>
-              <TabsTrigger value="banks" className="gap-2">
-                <Building2 className="w-4 h-4" />
-                Banks
-              </TabsTrigger>
-              <TabsTrigger value="sales" className="gap-2">
-                <Users className="w-4 h-4" />
-                Sales
-              </TabsTrigger>
-              <TabsTrigger value="contact" className="gap-2">
-                <Phone className="w-4 h-4" />
-                Contact
-              </TabsTrigger>
-              <TabsTrigger value="location" className="gap-2">
-                <MapPin className="w-4 h-4" />
-                Location
-              </TabsTrigger>
-              <TabsTrigger value="branding" className="gap-2">
-                <Palette className="w-4 h-4" />
-                Branding
-              </TabsTrigger>
-              <TabsTrigger value="features" className="gap-2">
-                <CreditCard className="w-4 h-4" />
-                Features
-              </TabsTrigger>
+          <Tabs value={activeTab} onValueChange={onTabChange} className="max-w-3xl">
+            {/* Grouped tab IA — the flat strip is now organised into labelled
+                sections so related settings sit together. */}
+            <div className="space-y-3 mb-6">
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-1.5">Business Profile</div>
+                <TabsList className="flex flex-wrap gap-1 h-auto w-full justify-start bg-transparent p-0">
+                  <TabsTrigger value="contact" className="gap-2"><Phone className="w-4 h-4" />Contact</TabsTrigger>
+                  <TabsTrigger value="location" className="gap-2"><MapPin className="w-4 h-4" />Location</TabsTrigger>
+                  <TabsTrigger value="branding" className="gap-2"><Palette className="w-4 h-4" />Branding</TabsTrigger>
+                  {isSuperAdmin && (
+                    <TabsTrigger value="documents" className="gap-2"><FileText className="w-4 h-4" />Documents</TabsTrigger>
+                  )}
+                </TabsList>
+              </div>
+
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-1.5">Finance & Deals</div>
+                <TabsList className="flex flex-wrap gap-1 h-auto w-full justify-start bg-transparent p-0">
+                  <TabsTrigger value="finance" className="gap-2"><DollarSign className="w-4 h-4" />Finance</TabsTrigger>
+                  <TabsTrigger value="banks" className="gap-2"><Building2 className="w-4 h-4" />Banks</TabsTrigger>
+                  <TabsTrigger value="sales" className="gap-2"><Users className="w-4 h-4" />Sales</TabsTrigger>
+                  {isSuperAdmin && (
+                    <TabsTrigger value="branches" className="gap-2"><Landmark className="w-4 h-4" />Branches</TabsTrigger>
+                  )}
+                </TabsList>
+              </div>
+
               {isSuperAdmin && (
-                <TabsTrigger value="team" className="gap-2">
-                  <Shield className="w-4 h-4" />
-                  Team
-                </TabsTrigger>
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-1.5">Workflow</div>
+                  <TabsList className="flex flex-wrap gap-1 h-auto w-full justify-start bg-transparent p-0">
+                    <TabsTrigger value="statuses" className="gap-2"><ListChecks className="w-4 h-4" />Statuses</TabsTrigger>
+                    <TabsTrigger value="appearance" className="gap-2"><LayoutDashboard className="w-4 h-4" />Appearance & Nav</TabsTrigger>
+                  </TabsList>
+                </div>
               )}
+
               {isSuperAdmin && (
-                <TabsTrigger value="documents" className="gap-2">
-                  <FileText className="w-4 h-4" />
-                  Documents
-                </TabsTrigger>
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-1.5">Communications</div>
+                  <TabsList className="flex flex-wrap gap-1 h-auto w-full justify-start bg-transparent p-0">
+                    <TabsTrigger value="email" className="gap-2"><Mail className="w-4 h-4" />Email Templates</TabsTrigger>
+                    <TabsTrigger value="whatsapp" className="gap-2"><MessageCircle className="w-4 h-4" />WhatsApp</TabsTrigger>
+                    <TabsTrigger value="easysocial" className="gap-2"><Plug className="w-4 h-4" />EasySocial</TabsTrigger>
+                  </TabsList>
+                </div>
               )}
+
               {isSuperAdmin && (
-                <TabsTrigger value="branches" className="gap-2">
-                  <Landmark className="w-4 h-4" />
-                  Branches
-                </TabsTrigger>
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-1.5">Access & Team</div>
+                  <TabsList className="flex flex-wrap gap-1 h-auto w-full justify-start bg-transparent p-0">
+                    <TabsTrigger value="team" className="gap-2"><Shield className="w-4 h-4" />Team</TabsTrigger>
+                  </TabsList>
+                </div>
               )}
-              {isSuperAdmin && (
-                <TabsTrigger value="easysocial" className="gap-2">
-                  <Plug className="w-4 h-4" />
-                  EasySocial
-                </TabsTrigger>
-              )}
-              {isSuperAdmin && (
-                <TabsTrigger value="whatsapp" className="gap-2">
-                  <MessageCircle className="w-4 h-4" />
-                  WhatsApp
-                </TabsTrigger>
-              )}
-              {isSuperAdmin && (
-                <TabsTrigger value="statuses" className="gap-2">
-                  <ListChecks className="w-4 h-4" />
-                  Statuses
-                </TabsTrigger>
-              )}
-            </TabsList>
+
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-1.5">System</div>
+                <TabsList className="flex flex-wrap gap-1 h-auto w-full justify-start bg-transparent p-0">
+                  <TabsTrigger value="features" className="gap-2"><CreditCard className="w-4 h-4" />Features</TabsTrigger>
+                </TabsList>
+              </div>
+            </div>
 
             {/* Finance Configuration Tab */}
             <TabsContent value="finance">
@@ -932,32 +949,46 @@ const AdminSettings = () => {
                 <StatusesTab />
               </TabsContent>
             )}
+            {isSuperAdmin && (
+              <TabsContent value="appearance">
+                <AppearanceNavTab />
+              </TabsContent>
+            )}
+            {isSuperAdmin && (
+              <TabsContent value="email">
+                <EmailTemplatesTab />
+              </TabsContent>
+            )}
 
           </Tabs>
 
-          {/* Save Button */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="mt-8 max-w-3xl"
-          >
-            <Button 
-              type="submit" 
-              size="lg"
-              disabled={updateSettings.isPending}
-              className="w-full sm:w-auto"
+          {/* Global Save bar — ONLY for form-bound tabs. Self-saving tabs (Banks,
+              Team, Documents, Statuses, Email, WhatsApp, etc.) each have their own
+              Save control, so showing this bar there was confusing. */}
+          {FORM_BOUND_TABS.has(activeTab) && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="mt-8 max-w-3xl"
             >
-              {updateSettings.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                'Save All Settings'
-              )}
-            </Button>
-          </motion.div>
+              <Button
+                type="submit"
+                size="lg"
+                disabled={updateSettings.isPending}
+                className="w-full sm:w-auto"
+              >
+                {updateSettings.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save All Settings'
+                )}
+              </Button>
+            </motion.div>
+          )}
         </form>
       </div>
     </AdminLayout>
