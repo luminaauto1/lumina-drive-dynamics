@@ -1,22 +1,16 @@
-import type { DealStatus } from '@/lib/dealdesk/types';
-import { DEAL_STATUS_LABEL } from '@/lib/dealdesk/types';
+import type { DealStage } from '@/lib/dealdesk/types';
 import { NATIS_CHIP_CLASS, type NatisStatus } from '@/lib/dealdesk/natis';
 import { cn } from '@/lib/utils';
+import { StatusBadge as SharedStatusBadge } from '@/components/admin/StatusBadge';
 
-const DEAL_STATUS_CLASS: Record<DealStatus, string> = {
-  contract_signed: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
-  invoiced:        'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
-  delivered:       'bg-amber-500/15 text-amber-400 border-amber-500/30',
-  cleared:         'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-  cancelled:       'bg-muted text-muted-foreground border-border',
-};
-
-export function StatusBadge({ status }: { status: DealStatus }) {
-  return (
-    <span className={cn('inline-block rounded border px-1.5 py-0.5 text-xs font-semibold', DEAL_STATUS_CLASS[status])}>
-      {DEAL_STATUS_LABEL[status]}
-    </span>
-  );
+/**
+ * Deal Desk status badge — now driven by the shared two-track <StatusBadge> on the
+ * 'deal' track (labels/colours from the deal-stage config), instead of the old
+ * hardcoded DEAL_STATUS_CLASS map. Kept as a thin wrapper so existing Deal Desk
+ * imports keep working; it renders the deal-STAGE track value.
+ */
+export function StatusBadge({ stage }: { stage: DealStage }) {
+  return <SharedStatusBadge track="deal" value={stage} />;
 }
 
 export function NatisChip({ status }: { status: NatisStatus }) {

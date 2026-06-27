@@ -7,6 +7,8 @@ import type { Deal } from '@/lib/dealdesk/types';
 import { natisStatus } from '@/lib/dealdesk/natis';
 import { formatRand, formatRandCompact, formatDate, monthKey, formatMonth } from '@/lib/dealdesk/format';
 import { StatusBadge, NatisChip } from './badges';
+import { StatusBadge as FinanceStatusBadge } from '@/components/admin/StatusBadge';
+import { useStatusConfig } from '@/hooks/useZtcSettings';
 import { useDeskSettings } from '@/hooks/dealdesk/useDealDesk';
 
 function Stat({ label, value }: { label: string; value: string }) {
@@ -33,6 +35,7 @@ export function DealsTable(
   { deals: Deal[]; onOpen: (d: Deal) => void; canSeeDrafts?: boolean },
 ) {
   const { data: settings } = useDeskSettings();
+  const { labels: financeLabels, styles: financeStyles } = useStatusConfig();
   const [search, setSearch] = useState('');
   const [month, setMonth] = useState<string>('all');
   const [view, setView] = useState<'all' | 'awaiting'>('all');
@@ -120,7 +123,15 @@ export function DealsTable(
                   <div className="text-xs text-muted-foreground">{d.client_phone || ''}</div>
                 </td>
                 <td className="px-3 py-2 text-xs">{d.vehicle_make_model || '—'}{d.vehicle_year ? ` · ${d.vehicle_year}` : ''}</td>
-                <td className="px-3 py-2"><StatusBadge status={d.deal_status} /></td>
+                <td className="px-3 py-2">
+                  <div className="flex flex-wrap items-center gap-1">
+                    <StatusBadge stage={d.deal_stage} />
+                    {d.finance_status && (
+                      <FinanceStatusBadge track="finance" value={d.finance_status}
+                        labelOverrides={financeLabels} styleOverrides={financeStyles} />
+                    )}
+                  </div>
+                </td>
                 <td className="px-3 py-2"><NatisChip status={natisStatus(d, settings)} /></td>
                 <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">{formatDate(d.sale_date) || '—'}</td>
                 <td className="px-3 py-2 text-right tabular-nums font-medium text-emerald-400">{formatRand(d.gross_profit)}</td>

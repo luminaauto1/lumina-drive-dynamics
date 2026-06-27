@@ -254,6 +254,7 @@ const AdminPipelineV2 = () => {
           app={statusChangeApp}
           updateApplication={updateApplication}
           onClose={() => setStatusChangeApp(null)}
+          role={role}
         />
       )}
 

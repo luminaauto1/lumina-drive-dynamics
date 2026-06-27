@@ -57,9 +57,11 @@ page edits and zero storefront impact. Fully reversible (delete the block).
 - ✅ `FinalizeDealModal` enriches a pre-existing draft (`useUpdateDealRecord`) instead of creating a parallel row.
 - ✅ "Awaiting finalize" filter in the Deal Desk Deals table; auto-created drafts are **admin-only** (filtered out for non-admins across the whole Deal Desk page).
 
-## Phase 4 — Two-track status + shared status components — ⬜ (needs Q3)
-- ⬜ Stored `deal_stage` enum (mirrors `DealStatus`); render as a second badge
-- ⬜ Shared `<StatusBadge>` / `<StatusSelect>` (override-aware + role-filtered) used everywhere
+## Phase 4 — Two-track status + shared status components — [x] DONE (branch feat/admin-ux-phases-2b-6)
+- [x] Stored `deal_stage` text column on `deal_records` (nullable, default null; CHECK in `none|deal_started|contract_signed|in_delivery|delivered|cleared`) — migration `20260627100000_deal_records_deal_stage.sql` (written, **NOT applied**)
+- [x] Shared `<StatusBadge track="finance"|"deal">` / `<StatusSelect>` (override-aware + role-filtered) — labels/colours from `statusConfig` (+ `status_overrides` merge) and the deal-stage map; both badges carry a track icon + distinct shape (never colour-only)
+- [x] `StatusSelect` applies `filterStatusOptionsForRole` consistently → fixes `StatusChangeModal` (previously mapped `STATUS_OPTIONS` with **no** role filter)
+- [x] Render BOTH tracks: Deal Desk rows/Overview/Drawer (deal-stage + finance badge, `deal_stage` surfaced via `fromDealRecord`) and Deal Room status controller (finance badge + derived deal-stage). Deal Desk badge now driven by `<StatusBadge track="deal">` instead of the hardcoded `badges.tsx` map.
 
 ## Phase 5 — Settings consolidation & customization — ⬜ (needs Q5)
 - ⬜ Fix save model (form tabs vs self-saving tabs); grouped tab IA
@@ -73,6 +75,7 @@ page edits and zero storefront impact. Fully reversible (delete the block).
 ---
 
 ## Changelog (most recent first)
+- 2026-06-27 — **Phase 4: deal_stage track + shared StatusBadge/StatusSelect.** Added a stored `deal_stage` text column to `deal_records` (nullable, default null, CHECK over the 6 deal-stage values) as a NEW migration `20260627100000_deal_records_deal_stage.sql` (**written, NOT applied**). New shared `src/components/admin/StatusBadge.tsx` + `StatusSelect.tsx` (`track:'finance'|'deal'`) reading labels/colours from `lib/admin/statusTracks` (statusConfig + `status_overrides` merge for finance; deal-stage map for deal) — each track carries a leading icon + distinct badge shape (not colour-only). `StatusSelect` runs `filterStatusOptionsForRole` consistently, fixing `StatusChangeModal` which previously offered all `STATUS_OPTIONS` regardless of role. `fromDealRecord` now surfaces `deal_stage` (stored, else derived from `deal_status`) and `finance_status`; Deal Desk (table/overview/drawer) renders the deal-stage badge via `<StatusBadge track="deal">` plus the finance badge; the Deal Room status controller renders the finance badge plus a derived deal-stage badge. tsc + build clean. (branch `feat/admin-ux-phases-2b-6`)
 - 2026-06-27 — **Phase 3: contract-signed → Deal Desk draft (feature-flagged, idempotent).** New `autoCreateDealOnContractSigned` document setting (**DEFAULT false** → zero behaviour change) with a checkbox in the Documents tab's new Deals section. When ON, `useUpdateFinanceApplication` creates a DRAFT `deal_records` row the first time an application reaches `contract_signed` — idempotent (existing-row check by `application_id`, never duplicates), all figures 0, no `sale_date` (so excluded from Accounting/Reports), wrapped in try/catch so it can never break the status update. `FinalizeDealModal` now enriches an existing draft instead of creating a parallel row. Deal Desk gains an "Awaiting finalize" filter; drafts are **admin-only**. Optional AFTER UPDATE trigger written as a separate migration (NOT applied). tsc + build clean. (branch `feat/admin-ux-phases-2b-6`)
 - 2026-06-27 — **Phase 2b: shared primitives + route constants.** Added `<PageHeader>` and `<StatTile>` admin primitives and a centralized `lib/adminRoutes.ts` (`ADMIN_ROUTES` + param-path helpers). Refactored AdminDashboard, AdminFinance and AdminDealRoom to use them for their page headers and KPI/stat tiles (logic untouched). tsc + build clean. (branch `feat/admin-ux-phases-2b-6`)
 - 2026-06-27 — **All decisions confirmed; whole plan approved.** Phase 2b started with the **density toggle** (`feat/admin-ux-density-toggle`): Comfortable default + per-user Compact toggle in the sidebar.

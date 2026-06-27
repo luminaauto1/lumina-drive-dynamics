@@ -17,7 +17,7 @@ export function DealDeskDrawer({ deal, onClose }: { deal: Deal | null; onClose: 
         <SheetHeader>
           <SheetTitle className="flex items-center justify-between gap-3 pr-6">
             <span className="truncate">{deal.client_name || 'Deal'}</span>
-            <StatusBadge status={deal.deal_status} />
+            <StatusBadge stage={deal.deal_stage} />
           </SheetTitle>
           <p className="text-sm text-muted-foreground">{deal.vehicle_make_model || '—'}{deal.vehicle_year ? ` · ${deal.vehicle_year}` : ''}</p>
         </SheetHeader>

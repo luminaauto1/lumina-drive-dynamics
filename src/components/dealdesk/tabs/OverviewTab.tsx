@@ -3,6 +3,8 @@ import { CONDITION_LABEL } from '@/lib/dealdesk/types';
 import { natisStatus } from '@/lib/dealdesk/natis';
 import { formatRand, formatDate } from '@/lib/dealdesk/format';
 import { StatusBadge, NatisChip } from '../badges';
+import { StatusBadge as FinanceStatusBadge } from '@/components/admin/StatusBadge';
+import { useStatusConfig } from '@/hooks/useZtcSettings';
 import { useDeskSettings } from '@/hooks/dealdesk/useDealDesk';
 import { dealNetProfit } from '@/lib/dealMetrics';
 
@@ -17,12 +19,17 @@ function Cell({ label, value }: { label: string; value: React.ReactNode }) {
 
 export function OverviewTab({ deal }: { deal: Deal }) {
   const { data: settings } = useDeskSettings();
+  const { labels: financeLabels, styles: financeStyles } = useStatusConfig();
   const natis = natisStatus(deal, settings);
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-2">
-        <StatusBadge status={deal.deal_status} />
+        <StatusBadge stage={deal.deal_stage} />
+        {deal.finance_status && (
+          <FinanceStatusBadge track="finance" value={deal.finance_status}
+            labelOverrides={financeLabels} styleOverrides={financeStyles} />
+        )}
         <NatisChip status={natis} />
       </div>
 
