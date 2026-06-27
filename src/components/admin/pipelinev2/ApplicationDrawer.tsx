@@ -6,6 +6,8 @@ import { RefreshCw } from 'lucide-react';
 import type { FinanceApplication } from '@/hooks/useFinanceApplications';
 import { STATUS_STYLES, ADMIN_STATUS_LABELS } from '@/lib/statusConfig';
 import { formatCurrencyR, formatPhone, formatDate } from '@/lib/pipelinev2/format';
+import { StatusBadge } from '@/components/admin/StatusBadge';
+import { useStatusConfig } from '@/hooks/useZtcSettings';
 import { NotesFeed } from './NotesFeed';
 import { HistoryFeed } from './HistoryFeed';
 
@@ -29,6 +31,7 @@ export function ApplicationDrawer({
   onChangeStatus: (app: FinanceApplication) => void;
 }) {
   const [feed, setFeed] = useState<'notes' | 'history'>('notes');
+  const { clientLabels, clientStyles } = useStatusConfig();
   if (!app) return null;
   const any = app as any;
   const statusCls = STATUS_STYLES[any.status] || 'bg-muted text-muted-foreground border-border';
@@ -55,6 +58,11 @@ export function ApplicationDrawer({
           <p className="mt-1 text-[11px] text-muted-foreground">
             Fires the same WhatsApp / email / CRM notifications as the Finance page.
           </p>
+          {/* Client status — read-only badge; edited via the Change-status modal. */}
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Client status</span>
+            <StatusBadge track="client" value={any.client_status} labelOverrides={clientLabels} styleOverrides={clientStyles} />
+          </div>
         </div>
 
         <Separator className="my-4" />

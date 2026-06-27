@@ -13,6 +13,10 @@ import { useUpdateFinanceApplication } from '@/hooks/useFinanceApplications';
 import { STATUS_OPTIONS as FINANCE_STATUS_OPTIONS } from '@/lib/statusConfig';
 import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
 import { useAuth } from '@/contexts/AuthContext';
+import { useStatusConfig } from '@/hooks/useZtcSettings';
+import { CommentGateModal } from '@/components/admin/CommentGateModal';
+import { addPipelineNote } from '@/lib/pipelinev2/notes';
+import { supabase } from '@/integrations/supabase/client';
 import BankReferenceModal from '@/components/admin/BankReferenceModal';
 import type { CrmRecord } from '@/hooks/useCrmData';
 
@@ -61,11 +65,14 @@ interface CrmTableProps {
 
 const CrmTable = ({ records, onOpen, onChanged, selectedIds, onToggleSelect, canSelect }: CrmTableProps) => {
   const navigate = useNavigate();
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   const updateLead = useUpdateLead();
   const updateApp = useUpdateFinanceApplication();
+  const { commentRequiredFor, commentPromptFor } = useStatusConfig();
   const [bankRefOpen, setBankRefOpen] = useState(false);
   const [bankRefAppId, setBankRefAppId] = useState<string | null>(null);
+  // Comment-gate interception (finance rows only — leads have no status rules).
+  const [commentGate, setCommentGate] = useState<{ rec: CrmRecord; status: string } | null>(null);
 
   const handleStatusChange = async (rec: CrmRecord, newStatus: string) => {
     const isFinance = !!rec.appDetails;
@@ -83,11 +90,37 @@ const CrmTable = ({ records, onOpen, onChanged, selectedIds, onToggleSelect, can
       return;
     }
 
+    // Comment gate — finance rows whose target status requires a comment.
+    if (isFinance && commentRequiredFor(newStatus)) {
+      setCommentGate({ rec, status: newStatus });
+      return;
+    }
+
+    await writeStatus(rec, newStatus);
+  };
+
+  // The status write (extracted so the comment gate can call it). `comment` is
+  // persisted as a status_change pipeline note for finance rows.
+  const writeStatus = async (rec: CrmRecord, newStatus: string, comment?: string) => {
+    const isFinance = !!rec.appDetails;
     const archiveOnTerminal = ['declined', 'blacklisted', 'lost'].includes(newStatus);
     try {
       if (isFinance) {
         // Side-effects (email / WhatsApp / status_history) fire inside this hook.
         await updateApp.mutateAsync({ id: rec.appDetails.id, updates: { status: newStatus, is_archived: archiveOnTerminal } as any });
+        if (comment && comment.trim()) {
+          const { data: row } = await supabase
+            .from('finance_applications')
+            .select('id, pipeline_notes')
+            .eq('id', rec.appDetails.id)
+            .maybeSingle();
+          await addPipelineNote(row ?? { id: rec.appDetails.id }, {
+            body: comment.trim(),
+            category: 'status_change',
+            author_id: user?.id ?? null,
+            author_name: (user as any)?.user_metadata?.full_name?.trim() || user?.email?.split('@')[0] || 'Unknown',
+          });
+        }
       } else {
         const finalStatus = archiveOnTerminal ? 'archived' : newStatus;
         await updateLead.mutateAsync({ id: rec.id, updates: { status: finalStatus } as any });
@@ -192,6 +225,20 @@ const CrmTable = ({ records, onOpen, onChanged, selectedIds, onToggleSelect, can
           } catch { /* handled by hook */ }
         }}
       />
+
+      {commentGate && (
+        <CommentGateModal
+          open
+          required={commentRequiredFor(commentGate.status)}
+          prompt={commentPromptFor(commentGate.status)}
+          onCancel={() => setCommentGate(null)}
+          onConfirm={(comment) => {
+            const { rec, status } = commentGate;
+            setCommentGate(null);
+            void writeStatus(rec, status, comment);
+          }}
+        />
+      )}
     </div>
   );
 };

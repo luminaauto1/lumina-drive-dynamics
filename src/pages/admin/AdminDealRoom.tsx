@@ -33,14 +33,17 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useVehicles, formatPrice } from '@/hooks/useVehicles';
-import { useUpdateFinanceApplication, FinanceApplication } from '@/hooks/useFinanceApplications';
+import { useUpdateFinanceApplication, useUpdateClientStatus, FinanceApplication } from '@/hooks/useFinanceApplications';
 import { useApplicationMatches, useAddApplicationMatch, useRemoveApplicationMatch } from '@/hooks/useApplicationMatches';
 import { useCreateAftersalesRecord } from '@/hooks/useAftersales';
 import { STATUS_OPTIONS, getWhatsAppMessage, canShowDealActions } from '@/lib/statusConfig';
 import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
 import { StatusBadge } from '@/components/admin/StatusBadge';
+import { StatusSelect } from '@/components/admin/StatusSelect';
 import { financeStatusToDealStage } from '@/lib/admin/statusTracks';
 import { useStatusConfig } from '@/hooks/useZtcSettings';
+import { CommentGateModal } from '@/components/admin/CommentGateModal';
+import { addPipelineNote } from '@/lib/pipelinev2/notes';
 import { useAuth } from '@/contexts/AuthContext';
 import { generateFinancePDF } from '@/lib/generateFinancePDF';
 import { PushToSignioButton } from '@/components/finance/PushToSignioButton';
@@ -51,8 +54,12 @@ const AdminDealRoom = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { role, isSuperAdmin, isSeniorFAndI } = useAuth();
-  const { labels: financeLabels, styles: financeStyles, whatsappMessageFor } = useStatusConfig();
+  const { role, isSuperAdmin, isSeniorFAndI, user } = useAuth();
+  const {
+    labels: financeLabels, styles: financeStyles, whatsappMessageFor,
+    clientStatuses, clientLabels, clientStyles, commentRequiredFor, commentPromptFor,
+  } = useStatusConfig();
+  const updateClientStatus = useUpdateClientStatus();
   const { data: docSettings } = useDocumentSettings();
   // Only full admins and senior F&I may finalize deals (deal_records hold figures).
   const canFinalize = isSuperAdmin || isSeniorFAndI;
@@ -78,6 +85,8 @@ const AdminDealRoom = () => {
   const [creditCheckModalOpen, setCreditCheckModalOpen] = useState(false);
   const [creditCheckOutcome, setCreditCheckOutcome] = useState<CreditCheckOutcome>('passed');
   const [revisionConfirmOpen, setRevisionConfirmOpen] = useState(false);
+  // Comment-gate interception. `track` distinguishes which writer to call on confirm.
+  const [commentGate, setCommentGate] = useState<{ track: 'finance' | 'client'; status: string } | null>(null);
 
   const { data: vehicles = [], refetch: refetchVehicles } = useVehicles();
   const { data: matches = [], isLoading: matchesLoading, refetch: refetchMatches } = useApplicationMatches(id || '');
@@ -165,10 +174,29 @@ const AdminDealRoom = () => {
       }
     }
 
+    // Comment gate — pop the modal instead of writing immediately.
+    if (commentRequiredFor(newStatus)) {
+      setCommentGate({ track: 'finance', status: newStatus });
+      return;
+    }
+
+    await writeFinanceStatus(newStatus);
+  };
+
+  // The plain finance status write (extracted so the comment gate can call it).
+  const writeFinanceStatus = async (newStatus: string, comment?: string) => {
+    if (!application) return;
     try {
       await updateApplication.mutateAsync({ id: application.id, updates: { status: newStatus } });
       setApplication(prev => prev ? { ...prev, status: newStatus } : null);
-
+      if (comment && comment.trim()) {
+        await addPipelineNote(application, {
+          body: comment.trim(),
+          category: 'status_change',
+          author_id: user?.id ?? null,
+          author_name: (user as any)?.user_metadata?.full_name?.trim() || user?.email?.split('@')[0] || 'Unknown',
+        });
+      }
       // Client notification (email + WhatsApp) is handled inside updateApplication
       // (the shared hook). A second dispatch here caused duplicate client emails.
       toast.success(`Status updated to ${newStatus}`);
@@ -176,7 +204,35 @@ const AdminDealRoom = () => {
       console.error('Failed to update status:', error);
     }
   };
-  
+
+  // Client-status change — isolated writer, never the finance fan-out. Gated too.
+  const handleClientStatusChange = (newClientStatus: string) => {
+    if (!application || newClientStatus === ((application as any).client_status || '')) return;
+    if (commentRequiredFor(newClientStatus)) {
+      setCommentGate({ track: 'client', status: newClientStatus });
+      return;
+    }
+    void writeClientStatus(newClientStatus);
+  };
+
+  const writeClientStatus = async (newClientStatus: string, comment?: string) => {
+    if (!application) return;
+    try {
+      await updateClientStatus.mutateAsync({ id: application.id, client_status: newClientStatus });
+      setApplication(prev => prev ? ({ ...prev, client_status: newClientStatus } as any) : null);
+      if (comment && comment.trim()) {
+        await addPipelineNote(application, {
+          body: comment.trim(),
+          category: 'status_change',
+          author_id: user?.id ?? null,
+          author_name: (user as any)?.user_metadata?.full_name?.trim() || user?.email?.split('@')[0] || 'Unknown',
+        });
+      }
+    } catch (error) {
+      console.error('Failed to update client status:', error);
+    }
+  };
+
   const handleContractSentSuccess = () => {
     // Refresh after contract sent. The contract_sent email is sent by
     // ContractSentModal via the shared hook — no second dispatch here.
@@ -1174,6 +1230,16 @@ const AdminDealRoom = () => {
                     className="px-3 py-1.5 text-sm uppercase tracking-wider"
                   />
                 )}
+                {/* Customizable client-facing status — independent of finance. */}
+                {(application as any).client_status && (
+                  <StatusBadge
+                    track="client"
+                    value={(application as any).client_status}
+                    labelOverrides={clientLabels}
+                    styleOverrides={clientStyles}
+                    className="px-3 py-1.5 text-sm uppercase tracking-wider"
+                  />
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1231,6 +1297,20 @@ const AdminDealRoom = () => {
                   </Select>
                 </div>
               </div>
+
+              {/* Change Client Status — customizable track, isolated writer. */}
+              {clientStatuses.length > 0 && (
+                <div className="mt-3">
+                  <Label className="text-sm text-muted-foreground mb-2 block">Change Client Status</Label>
+                  <StatusSelect
+                    track="client"
+                    value={(application as any).client_status || ''}
+                    onChange={handleClientStatusChange}
+                    options={clientStatuses}
+                    labelOverrides={clientLabels}
+                  />
+                </div>
+              )}
 
               {application.status === 'declined' && application.declined_reason && (
                 <Alert variant="destructive" className="mt-4 bg-red-500/10 border-red-500/30">
@@ -1692,6 +1772,23 @@ const AdminDealRoom = () => {
         clientName={`${application.first_name || ''} ${application.last_name || ''}`.trim() || application.full_name}
         onSuccess={handleContractSentSuccess}
       />
+
+      {/* Comment gate for status changes (finance or client). Confirm runs the
+          matching isolated writer + a status_change note. */}
+      {commentGate && (
+        <CommentGateModal
+          open
+          required={commentRequiredFor(commentGate.status)}
+          prompt={commentPromptFor(commentGate.status)}
+          onCancel={() => setCommentGate(null)}
+          onConfirm={(comment) => {
+            const { track, status } = commentGate;
+            setCommentGate(null);
+            if (track === 'finance') void writeFinanceStatus(status, comment);
+            else void writeClientStatus(status, comment);
+          }}
+        />
+      )}
 
       {/* Bank Reference capture for Ready to Submit / Application Submitted */}
       <BankReferenceModal

@@ -14,6 +14,7 @@ export function StatusSelect({
   onChange,
   role,
   labelOverrides,
+  options: optionsProp,
   disabled,
   className,
 }: {
@@ -22,17 +23,23 @@ export function StatusSelect({
   onChange: (value: string) => void;
   /** Staff role — finance options are filtered to what this role may set. */
   role?: string | null;
-  /** Effective label overrides (finance track), e.g. useStatusConfig().labels. */
+  /** Effective label overrides (finance/client track), e.g. useStatusConfig().labels. */
   labelOverrides?: Record<string, string>;
+  /** DB-driven options for the client track (useStatusConfig().clientStatuses).
+   *  Ignored for finance/deal, which carry their own option lists. */
+  options?: { value: string; label: string }[];
   disabled?: boolean;
   className?: string;
 }) {
   // Role filtering only constrains the finance track today; the deal track has no
-  // role-restricted statuses, so its options pass through unchanged. Either way we
-  // always keep the current value selectable (the filter's read-only fallback).
-  const options = track === 'finance'
-    ? filterStatusOptionsForRole(TRACK_META.finance.options, role, value)
-    : TRACK_META.deal.options;
+  // role-restricted statuses, so its options pass through unchanged. The client
+  // track is fully DB-driven (no role filter). Either way we always keep the
+  // current value selectable (the finance filter's read-only fallback).
+  const options = track === 'client'
+    ? (optionsProp ?? [])
+    : track === 'finance'
+      ? filterStatusOptionsForRole(TRACK_META.finance.options, role, value)
+      : TRACK_META.deal.options;
 
   return (
     <Select value={value} onValueChange={onChange} disabled={disabled}>

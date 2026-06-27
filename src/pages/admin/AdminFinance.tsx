@@ -30,6 +30,8 @@ import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, STATUS_STEP_ORDER, 
 import { useStatusConfig } from '@/hooks/useZtcSettings';
 import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
 import { INTERNAL_STATUSES, type InternalStatus, normalizeInternalStatus } from '@/lib/internalStatusConfig';
+import { CommentGateModal } from '@/components/admin/CommentGateModal';
+import { addPipelineNote } from '@/lib/pipelinev2/notes';
 
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -78,7 +80,7 @@ const AdminFinance = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { isSuperAdmin, isSeniorFAndI, isFAndI, role, user } = useAuth();
-  const { whatsappMessageFor } = useStatusConfig();
+  const { whatsappMessageFor, commentRequiredFor, commentPromptFor } = useStatusConfig();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   // F&I owner filter. Everyone can change it.
@@ -145,6 +147,10 @@ const AdminFinance = () => {
   const [bankRefTargetStatus, setBankRefTargetStatus] = useState<string>('application_submitted');
   const [editBankRefApp, setEditBankRefApp] = useState<FinanceApplication | null>(null);
   const [editBankRefOpen, setEditBankRefOpen] = useState(false);
+  // Comment-gate interception for the inline status dropdown. When the target
+  // status has comment_required, we stash the pending change and pop the gate
+  // modal instead of writing immediately.
+  const [commentGate, setCommentGate] = useState<{ app: FinanceApplication; status: string } | null>(null);
 
   // Action Feed → row scroll/highlight
   const [highlightedAppId, setHighlightedAppId] = useState<string | null>(null);
@@ -408,6 +414,111 @@ const AdminFinance = () => {
     e.stopPropagation();
     setSelectedAppForDelivery(app);
     setDeliveryModalOpen(true);
+  };
+
+  // ── Inline status-dropdown write (extracted so the comment gate can call it) ──
+  // EXACT same finance write + sent_to_banks audit as before; `comment` (when
+  // supplied via the comment gate) is appended as a status_change pipeline note.
+  const performFinanceStatusWrite = async (app: FinanceApplication, newStatus: string, comment?: string) => {
+    // GUARDRAIL: only allow whitelisted finance statuses to reach DB.
+    const validFinanceStatuses = STATUS_OPTIONS.map(o => o.value);
+    if (!validFinanceStatuses.includes(newStatus)) {
+      console.warn('[finance-status] rejected invalid value:', newStatus);
+      return;
+    }
+    const archiveOnTerminal = ['declined', 'blacklisted', 'lost', 'client_cancelled'].includes(newStatus);
+    const clearInternal = newStatus === 'sent_to_banks';
+    try {
+      await updateApplication.mutateAsync({
+        id: app.id,
+        updates: {
+          // ISOLATED: only patch the finance pipeline column. Never write into
+          // internal_status from this dropdown, EXCEPT to clear it when advancing
+          // to sent_to_banks (Task 4 — Feed Clearance / state reset).
+          status: newStatus,
+          is_archived: archiveOnTerminal,
+          ...(clearInternal ? { internal_status: 'no_notes' } : {}),
+        },
+      });
+      // Comment gate — persist the entered comment as a status_change note.
+      if (comment && comment.trim()) {
+        await addPipelineNote(app, {
+          body: comment.trim(),
+          category: 'status_change',
+          author_id: user?.id ?? null,
+          author_name: (user as any)?.user_metadata?.full_name?.trim() || user?.email?.split('@')[0] || 'Unknown',
+        });
+      }
+      // Task 3 — Auto audit note when sent_to_banks.
+      if (clearInternal) {
+        try {
+          const { data: { user: actingUser } } = await supabase.auth.getUser();
+          let actingName = 'Staff';
+          if (actingUser?.id) {
+            const { data: prof } = await supabase
+              .from('profiles')
+              .select('full_name, email')
+              .eq('user_id', actingUser.id)
+              .maybeSingle();
+            actingName = (prof as any)?.full_name?.trim().split(/\s+/)[0]
+              || (prof as any)?.email?.split('@')[0]
+              || actingUser.email?.split('@')[0]
+              || actingName;
+          }
+          const roleTag = role === 'super_admin' ? 'ADMIN'
+            : role === 'sales_agent' ? 'SALES'
+            : (role === 'f_and_i' || role === 'senior_f_and_i') ? 'FNI'
+            : 'STAFF';
+          const timestamp = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+          const autoEntry = `[${timestamp}] «${roleTag}» ${actingName} — Sent to Banks: Updated and sent to bank.`;
+          const existingNotes = (app as any).notes || '';
+          const merged = existingNotes ? `${autoEntry}\n\n${existingNotes}` : autoEntry;
+          await supabase
+            .from('finance_applications')
+            .update({
+              notes: merged,
+              ...(role === 'f_and_i' && actingUser?.id ? {
+                assigned_f_and_i: actingUser.id,
+                assigned_f_and_i_at: new Date().toISOString(),
+              } : {}),
+            })
+            .eq('id', app.id);
+          await supabase.from('client_audit_logs').insert([{
+            client_email: app.email || null,
+            client_phone: app.phone || null,
+            note: `«${roleTag}» ${actingName} — Updated and sent to bank.`,
+            author_id: actingUser?.id || null,
+            author_name: actingName,
+            action_type: 'Sent to Bank',
+          }]);
+        } catch (auditErr) {
+          console.error('[sent_to_banks audit] failed:', auditErr);
+        }
+      }
+    } catch (err) {
+      // Toast handled by hook on error
+    }
+  };
+
+  // Inline dropdown entry point. Handles the bank-reference interception first,
+  // then the comment gate, then the plain write.
+  const requestFinanceStatusChange = (app: FinanceApplication, newStatus: string) => {
+    if (newStatus === app.status) return;
+    if (newStatus === 'application_submitted' || newStatus === 'ready_to_submit') {
+      if (!(app as any).bank_reference) {
+        setBankRefApp(app);
+        setBankRefTargetStatus(newStatus);
+        setBankRefModalOpen(true);
+        return;
+      }
+      // Existing reference — fall through to the gate / standard update.
+    }
+    // Comment gate — pop the modal instead of writing immediately.
+    if (commentRequiredFor(newStatus)) {
+      setCommentGate({ app, status: newStatus });
+      return;
+    }
+    void performFinanceStatusWrite(app, newStatus);
   };
 
   const openWhatsApp = (app: FinanceApplication) => {
@@ -1119,95 +1230,7 @@ const AdminFinance = () => {
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Select
                         value={app.status}
-                        onValueChange={async (newStatus) => {
-                          if (newStatus === app.status) return;
-                          if (newStatus === 'application_submitted' || newStatus === 'ready_to_submit') {
-                            if (!(app as any).bank_reference) {
-                              setBankRefApp(app);
-                              setBankRefTargetStatus(newStatus);
-                              setBankRefModalOpen(true);
-                              return;
-                            }
-                            // Existing reference — fall through to standard update
-                            // (status + status_updated_at only; bank_reference untouched).
-                          }
-                          // DECOUPLED: keep real status; archive via flag only.
-                          // NOTE: the "declined" WhatsApp is sent by the shared
-                          // useUpdateFinanceApplication hook on the status change.
-                          // Do NOT also fire notify-declined here, or the client
-                          // receives two messages.
-                          // GUARDRAIL: only allow whitelisted finance statuses to reach DB.
-                          const validFinanceStatuses = STATUS_OPTIONS.map(o => o.value);
-                          if (!validFinanceStatuses.includes(newStatus)) {
-                            console.warn('[finance-status] rejected invalid value:', newStatus);
-                            return;
-                          }
-                          const archiveOnTerminal = ['declined', 'blacklisted', 'lost', 'client_cancelled'].includes(newStatus);
-                          const clearInternal = newStatus === 'sent_to_banks';
-                          try {
-                            await updateApplication.mutateAsync({
-                              id: app.id,
-                              updates: {
-                                 // ISOLATED: only patch the finance pipeline column.
-                                 // Never write into internal_status from this dropdown,
-                                 // EXCEPT to clear it when advancing to sent_to_banks
-                                 // (Task 4 — Feed Clearance / state reset).
-                                 status: newStatus,
-                                 is_archived: archiveOnTerminal,
-                                 ...(clearInternal ? { internal_status: 'no_notes' } : {}),
-                               },
-                            });
-                            // Task 3 — Auto audit note when sent_to_banks.
-                            if (clearInternal) {
-                              try {
-                                const { data: { user: actingUser } } = await supabase.auth.getUser();
-                                let actingName = 'Staff';
-                                if (actingUser?.id) {
-                                  const { data: prof } = await supabase
-                                    .from('profiles')
-                                    .select('full_name, email')
-                                    .eq('user_id', actingUser.id)
-                                    .maybeSingle();
-                                  actingName = (prof as any)?.full_name?.trim().split(/\s+/)[0]
-                                    || (prof as any)?.email?.split('@')[0]
-                                    || actingUser.email?.split('@')[0]
-                                    || actingName;
-                                }
-                                const roleTag = role === 'super_admin' ? 'ADMIN'
-                                  : role === 'sales_agent' ? 'SALES'
-                                  : (role === 'f_and_i' || role === 'senior_f_and_i') ? 'FNI'
-                                  : 'STAFF';
-                                const timestamp = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-                                const autoEntry = `[${timestamp}] «${roleTag}» ${actingName} — Sent to Banks: Updated and sent to bank.`;
-                                const existingNotes = (app as any).notes || '';
-                                const merged = existingNotes ? `${autoEntry}\n\n${existingNotes}` : autoEntry;
-                                await supabase
-                                  .from('finance_applications')
-                                  .update({
-                                    notes: merged,
-                                    ...(role === 'f_and_i' && actingUser?.id ? {
-                                      assigned_f_and_i: actingUser.id,
-                                      assigned_f_and_i_at: new Date().toISOString(),
-                                    } : {}),
-
-                                  })
-                                  .eq('id', app.id);
-                                await supabase.from('client_audit_logs').insert([{
-                                  client_email: app.email || null,
-                                  client_phone: app.phone || null,
-                                  note: `«${roleTag}» ${actingName} — Updated and sent to bank.`,
-                                  author_id: actingUser?.id || null,
-                                  author_name: actingName,
-                                  action_type: 'Sent to Bank',
-                                }]);
-                              } catch (auditErr) {
-                                console.error('[sent_to_banks audit] failed:', auditErr);
-                              }
-                            }
-                          } catch (err) {
-                            // Toast handled by hook on error
-                          }
-                        }}
+                        onValueChange={(newStatus) => requestFinanceStatusChange(app, newStatus)}
                       >
                          {(() => {
                            const stamp = (app as any).status_updated_at || app.updated_at;
@@ -1864,6 +1887,22 @@ const AdminFinance = () => {
           }
         }}
       />
+
+      {/* Comment gate for the inline status dropdown — pops when the target status
+          has comment_required. Confirm runs the standard finance write + note. */}
+      {commentGate && (
+        <CommentGateModal
+          open
+          required={commentRequiredFor(commentGate.status)}
+          prompt={commentPromptFor(commentGate.status)}
+          onCancel={() => setCommentGate(null)}
+          onConfirm={(comment) => {
+            const { app, status } = commentGate;
+            setCommentGate(null);
+            void performFinanceStatusWrite(app, status, comment);
+          }}
+        />
+      )}
 
       <CreditCheckReportModal open={creditReportOpen} onOpenChange={setCreditReportOpen} />
 
