@@ -13,7 +13,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { toast } from 'sonner';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import {
@@ -105,7 +104,8 @@ const AdminQuoteGenerator = () => {
   const [rate, setRate] = useState<number | null>(null); // null => use settings/fallback
   const [term, setTerm] = useState(DEFAULT_TERM);
   const [residual, setResidual] = useState<number | null>(null);
-  const [begEnd, setBegEnd] = useState<0 | 1>(0);
+  const [residualAmount, setResidualAmount] = useState<number | null>(null);
+  const [balloonMode, setBalloonMode] = useState<'pct' | 'amount'>('pct');
   const [bankDocFee, setBankDocFee] = useState(DEFAULT_BANK_DOC_FEE);
   const [addons, setAddons] = useState<QuoteAddon[]>(makeAddons);
   const [covers, setCovers] = useState<QuoteCover[]>(makeCovers);
@@ -114,7 +114,14 @@ const AdminQuoteGenerator = () => {
 
   /* Pull finance defaults from the same settings source the rest of the app uses. */
   const effectiveRate = rate ?? settings?.default_interest_rate ?? FALLBACK_RATE;
-  const effectiveResidual = residual ?? settings?.default_balloon_percent ?? FALLBACK_RESIDUAL;
+
+  /* Balloon can be driven by either a % of price OR a typed rand amount —
+     whichever field was edited last wins; the other is kept in sync. */
+  const baseResidualPct = residual ?? settings?.default_balloon_percent ?? FALLBACK_RESIDUAL;
+  const effectiveResidualAmount =
+    balloonMode === 'amount' ? residualAmount ?? 0 : (baseResidualPct / 100) * vehiclePrice;
+  const effectiveResidualPct =
+    vehiclePrice > 0 ? (effectiveResidualAmount / vehiclePrice) * 100 : 0;
 
   const result = useMemo(
     () =>
@@ -123,13 +130,12 @@ const AdminQuoteGenerator = () => {
         deposit,
         annualRatePct: effectiveRate,
         term,
-        residualPct: effectiveResidual,
-        begEnd,
+        residualPct: effectiveResidualPct,
         bankDocFee,
         addons,
         covers,
       }),
-    [vehiclePrice, deposit, effectiveRate, term, effectiveResidual, begEnd, bankDocFee, addons, covers],
+    [vehiclePrice, deposit, effectiveRate, term, effectiveResidualPct, bankDocFee, addons, covers],
   );
 
   const depositPct = vehiclePrice > 0 ? (deposit / vehiclePrice) * 100 : 0;
@@ -154,7 +160,9 @@ const AdminQuoteGenerator = () => {
       deposit > 0 ? `Deposit: ${formatRand(deposit, 0)} (${depositPct.toFixed(1)}%)` : null,
       `Interest Rate: ${effectiveRate}%`,
       `Term: ${term} months`,
-      effectiveResidual > 0 ? `Residual/Balloon: ${effectiveResidual}%` : null,
+      effectiveResidualPct > 0
+        ? `Residual/Balloon: ${effectiveResidualPct.toFixed(1)}% (${formatRand(effectiveResidualAmount, 0)})`
+        : null,
       '',
       `💰 *Total payment / month: ${formatRand(result.totalPaymentPerMonth)}*`,
       '',
@@ -227,30 +235,33 @@ const AdminQuoteGenerator = () => {
               <div className="grid grid-cols-2 gap-4">
                 <NumberField
                   label="Residual / Balloon"
-                  value={effectiveResidual}
-                  onChange={setResidual}
+                  value={
+                    balloonMode === 'amount'
+                      ? Math.round(effectiveResidualPct * 100) / 100
+                      : baseResidualPct
+                  }
+                  onChange={(v) => {
+                    setResidual(v);
+                    setBalloonMode('pct');
+                  }}
                   suffix="%"
                   step={5}
                   hint="% of vehicle price"
                 />
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Payment timing</Label>
-                  <ToggleGroup
-                    type="single"
-                    value={begEnd === 0 ? 'end' : 'beg'}
-                    onValueChange={(v) => {
-                      if (v) setBegEnd(v === 'beg' ? 1 : 0);
-                    }}
-                    className="justify-start"
-                  >
-                    <ToggleGroupItem value="end" className="h-8 px-3 text-xs">
-                      End
-                    </ToggleGroupItem>
-                    <ToggleGroupItem value="beg" className="h-8 px-3 text-xs">
-                      Beg
-                    </ToggleGroupItem>
-                  </ToggleGroup>
-                </div>
+                <NumberField
+                  label="Balloon amount"
+                  value={
+                    balloonMode === 'amount'
+                      ? residualAmount ?? 0
+                      : Math.round(effectiveResidualAmount)
+                  }
+                  onChange={(v) => {
+                    setResidualAmount(v);
+                    setBalloonMode('amount');
+                  }}
+                  prefix="R"
+                  hint="or enter rand directly"
+                />
               </div>
 
               <NumberField
