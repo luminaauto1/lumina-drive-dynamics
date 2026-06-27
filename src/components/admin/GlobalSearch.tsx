@@ -5,7 +5,16 @@ import {
 } from '@/components/ui/command';
 import { supabase } from '@/integrations/supabase/client';
 import { normalizeEmail, normalizePhone } from '@/lib/normalizeContact';
-import { User, Car, FileText, Loader2 } from 'lucide-react';
+import { ADMIN_NAV_ENTRIES, ADMIN_ROUTES } from '@/lib/adminRoutes';
+import { User, Car, FileText, Loader2, ArrowRight, PlusCircle, Settings as SettingsIcon } from 'lucide-react';
+
+/** Quick actions — verbs the operator runs most. Each navigates somewhere useful. */
+const QUICK_ACTIONS: { id: string; label: string; keywords: string; path: string; Icon: typeof PlusCircle }[] = [
+  { id: 'new-finance', label: 'New finance application', keywords: 'create add application deal', path: ADMIN_ROUTES.financeCreate, Icon: PlusCircle },
+  { id: 'pipeline', label: 'Open Pipeline', keywords: 'applications kanban', path: ADMIN_ROUTES.pipelineV2, Icon: ArrowRight },
+  { id: 'deal-desk', label: 'Open Deal Desk', keywords: 'cost sheet delivery natis', path: ADMIN_ROUTES.dealDesk, Icon: ArrowRight },
+  { id: 'settings', label: 'Open Settings', keywords: 'config preferences', path: ADMIN_ROUTES.settings, Icon: SettingsIcon },
+];
 
 /** Event any component can dispatch to open the global search. */
 export const OPEN_GLOBAL_SEARCH_EVENT = 'lumina:open-search';
@@ -132,26 +141,46 @@ const GlobalSearch = () => {
 
   const go = (path: string) => { setOpen(false); navigate(path); };
 
-  const hasResults = apps.length + vehicles.length + leads.length > 0;
+  const hasRecords = apps.length + vehicles.length + leads.length > 0;
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      {/* shouldFilter=false: we filter server-side, render results as-is. */}
+      {/* cmdk fuzzy-filters Pages/Actions by their `value` blob; record groups are
+          searched server-side and always kept (their value already matched). */}
       <CommandInput
-        placeholder="Search clients, applications, vehicles…"
+        placeholder="Search records, jump to a page, or run an action…"
         value={query}
         onValueChange={setQuery}
       />
       <CommandList>
-        {query.trim().length < 2 ? (
-          <CommandEmpty>Type at least 2 characters to search.</CommandEmpty>
-        ) : loading && !hasResults ? (
-          <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Searching…
+        <CommandEmpty>No matches found.</CommandEmpty>
+
+        <CommandGroup heading="Actions">
+          {QUICK_ACTIONS.map((a) => (
+            <CommandItem key={`action-${a.id}`} value={`action ${a.label} ${a.keywords}`} onSelect={() => go(a.path)}>
+              <a.Icon className="mr-2 h-4 w-4 text-primary" />
+              <span className="text-sm">{a.label}</span>
+            </CommandItem>
+          ))}
+        </CommandGroup>
+
+        <CommandGroup heading="Go to page">
+          {ADMIN_NAV_ENTRIES.map((p) => (
+            <CommandItem key={`page-${p.key}`} value={`page ${p.label} ${p.section} ${p.keywords || ''}`} onSelect={() => go(p.path)}>
+              <ArrowRight className="mr-2 h-4 w-4 text-muted-foreground" />
+              <div className="flex flex-col">
+                <span className="text-sm">{p.label}</span>
+                <span className="text-xs text-muted-foreground">{p.section}</span>
+              </div>
+            </CommandItem>
+          ))}
+        </CommandGroup>
+
+        {query.trim().length >= 2 && loading && !hasRecords && (
+          <div className="flex items-center justify-center py-4 text-sm text-muted-foreground">
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Searching records…
           </div>
-        ) : !hasResults ? (
-          <CommandEmpty>No matches found.</CommandEmpty>
-        ) : null}
+        )}
 
         {apps.length > 0 && (
           <CommandGroup heading="Clients & Applications">
