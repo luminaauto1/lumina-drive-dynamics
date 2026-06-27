@@ -50,12 +50,12 @@ page edits and zero storefront impact. Fully reversible (delete the block).
 - [ ] Fold Cars-to-Buy, CRM Sheet into in-page tabs (further reduce nav count)
 - [x] Centralize admin route paths in `lib/adminRoutes.ts` (`ADMIN_ROUTES` map + `dealRoomPath`/`clientProfilePath`/`partnerPayoutPath` helpers)
 
-## Phase 3 — Contract-signed → Deal Desk automation — ⬜ (ready; drafts visible to **Admins only**)
-- ⬜ Idempotent draft `deal_records` create on `contract_signed` in `useUpdateFinanceApplication`
-- ⬜ Optional Postgres `AFTER UPDATE` trigger for non-hook write paths
-- ⬜ Repurpose `FinalizeDealModal` to enrich the existing draft (no parallel row)
-- ⬜ "Awaiting finalize" filter + Pipeline↔Deal-Desk deep link
-- ⬜ Feature-flag + idempotency tests (writes the financial ledger — highest risk)
+## Phase 3 — Contract-signed → Deal Desk automation — ✅ done (FEATURE-FLAGGED OFF by default; drafts visible to **Admins only**)
+- ✅ Feature flag `autoCreateDealOnContractSigned` (DEFAULT **false**) in `DocumentSettings` + a checkbox under a new **Deals** section in the Documents settings tab. Flag OFF → zero behaviour change.
+- ✅ Idempotent draft `deal_records` create on `contract_signed` in `useUpdateFinanceApplication` (queries for an existing row by `application_id` first; never duplicates; all figures 0; no `sale_date`; wrapped in try/catch so it can never break the status update).
+- ✅ Optional Postgres `AFTER UPDATE` trigger migration for non-hook write paths (`20260627090000_contract_signed_deal_draft_trigger.sql`) — same flag + idempotency logic; **written but NOT applied**.
+- ✅ `FinalizeDealModal` enriches a pre-existing draft (`useUpdateDealRecord`) instead of creating a parallel row.
+- ✅ "Awaiting finalize" filter in the Deal Desk Deals table; auto-created drafts are **admin-only** (filtered out for non-admins across the whole Deal Desk page).
 
 ## Phase 4 — Two-track status + shared status components — ⬜ (needs Q3)
 - ⬜ Stored `deal_stage` enum (mirrors `DealStatus`); render as a second badge
@@ -73,6 +73,7 @@ page edits and zero storefront impact. Fully reversible (delete the block).
 ---
 
 ## Changelog (most recent first)
+- 2026-06-27 — **Phase 3: contract-signed → Deal Desk draft (feature-flagged, idempotent).** New `autoCreateDealOnContractSigned` document setting (**DEFAULT false** → zero behaviour change) with a checkbox in the Documents tab's new Deals section. When ON, `useUpdateFinanceApplication` creates a DRAFT `deal_records` row the first time an application reaches `contract_signed` — idempotent (existing-row check by `application_id`, never duplicates), all figures 0, no `sale_date` (so excluded from Accounting/Reports), wrapped in try/catch so it can never break the status update. `FinalizeDealModal` now enriches an existing draft instead of creating a parallel row. Deal Desk gains an "Awaiting finalize" filter; drafts are **admin-only**. Optional AFTER UPDATE trigger written as a separate migration (NOT applied). tsc + build clean. (branch `feat/admin-ux-phases-2b-6`)
 - 2026-06-27 — **Phase 2b: shared primitives + route constants.** Added `<PageHeader>` and `<StatTile>` admin primitives and a centralized `lib/adminRoutes.ts` (`ADMIN_ROUTES` + param-path helpers). Refactored AdminDashboard, AdminFinance and AdminDealRoom to use them for their page headers and KPI/stat tiles (logic untouched). tsc + build clean. (branch `feat/admin-ux-phases-2b-6`)
 - 2026-06-27 — **All decisions confirmed; whole plan approved.** Phase 2b started with the **density toggle** (`feat/admin-ux-density-toggle`): Comfortable default + per-user Compact toggle in the sidebar.
 - 2026-06-26 — **Phase 2a merged** (PR #78): sidebar flattened to direct links under section headers (no dropdowns); OTP added, Contacts homed.

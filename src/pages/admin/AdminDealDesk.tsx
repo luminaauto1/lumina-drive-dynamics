@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Loader2, ClipboardList } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDealDeskList } from '@/hooks/dealdesk/useDealDesk';
 import type { Deal } from '@/lib/dealdesk/types';
-import { DealsTable } from '@/components/dealdesk/DealsTable';
+import { DealsTable, isAwaitingFinalize } from '@/components/dealdesk/DealsTable';
 import { DeliveryBoard } from '@/components/dealdesk/DeliveryBoard';
 import { PayablesView } from '@/components/dealdesk/PayablesView';
 import { ReportsView } from '@/components/dealdesk/ReportsView';
@@ -14,8 +14,16 @@ import { DealDeskDrawer } from '@/components/dealdesk/DealDeskDrawer';
 
 const AdminDealDesk = () => {
   const { isSuperAdmin } = useAuth();
-  const { data: deals = [], isLoading } = useDealDeskList();
+  const { data: allDeals = [], isLoading } = useDealDeskList();
   const [openDeal, setOpenDeal] = useState<Deal | null>(null);
+
+  // Auto-created, not-yet-finalized drafts are ADMIN-ONLY. Non-admins never see
+  // them anywhere in Deal Desk (list, delivery board, reports). Admins see the
+  // full set and get the "Awaiting finalize" filter inside the Deals table.
+  const deals = useMemo(
+    () => (isSuperAdmin ? allDeals : allDeals.filter((d) => !isAwaitingFinalize(d))),
+    [allDeals, isSuperAdmin],
+  );
 
   // Keep the open drawer in sync with refreshed list data (e.g. after Natis save).
   const liveOpen = openDeal ? deals.find((d) => d.id === openDeal.id) || openDeal : null;
@@ -47,7 +55,7 @@ const AdminDealDesk = () => {
               <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
             <div className="mt-4">
-              <TabsContent value="deals"><DealsTable deals={deals} onOpen={setOpenDeal} /></TabsContent>
+              <TabsContent value="deals"><DealsTable deals={deals} onOpen={setOpenDeal} canSeeDrafts={isSuperAdmin} /></TabsContent>
               <TabsContent value="delivery"><DeliveryBoard deals={deals} onOpen={setOpenDeal} /></TabsContent>
               <TabsContent value="payables"><PayablesView /></TabsContent>
               <TabsContent value="reports"><ReportsView deals={deals} /></TabsContent>

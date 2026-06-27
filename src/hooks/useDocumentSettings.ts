@@ -38,6 +38,11 @@ export interface DocumentSettings {
   otpDefaultDeliveryFee: number;
   otpDefaultLicensing: number;
   otpLines: OtpLineToggles; // which fee lines are enabled by default
+  // Deals automation
+  // When ON, marking a finance application "Contract Signed" auto-creates a DRAFT
+  // deal_records row so the deal appears in Deal Desk ready to be finalized.
+  // DEFAULT false — OFF means zero behaviour change anywhere.
+  autoCreateDealOnContractSigned: boolean;
   // Bank branch codes — printed on the finance application PDF based on the client's bank.
   bankBranches: { bank: string; branchName: string; branchCode: string }[];
 }
@@ -97,6 +102,7 @@ export const DEFAULT_DOCUMENT_SETTINGS: DocumentSettings = {
   otpDefaultDeliveryFee: 0,
   otpDefaultLicensing: 0,
   otpLines: DEFAULT_LINE_TOGGLES,
+  autoCreateDealOnContractSigned: false,
   bankBranches: DEFAULT_BANK_BRANCHES,
 };
 

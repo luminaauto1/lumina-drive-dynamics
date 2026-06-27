@@ -18,26 +18,52 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function DealsTable({ deals, onOpen }: { deals: Deal[]; onOpen: (d: Deal) => void }) {
+/**
+ * An auto-created, not-yet-finalized draft: reads as 'contract_signed' (no sale
+ * date / delivery / Natis) and still carries zero recorded profit. These rows
+ * are the contract-signed → Deal Desk drafts and are ADMIN-ONLY — non-admins
+ * never see un-finalized drafts in the list.
+ */
+export function isAwaitingFinalize(d: Deal): boolean {
+  return d.deal_status === 'contract_signed' && !d.sale_date && (Number(d.gross_profit) || 0) === 0;
+}
+
+export function DealsTable(
+  { deals, onOpen, canSeeDrafts = false }:
+  { deals: Deal[]; onOpen: (d: Deal) => void; canSeeDrafts?: boolean },
+) {
   const { data: settings } = useDeskSettings();
   const [search, setSearch] = useState('');
   const [month, setMonth] = useState<string>('all');
+  const [view, setView] = useState<'all' | 'awaiting'>('all');
+
+  // Non-admins never see un-finalized drafts at all.
+  const visibleDeals = useMemo(
+    () => (canSeeDrafts ? deals : deals.filter((d) => !isAwaitingFinalize(d))),
+    [deals, canSeeDrafts],
+  );
+
+  const awaitingCount = useMemo(
+    () => (canSeeDrafts ? visibleDeals.filter(isAwaitingFinalize).length : 0),
+    [visibleDeals, canSeeDrafts],
+  );
 
   const months = useMemo(() => {
     const set = new Set<string>();
-    deals.forEach((d) => { const k = monthKey(d.sale_date || d.created_at); if (k) set.add(k); });
+    visibleDeals.forEach((d) => { const k = monthKey(d.sale_date || d.created_at); if (k) set.add(k); });
     return Array.from(set).sort().reverse();
-  }, [deals]);
+  }, [visibleDeals]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return deals.filter((d) => {
+    return visibleDeals.filter((d) => {
+      if (view === 'awaiting' && !isAwaitingFinalize(d)) return false;
       if (month !== 'all' && monthKey(d.sale_date || d.created_at) !== month) return false;
       if (!q) return true;
       return [d.client_name, d.vehicle_make_model, d.vehicle_vin, d.vehicle_stock_no, d.client_phone]
         .filter(Boolean).join(' ').toLowerCase().includes(q);
     });
-  }, [deals, search, month]);
+  }, [visibleDeals, search, month, view]);
 
   const totalGP = filtered.reduce((s, d) => s + (Number(d.gross_profit) || 0), 0);
   const units = filtered.length;
@@ -56,6 +82,15 @@ export function DealsTable({ deals, onOpen }: { deals: Deal[]; onOpen: (d: Deal)
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search client, VIN, stock #…" className="pl-8 h-9" />
         </div>
+        {canSeeDrafts && (
+          <Select value={view} onValueChange={(v) => setView(v as 'all' | 'awaiting')}>
+            <SelectTrigger className="h-9 w-48"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All deals</SelectItem>
+              <SelectItem value="awaiting">Awaiting finalize{awaitingCount ? ` (${awaitingCount})` : ''}</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
         <Select value={month} onValueChange={setMonth}>
           <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
           <SelectContent>

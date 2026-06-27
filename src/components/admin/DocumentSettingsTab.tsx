@@ -4,7 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, FileText, Building2, Banknote, Receipt } from 'lucide-react';
+import { Loader2, FileText, Building2, Banknote, Receipt, ClipboardList } from 'lucide-react';
 import {
   useDocumentSettings, useUpdateDocumentSettings, DEFAULT_DOCUMENT_SETTINGS, DocumentSettings,
 } from '@/hooks/useDocumentSettings';
@@ -144,6 +144,27 @@ const DocumentSettingsTab = () => {
           value={form.otpTerms}
           onChange={(v) => set('otpTerms', v)}
         />
+      </section>
+
+      {/* Deals automation */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2 text-sm font-medium"><ClipboardList className="w-4 h-4 text-muted-foreground" /> Deals</div>
+        <label className="flex items-start gap-2 rounded-lg border border-border bg-muted/20 p-3 cursor-pointer">
+          <Checkbox
+            className="mt-0.5"
+            checked={!!form.autoCreateDealOnContractSigned}
+            onCheckedChange={(c) => set('autoCreateDealOnContractSigned', c === true)}
+          />
+          <span className="text-sm">
+            <span className="font-medium">Auto-create a Deal Desk draft when a contract is signed</span>
+            <span className="block text-xs text-muted-foreground mt-0.5">
+              When on, moving a finance application to <strong>Contract Signed</strong> automatically creates a
+              <strong> draft deal</strong> (all figures zero, no sale date) so it appears in Deal Desk ready to finalize.
+              Drafts are visible to admins only and never count toward Accounting or Reports until you finalize them.
+              Off (default) → nothing changes; deals are created only from the Finalize Deal modal as before.
+            </span>
+          </span>
+        </label>
       </section>
 
       <div className="flex justify-end">
