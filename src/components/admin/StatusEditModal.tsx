@@ -11,7 +11,7 @@
 // integration_settings.config.tag_add_overrides (the live integration path that
 // EasySocialTab writes), read-modify-write so concurrent edits don't clobber.
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -83,7 +83,25 @@ export function StatusEditModal({
   const [isInternal, setIsInternal] = useState(!!existing?.is_internal);
   const [waMessage, setWaMessage] = useState(existing?.whatsapp_message ?? '');
   const [tag, setTag] = useState(existing?.easysocial_tag_to_add ?? '');
+  const [tagSeeded, setTagSeeded] = useState(false);
   const [error, setError] = useState('');
+
+  // Seed the "tag to add" field from the canonical store so a no-op save is a true
+  // no-op. The override COLUMN is preferred, but it's a dual source of truth with
+  // integration_settings.config.tag_add_overrides (what EasySocialTab reads/writes).
+  // If an admin set the tag via EasySocialTab the column is null, so fall back to the
+  // live override here — otherwise opening + saving would run delete tagOverrides[slug]
+  // and silently wipe it. easySocial loads async, so seed once when data arrives.
+  useEffect(() => {
+    if (tagSeeded || !slug) return;
+    if ((existing?.easysocial_tag_to_add ?? '') === '' && easySocial) {
+      const fallback = (easySocial.config as any)?.tag_add_overrides?.[slug];
+      if (typeof fallback === 'string' && fallback) setTag(fallback);
+      setTagSeeded(true);
+    } else if (existing?.easysocial_tag_to_add) {
+      setTagSeeded(true);
+    }
+  }, [tagSeeded, slug, existing?.easysocial_tag_to_add, easySocial]);
 
   // Effective slug for previews / writes.
   const effectiveSlug = mode === 'finance' ? (slug ?? '') : (slug ?? slugifyClientLabel(label));
