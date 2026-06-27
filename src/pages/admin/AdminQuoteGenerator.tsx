@@ -1,429 +1,377 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { motion } from 'framer-motion';
-import { Plus, X, Copy, Calculator, MessageSquare, Check, Eye } from 'lucide-react';
+import { Plus, X, Copy, Check, Calculator, ChevronDown } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
+import PageHeader from '@/components/admin/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { toast } from 'sonner';
+import { useSiteSettings } from '@/hooks/useSiteSettings';
+import {
+  calcFinanceQuote,
+  formatRand,
+  type QuoteAddon,
+  type QuoteCover,
+} from '@/lib/financeCalc';
 
-/* ───────── types ───────── */
-interface Inputs {
-  price: number;
-  deposit: number;
-  rate: number;
-  term: number;
-  balloon: number;
-  initiationFee: number;
-  monthlyFee: number;
-  licenseFee: number;
-  adminFee: number;
-  warranty: number;
-}
+/* ───────── fallback defaults (used until settings load / when absent) ───────── */
+const FALLBACK_RATE = 13.5;
+const DEFAULT_TERM = 72;
+const FALLBACK_RESIDUAL = 0;
+const DEFAULT_BANK_DOC_FEE = 1207;
 
-interface Visibility {
-  price: boolean;
-  deposit: boolean;
-  rate: boolean;
-  term: boolean;
-  balloon: boolean;
-  initiationFee: boolean;
-  monthlyFee: boolean;
-  licenseFee: boolean;
-  adminFee: boolean;
-  warranty: boolean;
-  totalFinanced: boolean;
-}
+/* Financed add-on line items (Saker sheet) — all default to 0. */
+const makeAddons = (): QuoteAddon[] => [
+  { id: 'admin', label: 'Admin Fee', amount: 0 },
+  { id: 'license', label: 'License & Reg', amount: 0 },
+  { id: 'oem', label: 'OEM Extra', amount: 0 },
+  { id: 'service', label: 'Service Plan', amount: 0 },
+  { id: 'dent', label: 'Dent Repair', amount: 0 },
+  { id: 'master', label: 'Master Car', amount: 0 },
+  { id: 'smash', label: 'Smash & Grab', amount: 0 },
+];
 
-interface CalcResult {
-  installment: number;
-  totalFinanced: number;
-  balloonAmount: number;
-  extrasTotal: number;
-}
+/* Monthly covers — editable list, default a couple of zero rows. */
+const makeCovers = (): QuoteCover[] => [
+  { id: crypto.randomUUID(), label: 'Warranty', amount: 0 },
+  { id: crypto.randomUUID(), label: 'Trade Shield', amount: 0 },
+];
 
-interface QuoteOption {
-  id: string;
-  title: string;
-  inputs: Inputs;
-  show: Visibility;
-  result: CalcResult;
-}
-
-/* ───────── helpers ───────── */
-const calculatePMT = (principal: number, annualRate: number, months: number, balloonAmount: number = 0): number => {
-  if (principal <= 0 || months <= 0) return 0;
-  if (annualRate === 0) return (principal - balloonAmount) / months;
-  const r = annualRate / 100 / 12;
-  const pvBalloon = balloonAmount / Math.pow(1 + r, months);
-  const adjusted = principal - pvBalloon;
-  return Math.round(adjusted * (r * Math.pow(1 + r, months)) / (Math.pow(1 + r, months) - 1));
-};
-
-/* ───────── defaults ───────── */
-const DEFAULT_INPUTS: Inputs = {
-  price: 300000, deposit: 0, rate: 13.25, term: 72, balloon: 35,
-  initiationFee: 1207.50, monthlyFee: 69, licenseFee: 2500, adminFee: 4500, warranty: 0,
-};
-
-const DEFAULT_VISIBILITY: Visibility = {
-  price: true, deposit: true, rate: true, term: true, balloon: true,
-  initiationFee: false, monthlyFee: false, licenseFee: false, adminFee: false, warranty: false,
-  totalFinanced: false,
-};
-
-/* ───────── EXTRACTED: ControlRow (stable – no remount) ───────── */
-interface ControlRowProps {
+/* ───────── small input field ───────── */
+interface FieldProps {
   label: string;
-  field: string;
   value: number;
-  isVisible: boolean;
-  onValueChange: (val: number) => void;
-  onVisibilityChange: (checked: boolean) => void;
+  onChange: (v: number) => void;
   prefix?: string;
   suffix?: string;
-  min?: number;
-  max?: number;
   step?: number;
-  slider?: boolean;
+  hint?: string;
 }
 
-const ControlRow = ({ label, value, isVisible, onValueChange, onVisibilityChange, prefix, suffix, min, max, step, slider }: ControlRowProps) => (
-  <div className="space-y-2">
-    <div className="flex items-center gap-2">
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                checked={isVisible}
-                onCheckedChange={(c) => onVisibilityChange(!!c)}
-                className="h-3.5 w-3.5"
-              />
-              <Eye className="h-3 w-3 text-muted-foreground" />
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="top"><p className="text-xs">Check to show on client quote</p></TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-      <Label className="text-xs font-medium">{label}</Label>
-    </div>
+const NumberField = ({ label, value, onChange, prefix, suffix, step, hint }: FieldProps) => (
+  <div className="space-y-1.5">
+    <Label className="text-xs font-medium">{label}</Label>
     <div className="flex items-center gap-1.5">
-      {prefix && <span className="text-xs text-muted-foreground font-medium">{prefix}</span>}
+      {prefix && <span className="text-xs text-muted-foreground font-medium w-4">{prefix}</span>}
       <Input
         type="number"
         value={value || ''}
-        onChange={e => onValueChange(Number(e.target.value) || 0)}
+        onChange={(e) => onChange(Number(e.target.value) || 0)}
         className="font-mono h-8 text-sm"
-        min={min}
-        max={max}
         step={step}
       />
       {suffix && <span className="text-xs text-muted-foreground w-8 text-right">{suffix}</span>}
     </div>
-    {slider && min !== undefined && max !== undefined && (
-      <Slider
-        value={[value]}
-        onValueChange={v => onValueChange(v[0])}
-        min={min}
-        max={max}
-        step={step || 1}
-        className="mt-1"
-      />
-    )}
+    {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
   </div>
 );
 
-/* ───────── EXTRACTED: QuoteCard (stable) ───────── */
-interface QuoteCardProps {
-  inputs: Inputs;
-  show: Visibility;
-  result: CalcResult;
-}
-
-const QuoteCard = ({ inputs: inp, show: vis, result: res }: QuoteCardProps) => (
-  <div className="bg-card border border-border rounded-xl overflow-hidden">
-    <div className="p-5 flex items-center justify-between border-b border-border bg-muted/30">
-      <div>
-        <h3 className="text-lg font-display font-bold">Finance Quote</h3>
-        <p className="text-xs text-muted-foreground">Prepared exclusively for you</p>
-      </div>
-      <div className="text-right">
-        <p className="text-sm font-semibold">Lumina Auto</p>
-        <p className="text-xs text-muted-foreground">Premium Pre-Owned</p>
-      </div>
-    </div>
-    <div className="p-5 space-y-3">
-      {vis.price && (
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Vehicle Price</span>
-          <span className="font-mono font-medium">R {inp.price.toLocaleString()}</span>
-        </div>
-      )}
-      {vis.adminFee && inp.adminFee > 0 && (
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Admin Fee</span>
-          <span className="font-mono text-muted-foreground">+ R {inp.adminFee.toLocaleString()}</span>
-        </div>
-      )}
-      {vis.licenseFee && inp.licenseFee > 0 && (
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">License & Registration</span>
-          <span className="font-mono text-muted-foreground">+ R {inp.licenseFee.toLocaleString()}</span>
-        </div>
-      )}
-      {vis.warranty && inp.warranty > 0 && (
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Warranty / VAPs</span>
-          <span className="font-mono text-muted-foreground">+ R {inp.warranty.toLocaleString()}</span>
-        </div>
-      )}
-      {vis.initiationFee && inp.initiationFee > 0 && (
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Bank Initiation</span>
-          <span className="font-mono text-muted-foreground">+ R {inp.initiationFee.toLocaleString()}</span>
-        </div>
-      )}
-      {vis.monthlyFee && inp.monthlyFee > 0 && (
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Monthly Service Fee</span>
-          <span className="font-mono text-muted-foreground">+ R {inp.monthlyFee.toLocaleString()} pm</span>
-        </div>
-      )}
-      {vis.deposit && inp.deposit > 0 && (
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Less: Deposit</span>
-          <span className="font-mono text-green-600">- R {inp.deposit.toLocaleString()}</span>
-        </div>
-      )}
-      {vis.totalFinanced && (
-        <>
-          <Separator />
-          <div className="flex justify-between text-sm font-semibold">
-            <span>Total Financed</span>
-            <span className="font-mono">R {res.totalFinanced.toLocaleString()}</span>
-          </div>
-        </>
-      )}
-      {(vis.term || vis.rate || vis.balloon) && (
-        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground pt-2 border-t border-border">
-          {vis.term && <span>Term: <strong>{inp.term} Months</strong></span>}
-          {vis.rate && <span>Rate: <strong>{inp.rate}%</strong></span>}
-          {vis.balloon && inp.balloon > 0 && <span>Balloon: <strong>{inp.balloon}%</strong></span>}
-        </div>
-      )}
-    </div>
-    <div className="p-5 bg-primary/10 border-t border-primary/20">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground">Monthly Installment</p>
-          <p className="text-xs text-muted-foreground">*Includes monthly service fees</p>
-        </div>
-        <p className="text-3xl font-bold text-primary font-mono">
-          R {res.installment.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-        </p>
-      </div>
-    </div>
+/* ───────── results row ───────── */
+const ResultRow = ({
+  label,
+  value,
+  op,
+  muted,
+}: {
+  label: string;
+  value: string;
+  op?: '+' | '=';
+  muted?: boolean;
+}) => (
+  <div className="flex items-center justify-between text-sm">
+    <span className={muted ? 'text-muted-foreground' : ''}>
+      {op && <span className="text-muted-foreground mr-1">{op}</span>}
+      {label}
+    </span>
+    <span className="font-mono">{value}</span>
   </div>
 );
 
-/* ───────── MAIN COMPONENT ───────── */
+/* ───────── main ───────── */
 const AdminQuoteGenerator = () => {
-  const [inputs, setInputs] = useState<Inputs>({ ...DEFAULT_INPUTS });
-  const [show, setShow] = useState<Visibility>({ ...DEFAULT_VISIBILITY });
-  const [scenarioTitle, setScenarioTitle] = useState('Option 1');
-  const [quoteOptions, setQuoteOptions] = useState<QuoteOption[]>([]);
+  const { data: settings } = useSiteSettings();
+
+  const [vehiclePrice, setVehiclePrice] = useState(305000);
+  const [deposit, setDeposit] = useState(0);
+  const [rate, setRate] = useState<number | null>(null); // null => use settings/fallback
+  const [term, setTerm] = useState(DEFAULT_TERM);
+  const [residual, setResidual] = useState<number | null>(null);
+  const [begEnd, setBegEnd] = useState<0 | 1>(0);
+  const [bankDocFee, setBankDocFee] = useState(DEFAULT_BANK_DOC_FEE);
+  const [addons, setAddons] = useState<QuoteAddon[]>(makeAddons);
+  const [covers, setCovers] = useState<QuoteCover[]>(makeCovers);
+  const [addonsOpen, setAddonsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [tradeInOffer, setTradeInOffer] = useState<number>(0);
-  const [settlementAmount, setSettlementAmount] = useState<number>(0);
 
-  /* ── derived calculation (with shortfall/equity engine) ── */
-  const extras = inputs.licenseFee + inputs.adminFee + inputs.warranty + inputs.initiationFee;
-  const shortfall = Math.max(0, settlementAmount - tradeInOffer);
-  const tradeInEquity = Math.max(0, tradeInOffer - settlementAmount);
-  const effectiveDeposit = inputs.deposit + tradeInEquity;
-  const totalFinanced = Math.max(0, inputs.price + extras + shortfall - effectiveDeposit);
-  const balloonAmount = Math.round(inputs.price * (inputs.balloon / 100));
-  const basePmt = calculatePMT(totalFinanced, inputs.rate, inputs.term, balloonAmount);
-  const installment = basePmt + inputs.monthlyFee;
-  const result: CalcResult = { installment, totalFinanced, balloonAmount, extrasTotal: extras };
+  /* Pull finance defaults from the same settings source the rest of the app uses. */
+  const effectiveRate = rate ?? settings?.default_interest_rate ?? FALLBACK_RATE;
+  const effectiveResidual = residual ?? settings?.default_balloon_percent ?? FALLBACK_RESIDUAL;
 
-  /* ── stable update handlers ── */
-  const updateInput = (field: keyof Inputs, val: number) => setInputs(prev => ({ ...prev, [field]: val }));
-  const updateShow = (field: keyof Visibility, val: boolean) => setShow(prev => ({ ...prev, [field]: val }));
+  const result = useMemo(
+    () =>
+      calcFinanceQuote({
+        vehiclePrice,
+        deposit,
+        annualRatePct: effectiveRate,
+        term,
+        residualPct: effectiveResidual,
+        begEnd,
+        bankDocFee,
+        addons,
+        covers,
+      }),
+    [vehiclePrice, deposit, effectiveRate, term, effectiveResidual, begEnd, bankDocFee, addons, covers],
+  );
 
-  /* ── add option ── */
-  const handleAddOption = () => {
-    if (!scenarioTitle.trim()) { toast.error('Enter a scenario title'); return; }
-    const opt: QuoteOption = {
-      id: crypto.randomUUID(), title: scenarioTitle,
-      inputs: { ...inputs }, show: { ...show }, result: { ...result },
-    };
-    setQuoteOptions(prev => [...prev, opt]);
-    const match = scenarioTitle.match(/Option (\d+)/);
-    setScenarioTitle(match ? `Option ${parseInt(match[1]) + 1}` : '');
-    toast.success('Option added');
-  };
+  const depositPct = vehiclePrice > 0 ? (deposit / vehiclePrice) * 100 : 0;
 
-  /* ── copy whatsapp ── */
-  const handleCopyWhatsApp = async () => {
-    if (quoteOptions.length === 0) { toast.error('Add at least one option first'); return; }
-    const emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
-    let msg = `🚗 *Lumina Auto | Finance Options*\n\nHere are the payment plans we calculated for you:\n\n`;
-    quoteOptions.forEach((opt, i) => {
-      msg += `*${emojis[i] || `${i + 1}.`} ${opt.title}*\n`;
-      if (opt.show.price) msg += `🚘 Vehicle Price: R ${opt.inputs.price.toLocaleString()}\n`;
-      if (opt.show.adminFee && opt.inputs.adminFee > 0) msg += `📋 Admin Fee: R ${opt.inputs.adminFee.toLocaleString()}\n`;
-      if (opt.show.licenseFee && opt.inputs.licenseFee > 0) msg += `📝 License/Reg: R ${opt.inputs.licenseFee.toLocaleString()}\n`;
-      if (opt.show.warranty && opt.inputs.warranty > 0) msg += `🛡️ Warranty/VAPs: R ${opt.inputs.warranty.toLocaleString()}\n`;
-      if (opt.show.initiationFee && opt.inputs.initiationFee > 0) msg += `🏦 Bank Initiation: R ${opt.inputs.initiationFee.toLocaleString()}\n`;
-      if (opt.show.monthlyFee && opt.inputs.monthlyFee > 0) msg += `🔧 Service Fee: R ${opt.inputs.monthlyFee.toLocaleString()} pm\n`;
-      if (opt.show.deposit && opt.inputs.deposit > 0) msg += `📉 Deposit: R ${opt.inputs.deposit.toLocaleString()}\n`;
-      if (opt.show.totalFinanced) msg += `💰 Total Financed: R ${opt.result.totalFinanced.toLocaleString()}\n`;
-      if (opt.show.term) msg += `📅 Term: ${opt.inputs.term} Months\n`;
-      if (opt.show.rate) msg += `📊 Rate: ${opt.inputs.rate}%\n`;
-      if (opt.show.balloon && opt.inputs.balloon > 0) msg += `🎈 Balloon: ${opt.inputs.balloon}%\n`;
-      msg += `⚡ *Installment: R ${opt.result.installment.toLocaleString(undefined, { maximumFractionDigits: 0 })} p/m*\n\n`;
-    });
-    msg += `Let me know which option works best for your budget! 🤝`;
+  /* ── handlers ── */
+  const updateAddon = (id: string, amount: number) =>
+    setAddons((prev) => prev.map((a) => (a.id === id ? { ...a, amount } : a)));
+
+  const updateCover = (id: string, patch: Partial<QuoteCover>) =>
+    setCovers((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+
+  const addCover = () =>
+    setCovers((prev) => [...prev, { id: crypto.randomUUID(), label: '', amount: 0 }]);
+
+  const removeCover = (id: string) => setCovers((prev) => prev.filter((c) => c.id !== id));
+
+  const handleCopy = async () => {
+    const msg = [
+      '🚗 *Lumina Auto | Finance Quote*',
+      '',
+      `Vehicle Price: ${formatRand(vehiclePrice, 0)}`,
+      deposit > 0 ? `Deposit: ${formatRand(deposit, 0)} (${depositPct.toFixed(1)}%)` : null,
+      `Interest Rate: ${effectiveRate}%`,
+      `Term: ${term} months`,
+      effectiveResidual > 0 ? `Residual/Balloon: ${effectiveResidual}%` : null,
+      '',
+      `💰 *Total payment / month: ${formatRand(result.totalPaymentPerMonth)}*`,
+      '',
+      'Let me know if you would like to proceed! 🤝',
+    ]
+      .filter(Boolean)
+      .join('\n');
+
     try {
       await navigator.clipboard.writeText(msg);
-      setCopied(true); toast.success('WhatsApp message copied!'); setTimeout(() => setCopied(false), 2000);
-    } catch { toast.error('Failed to copy'); }
+      setCopied(true);
+      toast.success('Quote copied to clipboard');
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Failed to copy');
+    }
   };
 
   return (
     <AdminLayout>
-      <Helmet><title>Quote Generator | Lumina Auto Admin</title></Helmet>
-      <div className="p-6 space-y-6">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-primary/10"><MessageSquare className="h-6 w-6 text-primary" /></div>
-          <div>
-            <h1 className="text-2xl font-display font-bold">WhatsApp Quote Generator</h1>
-            <p className="text-muted-foreground text-sm">Build multi-scenario finance quotes · <Eye className="inline h-3 w-3" /> = visible on client quote</p>
-          </div>
-        </div>
+      <Helmet>
+        <title>Quote Generator | Lumina Auto Admin</title>
+      </Helmet>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* ═══════ LEFT: CONTROLS ═══════ */}
-          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
-            <Card className="glass-card">
-              <CardContent className="pt-5 space-y-3">
+      <PageHeader
+        icon={<Calculator />}
+        title="Quote Generator"
+        subtitle="Finance installment calculator"
+        actions={
+          <Button variant="outline" size="sm" onClick={handleCopy}>
+            {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
+            Copy quote
+          </Button>
+        }
+      />
+
+      <div className="p-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-5xl">
+          {/* ═══════ INPUTS ═══════ */}
+          <Card className="glass-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Deal</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <NumberField
+                label="Vehicle Price"
+                value={vehiclePrice}
+                onChange={setVehiclePrice}
+                prefix="R"
+              />
+              <NumberField
+                label="Deposit"
+                value={deposit}
+                onChange={setDeposit}
+                prefix="R"
+                hint={`${depositPct.toFixed(1)}% of vehicle price`}
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <NumberField
+                  label="Interest Rate"
+                  value={effectiveRate}
+                  onChange={setRate}
+                  suffix="%"
+                  step={0.05}
+                />
+                <NumberField label="Term" value={term} onChange={setTerm} suffix="mo" step={6} />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <NumberField
+                  label="Residual / Balloon"
+                  value={effectiveResidual}
+                  onChange={setResidual}
+                  suffix="%"
+                  step={5}
+                  hint="% of vehicle price"
+                />
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Scenario Title</Label>
-                  <Input value={scenarioTitle} onChange={e => setScenarioTitle(e.target.value)} placeholder="e.g., Option 1: No Deposit" className="h-8 text-sm" />
+                  <Label className="text-xs font-medium">Payment timing</Label>
+                  <ToggleGroup
+                    type="single"
+                    value={begEnd === 0 ? 'end' : 'beg'}
+                    onValueChange={(v) => {
+                      if (v) setBegEnd(v === 'beg' ? 1 : 0);
+                    }}
+                    className="justify-start"
+                  >
+                    <ToggleGroupItem value="end" className="h-8 px-3 text-xs">
+                      End
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="beg" className="h-8 px-3 text-xs">
+                      Beg
+                    </ToggleGroupItem>
+                  </ToggleGroup>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
 
-            <Card className="glass-card">
-              <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-2"><Calculator className="h-4 w-4" /> Vehicle & Deal</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-            <Card className="glass-card border-border/50 bg-card/50">
-              <CardHeader className="pb-3"><CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Trade-In & Shortfall (Admin Only)</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Trade-In Offer (Lumina Pays)</Label>
-                    <Input type="number" placeholder="0" value={tradeInOffer || ''} onChange={(e) => setTradeInOffer(Number(e.target.value))} className="font-mono h-8 text-sm" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Settlement Amount (Client Owes)</Label>
-                    <Input type="number" placeholder="0" value={settlementAmount || ''} onChange={(e) => setSettlementAmount(Number(e.target.value))} className="font-mono h-8 text-sm" />
-                  </div>
-                </div>
-                {shortfall > 0 && (
-                  <div className="text-xs text-destructive bg-destructive/10 p-2.5 rounded border border-destructive/20 font-mono">
-                    Shortfall of R {shortfall.toLocaleString()} added to principal finance amount.
-                  </div>
-                )}
-                {tradeInEquity > 0 && (
-                  <div className="text-xs text-primary bg-primary/10 p-2.5 rounded border border-primary/20 font-mono">
-                    Equity of R {tradeInEquity.toLocaleString()} added to effective deposit.
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+              <NumberField
+                label="Bank Doc Fee"
+                value={bankDocFee}
+                onChange={setBankDocFee}
+                prefix="R"
+                hint="Spread evenly over the term"
+              />
 
-            <Card className="glass-card">
-              <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-2"><Calculator className="h-4 w-4" /> Vehicle & Deal</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <ControlRow label="Vehicle Price" field="price" value={inputs.price} isVisible={show.price} onValueChange={v => updateInput('price', v)} onVisibilityChange={c => updateShow('price', c)} prefix="R" />
-                <ControlRow label="Deposit" field="deposit" value={inputs.deposit} isVisible={show.deposit} onValueChange={v => updateInput('deposit', v)} onVisibilityChange={c => updateShow('deposit', c)} prefix="R" min={0} max={inputs.price * 0.5} step={5000} slider />
-                <ControlRow label="Interest Rate" field="rate" value={inputs.rate} isVisible={show.rate} onValueChange={v => updateInput('rate', v)} onVisibilityChange={c => updateShow('rate', c)} suffix="%" min={7} max={25} step={0.1} slider />
-                <ControlRow label="Term (Months)" field="term" value={inputs.term} isVisible={show.term} onValueChange={v => updateInput('term', v)} onVisibilityChange={c => updateShow('term', c)} suffix="mo" min={12} max={96} step={12} slider />
-                <ControlRow label="Balloon %" field="balloon" value={inputs.balloon} isVisible={show.balloon} onValueChange={v => updateInput('balloon', v)} onVisibilityChange={c => updateShow('balloon', c)} suffix="%" min={0} max={75} step={5} slider />
-              </CardContent>
-            </Card>
-              </CardContent>
-            </Card>
+              {/* Add-ons (financed) */}
+              <Collapsible open={addonsOpen} onOpenChange={setAddonsOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-full justify-between px-2 h-8">
+                    <span className="text-xs font-medium">Add-ons (financed)</span>
+                    <ChevronDown
+                      className={`h-4 w-4 transition-transform ${addonsOpen ? 'rotate-180' : ''}`}
+                    />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    {addons.map((a) => (
+                      <NumberField
+                        key={a.id}
+                        label={a.label}
+                        value={a.amount}
+                        onChange={(v) => updateAddon(a.id, v)}
+                        prefix="R"
+                      />
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            </CardContent>
+          </Card>
 
+          {/* ═══════ RESULTS + COVERS ═══════ */}
+          <div className="space-y-4">
             <Card className="glass-card">
-              <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-2"><Calculator className="h-4 w-4" /> Fees & Extras</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <ControlRow label="Admin Fee" field="adminFee" value={inputs.adminFee} isVisible={show.adminFee} onValueChange={v => updateInput('adminFee', v)} onVisibilityChange={c => updateShow('adminFee', c)} prefix="R" />
-                  <ControlRow label="License & Reg" field="licenseFee" value={inputs.licenseFee} isVisible={show.licenseFee} onValueChange={v => updateInput('licenseFee', v)} onVisibilityChange={c => updateShow('licenseFee', c)} prefix="R" />
-                  <ControlRow label="Warranty / VAPs" field="warranty" value={inputs.warranty} isVisible={show.warranty} onValueChange={v => updateInput('warranty', v)} onVisibilityChange={c => updateShow('warranty', c)} prefix="R" />
-                  <ControlRow label="Bank Initiation" field="initiationFee" value={inputs.initiationFee} isVisible={show.initiationFee} onValueChange={v => updateInput('initiationFee', v)} onVisibilityChange={c => updateShow('initiationFee', c)} prefix="R" />
-                </div>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Breakdown</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2.5">
+                <ResultRow label="Financed total" value={formatRand(result.financed)} muted />
                 <Separator />
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <ControlRow label="Monthly Service Fee" field="monthlyFee" value={inputs.monthlyFee} isVisible={show.monthlyFee} onValueChange={v => updateInput('monthlyFee', v)} onVisibilityChange={c => updateShow('monthlyFee', c)} prefix="R" />
-                </div>
+                <ResultRow label="Monthly payment (PMT)" value={formatRand(result.payment)} />
+                <ResultRow
+                  label="Bank doc fee / month"
+                  value={formatRand(result.bankDocFeeMonthly)}
+                  op="+"
+                  muted
+                />
+                <ResultRow
+                  label="Instalment subtotal"
+                  value={formatRand(result.instalmentSubtotal)}
+                  op="="
+                />
+                <ResultRow label="Covers" value={formatRand(result.coversTotal)} op="+" muted />
+
                 <Separator />
-                <div className="flex items-center gap-2 pt-1">
-                  <Checkbox checked={show.totalFinanced} onCheckedChange={c => updateShow('totalFinanced', !!c)} className="h-3.5 w-3.5" />
-                  <Eye className="h-3 w-3 text-muted-foreground" />
-                  <Label className="text-xs">Show "Total Financed Amount" line</Label>
+                <div className="flex items-center justify-between pt-1">
+                  <div>
+                    <p className="text-sm font-semibold">Total payment / month</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Incl. doc fee &amp; monthly covers
+                    </p>
+                  </div>
+                  <p className="text-3xl font-bold text-primary font-mono">
+                    {formatRand(result.totalPaymentPerMonth)}
+                  </p>
                 </div>
               </CardContent>
             </Card>
 
-            <Button onClick={handleAddOption} className="w-full" size="lg">
-              <Plus className="h-4 w-4 mr-2" />Add This Option
-            </Button>
-          </motion.div>
-
-          {/* ═══════ RIGHT: PREVIEW + STAGING ═══════ */}
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
+            {/* Monthly covers */}
             <Card className="glass-card">
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Live Preview</CardTitle></CardHeader>
-              <CardContent>
-                <QuoteCard inputs={inputs} show={show} result={result} />
+              <CardHeader className="pb-3 flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-sm">Monthly covers</CardTitle>
+                <Button variant="ghost" size="sm" className="h-7 px-2" onClick={addCover}>
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  Add
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {covers.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-2">No covers added.</p>
+                ) : (
+                  covers.map((c) => (
+                    <div key={c.id} className="flex items-center gap-2">
+                      <Input
+                        value={c.label}
+                        onChange={(e) => updateCover(c.id, { label: e.target.value })}
+                        placeholder="Cover name"
+                        className="h-8 text-sm flex-1"
+                      />
+                      <div className="flex items-center gap-1.5 w-32">
+                        <span className="text-xs text-muted-foreground">R</span>
+                        <Input
+                          type="number"
+                          value={c.amount || ''}
+                          onChange={(e) =>
+                            updateCover(c.id, { amount: Number(e.target.value) || 0 })
+                          }
+                          className="font-mono h-8 text-sm"
+                        />
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                        onClick={() => removeCover(c.id)}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ))
+                )}
               </CardContent>
             </Card>
-
-            <Card className="glass-card">
-              <CardHeader><CardTitle className="text-sm">Staged Options ({quoteOptions.length})</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                {quoteOptions.length === 0 ? (
-                  <div className="text-center py-6 text-muted-foreground">
-                    <MessageSquare className="h-10 w-10 mx-auto mb-2 opacity-40" />
-                    <p className="text-sm">No options staged yet</p>
-                  </div>
-                ) : quoteOptions.map((opt, i) => (
-                  <motion.div key={opt.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative group">
-                    <button onClick={() => setQuoteOptions(prev => prev.filter(o => o.id !== opt.id))} className="absolute top-2 right-2 z-10 p-1 rounded-full bg-destructive/10 text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                    <p className="text-xs font-semibold mb-1 px-1">{i + 1}. {opt.title}</p>
-                    <QuoteCard inputs={opt.inputs} show={opt.show} result={opt.result} />
-                  </motion.div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Button onClick={handleCopyWhatsApp} disabled={quoteOptions.length === 0} className="w-full bg-green-600 hover:bg-green-700 text-white" size="lg">
-              {copied ? <><Check className="h-5 w-5 mr-2" />Copied!</> : <><Copy className="h-5 w-5 mr-2" />Copy WhatsApp Message</>}
-            </Button>
-          </motion.div>
+          </div>
         </div>
       </div>
     </AdminLayout>
