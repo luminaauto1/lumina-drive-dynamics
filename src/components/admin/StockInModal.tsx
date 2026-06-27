@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { PackageCheck, FileText, DollarSign, HeartPulse, Key, Calendar, Gauge, AlertTriangle, ImagePlus, X, GripVertical, EyeOff } from 'lucide-react';
+import { PackageCheck, FileText, DollarSign, HeartPulse, Key, Calendar, Gauge, AlertTriangle, ImagePlus, X, GripVertical, EyeOff, FileCheck2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +33,7 @@ import {
 } from '@dnd-kit/sortable';
 import SortableImage from '@/components/admin/SortableImage';
 import CoverImageButton from '@/components/admin/CoverImageButton';
+import StockDocsChecklist from '@/components/admin/StockDocsChecklist';
 
 interface StockInModalProps {
   vehicle: Vehicle;
@@ -362,7 +363,7 @@ const StockInModal = ({ vehicle, isOpen, onClose }: StockInModalProps) => {
         </div>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="legal" className="gap-2">
               <FileText className="w-4 h-4" />
               <span className="hidden sm:inline">Legal</span>
@@ -378,6 +379,10 @@ const StockInModal = ({ vehicle, isOpen, onClose }: StockInModalProps) => {
             <TabsTrigger value="photos" className="gap-2">
               <ImagePlus className="w-4 h-4" />
               <span className="hidden sm:inline">Photos</span>
+            </TabsTrigger>
+            <TabsTrigger value="docs" className="gap-2">
+              <FileCheck2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Docs</span>
             </TabsTrigger>
           </TabsList>
           
@@ -711,8 +716,29 @@ const StockInModal = ({ vehicle, isOpen, onClose }: StockInModalProps) => {
               </p>
             </div>
             
-            <div className="flex justify-start">
+            <div className="flex justify-between">
               <Button variant="outline" onClick={() => setActiveTab('health')}>
+                ← Back
+              </Button>
+              <Button onClick={() => setActiveTab('docs')}>
+                Next →
+              </Button>
+            </div>
+          </TabsContent>
+
+          {/* Stock-In Documents Checklist Tab */}
+          <TabsContent value="docs" className="space-y-4 mt-4">
+            {isSourcingVehicle ? (
+              <div className="text-center text-sm text-muted-foreground py-8 bg-muted/20 rounded-lg border border-dashed">
+                The documents checklist is tracked per real stock unit. Complete the
+                stock-in first, then open the vehicle to record its documents.
+              </div>
+            ) : (
+              <StockDocsChecklist vehicleId={vehicle.id} />
+            )}
+
+            <div className="flex justify-start">
+              <Button variant="outline" onClick={() => setActiveTab('photos')}>
                 ← Back
               </Button>
             </div>

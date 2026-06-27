@@ -26,6 +26,7 @@ import AdminLayout from '@/components/admin/AdminLayout';
 import SortableImage from '@/components/admin/SortableImage';
 import CoverImageButton from '@/components/admin/CoverImageButton';
 import VehicleOperationsTab from '@/components/admin/VehicleOperationsTab';
+import StockDocsChecklist from '@/components/admin/StockDocsChecklist';
 import StockInModal from '@/components/admin/StockInModal';
 import { AddHiddenStockModal } from '@/components/admin/AddHiddenStockModal';
 import { Button } from '@/components/ui/button';
@@ -96,7 +97,7 @@ const AdminInventoryPage = () => {
   const [activeTab, setActiveTab] = useState('live');
   const [isSourcingMode, setIsSourcingMode] = useState(false);
   const [variants, setVariants] = useState<VariantSpec[]>([]);
-  const [sheetTab, setSheetTab] = useState<'details' | 'recon'>('details');
+  const [sheetTab, setSheetTab] = useState<'details' | 'recon' | 'docs'>('details');
   const [isConverting, setIsConverting] = useState(false);
   const [stockInVehicle, setStockInVehicle] = useState<Vehicle | null>(null);
   const [dealMap, setDealMap] = useState<Record<string, { buyerName: string; appId: string }>>({});
@@ -933,24 +934,32 @@ const AdminInventoryPage = () => {
             </SheetDescription>
           </SheetHeader>
 
-          {/* Sheet Tabs - Only show Recon tab for existing non-sourcing vehicles */}
-          {isSuperAdmin && editingVehicle && !isSourcingMode && (
-            <Tabs value={sheetTab} onValueChange={(v) => setSheetTab(v as 'details' | 'recon')} className="mt-4">
-              <TabsList className="grid w-full grid-cols-2">
+          {/* Sheet Tabs - Details + Docs for existing non-sourcing vehicles; Recon is super-admin only */}
+          {editingVehicle && !isSourcingMode && (
+            <Tabs value={sheetTab} onValueChange={(v) => setSheetTab(v as 'details' | 'recon' | 'docs')} className="mt-4">
+              <TabsList className={`grid w-full ${isSuperAdmin ? 'grid-cols-3' : 'grid-cols-2'}`}>
                 <TabsTrigger value="details">Details</TabsTrigger>
-                <TabsTrigger value="recon">Reconditioning</TabsTrigger>
+                {isSuperAdmin && <TabsTrigger value="recon">Reconditioning</TabsTrigger>}
+                <TabsTrigger value="docs">Documents</TabsTrigger>
               </TabsList>
             </Tabs>
           )}
 
           {/* Reconditioning Tab Content */}
-          {editingVehicle && sheetTab === 'recon' && !isSourcingMode && (
+          {editingVehicle && sheetTab === 'recon' && !isSourcingMode && isSuperAdmin && (
             <div className="mt-6">
-              <VehicleOperationsTab 
+              <VehicleOperationsTab
                 vehicleId={editingVehicle.id}
                 purchasePrice={(editingVehicle as any).purchase_price || 0}
                 sellingPrice={editingVehicle.price}
               />
+            </div>
+          )}
+
+          {/* Stock-In Documents Checklist Tab Content */}
+          {editingVehicle && sheetTab === 'docs' && !isSourcingMode && (
+            <div className="mt-6">
+              <StockDocsChecklist vehicleId={editingVehicle.id} />
             </div>
           )}
 
