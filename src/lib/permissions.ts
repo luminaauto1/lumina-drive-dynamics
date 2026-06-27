@@ -34,7 +34,9 @@ export const APP_SECTIONS: AppSection[] = [
   { key: 'extra_incomes', label: 'Extra Incomes',    description: 'Additional income capture', paths: ['/admin/extra-incomes'], home: '/admin/extra-incomes' },
   { key: 'network',       label: 'Trade Network',    description: 'Dealer trade network', paths: ['/admin/network'], home: '/admin/network' },
   { key: 'referrals',     label: 'Referrals',        description: 'Referral tracking & payouts', paths: ['/admin/referrals'], home: '/admin/referrals' },
-  { key: 'deal_ledger',   label: 'Deal Ledger',      description: 'Finalised deals / aftersales ledger', paths: ['/admin/aftersales'], home: '/admin/aftersales' },
+  // Deal Ledger folded into Deal Desk. Section retained so existing role grants
+  // keep working, but its home now lands on the merged Deal Desk page.
+  { key: 'deal_ledger',   label: 'Deal Ledger',      description: 'Finalised deals / aftersales ledger (now inside Deal Desk)', paths: ['/admin/aftersales'], home: '/admin/deal-desk' },
   { key: 'reports',       label: 'Reports',          description: 'Accounting & VAT, lead analytics, payouts', paths: ['/admin/reports'], home: '/admin/reports' },
   { key: 'vendors',       label: 'Vendors',          description: 'Suppliers & finance houses', paths: ['/admin/vendors'], home: '/admin/vendors' },
   { key: 'invoices',      label: 'Invoice Creator',  description: 'Standalone invoice builder', paths: ['/admin/invoices'], home: '/admin/invoices' },

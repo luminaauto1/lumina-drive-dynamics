@@ -72,9 +72,9 @@ export const ADMIN_NAV_ENTRIES: AdminNavEntry[] = [
   { key: 'documents', path: ADMIN_ROUTES.documents, label: 'Documents', section: 'Docs & Sales' },
   { key: 'juristic', path: ADMIN_ROUTES.juristic, label: 'Juristic', section: 'Docs & Sales' },
   { key: 'finance', path: ADMIN_ROUTES.finance, label: 'Finance', section: 'Money', keywords: 'applications deals' },
-  { key: 'dealDesk', path: ADMIN_ROUTES.dealDesk, label: 'Deal Desk', section: 'Money', keywords: 'cost sheet delivery natis payables' },
+  { key: 'dealDesk', path: ADMIN_ROUTES.dealDesk, label: 'Deal Desk', section: 'Money', keywords: 'cost sheet delivery natis payables deal ledger profit commissions aftersales follow-ups customer follow ups' },
   { key: 'invoices', path: ADMIN_ROUTES.invoices, label: 'Invoices', section: 'Money' },
-  { key: 'aftersales', path: ADMIN_ROUTES.aftersales, label: 'Aftersales', section: 'Money' },
+  // Deal Ledger / Aftersales folded into Deal Desk — no standalone palette entry.
   { key: 'extraIncomes', path: ADMIN_ROUTES.extraIncomes, label: 'Extra Incomes', section: 'Money' },
   { key: 'carsToBuy', path: ADMIN_ROUTES.carsToBuy, label: 'Cars to Buy', section: 'Money' },
   { key: 'reports', path: ADMIN_ROUTES.reports, label: 'Reports', section: 'Insights' },

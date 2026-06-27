@@ -137,7 +137,10 @@ const AppLayout = () => {
             <Route path="/admin/pipeline-v2" element={<ProtectedRoute section="pipeline_v2"><AdminPipelineV2 /></ProtectedRoute>} />
             <Route path="/admin/quotes" element={<ProtectedRoute section="quotes"><AdminQuoteGenerator /></ProtectedRoute>} />
             <Route path="/admin/otp" element={<ProtectedRoute section="finance"><AdminOTP /></ProtectedRoute>} />
-            <Route path="/admin/aftersales" element={<ProtectedRoute section="deal_ledger"><AdminAftersales /></ProtectedRoute>} />
+            {/* Deal Ledger folded into Deal Desk — redirect old URL. Gated for
+                either legacy deal_ledger holders or deal_desk holders so neither
+                gets bounced before the redirect to /admin/deal-desk fires. */}
+            <Route path="/admin/aftersales" element={<ProtectedRoute sections={["deal_ledger", "deal_desk"]}><AdminAftersales /></ProtectedRoute>} />
             <Route path="/admin/reports" element={<ProtectedRoute section="reports"><AdminReports /></ProtectedRoute>} />
             <Route path="/admin/vendors" element={<ProtectedRoute section="vendors"><AdminVendors /></ProtectedRoute>} />
             <Route path="/admin/invoices" element={<ProtectedRoute section="invoices"><AdminInvoiceCreator /></ProtectedRoute>} />
@@ -146,7 +149,9 @@ const AppLayout = () => {
             <Route path="/admin/cars-to-buy" element={<ProtectedRoute section="cars_to_buy"><AdminCarsToBuy /></ProtectedRoute>} />
             <Route path="/admin/analytics" element={<ProtectedRoute section="analytics"><AdminAnalytics /></ProtectedRoute>} />
             <Route path="/admin/export" element={<ProtectedRoute section="export"><AdminExport /></ProtectedRoute>} />
-            <Route path="/admin/deal-desk" element={<ProtectedRoute section="deal_desk"><AdminDealDesk /></ProtectedRoute>} />
+            {/* Deal Desk is now the single home for the old Deal Ledger too, so
+                legacy deal_ledger holders retain access to the merged view. */}
+            <Route path="/admin/deal-desk" element={<ProtectedRoute sections={["deal_desk", "deal_ledger"]}><AdminDealDesk /></ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute requireSuperAdmin><AdminSettings /></ProtectedRoute>} />
             {/* Each setting renders on its own page at /admin/settings/<key>
                 (incl. /admin/settings/email — Email Templates). Same super-admin

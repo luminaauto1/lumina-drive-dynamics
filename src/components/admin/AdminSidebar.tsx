@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, TableProperties, CreditCard, ClipboardList, Car,
-  Calculator, FileSignature, FolderOpen, Building2, ShoppingCart, Banknote,
+  Calculator, FileSignature, FolderOpen, Building2, ShoppingCart,
   Receipt, Coins, Truck, FileBarChart, BarChart3, LineChart, Download,
   Briefcase, Gift, Contact, Settings, Search, ChevronLeft, ChevronRight, Home, Rows3,
 } from 'lucide-react';
@@ -55,7 +55,8 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Money',
     items: [
-      { title: 'Deal Ledger', icon: Banknote, path: '/admin/aftersales' },
+      // Deal Ledger folded into Deal Desk (Money home is now Deal Desk's
+      // Ledger / Profit + Customer Follow-ups tabs). Nav item removed.
       { title: 'Invoice Creator', icon: Receipt, path: '/admin/invoices' },
       { title: 'Extra Incomes', icon: Coins, path: '/admin/extra-incomes' },
       { title: 'Vendors', icon: Truck, path: '/admin/vendors' },
