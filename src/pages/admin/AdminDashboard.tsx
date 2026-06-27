@@ -2,9 +2,12 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/admin/AdminLayout";
+import PageHeader from "@/components/admin/PageHeader";
+import StatTile from "@/components/admin/StatTile";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { ADMIN_ROUTES } from "@/lib/adminRoutes";
 import { ArrowRight, TrendingUp, AlertCircle, Car, DollarSign, Calculator, Search, BarChart3, UserPlus, FileCheck2, Activity } from "lucide-react";
 import { format, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
 import { Helmet } from "react-helmet-async";
@@ -181,60 +184,42 @@ const AdminDashboard = () => {
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
 
-      <div className="p-6 space-y-6">
-        {/* HEADER */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-semibold">Command Center</h1>
-            <p className="text-muted-foreground">
-              {format(new Date(), "MMMM yyyy")} Overview
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => navigate("/admin/quotes")}>
+      <PageHeader
+        icon={<BarChart3 />}
+        title="Command Center"
+        subtitle={`${format(new Date(), "MMMM yyyy")} Overview`}
+        actions={
+          <>
+            <Button size="sm" variant="outline" onClick={() => navigate(ADMIN_ROUTES.quotes)}>
               <Calculator className="w-4 h-4 mr-2" />
               Quick Quote
             </Button>
-            <Button size="sm" onClick={() => navigate("/admin/crm")}>
+            <Button size="sm" onClick={() => navigate(ADMIN_ROUTES.crm)}>
               <Search className="w-4 h-4 mr-2" />
               Pipeline
             </Button>
-          </div>
-        </div>
+          </>
+        }
+      />
 
+      <div className="p-6 space-y-6">
         {/* FINANCIAL INTELLIGENCE */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Your Net Profit */}
-          <Card className="p-5 space-y-1">
-            <div className="flex items-center gap-2 text-emerald-400">
-              <DollarSign className="w-5 h-5" />
-              <span className="text-sm font-medium text-muted-foreground">
-                Your Net Profit
-              </span>
-            </div>
-            <p className="text-2xl font-bold text-emerald-400">
-              {fmt(metrics.luminaNetProfit)}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Lumina's Final Cut (After Split)
-            </p>
-          </Card>
+          <StatTile
+            icon={<DollarSign className="text-emerald-400" />}
+            label="Your Net Profit"
+            value={<span className="text-emerald-400">{fmt(metrics.luminaNetProfit)}</span>}
+            hint="Lumina's Final Cut (After Split)"
+          />
 
           {/* Total Turnover */}
-          <Card className="p-5 space-y-1">
-            <div className="flex items-center gap-2 text-blue-400">
-              <TrendingUp className="w-5 h-5" />
-              <span className="text-sm font-medium text-muted-foreground">
-                Total Trading Turnover
-              </span>
-            </div>
-            <p className="text-2xl font-bold text-blue-400">
-              {fmt(metrics.totalTurnover)}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Top-Line Revenue (Vehicle Value)
-            </p>
-          </Card>
+          <StatTile
+            icon={<TrendingUp className="text-blue-400" />}
+            label="Total Trading Turnover"
+            value={<span className="text-blue-400">{fmt(metrics.totalTurnover)}</span>}
+            hint="Top-Line Revenue (Vehicle Value)"
+          />
 
           {/* Units */}
           <Card className="p-5 space-y-2">
@@ -256,20 +241,12 @@ const AdminDashboard = () => {
           </Card>
 
           {/* Avg Yield */}
-          <Card className="p-5 space-y-1">
-            <div className="flex items-center gap-2 text-amber-400">
-              <Calculator className="w-5 h-5" />
-              <span className="text-sm font-medium text-muted-foreground">
-                Avg Yield Per Unit
-              </span>
-            </div>
-            <p className="text-2xl font-bold text-amber-400">
-              {fmt(metrics.avgProfitPerUnit)}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Your Net / Units Sold
-            </p>
-          </Card>
+          <StatTile
+            icon={<Calculator className="text-amber-400" />}
+            label="Avg Yield Per Unit"
+            value={<span className="text-amber-400">{fmt(metrics.avgProfitPerUnit)}</span>}
+            hint="Your Net / Units Sold"
+          />
         </div>
 
         {/* ACTION MATRIX */}

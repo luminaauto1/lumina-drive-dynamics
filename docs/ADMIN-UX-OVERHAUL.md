@@ -46,9 +46,9 @@ page edits and zero storefront impact. Fully reversible (delete the block).
 
 ## Phase 2b — Shared primitives + in-page tabs — [~] in progress
 - [x] **Per-user density toggle (Q4)** — `.desk-root` base = Comfortable (default); `.density-compact` = denser. `useAdminDensity` hook (localStorage) + sidebar footer toggle; AdminLayout applies `density-<mode>`. (PR feat/admin-ux-density-toggle)
-- [ ] Extract `<PageHeader compact>` + `<StatTile>` primitives; refactor pages onto them
+- [x] Extract `<PageHeader>` + `<StatTile>` primitives; refactor Dashboard, Finance & Deal Room headers/KPI tiles onto them
 - [ ] Fold Cars-to-Buy, CRM Sheet into in-page tabs (further reduce nav count)
-- [ ] Centralize admin route paths in `lib/adminRoutes.ts`; keep old routes as redirects
+- [x] Centralize admin route paths in `lib/adminRoutes.ts` (`ADMIN_ROUTES` map + `dealRoomPath`/`clientProfilePath`/`partnerPayoutPath` helpers)
 
 ## Phase 3 — Contract-signed → Deal Desk automation — ⬜ (ready; drafts visible to **Admins only**)
 - ⬜ Idempotent draft `deal_records` create on `contract_signed` in `useUpdateFinanceApplication`
@@ -73,6 +73,7 @@ page edits and zero storefront impact. Fully reversible (delete the block).
 ---
 
 ## Changelog (most recent first)
+- 2026-06-27 — **Phase 2b: shared primitives + route constants.** Added `<PageHeader>` and `<StatTile>` admin primitives and a centralized `lib/adminRoutes.ts` (`ADMIN_ROUTES` + param-path helpers). Refactored AdminDashboard, AdminFinance and AdminDealRoom to use them for their page headers and KPI/stat tiles (logic untouched). tsc + build clean. (branch `feat/admin-ux-phases-2b-6`)
 - 2026-06-27 — **All decisions confirmed; whole plan approved.** Phase 2b started with the **density toggle** (`feat/admin-ux-density-toggle`): Comfortable default + per-user Compact toggle in the sidebar.
 - 2026-06-26 — **Phase 2a merged** (PR #78): sidebar flattened to direct links under section headers (no dropdowns); OTP added, Contacts homed.
 - 2026-06-26 — **Phase 1 merged** (`feat/admin-ux-phase1`, PR #77): `.desk-root` admin density theme + 404 fix. Verified before/after (~50% denser, glow removed).

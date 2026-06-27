@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import AdminLayout from '@/components/admin/AdminLayout';
+import PageHeader from '@/components/admin/PageHeader';
+import { ADMIN_ROUTES } from '@/lib/adminRoutes';
 import FinancePodiumModal from '@/components/admin/FinancePodiumModal';
 import FinalizeDealModal from '@/components/admin/FinalizeDealModal';
 import OTPModal from '@/components/admin/OTPModal';
@@ -750,26 +752,21 @@ const AdminDealRoom = () => {
           animate={{ opacity: 1, y: 0 }}
           className="mb-6"
         >
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate('/admin/finance')}
+          <Button
+            variant="ghost"
+            onClick={() => navigate(ADMIN_ROUTES.finance)}
             className="mb-4"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Applications
           </Button>
-          
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-semibold">
-                {application.first_name} {application.last_name}
-              </h1>
-              <p className="text-muted-foreground text-sm">
-                Application ID: {application.id.slice(0, 8)}...
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {isEditing ? (
+
+          <PageHeader
+            icon={<User />}
+            title={`${application.first_name} ${application.last_name}`}
+            subtitle={`Application ID: ${application.id.slice(0, 8)}...`}
+            actions={
+              isEditing ? (
                 <>
                   <Button
                     variant="outline"
@@ -964,9 +961,9 @@ const AdminDealRoom = () => {
                     WhatsApp
                   </Button>
                 </>
-              )}
-            </div>
-          </div>
+              )
+            }
+          />
         </motion.div>
 
         {/* Persistent Client Cockpit */}
