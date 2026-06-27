@@ -14,6 +14,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { SavedViewsBar } from '@/components/admin/SavedViewsBar';
 import { useSavedViews } from '@/hooks/useSavedViews';
 
+import { isAwaitingFinalize } from './isAwaitingFinalize';
+export { isAwaitingFinalize };
+
 /** Persisted Deal Desk filter preset (saved views). Search text excluded. */
 interface DealDeskPreset { month: string; view: 'all' | 'awaiting' }
 
@@ -24,16 +27,6 @@ function Stat({ label, value }: { label: string; value: string }) {
       <div className="text-xl font-bold tabular-nums">{value}</div>
     </CardContent></Card>
   );
-}
-
-/**
- * An auto-created, not-yet-finalized draft: reads as 'contract_signed' (no sale
- * date / delivery / Natis) and still carries zero recorded profit. These rows
- * are the contract-signed → Deal Desk drafts and are ADMIN-ONLY — non-admins
- * never see un-finalized drafts in the list.
- */
-export function isAwaitingFinalize(d: Deal): boolean {
-  return d.deal_status === 'contract_signed' && !d.sale_date && (Number(d.gross_profit) || 0) === 0;
 }
 
 export function DealsTable(

@@ -33,7 +33,7 @@ export function DeliveryTab({ deal }: { deal: Deal }) {
         <div className="flex items-center justify-between pt-2 border-t border-border">
           <span className="text-sm font-medium">Natis sent</span>
           <Switch checked={deal.natis_sent} disabled={markNatis.isPending}
-            onCheckedChange={(v) => markNatis.mutate({ dealId: deal.id, sent: v })} />
+            onCheckedChange={(v) => markNatis.mutate({ dealId: deal.id, sent: v, currentStage: deal.deal_stage })} />
         </div>
         {markNatis.isPending && <div className="text-xs text-muted-foreground"><Loader2 className="w-3 h-3 animate-spin inline mr-1" />Updating…</div>}
       </div>
@@ -43,7 +43,7 @@ export function DeliveryTab({ deal }: { deal: Deal }) {
           <CheckCircle2 className={'w-4 h-4 ' + (checklist?.delivery_ready ? 'text-emerald-400' : 'text-muted-foreground')} /> Delivery ready
         </span>
         <Switch checked={!!checklist?.delivery_ready} disabled={saveChecklist.isPending}
-          onCheckedChange={(v) => saveChecklist.mutate({ dealId: deal.id, patch: { delivery_ready: v } })} />
+          onCheckedChange={(v) => saveChecklist.mutate({ dealId: deal.id, patch: { delivery_ready: v }, currentStage: deal.deal_stage })} />
       </div>
 
       <p className="text-[11px] text-muted-foreground">
