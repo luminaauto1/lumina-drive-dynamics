@@ -4,6 +4,32 @@
 // produces from a joined deal_records row so the ported components type-check.
 
 export type DealStatus = 'contract_signed' | 'invoiced' | 'delivered' | 'cleared' | 'cancelled';
+
+/**
+ * The stored back-office deal-stage track (deal_records.deal_stage column — see
+ * 20260627100000_deal_records_deal_stage.sql). Runs in parallel to the finance
+ * status track. `null` on a row means "derive on read" (fromDealRecord). 'none'
+ * is the explicit blank/unset stage.
+ */
+export type DealStage = 'none' | 'deal_started' | 'contract_signed' | 'in_delivery' | 'delivered' | 'cleared';
+
+export const DEAL_STAGE_OPTIONS: { value: DealStage; label: string }[] = [
+  { value: 'none', label: 'No stage' },
+  { value: 'deal_started', label: 'Deal started' },
+  { value: 'contract_signed', label: 'Contract signed' },
+  { value: 'in_delivery', label: 'In delivery' },
+  { value: 'delivered', label: 'Delivered' },
+  { value: 'cleared', label: 'Cleared' },
+];
+
+export const DEAL_STAGE_LABEL: Record<DealStage, string> = {
+  none: 'No stage',
+  deal_started: 'Deal started',
+  contract_signed: 'Contract signed',
+  in_delivery: 'In delivery',
+  delivered: 'Delivered',
+  cleared: 'Cleared',
+};
 export type DealCondition = 'new' | 'used' | 'demo' | 'commercial';
 export type ChecklistStep = 'not_started' | 'requested' | 'in_progress' | 'done' | 'not_applicable';
 export type PickupOrDelivery = 'pickup' | 'delivery';
@@ -32,6 +58,12 @@ export interface Deal {
   cost_price: number | null;
   recon_cost: number | null;
   deal_status: DealStatus;
+  /** Stored back-office deal-stage track (deal_records.deal_stage); falls back to
+   *  a value derived from deal_status when the column is null. */
+  deal_stage: DealStage;
+  /** Finance-track status of the linked application (finance_applications.status),
+   *  for the parallel finance badge. Null when no application is joined. */
+  finance_status: string | null;
   sale_date: string | null;
   delivery_date: string | null;     // SAST YYYY-MM-DD (coerced in the adapter)
   delivery_date_raw: string | null;  // original timestamptz, for display

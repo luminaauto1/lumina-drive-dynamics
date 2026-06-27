@@ -15,6 +15,9 @@ import BankReferenceBadge from '@/components/admin/BankReferenceBadge';
 import CreditCheckReportModal from '@/components/admin/CreditCheckReportModal';
 import CreditCheckResultModal, { type CreditCheckOutcome } from '@/components/admin/CreditCheckResultModal';
 import AdminLayout from '@/components/admin/AdminLayout';
+import PageHeader from '@/components/admin/PageHeader';
+import StatTile from '@/components/admin/StatTile';
+import { ADMIN_ROUTES } from '@/lib/adminRoutes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -24,6 +27,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useFinanceApplications, useUpdateFinanceApplication, useDeleteFinanceApplication, FinanceApplication } from '@/hooks/useFinanceApplications';
 import { formatPrice } from '@/hooks/useVehicles';
 import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, STATUS_STEP_ORDER, getWhatsAppMessage, canShowDealActions } from '@/lib/statusConfig';
+import { useStatusConfig } from '@/hooks/useZtcSettings';
 import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
 import { INTERNAL_STATUSES, type InternalStatus, normalizeInternalStatus } from '@/lib/internalStatusConfig';
 
@@ -74,6 +78,7 @@ const AdminFinance = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { isSuperAdmin, isSeniorFAndI, isFAndI, role, user } = useAuth();
+  const { whatsappMessageFor } = useStatusConfig();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   // F&I owner filter. Everyone can change it.
@@ -409,7 +414,7 @@ const AdminFinance = () => {
     const phone = app.phone?.replace(/\D/g, '') || '';
     const formattedPhone = phone.startsWith('0') ? `27${phone.slice(1)}` : phone;
     const name = app.first_name || app.full_name?.split(' ')[0] || 'Customer';
-    const message = getWhatsAppMessage(app.status, name);
+    const message = getWhatsAppMessage(app.status, name, undefined, whatsappMessageFor(app.status));
     window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
@@ -480,46 +485,43 @@ const AdminFinance = () => {
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
 
-      <div className="p-6">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4"
-        >
-          <div>
-            <h1 className="text-3xl font-semibold mb-2">Finance Applications</h1>
-            <p className="text-muted-foreground">Manage and process finance applications</p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={copyInfoRequestTemplate} className="w-fit">
+      <PageHeader
+        icon={<FileText />}
+        title="Finance Applications"
+        subtitle="Manage and process finance applications"
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={copyInfoRequestTemplate} className="w-fit">
               <Copy className="w-4 h-4 mr-2" />
               Copy Info Request
             </Button>
-            <Button variant="outline" onClick={() => setCreditReportOpen(true)} className="w-fit">
+            <Button variant="outline" size="sm" onClick={() => setCreditReportOpen(true)} className="w-fit">
               <BarChart3 className="w-4 h-4 mr-2 text-amber-400" />
               Credit Report
             </Button>
             {(isSuperAdmin || isSeniorFAndI) && (
-              <Button variant="outline" onClick={() => setCashDealModalOpen(true)} className="w-fit">
+              <Button variant="outline" size="sm" onClick={() => setCashDealModalOpen(true)} className="w-fit">
                 <Banknote className="w-4 h-4 mr-2" />
                 Cash Deal
               </Button>
             )}
-            <Button variant="outline" onClick={() => setWaModalOpen(true)} className="w-fit">
+            <Button variant="outline" size="sm" onClick={() => setWaModalOpen(true)} className="w-fit">
               <MessageSquare className="w-4 h-4 mr-2 text-emerald-500" />
               WhatsApp to PDF
             </Button>
-            <Button variant="outline" onClick={() => navigate('/admin/quotes')} className="w-fit">
+            <Button variant="outline" size="sm" onClick={() => navigate(ADMIN_ROUTES.quotes)} className="w-fit">
               <Calculator className="w-4 h-4 mr-2" />
               Quote Generator
             </Button>
-            <Button onClick={() => navigate('/admin/finance/create')} className="w-fit">
+            <Button size="sm" onClick={() => navigate(ADMIN_ROUTES.financeCreate)} className="w-fit">
               <UserPlus className="w-4 h-4 mr-2" />
               Create Application
             </Button>
-          </div>
-        </motion.div>
+          </>
+        }
+      />
+
+      <div className="p-6">
 
         {/* Status Counter Strip — F&I sees finance pipeline; Admin/Sales see internal-note overview */}
         {(() => {
@@ -845,46 +847,46 @@ const AdminFinance = () => {
               transition={{ delay: 0.15 }}
               className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-8 gap-2 mb-4"
             >
-              <div className="glass-card rounded-lg p-2.5">
-                <p className="text-xl font-bold text-amber-400 leading-none">{activeApps.filter(a => a.status === 'pending').length}</p>
-                <p className="text-[11px] text-muted-foreground mt-1">Pending</p>
-                <Sub n={todayByStatus('pending', true)} />
-              </div>
-              <div className="glass-card rounded-lg p-2.5">
-                <p className="text-xl font-bold text-indigo-400 leading-none">{activeApps.filter(a => a.status === 'application_submitted').length}</p>
-                <p className="text-[11px] text-muted-foreground mt-1">Apps Submitted</p>
-                <Sub n={todayByStatus('application_submitted')} />
-              </div>
-              <div className="glass-card rounded-lg p-2.5">
-                <p className="text-xl font-bold text-emerald-300 leading-none">{activeApps.filter(a => a.status === 'ready_to_submit').length}</p>
-                <p className="text-[11px] text-muted-foreground mt-1">Ready to Submit</p>
-                <Sub n={todayByStatus('ready_to_submit')} />
-              </div>
-              <div className="glass-card rounded-lg p-2.5">
-                <p className="text-xl font-bold text-teal-400 leading-none">{activeApps.filter(a => a.status === 'pre_approved').length}</p>
-                <p className="text-[11px] text-muted-foreground mt-1">Pre-Approved</p>
-                <Sub n={todayByStatus('pre_approved')} />
-              </div>
-              <div className="glass-card rounded-lg p-2.5">
-                <p className="text-xl font-bold text-blue-400 leading-none">{activeApps.filter(a => a.status === 'validations_pending').length}</p>
-                <p className="text-[11px] text-muted-foreground mt-1">Vals Submitted</p>
-                <Sub n={todayByStatus('validations_pending')} />
-              </div>
-              <div className="glass-card rounded-lg p-2.5">
-                <p className="text-xl font-bold text-cyan-400 leading-none">{activeApps.filter(a => a.status === 'validations_complete').length}</p>
-                <p className="text-[11px] text-muted-foreground mt-1">Vals Complete</p>
-                <Sub n={todayByStatus('validations_complete')} />
-              </div>
-              <div className="glass-card rounded-lg p-2.5">
-                <p className="text-xl font-bold text-red-400 leading-none">{declinedCount}</p>
-                <p className="text-[11px] text-muted-foreground mt-1">Declined</p>
-                <div className={`text-[10px] mt-0.5 ${declinedToday > 0 ? 'text-red-300' : 'text-zinc-400'}`}>+{declinedToday} today</div>
-              </div>
-              <div className="glass-card rounded-lg p-2.5">
-                <p className="text-xl font-bold leading-none">{activeApps.length}</p>
-                <p className="text-[11px] text-muted-foreground mt-1">Active</p>
-                <Sub n={totalActiveToday} />
-              </div>
+              <StatTile
+                label="Pending"
+                value={<span className="text-amber-400">{activeApps.filter(a => a.status === 'pending').length}</span>}
+                hint={<Sub n={todayByStatus('pending', true)} />}
+              />
+              <StatTile
+                label="Apps Submitted"
+                value={<span className="text-indigo-400">{activeApps.filter(a => a.status === 'application_submitted').length}</span>}
+                hint={<Sub n={todayByStatus('application_submitted')} />}
+              />
+              <StatTile
+                label="Ready to Submit"
+                value={<span className="text-emerald-300">{activeApps.filter(a => a.status === 'ready_to_submit').length}</span>}
+                hint={<Sub n={todayByStatus('ready_to_submit')} />}
+              />
+              <StatTile
+                label="Pre-Approved"
+                value={<span className="text-teal-400">{activeApps.filter(a => a.status === 'pre_approved').length}</span>}
+                hint={<Sub n={todayByStatus('pre_approved')} />}
+              />
+              <StatTile
+                label="Vals Submitted"
+                value={<span className="text-blue-400">{activeApps.filter(a => a.status === 'validations_pending').length}</span>}
+                hint={<Sub n={todayByStatus('validations_pending')} />}
+              />
+              <StatTile
+                label="Vals Complete"
+                value={<span className="text-cyan-400">{activeApps.filter(a => a.status === 'validations_complete').length}</span>}
+                hint={<Sub n={todayByStatus('validations_complete')} />}
+              />
+              <StatTile
+                label="Declined"
+                value={<span className="text-red-400">{declinedCount}</span>}
+                hint={<span className={declinedToday > 0 ? 'text-red-300' : 'text-zinc-400'}>+{declinedToday} today</span>}
+              />
+              <StatTile
+                label="Active"
+                value={activeApps.length}
+                hint={<Sub n={totalActiveToday} />}
+              />
             </motion.div>
           );
         })()}

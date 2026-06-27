@@ -139,14 +139,35 @@ export const FINANCE_STEPS = [
   { key: 'vehicle_delivered', label: 'Delivered', shortLabel: '9' },
 ];
 
-// Strategic WhatsApp messages - secretive tone
+// Interpolate the admin-editable placeholders into a custom WhatsApp body.
+// Supports {name} / {{name}} / {{clientName}} (client first name) and
+// {count} / {{count}} (matched-vehicle count) so the editable message can mirror
+// the built-in copy. Unknown placeholders are left untouched.
+export const renderWhatsAppTemplate = (
+  body: string,
+  name: string,
+  matchedVehiclesCount?: number
+): string =>
+  body
+    .replace(/\{\{?\s*(name|clientName)\s*\}?\}/gi, name)
+    .replace(/\{\{?\s*count\s*\}?\}/gi, String(matchedVehiclesCount ?? ''));
+
+// Strategic WhatsApp messages - secretive tone.
+// `customBody` (when non-blank) is the admin-editable override from
+// status_overrides.whatsapp_message; blank/undefined falls back to the built-in
+// copy below, so an empty override = current behaviour.
 export const getWhatsAppMessage = (
   status: string,
   name: string,
-  matchedVehiclesCount?: number
+  matchedVehiclesCount?: number,
+  customBody?: string | null
 ): string => {
   const dashboardUrl = 'https://luminaauto.co.za/dashboard';
-  
+
+  if (customBody && customBody.trim()) {
+    return renderWhatsAppTemplate(customBody, name, matchedVehiclesCount);
+  }
+
   switch (status) {
     case 'pending':
       return `Hi ${name}, we have received your finance application and are currently analyzing your profile. We will be in touch shortly with an update.`;

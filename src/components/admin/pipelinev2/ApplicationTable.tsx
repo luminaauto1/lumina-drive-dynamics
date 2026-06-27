@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import type { FinanceApplication } from '@/hooks/useFinanceApplications';
 import { STATUS_STYLES, ADMIN_STATUS_LABELS } from '@/lib/statusConfig';
 import { INTERNAL_STATUSES, normalizeInternalStatus, type InternalStatus } from '@/lib/internalStatusConfig';
@@ -39,6 +40,22 @@ export function ApplicationTable({
   const allIds = applications.map((a) => a.id);
   const allSelected = selectable && allIds.length > 0 && allIds.every((id) => selectedIds?.has(id));
 
+  // Keyboard navigation: rows are focusable; ↑/↓ move focus, Enter opens. We drive
+  // focus off the DOM (rows carry data-row-index) so no extra render state is needed.
+  const tbodyRef = useRef<HTMLTableSectionElement>(null);
+  const focusRow = (idx: number) => {
+    const rows = tbodyRef.current?.querySelectorAll<HTMLTableRowElement>('tr[data-row-index]');
+    if (!rows || rows.length === 0) return;
+    const clamped = Math.max(0, Math.min(idx, rows.length - 1));
+    rows[clamped]?.focus();
+  };
+  const onRowKeyDown = (e: React.KeyboardEvent<HTMLTableRowElement>, idx: number, id: string) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); focusRow(idx + 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); focusRow(idx - 1); }
+    else if (e.key === 'Enter') { e.preventDefault(); onSelect(id); }
+    else if (e.key === ' ' && selectable) { e.preventDefault(); onToggleSelect?.(id); }
+  };
+
   return (
     <div className="overflow-x-auto rounded-lg border border-border bg-card">
       <table className="w-full text-sm">
@@ -57,13 +74,14 @@ export function ApplicationTable({
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-border">
-          {applications.map((a) => {
+        <tbody ref={tbodyRef} className="divide-y divide-border">
+          {applications.map((a, idx) => {
             const isSelected = selectedIds?.has(a.id);
             const busy = busyByApp?.get(a.id);
             return (
-              <tr key={a.id} onClick={() => onSelect(a.id)}
-                className={'cursor-pointer transition hover:bg-muted/30 ' + (isSelected ? 'bg-primary/10' : '')}
+              <tr key={a.id} data-row-index={idx} tabIndex={0} onClick={() => onSelect(a.id)}
+                onKeyDown={(e) => onRowKeyDown(e, idx, a.id)}
+                className={'cursor-pointer transition hover:bg-muted/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/60 ' + (isSelected ? 'bg-primary/10' : '')}
                 style={busy ? { boxShadow: `inset 4px 0 0 0 ${busy.color}`, backgroundColor: isSelected ? undefined : `${busy.color}14` } : undefined}
                 title={busy ? `${busy.name} is viewing this profile` : undefined}>
                 {selectable && (

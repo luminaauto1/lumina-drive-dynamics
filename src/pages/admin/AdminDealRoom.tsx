@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import AdminLayout from '@/components/admin/AdminLayout';
+import PageHeader from '@/components/admin/PageHeader';
+import { ADMIN_ROUTES } from '@/lib/adminRoutes';
 import FinancePodiumModal from '@/components/admin/FinancePodiumModal';
 import FinalizeDealModal from '@/components/admin/FinalizeDealModal';
 import OTPModal from '@/components/admin/OTPModal';
@@ -34,8 +36,11 @@ import { useVehicles, formatPrice } from '@/hooks/useVehicles';
 import { useUpdateFinanceApplication, FinanceApplication } from '@/hooks/useFinanceApplications';
 import { useApplicationMatches, useAddApplicationMatch, useRemoveApplicationMatch } from '@/hooks/useApplicationMatches';
 import { useCreateAftersalesRecord } from '@/hooks/useAftersales';
-import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, getWhatsAppMessage, canShowDealActions } from '@/lib/statusConfig';
+import { STATUS_OPTIONS, getWhatsAppMessage, canShowDealActions } from '@/lib/statusConfig';
 import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
+import { StatusBadge } from '@/components/admin/StatusBadge';
+import { financeStatusToDealStage } from '@/lib/admin/statusTracks';
+import { useStatusConfig } from '@/hooks/useZtcSettings';
 import { useAuth } from '@/contexts/AuthContext';
 import { generateFinancePDF } from '@/lib/generateFinancePDF';
 import { PushToSignioButton } from '@/components/finance/PushToSignioButton';
@@ -47,6 +52,7 @@ const AdminDealRoom = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { role, isSuperAdmin, isSeniorFAndI } = useAuth();
+  const { labels: financeLabels, styles: financeStyles, whatsappMessageFor } = useStatusConfig();
   const { data: docSettings } = useDocumentSettings();
   // Only full admins and senior F&I may finalize deals (deal_records hold figures).
   const canFinalize = isSuperAdmin || isSeniorFAndI;
@@ -265,7 +271,7 @@ const AdminDealRoom = () => {
     }
     const formattedPhone = phone.startsWith('0') ? `27${phone.slice(1)}` : phone;
     const name = application.first_name || application.full_name?.split(' ')[0] || 'Customer';
-    const message = getWhatsAppMessage(application.status, name, matches.length);
+    const message = getWhatsAppMessage(application.status, name, matches.length, whatsappMessageFor(application.status));
     window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
@@ -750,26 +756,21 @@ const AdminDealRoom = () => {
           animate={{ opacity: 1, y: 0 }}
           className="mb-6"
         >
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate('/admin/finance')}
+          <Button
+            variant="ghost"
+            onClick={() => navigate(ADMIN_ROUTES.finance)}
             className="mb-4"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Applications
           </Button>
-          
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-semibold">
-                {application.first_name} {application.last_name}
-              </h1>
-              <p className="text-muted-foreground text-sm">
-                Application ID: {application.id.slice(0, 8)}...
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {isEditing ? (
+
+          <PageHeader
+            icon={<User />}
+            title={`${application.first_name} ${application.last_name}`}
+            subtitle={`Application ID: ${application.id.slice(0, 8)}...`}
+            actions={
+              isEditing ? (
                 <>
                   <Button
                     variant="outline"
@@ -964,9 +965,9 @@ const AdminDealRoom = () => {
                     WhatsApp
                   </Button>
                 </>
-              )}
-            </div>
-          </div>
+              )
+            }
+          />
         </motion.div>
 
         {/* Persistent Client Cockpit */}
@@ -1159,9 +1160,20 @@ const AdminDealRoom = () => {
                     onEdit={() => setEditBankRefOpen(true)}
                   />
                 )}
-                <span className={`px-3 py-1.5 text-sm uppercase tracking-wider rounded border ${STATUS_STYLES[application.status] || STATUS_STYLES.pending}`}>
-                  {ADMIN_STATUS_LABELS[application.status] || application.status}
-                </span>
+                <StatusBadge
+                  track="finance"
+                  value={application.status}
+                  labelOverrides={financeLabels}
+                  styleOverrides={financeStyles}
+                  className="px-3 py-1.5 text-sm uppercase tracking-wider"
+                />
+                {financeStatusToDealStage(application.status) && (
+                  <StatusBadge
+                    track="deal"
+                    value={financeStatusToDealStage(application.status)!}
+                    className="px-3 py-1.5 text-sm uppercase tracking-wider"
+                  />
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

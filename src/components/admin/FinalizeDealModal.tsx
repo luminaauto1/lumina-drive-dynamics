@@ -672,8 +672,32 @@ const FinalizeDealModal = ({
           ...dealData,
         });
       } else {
-        // INSERT new deal
-        await createDealRecord.mutateAsync(dealData);
+        // Not in explicit edit mode. A feature-flagged draft deal_records row may
+        // already have been auto-created when the contract was signed
+        // (see useUpdateFinanceApplication). ENRICH that draft in place rather
+        // than creating a second, duplicate row for the same application.
+        let existingDraftId: string | null = null;
+        try {
+          const { data: draft } = await (supabase as any)
+            .from('deal_records')
+            .select('id')
+            .eq('application_id', dealData.applicationId)
+            .maybeSingle();
+          existingDraftId = draft?.id ?? null;
+        } catch (lookupErr) {
+          console.warn('[FinalizeDealModal] draft lookup skipped:', lookupErr);
+        }
+
+        if (existingDraftId) {
+          // UPDATE the pre-existing draft (no parallel row).
+          await updateDealRecord.mutateAsync({
+            dealId: existingDraftId,
+            ...dealData,
+          });
+        } else {
+          // INSERT new deal
+          await createDealRecord.mutateAsync(dealData);
+        }
       }
 
       // Universal activity trail (fire-and-forget; never affects the deal save).

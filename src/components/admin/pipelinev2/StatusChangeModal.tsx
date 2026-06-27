@@ -1,25 +1,28 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
 import type { FinanceApplication } from '@/hooks/useFinanceApplications';
 import type { useUpdateFinanceApplication } from '@/hooks/useFinanceApplications';
-import { STATUS_OPTIONS, ADMIN_STATUS_LABELS } from '@/lib/statusConfig';
+import { StatusSelect } from '@/components/admin/StatusSelect';
+import { useStatusConfig } from '@/hooks/useZtcSettings';
 
 // Terminal statuses also archive (mirrors AdminFinance line ~1090 — 'lost' is a
 // defensive extra that's never a STATUS_OPTIONS value; kept for parity).
 const TERMINAL = ['declined', 'blacklisted', 'lost'];
 
 export function StatusChangeModal({
-  app, updateApplication, onClose,
+  app, updateApplication, onClose, role,
 }: {
   app: FinanceApplication;
   updateApplication: ReturnType<typeof useUpdateFinanceApplication>;
   onClose: () => void;
+  /** Staff role — finance status options are filtered to what this role may set. */
+  role?: string | null;
 }) {
   const [status, setStatus] = useState<string>((app as any).status || 'pending');
   const [busy, setBusy] = useState(false);
+  const { labels: financeLabels } = useStatusConfig();
 
   const submit = async () => {
     if (!status || status === (app as any).status) { onClose(); return; }
@@ -45,14 +48,13 @@ export function StatusChangeModal({
           <p className="text-sm text-muted-foreground">
             {(app as any).full_name || [(app as any).first_name, (app as any).last_name].filter(Boolean).join(' ') || 'Applicant'}
           </p>
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {STATUS_OPTIONS.map((s) => (
-                <SelectItem key={s.value} value={s.value}>{ADMIN_STATUS_LABELS[s.value] || s.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <StatusSelect
+            track="finance"
+            value={status}
+            onChange={setStatus}
+            role={role}
+            labelOverrides={financeLabels}
+          />
           <p className="text-[11px] text-muted-foreground">
             Sends the same WhatsApp / email / CRM notifications as the Finance page.
           </p>

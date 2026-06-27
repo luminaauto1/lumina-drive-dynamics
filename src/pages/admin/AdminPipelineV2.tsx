@@ -18,10 +18,21 @@ import { ColumnsPicker } from '@/components/admin/pipelinev2/ColumnsPicker';
 import { ApplicationDrawer } from '@/components/admin/pipelinev2/ApplicationDrawer';
 import { StatusChangeModal } from '@/components/admin/pipelinev2/StatusChangeModal';
 import { BulkStatusModal } from '@/components/admin/pipelinev2/BulkStatusModal';
+import { SavedViewsBar } from '@/components/admin/SavedViewsBar';
+import { useSavedViews } from '@/hooks/useSavedViews';
 
 interface Busy { userId: string; name: string; color: string }
 type FniFilter = 'all' | 'self' | 'unassigned';
 type SearchScope = 'tab' | 'all';
+
+/** Persisted Pipeline filter preset (saved views). Search text is intentionally
+ *  excluded — a saved view captures lane/scope/sort/owner filters, not a query. */
+interface PipelinePreset {
+  activeTab: string;
+  searchScope: SearchScope;
+  sortDir: 'desc' | 'asc';
+  fniFilter: FniFilter;
+}
 
 const appSearchBlob = (a: FinanceApplication): string => {
   const any = a as any;
@@ -47,6 +58,16 @@ const AdminPipelineV2 = () => {
   const [showBulk, setShowBulk] = useState(false);
   const [tableConfig, setTableConfig] = useState<TableConfig>(() => loadConfig('all'));
   const [busyByApp, setBusyByApp] = useState<Map<string, Busy>>(new Map());
+
+  // ---- Saved views (per-user filter presets) -------------------------------
+  const { views, saveView, deleteView } = useSavedViews<PipelinePreset>('pipeline', user?.id);
+  const [activeViewId, setActiveViewId] = useState<string | null>(null);
+  const applyPreset = (p: PipelinePreset) => {
+    setActiveTab(p.activeTab);
+    setSearchScope(p.searchScope);
+    setSortDir(p.sortDir);
+    if (showFniFilter) setFniFilter(p.fniFilter);
+  };
 
   // Re-load saved column config when switching tabs (per-tab presets).
   useEffect(() => { setTableConfig(loadConfig(activeTab)); }, [activeTab]);
@@ -204,7 +225,15 @@ const AdminPipelineV2 = () => {
           <ColumnsPicker tabKey={activeTab} config={tableConfig} onChange={setTableConfig} />
         </div>
 
-        <PipelineTabNav counts={counts} activeKey={activeTab} onChange={setActiveTab} />
+        <SavedViewsBar
+          views={views}
+          activeId={activeViewId}
+          onApply={(v) => { applyPreset(v.preset); setActiveViewId(v.id); }}
+          onSave={(name) => saveView(name, { activeTab, searchScope, sortDir, fniFilter })}
+          onDelete={(id) => { deleteView(id); if (id === activeViewId) setActiveViewId(null); }}
+        />
+
+        <PipelineTabNav counts={counts} activeKey={activeTab} onChange={(k) => { setActiveTab(k); setActiveViewId(null); }} />
 
         {searchingAllTabs && (
           <div className="flex items-center gap-1.5 rounded-md border border-border bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground">
@@ -254,6 +283,7 @@ const AdminPipelineV2 = () => {
           app={statusChangeApp}
           updateApplication={updateApplication}
           onClose={() => setStatusChangeApp(null)}
+          role={role}
         />
       )}
 
@@ -263,6 +293,8 @@ const AdminPipelineV2 = () => {
           updateApplication={updateApplication}
           onClose={() => setShowBulk(false)}
           onDone={clearSelection}
+          role={role}
+          labelOverrides={statusLabels}
         />
       )}
     </AdminLayout>

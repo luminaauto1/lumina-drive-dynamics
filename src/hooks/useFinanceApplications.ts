@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Tables } from '@/integrations/supabase/types';
 import { logActivity, humanizeStatus } from '@/lib/activityLog';
+import type { DocumentSettings } from '@/hooks/useDocumentSettings';
 
 export type FinanceApplication = Tables<'finance_applications'> & {
   vehicle?: {
@@ -191,6 +192,89 @@ export const useUpdateFinanceApplication = () => {
       const newStatus = updates.status as string | undefined;
       const statusActuallyChanged =
         !!newStatus && !!currentApp && newStatus !== currentApp.status;
+
+      // ── Contract-signed → Deal Desk draft auto-population (FEATURE-FLAGGED) ──
+      // When the document setting `autoCreateDealOnContractSigned` is ON and the
+      // status actually transitions to 'contract_signed', create a DRAFT
+      // deal_records row so the deal surfaces in Deal Desk ready to finalize.
+      //
+      // Guarantees:
+      //   • Flag OFF (default) → this block does nothing at all.
+      //   • Idempotent → we query for an existing deal_records row by
+      //     application_id first and never create a second row.
+      //   • All financial fields are 0 and there is NO sale_date, so the draft
+      //     is excluded from Accounting/Reports (see isFinalizedDeal) and reads
+      //     as 'contract_signed' in Deal Desk (see deriveDealStatus) until a
+      //     human finalizes it.
+      //   • Fully wrapped in try/catch — a failure here can NEVER break the
+      //     status update or its emails/notifications.
+      if (statusActuallyChanged && newStatus === 'contract_signed') {
+        try {
+          const docSettings = queryClient.getQueryData<DocumentSettings>(['document-settings']);
+          if (docSettings?.autoCreateDealOnContractSigned === true) {
+            const appVehicleId =
+              (data as any)?.vehicle_id ?? (currentApp as any)?.vehicle_id ?? null;
+
+            // Idempotency guard: bail if a deal_records row already exists.
+            const { data: existingDeal } = await (supabase as any)
+              .from('deal_records')
+              .select('id')
+              .eq('application_id', id)
+              .maybeSingle();
+
+            if (!existingDeal && appVehicleId) {
+              // Default sold_price from the matched vehicle's listed price.
+              let soldPrice = 0;
+              const { data: veh } = await supabase
+                .from('vehicles')
+                .select('price')
+                .eq('id', appVehicleId)
+                .maybeSingle();
+              soldPrice = Number((veh as any)?.price) || 0;
+
+              const { error: draftErr } = await (supabase as any)
+                .from('deal_records')
+                .insert({
+                  application_id: id,
+                  vehicle_id: appVehicleId,
+                  sold_price: soldPrice,
+                  // Draft: no sale_date / delivery_date / sales rep → derives as
+                  // 'contract_signed' and is excluded from financial totals.
+                  // Every figure explicitly zero so nothing is left undefined.
+                  cost_price: 0,
+                  gross_profit: 0,
+                  recon_cost: 0,
+                  discount_amount: 0,
+                  dealer_deposit_contribution: 0,
+                  external_admin_fee: 0,
+                  bank_initiation_fee: 0,
+                  total_financed_amount: 0,
+                  client_deposit: 0,
+                  dic_amount: 0,
+                  sales_rep_commission: 0,
+                  referral_commission_amount: 0,
+                  referral_income_amount: 0,
+                  partner_capital_contribution: 0,
+                  is_shared_capital: false,
+                  is_closed: false,
+                  addons_data: [],
+                  aftersales_expenses: [],
+                });
+              if (draftErr) {
+                console.error('[deal-draft] insert failed (non-fatal):', draftErr);
+              } else {
+                console.log('[deal-draft] draft deal_records created for application', id);
+              }
+            } else if (existingDeal) {
+              console.log('[deal-draft] skipped — deal_records already exists for application', id);
+            } else {
+              console.log('[deal-draft] skipped — no vehicle_id on application', id);
+            }
+          }
+        } catch (draftEx) {
+          console.error('[deal-draft] failed (non-fatal):', draftEx);
+        }
+      }
 
       // WhatsApp "Client Cancelled / Ghosted" notification — fires when the
       // main finance status update path moves into `client_cancelled`.

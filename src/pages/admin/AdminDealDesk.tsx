@@ -1,21 +1,30 @@
-import { useState } from 'react';
-import { Loader2, ClipboardList } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ClipboardList } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDealDeskList } from '@/hooks/dealdesk/useDealDesk';
 import type { Deal } from '@/lib/dealdesk/types';
-import { DealsTable } from '@/components/dealdesk/DealsTable';
+import { DealsTable, isAwaitingFinalize } from '@/components/dealdesk/DealsTable';
 import { DeliveryBoard } from '@/components/dealdesk/DeliveryBoard';
 import { PayablesView } from '@/components/dealdesk/PayablesView';
 import { ReportsView } from '@/components/dealdesk/ReportsView';
 import { NatisSettings } from '@/components/dealdesk/NatisSettings';
 import { DealDeskDrawer } from '@/components/dealdesk/DealDeskDrawer';
+import { DealsTableSkeleton } from '@/components/dealdesk/DealDeskSkeletons';
 
 const AdminDealDesk = () => {
   const { isSuperAdmin } = useAuth();
-  const { data: deals = [], isLoading } = useDealDeskList();
+  const { data: allDeals = [], isLoading } = useDealDeskList();
   const [openDeal, setOpenDeal] = useState<Deal | null>(null);
+
+  // Auto-created, not-yet-finalized drafts are ADMIN-ONLY. Non-admins never see
+  // them anywhere in Deal Desk (list, delivery board, reports). Admins see the
+  // full set and get the "Awaiting finalize" filter inside the Deals table.
+  const deals = useMemo(
+    () => (isSuperAdmin ? allDeals : allDeals.filter((d) => !isAwaitingFinalize(d))),
+    [allDeals, isSuperAdmin],
+  );
 
   // Keep the open drawer in sync with refreshed list data (e.g. after Natis save).
   const liveOpen = openDeal ? deals.find((d) => d.id === openDeal.id) || openDeal : null;
@@ -33,28 +42,30 @@ const AdminDealDesk = () => {
           </p>
         </div>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-20 text-muted-foreground">
-            <Loader2 className="w-6 h-6 animate-spin mr-2" /> Loading deals…
+        <Tabs defaultValue="deals">
+          <TabsList className="flex flex-wrap h-auto">
+            <TabsTrigger value="deals">Deals</TabsTrigger>
+            <TabsTrigger value="delivery">Delivery &amp; Natis</TabsTrigger>
+            <TabsTrigger value="payables">Payables</TabsTrigger>
+            <TabsTrigger value="reports">Reports</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
+          </TabsList>
+          <div className="mt-4">
+            {/* While the deal list loads, show a skeleton in place of the data
+                tabs; tabs themselves stay interactive so navigation feels instant. */}
+            <TabsContent value="deals">
+              {isLoading ? <DealsTableSkeleton /> : <DealsTable deals={deals} onOpen={setOpenDeal} canSeeDrafts={isSuperAdmin} />}
+            </TabsContent>
+            <TabsContent value="delivery">
+              {isLoading ? <DealsTableSkeleton /> : <DeliveryBoard deals={deals} onOpen={setOpenDeal} />}
+            </TabsContent>
+            <TabsContent value="payables"><PayablesView /></TabsContent>
+            <TabsContent value="reports">
+              {isLoading ? <DealsTableSkeleton /> : <ReportsView deals={deals} />}
+            </TabsContent>
+            <TabsContent value="settings"><NatisSettings canEdit={isSuperAdmin} /></TabsContent>
           </div>
-        ) : (
-          <Tabs defaultValue="deals">
-            <TabsList className="flex flex-wrap h-auto">
-              <TabsTrigger value="deals">Deals</TabsTrigger>
-              <TabsTrigger value="delivery">Delivery &amp; Natis</TabsTrigger>
-              <TabsTrigger value="payables">Payables</TabsTrigger>
-              <TabsTrigger value="reports">Reports</TabsTrigger>
-              <TabsTrigger value="settings">Settings</TabsTrigger>
-            </TabsList>
-            <div className="mt-4">
-              <TabsContent value="deals"><DealsTable deals={deals} onOpen={setOpenDeal} /></TabsContent>
-              <TabsContent value="delivery"><DeliveryBoard deals={deals} onOpen={setOpenDeal} /></TabsContent>
-              <TabsContent value="payables"><PayablesView /></TabsContent>
-              <TabsContent value="reports"><ReportsView deals={deals} /></TabsContent>
-              <TabsContent value="settings"><NatisSettings canEdit={isSuperAdmin} /></TabsContent>
-            </div>
-          </Tabs>
-        )}
+        </Tabs>
       </div>
 
       <DealDeskDrawer deal={liveOpen} onClose={() => setOpenDeal(null)} />

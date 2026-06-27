@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Loader2, Save, ListChecks, Info, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Save, ListChecks, Info, Eye, EyeOff, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useStatusConfig, useStatusOverrides, useUpsertStatusOverride, type MergedStatus } from '@/hooks/useZtcSettings';
+import { getWhatsAppMessage } from '@/lib/statusConfig';
 
 // Colour presets (shadcn/dark tokens) the admin can pick per status.
 const COLOR_PRESETS: { label: string; cls: string }[] = [
@@ -24,7 +25,19 @@ const Row = ({ s, order }: { s: MergedStatus; order: number }) => {
   const [cls, setCls] = useState(s.colorClass);
   const [sortOrder, setSortOrder] = useState(order);
   const [hidden, setHidden] = useState(s.hidden);
-  const save = () => upsert.mutate({ slug: s.value, label, color_class: cls, sort_order: sortOrder, is_hidden: hidden });
+  const [waMessage, setWaMessage] = useState(s.whatsappMessage);
+  // The built-in copy this status would send if the custom body is left blank.
+  const builtInPreview = getWhatsAppMessage(s.value, '{name}');
+  const save = () =>
+    upsert.mutate({
+      slug: s.value,
+      label,
+      color_class: cls,
+      sort_order: sortOrder,
+      is_hidden: hidden,
+      // Empty => NULL so the built-in default is used (current behaviour preserved).
+      whatsapp_message: waMessage.trim() ? waMessage : null,
+    });
   return (
     <Card>
       <CardContent className="py-3">
@@ -52,6 +65,19 @@ const Row = ({ s, order }: { s: MergedStatus; order: number }) => {
             </button>
           </div>
         </div>
+        <div className="mt-2">
+          <div className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-400 mb-1">
+            <MessageCircle className="w-3.5 h-3.5" /> WhatsApp message
+            <span className="text-muted-foreground font-normal">— blank uses the built-in default; <code className="font-mono">{'{name}'}</code> = client first name</span>
+          </div>
+          <Textarea
+            value={waMessage}
+            onChange={(e) => setWaMessage(e.target.value)}
+            rows={2}
+            className="text-sm"
+            placeholder={builtInPreview}
+          />
+        </div>
       </CardContent>
     </Card>
   );
@@ -68,8 +94,9 @@ const StatusesTab = () => {
       </div>
       <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-2.5 text-xs text-amber-300">
         <Info className="w-4 h-4 shrink-0 mt-0.5" />
-        You can rename, recolour, reorder and hide statuses here — these apply to the new <strong>Pipeline</strong> view. The underlying status
-        keys are fixed (they're wired into the auto-mailer, WhatsApp notifications and pipeline lanes), so adding/removing statuses isn't done here.
+        You can rename, recolour, reorder, hide statuses and edit the <strong>WhatsApp message</strong> each one sends — these apply across the
+        admin (Pipeline, Finance, Deal Room). The underlying status keys are fixed (they're wired into the auto-mailer, WhatsApp notifications
+        and pipeline lanes), so adding/removing statuses isn't done here.
       </div>
       {isLoading ? <div className="py-8 text-center text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin inline" /></div>
         : merged.map((s, i) => <Row key={s.value} s={s} order={s.sortOrder ?? i} />)}
