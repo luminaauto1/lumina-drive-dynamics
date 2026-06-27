@@ -37,7 +37,9 @@ export function DealsTable(
   const { labels: financeLabels, styles: financeStyles } = useStatusConfig();
   const { user } = useAuth();
   const [search, setSearch] = useState('');
-  const [month, setMonth] = useState<string>('all');
+  // Default to the current month (SAST), matching the dashboard's period default.
+  // The "All months" option and other months remain selectable in the dropdown.
+  const [month, setMonth] = useState<string>(() => monthKey(new Date().toISOString()));
   const [view, setView] = useState<'all' | 'awaiting'>('all');
 
   // Saved views (per-user filter presets) — month + awaiting toggle.
