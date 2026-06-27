@@ -22,7 +22,7 @@ function DealCard({ deal, onOpen }: { deal: Deal; onOpen: (d: Deal) => void }) {
       </div>
       <div className="text-[11px] text-muted-foreground">Delivered {formatDate(deal.delivery_date) || '—'}</div>
       <Button size="sm" variant="outline" className="h-7 w-full" disabled={markNatis.isPending}
-        onClick={() => markNatis.mutate({ dealId: deal.id, sent: true })}>
+        onClick={() => markNatis.mutate({ dealId: deal.id, sent: true, currentStage: deal.deal_stage })}>
         Mark Natis sent
       </Button>
     </div>

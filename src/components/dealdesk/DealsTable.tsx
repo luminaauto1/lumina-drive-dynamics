@@ -14,6 +14,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { SavedViewsBar } from '@/components/admin/SavedViewsBar';
 import { useSavedViews } from '@/hooks/useSavedViews';
 
+import { isAwaitingFinalize } from './isAwaitingFinalize';
+export { isAwaitingFinalize };
+
 /** Persisted Deal Desk filter preset (saved views). Search text excluded. */
 interface DealDeskPreset { month: string; view: 'all' | 'awaiting' }
 
@@ -26,16 +29,6 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-/**
- * An auto-created, not-yet-finalized draft: reads as 'contract_signed' (no sale
- * date / delivery / Natis) and still carries zero recorded profit. These rows
- * are the contract-signed → Deal Desk drafts and are ADMIN-ONLY — non-admins
- * never see un-finalized drafts in the list.
- */
-export function isAwaitingFinalize(d: Deal): boolean {
-  return d.deal_status === 'contract_signed' && !d.sale_date && (Number(d.gross_profit) || 0) === 0;
-}
-
 export function DealsTable(
   { deals, onOpen, canSeeDrafts = false }:
   { deals: Deal[]; onOpen: (d: Deal) => void; canSeeDrafts?: boolean },
@@ -44,7 +37,9 @@ export function DealsTable(
   const { labels: financeLabels, styles: financeStyles } = useStatusConfig();
   const { user } = useAuth();
   const [search, setSearch] = useState('');
-  const [month, setMonth] = useState<string>('all');
+  // Default to the current month (SAST), matching the dashboard's period default.
+  // The "All months" option and other months remain selectable in the dropdown.
+  const [month, setMonth] = useState<string>(() => monthKey(new Date().toISOString()));
   const [view, setView] = useState<'all' | 'awaiting'>('all');
 
   // Saved views (per-user filter presets) — month + awaiting toggle.

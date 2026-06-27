@@ -6,8 +6,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { fromDealRecord, DEAL_DESK_SELECT } from '@/lib/dealdesk/fromDealRecord';
-import type { Deal, DealCosting, DeliveryChecklist, Payee, Expense, DealEvent, DeskSettings } from '@/lib/dealdesk/types';
+import type { Deal, DealCosting, DeliveryChecklist, Payee, Expense, DealEvent, DeskSettings, DealStage } from '@/lib/dealdesk/types';
+import { DEAL_STAGE_LABEL } from '@/lib/dealdesk/types';
 import type { CostSheetInput, CostSheetComputed } from '@/lib/dealdesk/costsheet';
+import { nextStageAfter } from '@/lib/dealdesk/stageFlow';
 
 // New deal_* tables/columns aren't in the generated types yet.
 const db = supabase as any;
@@ -27,6 +29,71 @@ export function useDealDeskList() {
       return (data || []).map(fromDealRecord);
     },
   });
+}
+
+/** Fetch the FULL raw deal_records row (all columns) for a single deal. Used to
+ *  seed the embedded Finalize modal's edit-mode form with the complete draft. */
+export function useDealRecordRaw(dealId: string | null) {
+  return useQuery<any | null>({
+    queryKey: ['dealdesk', 'deal-record-raw', dealId],
+    enabled: !!dealId,
+    queryFn: async () => {
+      const { data, error } = await db
+        .from('deal_records')
+        .select('*, vehicle:vehicles(id, make, model, year, price, cost_price, purchase_price, reconditioning_cost, stock_number, mileage, status)')
+        .eq('id', dealId)
+        .maybeSingle();
+      if (error) throw error;
+      return data ?? null;
+    },
+  });
+}
+
+/* ---------------- Deal stage (the back-office deal track) ---------------- */
+
+/**
+ * Write deal_records.deal_stage, never moving backwards (guarded by nextStageAfter).
+ * Pass `force` to set an exact stage regardless of rank (manual override). Advancing
+ * the stage NEVER touches gross_profit or finance_applications.status — the two
+ * tracks stay parallel.
+ */
+export function useSetDealStage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (
+      { dealId, stage, currentStage, force = false }:
+      { dealId: string; stage: DealStage; currentStage?: DealStage; force?: boolean },
+    ) => {
+      const target = force || !currentStage ? stage : nextStageAfter(currentStage, stage);
+      if (!target) return null; // already at/after the target — no-op.
+      const { error } = await db.from('deal_records').update({ deal_stage: target }).eq('id', dealId);
+      if (error) throw error;
+      await logDealEvent(dealId, 'stage_changed', `Deal stage → ${DEAL_STAGE_LABEL[target]}`);
+      return target;
+    },
+    onSuccess: (target, v) => {
+      if (!target) return;
+      qc.invalidateQueries({ queryKey: ['dealdesk', 'deals'] });
+      qc.invalidateQueries({ queryKey: ['dealdesk', 'events', v.dealId] });
+    },
+    onError: (e: any) => toast.error('Stage update failed: ' + (e?.message || e)),
+  });
+}
+
+/** Best-effort, non-throwing stage advance used by other Deal Desk actions
+ *  (delivery / NATIS). Only ever moves the stage forward. */
+async function advanceDealStage(dealId: string, currentStage: DealStage | undefined, target: DealStage) {
+  try {
+    if (!currentStage) {
+      await db.from('deal_records').update({ deal_stage: target }).eq('id', dealId);
+      return;
+    }
+    const next = nextStageAfter(currentStage, target);
+    if (!next) return;
+    await db.from('deal_records').update({ deal_stage: next }).eq('id', dealId);
+  } catch (e) {
+    console.error('[dealdesk] advanceDealStage failed (non-fatal):', e);
+  }
 }
 
 /* ---------------- Cost sheet ---------------- */
@@ -86,15 +153,20 @@ export function useDealChecklist(dealId: string | null) {
 export function useSaveChecklist() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ dealId, patch }: { dealId: string; patch: Partial<DeliveryChecklist> }) => {
+    mutationFn: async ({ dealId, patch, currentStage }: { dealId: string; patch: Partial<DeliveryChecklist>; currentStage?: DealStage }) => {
       const row = { deal_id: dealId, ...patch, updated_at: new Date().toISOString() };
       const { error } = await db.from('deal_checklist').upsert(row, { onConflict: 'deal_id' });
       if (error) throw error;
       await logDealEvent(dealId, 'checklist_saved', 'Delivery checklist updated');
+      // Marking the deal "delivery ready" advances the deal track to 'delivered'.
+      if (patch.delivery_ready === true) {
+        await advanceDealStage(dealId, currentStage, 'delivered');
+      }
     },
     onSuccess: (_d, v) => {
       qc.invalidateQueries({ queryKey: ['dealdesk', 'checklist', v.dealId] });
       qc.invalidateQueries({ queryKey: ['dealdesk', 'events', v.dealId] });
+      qc.invalidateQueries({ queryKey: ['dealdesk', 'deals'] });
     },
     onError: (e: any) => toast.error('Save failed: ' + (e?.message || e)),
   });
@@ -105,12 +177,14 @@ export function useSaveChecklist() {
 export function useMarkNatisSent() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ dealId, sent }: { dealId: string; sent: boolean }) => {
+    mutationFn: async ({ dealId, sent, currentStage }: { dealId: string; sent: boolean; currentStage?: DealStage }) => {
       const { error } = await db.from('deal_records')
         .update({ natis_sent_at: sent ? new Date().toISOString() : null })
         .eq('id', dealId);
       if (error) throw error;
       await logDealEvent(dealId, 'delivery_changed', sent ? 'Natis marked as sent' : 'Natis sent flag cleared');
+      // NATIS sent → the deal is fully cleared.
+      if (sent) await advanceDealStage(dealId, currentStage, 'cleared');
     },
     onSuccess: (_d, v) => {
       qc.invalidateQueries({ queryKey: ['dealdesk', 'deals'] });

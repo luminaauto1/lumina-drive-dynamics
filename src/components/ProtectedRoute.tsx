@@ -22,17 +22,25 @@ interface ProtectedRouteProps {
    * only if their role is granted this section. RLS remains the data security floor.
    */
   section?: string;
+  /**
+   * Like `section`, but access is granted if the role holds ANY of these keys.
+   * Used by the merged Deal Desk so both legacy `deal_ledger` holders and
+   * `deal_desk` holders can reach the now-unified page.
+   */
+  sections?: string[];
 }
 
 const ProtectedRoute = ({
   children, requireAdmin = false, requireSuperAdmin = false,
-  allowFAndI = false, allowAccountant = false, section,
+  allowFAndI = false, allowAccountant = false, section, sections,
 }: ProtectedRouteProps) => {
   const { user, loading, isAdmin, isStaff, isFAndI, isAccountant } = useAuth();
   const { allowed, isAdmin: hasAllSections, isLoading: permsLoading } = useMyAllowedSections();
   const location = useLocation();
 
-  if (loading || (section && permsLoading)) {
+  const sectionKeys = sections ?? (section ? [section] : null);
+
+  if (loading || (sectionKeys && permsLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -44,10 +52,11 @@ const ProtectedRoute = ({
     return <Navigate to="/auth" state={{ returnTo: location.pathname }} replace />;
   }
 
-  // Section-based access (the editable per-role matrix).
-  if (section) {
+  // Section-based access (the editable per-role matrix). Passes if the role holds
+  // ANY of the listed section keys.
+  if (sectionKeys) {
     if (!isStaff) return <Navigate to="/" replace />;
-    if (hasAllSections || allowed.has(section)) return <>{children}</>;
+    if (hasAllSections || sectionKeys.some((k) => allowed.has(k))) return <>{children}</>;
     // Send them to the first area they CAN see; bail to home if they have none.
     const landing = allowed.size ? landingPathForSections(allowed) : '/';
     if (landing === location.pathname) return <>{children}</>; // avoid redirect loop

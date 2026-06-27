@@ -1,11 +1,10 @@
 import {
   LayoutDashboard, TableProperties, CreditCard, ClipboardList, Car,
-  Calculator, FileSignature, FolderOpen, Building2, ShoppingCart, Banknote,
+  Calculator, FileSignature, FolderOpen, Building2, ShoppingCart,
   Receipt, Coins, Truck, FileBarChart, BarChart3, LineChart, Download,
-  Briefcase, Gift, Contact, Settings, Search, ChevronLeft, ChevronRight, Home, Rows3,
+  Briefcase, Gift, Contact, Settings, ChevronLeft, ChevronRight, Home, Rows3,
 } from 'lucide-react';
 import { NavLink, useLocation, Link } from 'react-router-dom';
-import { OPEN_GLOBAL_SEARCH_EVENT } from './GlobalSearch';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -55,7 +54,8 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Money',
     items: [
-      { title: 'Deal Ledger', icon: Banknote, path: '/admin/aftersales' },
+      // Deal Ledger folded into Deal Desk (Money home is now Deal Desk's
+      // Ledger / Profit + Customer Follow-ups tabs). Nav item removed.
       { title: 'Invoice Creator', icon: Receipt, path: '/admin/invoices' },
       { title: 'Extra Incomes', icon: Coins, path: '/admin/extra-incomes' },
       { title: 'Vendors', icon: Truck, path: '/admin/vendors' },
@@ -188,24 +188,6 @@ const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
 
       {/* Navigation */}
       <nav className="px-2 py-2 overflow-y-auto h-[calc(100vh-8rem)]">
-        {/* Global search trigger (opens the Cmd/Ctrl+K palette) */}
-        <button
-          type="button"
-          onClick={() => { window.dispatchEvent(new CustomEvent(OPEN_GLOBAL_SEARCH_EVENT)); onNavigate?.(); }}
-          title="Search clients, applications, vehicles (Ctrl/⌘ K)"
-          className={cn(
-            'flex items-center gap-2.5 rounded-md transition-colors w-full text-left mb-2',
-            'text-muted-foreground hover:bg-secondary hover:text-foreground',
-            collapsed ? 'justify-center px-2 py-2' : 'px-3 py-1.5',
-          )}
-        >
-          <Search className="h-[18px] w-[18px] flex-shrink-0" />
-          {!collapsed && <span className="text-sm font-medium flex-1">Search</span>}
-          {!collapsed && (
-            <kbd className="ml-auto text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5">⌘K</kbd>
-          )}
-        </button>
-
         {visibleSections.map((section) => (
           <div key={section.label} className="mb-1">
             {!collapsed && (

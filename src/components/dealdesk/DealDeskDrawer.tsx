@@ -2,6 +2,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Deal } from '@/lib/dealdesk/types';
 import { StatusBadge } from './badges';
+import { StageBar } from './StageBar';
+import { StageStepPanel } from './StageStepPanel';
 import { OverviewTab } from './tabs/OverviewTab';
 import { CostSheetTab } from './tabs/CostSheetTab';
 import { ChecklistTab } from './tabs/ChecklistTab';
@@ -22,8 +24,12 @@ export function DealDeskDrawer({ deal, onClose }: { deal: Deal | null; onClose: 
           <p className="text-sm text-muted-foreground">{deal.vehicle_make_model || '—'}{deal.vehicle_year ? ` · ${deal.vehicle_year}` : ''}</p>
         </SheetHeader>
 
-        <Tabs defaultValue="overview" className="mt-4">
+        {/* Guided lifecycle bar — the single place to move a deal through its stages. */}
+        <StageBar deal={deal} className="mt-4" />
+
+        <Tabs defaultValue="stage" className="mt-4">
           <TabsList className="flex w-full flex-wrap h-auto">
+            <TabsTrigger value="stage">Stage</TabsTrigger>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="costsheet">Cost Sheet</TabsTrigger>
             <TabsTrigger value="checklist">Checklist</TabsTrigger>
@@ -32,6 +38,7 @@ export function DealDeskDrawer({ deal, onClose }: { deal: Deal | null; onClose: 
             <TabsTrigger value="activity">Activity</TabsTrigger>
           </TabsList>
           <div className="mt-4">
+            <TabsContent value="stage"><StageStepPanel deal={deal} /></TabsContent>
             <TabsContent value="overview"><OverviewTab deal={deal} /></TabsContent>
             <TabsContent value="costsheet"><CostSheetTab deal={deal} /></TabsContent>
             <TabsContent value="checklist"><ChecklistTab deal={deal} /></TabsContent>

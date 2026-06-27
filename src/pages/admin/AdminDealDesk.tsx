@@ -12,6 +12,7 @@ import { ReportsView } from '@/components/dealdesk/ReportsView';
 import { NatisSettings } from '@/components/dealdesk/NatisSettings';
 import { DealDeskDrawer } from '@/components/dealdesk/DealDeskDrawer';
 import { DealsTableSkeleton } from '@/components/dealdesk/DealDeskSkeletons';
+import AftersalesLedger from '@/components/dealdesk/AftersalesLedger';
 
 const AdminDealDesk = () => {
   const { isSuperAdmin } = useAuth();
@@ -45,6 +46,8 @@ const AdminDealDesk = () => {
         <Tabs defaultValue="deals">
           <TabsList className="flex flex-wrap h-auto">
             <TabsTrigger value="deals">Deals</TabsTrigger>
+            <TabsTrigger value="ledger">Ledger / Profit</TabsTrigger>
+            <TabsTrigger value="followups">Customer Follow-ups</TabsTrigger>
             <TabsTrigger value="delivery">Delivery &amp; Natis</TabsTrigger>
             <TabsTrigger value="payables">Payables</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
@@ -55,6 +58,16 @@ const AdminDealDesk = () => {
                 tabs; tabs themselves stay interactive so navigation feels instant. */}
             <TabsContent value="deals">
               {isLoading ? <DealsTableSkeleton /> : <DealsTable deals={deals} onOpen={setOpenDeal} canSeeDrafts={isSuperAdmin} />}
+            </TabsContent>
+            {/* Folded-in Deal Ledger: month-grouped profit table + performance
+                bar + commission boards. Reads the same authoritative gross_profit
+                column — no second profit number is introduced here. */}
+            <TabsContent value="ledger">
+              <AftersalesLedger view="ledger" />
+            </TabsContent>
+            {/* Folded-in aftersales_records follow-up table. */}
+            <TabsContent value="followups">
+              <AftersalesLedger view="followups" />
             </TabsContent>
             <TabsContent value="delivery">
               {isLoading ? <DealsTableSkeleton /> : <DeliveryBoard deals={deals} onOpen={setOpenDeal} />}

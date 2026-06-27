@@ -27,7 +27,6 @@ import { ADMIN_ROUTES } from "@/lib/adminRoutes";
 import {
   ArrowRight,
   TrendingUp,
-  AlertCircle,
   Car,
   DollarSign,
   Calculator,
@@ -273,7 +272,6 @@ const AdminDashboard = () => {
   // "New apps today" is always today's count, independent of the period.
   const [newAppsToday, setNewAppsToday] = useState(0);
 
-  const [urgentLeads, setUrgentLeads] = useState<any[]>([]);
   const [activityToday, setActivityToday] = useState({ totalVolume: 0, leads: 0, apps: 0 });
 
   const { widgets, toggleVisible, setSize, reorder, reset } = useDashboardLayout(user?.id);
@@ -322,53 +320,6 @@ const AdminDashboard = () => {
         .gte("created_at", dayStart)
         .lte("created_at", dayEnd);
       setNewAppsToday(appsTodayCount ?? 0);
-
-      // Pipeline health — urgent leads (unchanged behaviour).
-      const { data: activeLeads } = await supabase
-        .from("leads")
-        .select("*")
-        .eq("is_archived", false)
-        .in("pipeline_stage", ["new", "validation_pending"])
-        .order("created_at", { ascending: false })
-        .limit(1000);
-
-      if (activeLeads) {
-        const STAGE_PRIORITY: Record<string, number> = {
-          validation_pending: 100,
-          new: 50,
-        };
-        const urgent = activeLeads.filter(
-          (l) => l.pipeline_stage === "new" || l.pipeline_stage === "validation_pending",
-        );
-        const dedupeMap = new Map<string, any>();
-        urgent.forEach((l) => {
-          const key =
-            (l.client_email && l.client_email.toLowerCase().trim()) ||
-            (l.client_phone && l.client_phone.replace(/\D/g, "")) ||
-            `id:${l.id}`;
-          const existing = dedupeMap.get(key);
-          if (!existing) {
-            dedupeMap.set(key, l);
-            return;
-          }
-          const existingP = STAGE_PRIORITY[existing.pipeline_stage] || 0;
-          const incomingP = STAGE_PRIORITY[l.pipeline_stage] || 0;
-          if (
-            incomingP > existingP ||
-            (incomingP === existingP &&
-              new Date(l.created_at).getTime() > new Date(existing.created_at).getTime())
-          ) {
-            dedupeMap.set(key, l);
-          }
-        });
-        const deduped = Array.from(dedupeMap.values()).sort((a, b) => {
-          const pa = STAGE_PRIORITY[a.pipeline_stage] || 0;
-          const pb = STAGE_PRIORITY[b.pipeline_stage] || 0;
-          if (pb !== pa) return pb - pa;
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        });
-        setUrgentLeads(deduped.slice(0, 6));
-      }
 
       // Today's top-of-funnel volume (unchanged behaviour).
       const [{ count: leadsToday }, { count: draftsToday }] = await Promise.all([
@@ -716,63 +667,7 @@ const AdminDashboard = () => {
         </DndContext>
 
         {/* ACTION MATRIX — preserved from the original dashboard */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Urgent */}
-          <Card className="p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 text-red-400" />
-                <h2 className="font-semibold">
-                  Requires Action ({urgentLeads.length})
-                </h2>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate(ADMIN_ROUTES.pipelineV2)}
-              >
-                View All <ArrowRight className="w-4 h-4 ml-1" />
-              </Button>
-            </div>
-            {urgentLeads.length === 0 ? (
-              <p className="text-muted-foreground text-center py-6">
-                Inbox Zero. All leads actioned. ✅
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {urgentLeads.map((lead) => {
-                  const ts = lead.updated_at || lead.created_at;
-                  const formattedDate = ts ? format(new Date(ts), "dd MMM yyyy • HH:mm") : "";
-                  return (
-                    <div
-                      key={lead.id}
-                      className="grid grid-cols-3 items-center gap-2 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 cursor-pointer transition-colors"
-                      onClick={() => navigate(ADMIN_ROUTES.pipelineV2)}
-                    >
-                      <div className="justify-self-start min-w-0">
-                        <p className="font-medium text-sm truncate">
-                          {lead.client_name || "Unknown"}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {lead.client_phone || "No phone"}
-                        </p>
-                      </div>
-                      <div className="hidden md:flex justify-center text-xs text-zinc-500 font-mono tracking-wide">
-                        {formattedDate}
-                      </div>
-                      <div className="flex items-center gap-2 justify-self-end">
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 whitespace-nowrap">
-                          {(lead.pipeline_stage || "new").replace(/_/g, " ")}
-                        </span>
-                        <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </Card>
-
+        <div className="grid grid-cols-1 gap-6">
           {/* Lead & Communication Activity (Today) */}
           <Card className="p-5">
             <div className="flex items-center justify-between mb-4">

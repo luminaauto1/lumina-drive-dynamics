@@ -427,6 +427,96 @@ and keyboard nav with no data impact; saved-view presets simply disappear from e
 
 ---
 
+## Phase 8 — Deal Desk unified (stock-in docs, guided stage flow + in-desk finalize, Ledger merge)
+
+> Theme: fold the back-office finance flow into a single place. Three commits — a per-vehicle
+> **stock-in documents** checklist, an **embedded finalize + guided stage flow** inside the Deal Desk
+> drawer, and the **Deal Ledger merged** into the Deal Desk as two tabs. The one rule throughout:
+> **profit math is never recomputed here** — `deal_records.gross_profit`, written at Finalize time,
+> stays the single authoritative number, and `finance_applications.status` is never touched by the
+> deal-stage track.
+
+### Stock-in documents checklist (per vehicle)
+
+- [ ] **[needs migration]** Every car tracks its required documents.
+  Steps: open **Inventory**, edit a real (non-sourcing) vehicle, open the new **Documents** tab; also open
+  the **Stock-In** modal and check its new **Docs** tab. Migration:
+  `supabase/migrations/20260627151500_vehicle_stock_docs.sql`.
+  Expected: four slots — **NATIS copy, purchase invoice, inspection/roadworthy, service history** — each
+  showing **Missing / Uploaded / Not needed**. Setting a status or uploading a file persists across reload.
+
+- [ ] **The checklist is additive and warn-only — it NEVER blocks anything.**
+  Steps: leave one or more documents **Missing**, then go to the Deal Desk drawer's **Stage** tab for a deal
+  on that car and try to **Finalize**.
+  Expected: you see an **amber warning** ("car not fully stocked, N documents outstanding") but the
+  **Finalize button still works**. No document state ever disables finalize, delivery, or stage advance.
+
+- [ ] **Per-car override works and uploads are private.**
+  Steps: mark a slot **Not needed**; upload a file to another slot and click to view it.
+  Expected: "Not needed" no longer counts as outstanding; uploaded files open via a short-lived signed URL
+  (documents bucket). A failed row write rolls back the orphaned upload.
+
+### Guided stage flow + in-desk finalize
+
+- [ ] **The drawer opens on a guided Stage bar.**
+  Steps: open any deal in the **Deal Desk**.
+  Expected: a 5-step bar — **Contract signed → ① Stock the car → ② Finalize → ③ Delivery & NATIS → ④ Cleared**
+  — with done steps green, the current step highlighted. The **Stage** tab is the default; Overview / Cost
+  Sheet / Checklist / Delivery / Activity are all still present and unchanged.
+
+- [ ] **Finalize happens in place and ENRICHES the existing draft (no duplicate row).**
+  Steps: open a **draft awaiting finalize** (admin-only), on the Stage tab click **Finalize this deal**,
+  complete the calculator, save.
+  Expected: the embedded calculator is the same FinalizeDealModal; on save it **updates the existing
+  `deal_records` row by id** — it does **not** create a second row. Spot-check: the deal count for that
+  application stays the same; the `deal_records_application_id_unique` index is not violated.
+
+- [ ] **Finalizing advances the stage without corrupting the finance status.**
+  Steps: after finalizing, watch the Stage bar; then check the deal in **Finance / Pipeline**.
+  Expected: the bar moves forward to **③ Delivery & NATIS** (deal-stage → `in_delivery`); the deal's
+  **finance application status is unchanged**. The two tracks stay parallel.
+
+- [ ] **Delivery and NATIS advance the stage forward only (never backward).**
+  Steps: mark **Delivery ready**, then **NATIS sent** (drawer Delivery tab or the Delivery board).
+  Expected: stage goes **delivered → cleared**; re-saving or toggling never moves the stage backward, and a
+  failed stage write is non-fatal (the underlying delivery/NATIS save still succeeds).
+
+- [ ] **Profit is never recomputed by stage actions.**
+  Steps: advance a finalized deal through delivery/NATIS and re-open it.
+  Expected: **gross profit is identical** before and after every stage change. Only Finalize sets profit.
+
+### Deal Ledger merged into Deal Desk
+
+- [ ] **The old Deal Ledger lives inside Deal Desk with no lost features.**
+  Steps: open **Deal Desk** → **Ledger / Profit** and **Customer Follow-ups** tabs.
+  Expected: everything the old `/admin/aftersales` page had is present — **month-grouped profit totals,
+  performance bar, commission boards, lock / undo, PDF export, and the customer service / trade-in
+  follow-ups** table. Figures read the same authoritative `gross_profit` — **no second/ drifting profit
+  number** is introduced.
+
+- [ ] **The Deal Ledger nav item is gone and the old URL redirects.**
+  Steps: scan the sidebar **Money** group; in the address bar visit `/admin/aftersales`; press **⌘K / Ctrl-K**
+  and search "ledger" / "follow-ups".
+  Expected: **no** standalone "Deal Ledger" sidebar item; `/admin/aftersales` **redirects to**
+  `/admin/deal-desk` (no 404, no blank); the palette surfaces **Deal Desk** for ledger/aftersales/follow-up
+  keywords.
+
+- [ ] **Legacy `deal_ledger`-only roles are NOT stranded by the merge. _(needs a non-admin login)_**
+  Steps: log in as a non-admin whose role holds the legacy **Deal Ledger** access but **not** Deal Desk; open
+  `/admin/aftersales` and `/admin/deal-desk` directly.
+  Expected: you reach the **merged Deal Desk** page — never bounced back and forth, never a blank screen.
+  _(Gating fix, mirroring the Phase-7 CRM fix: `/admin/deal-desk` admits **either** `deal_desk` **or**
+  `deal_ledger`, and the `deal_ledger` section's home now points at Deal Desk.)_
+
+**How to roll back (Phase 8):** revert the three Deal Desk commits.
+- **Stock docs:** the `vehicle_stock_docs` table is additive and unread by anything else — leaving it applied
+  is harmless; reverting the commits just stops the checklist UI from rendering.
+- **Stage flow / finalize:** purely a presentation layer over the existing `deal_stage` column — no schema
+  change in these commits. Reverting restores the prior drawer.
+- **Ledger merge:** reverting restores the standalone `/admin/aftersales` page and its nav item.
+
+---
+
 ## Final sign-off
 
 - [ ] All boxes above checked, or any exceptions noted (especially **[needs migration]** items).
