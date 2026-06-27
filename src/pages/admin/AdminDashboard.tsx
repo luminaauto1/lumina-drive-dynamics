@@ -194,7 +194,7 @@ const AdminDashboard = () => {
               <Calculator className="w-4 h-4 mr-2" />
               Quick Quote
             </Button>
-            <Button size="sm" onClick={() => navigate(ADMIN_ROUTES.crm)}>
+            <Button size="sm" onClick={() => navigate(ADMIN_ROUTES.pipelineV2)}>
               <Search className="w-4 h-4 mr-2" />
               Pipeline
             </Button>
@@ -263,7 +263,7 @@ const AdminDashboard = () => {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => navigate("/admin/crm")}
+                onClick={() => navigate(ADMIN_ROUTES.pipelineV2)}
               >
                 View All <ArrowRight className="w-4 h-4 ml-1" />
               </Button>
@@ -281,7 +281,7 @@ const AdminDashboard = () => {
                     <div
                       key={lead.id}
                       className="grid grid-cols-3 items-center gap-2 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 cursor-pointer transition-colors"
-                      onClick={() => navigate("/admin/crm")}
+                      onClick={() => navigate(ADMIN_ROUTES.pipelineV2)}
                     >
                       <div className="justify-self-start min-w-0">
                         <p className="font-medium text-sm truncate">
@@ -330,7 +330,7 @@ const AdminDashboard = () => {
               </button>
 
               <button
-                onClick={() => navigate("/admin/crm")}
+                onClick={() => navigate(ADMIN_ROUTES.pipelineV2)}
                 className="text-left p-4 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors border border-border/50"
               >
                 <div className="flex items-center gap-2 mb-2 text-blue-400">

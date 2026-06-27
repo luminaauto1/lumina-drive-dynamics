@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { publicApiHeaders } from '@/lib/publicApi';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Settings, DollarSign, Phone, Palette, Loader2, MapPin, CreditCard, Users, Plus, X, Target, Mail, TestTube, Building2, Shield, FileText, Landmark, Plug, MessageCircle, ListChecks, LayoutDashboard } from 'lucide-react';
+import { DollarSign, Phone, Loader2, MapPin, CreditCard, Users, Plus, X, Target, Mail, TestTube, Building2, Shield, FileText, Landmark, Plug, MessageCircle, ListChecks, LayoutDashboard } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Switch } from '@/components/ui/switch';
@@ -257,7 +257,7 @@ const TestEmailButton = () => {
 // Tabs whose fields are bound to the global react-hook-form `register()` and
 // therefore need the global "Save All Settings" bar. Every other tab saves
 // itself, so the global bar is hidden on those (fixes the confusing save model).
-const FORM_BOUND_TABS = new Set(['finance', 'sales', 'contact', 'location', 'branding', 'features']);
+const FORM_BOUND_TABS = new Set(['finance', 'sales', 'contact', 'location', 'features']);
 
 const AdminSettings = () => {
   const { isSuperAdmin } = useAuth();
@@ -361,7 +361,6 @@ const AdminSettings = () => {
     updateSettings.mutate(cleanData);
   };
 
-  const isMaintenanceMode = watch('is_maintenance_mode');
   const showPhysicalLocation = watch('show_physical_location');
   const showFinanceTab = watch('show_finance_tab');
   const showTradeIn = watch('show_trade_in' as any) ?? true;
@@ -405,7 +404,6 @@ const AdminSettings = () => {
                 <TabsList className="flex flex-wrap gap-1 h-auto w-full justify-start bg-transparent p-0">
                   <TabsTrigger value="contact" className="gap-2"><Phone className="w-4 h-4" />Contact</TabsTrigger>
                   <TabsTrigger value="location" className="gap-2"><MapPin className="w-4 h-4" />Location</TabsTrigger>
-                  <TabsTrigger value="branding" className="gap-2"><Palette className="w-4 h-4" />Branding</TabsTrigger>
                   {isSuperAdmin && (
                     <TabsTrigger value="documents" className="gap-2"><FileText className="w-4 h-4" />Documents</TabsTrigger>
                   )}
@@ -792,65 +790,9 @@ const AdminSettings = () => {
               </motion.div>
             </TabsContent>
 
-            {/* Branding Tab */}
-            <TabsContent value="branding">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-6"
-              >
-                <div className="glass-card rounded-xl p-6 space-y-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <Palette className="w-5 h-5 text-primary" />
-                    <h2 className="text-lg font-semibold">Homepage Branding</h2>
-                  </div>
-
-                  <div className="grid gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="hero_headline">Hero Headline</Label>
-                      <Input
-                        id="hero_headline"
-                        placeholder="Drive Your Aspirations"
-                        {...register('hero_headline')}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Main text displayed on the homepage hero section
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="hero_subheadline">Hero Subheadline</Label>
-                      <Input
-                        id="hero_subheadline"
-                        placeholder="The New Era of Vehicle Sourcing"
-                        {...register('hero_subheadline')}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Site Control */}
-                <div className="glass-card rounded-xl p-6">
-                  <div className="flex items-center gap-3 mb-6">
-                    <Settings className="w-5 h-5 text-primary" />
-                    <h2 className="text-lg font-semibold">Site Control</h2>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label>Maintenance Mode</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Temporarily disable the website for maintenance
-                      </p>
-                    </div>
-                    <Switch 
-                      checked={isMaintenanceMode}
-                      onCheckedChange={(checked) => setValue('is_maintenance_mode', checked)}
-                    />
-                  </div>
-                </div>
-              </motion.div>
-            </TabsContent>
+            {/* Branding tab removed (owner: serves no good purpose). The hero/
+                maintenance fields remain registered on the form but are no longer
+                surfaced in the UI. */}
 
             {/* Features Tab */}
             <TabsContent value="features">

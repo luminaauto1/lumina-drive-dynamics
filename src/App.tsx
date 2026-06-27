@@ -59,7 +59,8 @@ const AdminNetwork = lazy(() => import("./pages/admin/AdminNetwork"));
 const AdminContacts = lazy(() => import("./pages/admin/AdminContacts"));
 const AdminReferrals = lazy(() => import("./pages/admin/AdminReferrals"));
 const AdminEmailSettings = lazy(() => import("./pages/admin/AdminEmailSettings"));
-const AdminCRM = lazy(() => import("./pages/admin/AdminCRM"));
+// AdminCRM retired from routing (CRM nav removed; legacy URLs redirect to Pipeline).
+// Component file kept in the codebase to avoid collateral breakage.
 const ClientProfile = lazy(() => import("./pages/admin/ClientProfile"));
 const AdminDocumentsHub = lazy(() => import("./pages/admin/AdminDocumentsHub"));
 const AdminJuristic = lazy(() => import("./pages/admin/AdminJuristic"));
@@ -126,8 +127,9 @@ const AppLayout = () => {
             <Route path="/admin/inventory" element={<ProtectedRoute section="inventory"><AdminInventoryPage /></ProtectedRoute>} />
             {/* Pipeline + CRM Sheet replaced by the unified CRM. Old paths still
                 resolve (login landing + existing links) and render the new CRM. */}
-            {/* Legacy CRM aliases — collapsed to redirects (one CRM page, one URL). */}
-            <Route path="/admin/leads" element={<Navigate to="/admin/crm" replace />} />
+            {/* CRM retired from nav — the Pipeline manages client flow. Legacy CRM
+                URLs redirect to the Pipeline (AdminCRM kept unrouted-as-component). */}
+            <Route path="/admin/leads" element={<Navigate to="/admin/pipeline-v2" replace />} />
             <Route path="/admin/contacts" element={<ProtectedRoute requireSuperAdmin><AdminContacts /></ProtectedRoute>} />
             <Route path="/admin/finance" element={<ProtectedRoute section="finance"><AdminFinance /></ProtectedRoute>} />
             <Route path="/admin/finance/create" element={<ProtectedRoute section="finance"><AdminCreateApplication /></ProtectedRoute>} />
@@ -153,8 +155,8 @@ const AppLayout = () => {
             <Route path="/admin/juristic" element={<ProtectedRoute section="juristic"><AdminJuristic /></ProtectedRoute>} />
             <Route path="/admin/clients/:id" element={<ProtectedRoute requireSuperAdmin><ClientProfile /></ProtectedRoute>} />
             <Route path="/admin/documents" element={<ProtectedRoute section="documents"><AdminDocumentsHub /></ProtectedRoute>} />
-            <Route path="/admin/crm-sheet" element={<Navigate to="/admin/crm" replace />} />
-            <Route path="/admin/crm" element={<ProtectedRoute section="crm"><AdminCRM /></ProtectedRoute>} />
+            <Route path="/admin/crm-sheet" element={<Navigate to="/admin/pipeline-v2" replace />} />
+            <Route path="/admin/crm" element={<Navigate to="/admin/pipeline-v2" replace />} />
             <Route path="/update-password" element={<UpdatePassword />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

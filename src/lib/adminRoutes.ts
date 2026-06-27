@@ -62,10 +62,11 @@ export interface AdminNavEntry {
 
 export const ADMIN_NAV_ENTRIES: AdminNavEntry[] = [
   { key: 'dashboard', path: ADMIN_ROUTES.dashboard, label: 'Dashboard', section: 'Main', keywords: 'home overview' },
-  { key: 'crm', path: ADMIN_ROUTES.crm, label: 'CRM', section: 'Main', keywords: 'leads sheet' },
+  // CRM retired from nav/search — the Pipeline manages client flow. Pipeline
+  // carries the 'leads'/'crm' aliases so the command palette still finds it.
   { key: 'inventory', path: ADMIN_ROUTES.inventory, label: 'Inventory', section: 'Main', keywords: 'vehicles cars stock' },
   { key: 'contacts', path: ADMIN_ROUTES.contacts, label: 'Contacts', section: 'Main' },
-  { key: 'pipelineV2', path: ADMIN_ROUTES.pipelineV2, label: 'Pipeline', section: 'Main', keywords: 'applications finance flow' },
+  { key: 'pipelineV2', path: ADMIN_ROUTES.pipelineV2, label: 'Pipeline', section: 'Main', keywords: 'applications finance flow crm leads clients sheet' },
   { key: 'quotes', path: ADMIN_ROUTES.quotes, label: 'Quotes', section: 'Docs & Sales' },
   { key: 'otp', path: ADMIN_ROUTES.otp, label: 'OTP Generator', section: 'Docs & Sales', keywords: 'offer to purchase' },
   { key: 'documents', path: ADMIN_ROUTES.documents, label: 'Documents', section: 'Docs & Sales' },
