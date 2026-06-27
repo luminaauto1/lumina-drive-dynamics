@@ -14,8 +14,11 @@ export const PIPELINE_TABS: PipelineTabDef[] = [
   { key: 'intake',     label: 'New Applications', statuses: ['pending', 'draft', 'needs_revision', 'revision_submitted'], accent: 'text-gray-300' },
   { key: 'submitted',  label: 'Submitted',   statuses: ['application_submitted', 'ready_to_submit', 'sent_to_banks'], accent: 'text-blue-400' },
   { key: 'approved',   label: 'Approved',    statuses: ['pre_approved', 'documents_received', 'approved', 'vehicle_selected'], accent: 'text-yellow-400' },
-  { key: 'validations', label: 'Validations', statuses: ['validations_pending', 'validations_complete'], accent: 'text-green-400' },
-  { key: 'contract',   label: 'Contract',    statuses: ['contract_sent', 'contract_signed'], accent: 'text-purple-400' },
+  // Contract lane removed: contract-signed deals stay grouped under Validations
+  // ("Vals Done") rather than splitting into their own column. contract_sent /
+  // contract_signed are VIEW-grouped here only — the status enum is unchanged so
+  // OTP / mailer / deal-desk logic that depends on those slugs is unaffected.
+  { key: 'validations', label: 'Validations', statuses: ['validations_pending', 'validations_complete', 'contract_sent', 'contract_signed'], accent: 'text-green-400' },
   { key: 'delivered',  label: 'Delivered',   statuses: ['vehicle_delivered', 'finalized'], accent: 'text-amber-400' },
   { key: 'declined',   label: 'Declined',    statuses: ['declined', 'declined_conditional', 'blacklisted'], accent: 'text-red-400' },
   { key: 'closed',     label: 'Closed',      statuses: ['archived', 'client_cancelled'], accent: 'text-gray-500' },
