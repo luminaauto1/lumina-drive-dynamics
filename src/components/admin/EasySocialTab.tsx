@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Loader2, Save, Plus, Trash2, Plug } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Loader2, Save, Plus, Trash2, Plug, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,16 +8,35 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { STATUS_OPTIONS } from '@/lib/statusConfig';
 import { useEasySocialSettings, useUpdateEasySocialSettings } from '@/hooks/useZtcSettings';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 type Override = { status: string; tag: string };
+type CachedTag = { name: string; id: number };
+
+// Shared <datalist> id for the tag autocomplete (sourced from config.tags_cache).
+const TAG_DATALIST_ID = 'easysocial-tag-cache';
 
 const EasySocialTab = () => {
   const { data: settings, isLoading } = useEasySocialSettings();
   const update = useUpdateEasySocialSettings();
+  const qc = useQueryClient();
   const [active, setActive] = useState(true);
   const [apiKey, setApiKey] = useState('');
   const [overrides, setOverrides] = useState<Override[]>([]);
   const [hydrated, setHydrated] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  // Cached tag dictionary (name → id) populated by the easysocial-list-tags
+  // function. Backward-safe: when empty, the tag fields stay plain free-text.
+  const cachedTags: CachedTag[] = useMemo(() => {
+    const raw = (settings?.config as any)?.tags_cache;
+    return Array.isArray(raw)
+      ? raw.filter((t: any) => t && typeof t.name === 'string')
+      : [];
+  }, [settings]);
+  const tagsSyncedAt: string | null = (settings?.config as any)?.tags_synced_at ?? null;
 
   useEffect(() => {
     if (!settings || hydrated) return;
@@ -27,6 +46,27 @@ const EasySocialTab = () => {
     setOverrides(Object.entries(m).map(([status, tag]) => ({ status, tag: String(tag) })));
     setHydrated(true);
   }, [settings, hydrated]);
+
+  // Pull the live tag list from EasySocial (admin-only edge function). On success
+  // the function persists config.tags_cache + tags_synced_at, so we refetch the
+  // settings query to surface the new dictionary in the pickers.
+  const syncTags = async () => {
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('easysocial-list-tags');
+      if (error) throw error;
+      if (data && (data as any).ok === false) {
+        throw new Error((data as any).detail || (data as any).error || 'Tag sync failed');
+      }
+      const count = (data as any)?.count ?? 0;
+      await qc.invalidateQueries({ queryKey: ['integration', 'easysocial'] });
+      toast.success(`Synced ${count} tag${count === 1 ? '' : 's'} from EasySocial`);
+    } catch (e: any) {
+      toast.error('Tag sync failed: ' + (e?.message || e));
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const save = () => {
     const tag_add_overrides: Record<string, string> = {};
@@ -61,6 +101,28 @@ const EasySocialTab = () => {
         </CardContent>
       </Card>
 
+      {/* Tag library — pull the live tag list so the override pickers are validated. */}
+      <Card>
+        <CardHeader className="py-3 flex-row items-center justify-between">
+          <CardTitle className="text-base">Tag library</CardTitle>
+          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={syncTags} disabled={syncing}>
+            {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} Sync tags from EasySocial
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <p className="text-xs text-muted-foreground">
+            {cachedTags.length > 0
+              ? <>Synced {cachedTags.length} tag{cachedTags.length === 1 ? '' : 's'}{tagsSyncedAt ? <> · {new Date(tagsSyncedAt).toLocaleString()}</> : null}. The tag fields below autocomplete from this list.</>
+              : <>No tags synced yet. Click <em>Sync tags from EasySocial</em> to pull the live list; until then the tag fields stay free-text.</>}
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Autocomplete source for the override tag inputs (free-text still allowed). */}
+      <datalist id={TAG_DATALIST_ID}>
+        {cachedTags.map((t) => <option key={t.id} value={t.name} />)}
+      </datalist>
+
       <Card>
         <CardHeader className="py-3 flex-row items-center justify-between">
           <CardTitle className="text-base">Status → tag overrides</CardTitle>
@@ -77,7 +139,13 @@ const EasySocialTab = () => {
                 <SelectTrigger className="h-8 w-56"><SelectValue placeholder="Status…" /></SelectTrigger>
                 <SelectContent>{STATUS_OPTIONS.map((s: any) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
               </Select>
-              <Input value={o.tag} onChange={(e) => setOverrides((p) => p.map((x, idx) => idx === i ? { ...x, tag: e.target.value } : x))} placeholder="EasySocial tag name" className="h-8 flex-1" />
+              <Input
+                value={o.tag}
+                onChange={(e) => setOverrides((p) => p.map((x, idx) => idx === i ? { ...x, tag: e.target.value } : x))}
+                placeholder="EasySocial tag name"
+                className="h-8 flex-1"
+                list={cachedTags.length > 0 ? TAG_DATALIST_ID : undefined}
+              />
               <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setOverrides((p) => p.filter((_, idx) => idx !== i))}><Trash2 className="w-3.5 h-3.5" /></Button>
             </div>
           ))}

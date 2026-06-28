@@ -30,6 +30,7 @@ export function StatusChangeModal({
 }) {
   const [status, setStatus] = useState<string>((app as any).status || 'pending');
   const [clientStatus, setClientStatus] = useState<string>((app as any).client_status || '');
+  const [track, setTrack] = useState<'finance' | 'client'>('finance');
   const [comment, setComment] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -89,18 +90,45 @@ export function StatusChangeModal({
           <p className="text-sm text-muted-foreground">
             {(app as any).full_name || [(app as any).first_name, (app as any).last_name].filter(Boolean).join(' ') || 'Applicant'}
           </p>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Finance status</Label>
-            <StatusSelect
-              track="finance"
-              value={status}
-              onChange={setStatus}
-              role={role}
-              labelOverrides={financeLabels}
-            />
+          {/* ZTC-style track toggle — always visible, switches the editor below. */}
+          <div className="space-y-2">
+            <div className="inline-flex rounded-md border border-border overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setTrack('finance')}
+                className={'px-3 py-1.5 text-xs font-medium transition ' +
+                  (track === 'finance' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted')}
+              >
+                Finance Application Status
+              </button>
+              <button
+                type="button"
+                onClick={() => setTrack('client')}
+                className={'px-3 py-1.5 text-xs font-medium transition border-l border-border ' +
+                  (track === 'client' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted')}
+              >
+                Current Client Status
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              {track === 'finance'
+                ? 'Main pipeline status — moves the row to the matching tab and sends notifications.'
+                : 'Working status — does not move tabs and sends no notifications.'}
+            </p>
           </div>
 
-          {clientStatuses.length > 0 && (
+          {track === 'finance' ? (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Finance status</Label>
+              <StatusSelect
+                track="finance"
+                value={status}
+                onChange={setStatus}
+                role={role}
+                labelOverrides={financeLabels}
+              />
+            </div>
+          ) : clientStatuses.length > 0 ? (
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Client status</Label>
               <StatusSelect
@@ -110,6 +138,12 @@ export function StatusChangeModal({
                 options={clientStatuses}
                 labelOverrides={clientLabels}
               />
+            </div>
+          ) : (
+            <div className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">
+              No client statuses defined yet. Add them in{' '}
+              <span className="font-medium text-foreground">Settings → Statuses</span>{' '}
+              (use the Finance/Client toggle in the status editor), and they'll appear here.
             </div>
           )}
 
