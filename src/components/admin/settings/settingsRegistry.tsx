@@ -1,7 +1,7 @@
 import * as React from 'react';
 import {
   DollarSign, Phone, MapPin, CreditCard, Users, Mail, Building2, Shield, FileText,
-  Landmark, Plug, MessageCircle, ListChecks, LayoutDashboard, type LucideIcon,
+  Landmark, Plug, MessageCircle, ListChecks, LayoutDashboard, ClipboardList, type LucideIcon,
 } from 'lucide-react';
 
 import BankIntegrationsTab from '@/components/admin/BankIntegrationsTab';
@@ -14,6 +14,7 @@ import WhatsAppTemplatesTab from '@/components/admin/WhatsAppTemplatesTab';
 import StatusesTab from '@/components/admin/StatusesTab';
 import EmailTemplatesTab from '@/components/admin/EmailTemplatesTab';
 import AppearanceNavTab from '@/components/admin/AppearanceNavTab';
+import { NatisSettings } from '@/components/dealdesk/NatisSettings';
 import { FinanceBody, SalesBody, ContactBody, LocationBody, FeaturesBody } from './SettingsFormBodies';
 
 /**
@@ -56,6 +57,12 @@ const TeamBody = () => (
   </div>
 );
 
+// Deal Desk Natis settings, relocated here from the Deal Desk's own Settings tab.
+// The whole /admin/settings tree is super-admin-gated, so anyone who can reach
+// this page may edit — pass canEdit so the form is interactive (NatisSettings'
+// own useSaveDeskSettings save path is unchanged).
+const DealDeskBody = () => <NatisSettings canEdit />;
+
 export const SETTINGS_GROUPS: SettingsGroup[] = [
   {
     label: 'Business Profile',
@@ -71,6 +78,7 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
       { key: 'finance', title: 'Finance Calculator', description: 'Interest, deposit and balloon defaults and slider ranges for the public calculator.', icon: DollarSign, body: <FinanceBody /> },
       { key: 'banks', title: 'Banks', description: 'Finance partner banks and their application links.', icon: Building2, body: <BankIntegrationsTab /> },
       { key: 'sales', title: 'Sales Team & Target', description: 'Monthly sales target and the sales reps used when finalizing deals.', icon: Users, body: <SalesBody /> },
+      { key: 'dealdesk', title: 'Deal Desk', description: 'Natis window and urgency-warning thresholds for the Deal Desk.', icon: ClipboardList, requireSuperAdmin: true, body: <DealDeskBody /> },
       { key: 'branches', title: 'Bank Branch Codes', description: 'Universal branch codes printed on finance-application PDFs by client bank.', icon: Landmark, requireSuperAdmin: true, body: <BankBranchCodesTab /> },
     ],
   },

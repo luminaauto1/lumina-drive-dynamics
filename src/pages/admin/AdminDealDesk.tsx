@@ -9,7 +9,6 @@ import { DealsTable, isAwaitingFinalize } from '@/components/dealdesk/DealsTable
 import { DeliveryBoard } from '@/components/dealdesk/DeliveryBoard';
 import { PayablesView } from '@/components/dealdesk/PayablesView';
 import { ReportsView } from '@/components/dealdesk/ReportsView';
-import { NatisSettings } from '@/components/dealdesk/NatisSettings';
 import { DealDeskDrawer } from '@/components/dealdesk/DealDeskDrawer';
 import { DealsTableSkeleton } from '@/components/dealdesk/DealDeskSkeletons';
 import AftersalesLedger from '@/components/dealdesk/AftersalesLedger';
@@ -51,7 +50,6 @@ const AdminDealDesk = () => {
             <TabsTrigger value="delivery">Delivery &amp; Natis</TabsTrigger>
             <TabsTrigger value="payables">Payables</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
           <div className="mt-4">
             {/* While the deal list loads, show a skeleton in place of the data
@@ -76,7 +74,6 @@ const AdminDealDesk = () => {
             <TabsContent value="reports">
               {isLoading ? <DealsTableSkeleton /> : <ReportsView deals={deals} />}
             </TabsContent>
-            <TabsContent value="settings"><NatisSettings canEdit={isSuperAdmin} /></TabsContent>
           </div>
         </Tabs>
       </div>
