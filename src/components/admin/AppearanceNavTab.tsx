@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Save, Eye, EyeOff, ChevronUp, ChevronDown, LayoutDashboard, Info, RotateCcw } from 'lucide-react';
+import { Loader2, Save, Eye, EyeOff, ChevronUp, ChevronDown, LayoutDashboard, Info, RotateCcw, Sun, Moon, Rows3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   useDocumentSettings, useUpdateDocumentSettings, DEFAULT_DOCUMENT_SETTINGS,
   type DocumentSettings, type NavConfig,
 } from '@/hooks/useDocumentSettings';
 import { NAV_SECTIONS } from '@/components/admin/AdminSidebar';
 import { sectionId, itemId } from '@/lib/navConfig';
+import { useDeskTheme, type DeskTheme } from '@/hooks/useDeskTheme';
+import { useAdminDensity, type AdminDensity } from '@/hooks/useAdminDensity';
 
 // Editable model: ordered sections, each with ordered items + hidden flags.
 // Built by merging the code defaults (NAV_SECTIONS) with the saved nav config so
@@ -73,6 +76,8 @@ const AppearanceNavTab = () => {
   const { data, isLoading } = useDocumentSettings();
   const update = useUpdateDocumentSettings();
   const [model, setModel] = useState<EditSection[]>([]);
+  const { theme, setTheme } = useDeskTheme();
+  const { density, setDensity } = useAdminDensity();
 
   useEffect(() => { if (data) setModel(buildModel(data.navConfig)); }, [data]);
 
@@ -113,6 +118,62 @@ const AppearanceNavTab = () => {
         <LayoutDashboard className="w-4 h-4 text-primary" />
         <h2 className="text-lg font-semibold">Appearance & Navigation</h2>
       </div>
+
+      {/* Appearance — admin theme + density (moved here from the sidebar footer). */}
+      <Card>
+        <CardContent className="py-3 space-y-4">
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Appearance</span>
+
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-0.5">
+              <div className="text-sm font-medium text-foreground">Theme</div>
+              <p className="text-xs text-muted-foreground">
+                Choose the admin dashboard's colour scheme. Saved on this device.
+              </p>
+            </div>
+            <ToggleGroup
+              type="single"
+              value={theme}
+              onValueChange={(v) => { if (v) setTheme(v as DeskTheme); }}
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+            >
+              <ToggleGroupItem value="light" aria-label="Light mode" className="gap-1.5">
+                <Sun className="h-3.5 w-3.5" /> Light
+              </ToggleGroupItem>
+              <ToggleGroupItem value="dark" aria-label="Dark mode" className="gap-1.5">
+                <Moon className="h-3.5 w-3.5" /> Dark
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-0.5">
+              <div className="text-sm font-medium text-foreground">Density</div>
+              <p className="text-xs text-muted-foreground">
+                Compact tightens spacing to fit more on screen; Comfortable adds breathing room.
+              </p>
+            </div>
+            <ToggleGroup
+              type="single"
+              value={density}
+              onValueChange={(v) => { if (v) setDensity(v as AdminDensity); }}
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+            >
+              <ToggleGroupItem value="comfortable" aria-label="Comfortable density" className="gap-1.5">
+                <Rows3 className="h-3.5 w-3.5" /> Comfortable
+              </ToggleGroupItem>
+              <ToggleGroupItem value="compact" aria-label="Compact density" className="gap-1.5">
+                <Rows3 className="h-3.5 w-3.5" /> Compact
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex items-start gap-2 rounded-md border border-blue-500/30 bg-blue-500/5 p-2.5 text-xs text-blue-300">
         <Info className="w-4 h-4 shrink-0 mt-0.5" />
         Reorder and hide the sidebar sections and links for everyone. Role-based access still applies on top of this — hiding a link
