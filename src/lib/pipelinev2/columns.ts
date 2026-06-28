@@ -31,6 +31,37 @@ export const TABLE_COLUMNS: TableColumnDef[] = [
   { key: 'created',        label: 'Date',           defaultVisible: true,  defaultWidth: 'normal' },
 ];
 
+// Per-lane default visible columns. The 'internal' (latest note) column is
+// default-visible everywhere so the Notes column isn't a wall of "—". Each lane
+// then surfaces the columns that are usually populated for that stage; users can
+// still hide/show any column via ColumnsPicker (these are only the DEFAULTS).
+// Lanes omitted here fall back to GLOBAL_DEFAULT_VISIBLE.
+const GLOBAL_DEFAULT_VISIBLE = TABLE_COLUMNS.filter((c) => c.defaultVisible).map((c) => c.key);
+
+const LANE_DEFAULT_VISIBLE: Record<string, string[]> = {
+  // Fresh leads: who/what + latest note + how to reach them.
+  intake:      ['applicant', 'status', 'internal', 'phone', 'vehicle', 'created'],
+  // Submitted to banks: add the bank in play.
+  submitted:   ['applicant', 'status', 'internal', 'phone', 'vehicle', 'bank', 'fni', 'created'],
+  // Approved/working: bank + F&I owner matter most.
+  approved:    ['applicant', 'status', 'internal', 'vehicle', 'bank', 'fni', 'created'],
+  // Validations / contract: bank + F&I + bank ref.
+  validations: ['applicant', 'status', 'internal', 'vehicle', 'bank', 'bank_reference', 'fni', 'created'],
+  // Delivered: the win — vehicle + F&I + date.
+  delivered:   ['applicant', 'status', 'internal', 'vehicle', 'fni', 'created'],
+  // Declined: keep it lean — reason lives in the note.
+  declined:    ['applicant', 'status', 'internal', 'phone', 'created'],
+  // Closed/archived: minimal.
+  closed:      ['applicant', 'status', 'internal', 'created'],
+};
+
+const KNOWN_KEYS = new Set(TABLE_COLUMNS.map((c) => c.key));
+const visibleForTab = (tabKey?: string): string[] => {
+  const lane = tabKey ? LANE_DEFAULT_VISIBLE[tabKey] : undefined;
+  const list = (lane ?? GLOBAL_DEFAULT_VISIBLE).filter((k) => KNOWN_KEYS.has(k));
+  return list.length > 0 ? list : GLOBAL_DEFAULT_VISIBLE;
+};
+
 export const WIDTH_MIN: Record<ColumnWidth, string> = {
   narrow: 'min-w-[80px]', normal: 'min-w-[120px]', wide: 'min-w-[180px]', xwide: 'min-w-[260px]',
 };
@@ -52,15 +83,17 @@ export interface TableConfig {
 const STORAGE_KEY = 'lumina.pipelinev2.table.config.v1';
 type AllConfigs = Record<string, TableConfig>;
 
-export function defaultConfig(): TableConfig {
+/** Default table config. Pass a lane key for per-lane default-visible columns;
+ *  omit it for the global defaults. */
+export function defaultConfig(tabKey?: string): TableConfig {
   return {
-    visible: TABLE_COLUMNS.filter((c) => c.defaultVisible).map((c) => c.key),
+    visible: visibleForTab(tabKey),
     widths: Object.fromEntries(TABLE_COLUMNS.map((c) => [c.key, c.defaultWidth])),
   };
 }
 
-function normalize(cfg: Partial<TableConfig> | undefined): TableConfig {
-  const def = defaultConfig();
+function normalize(cfg: Partial<TableConfig> | undefined, tabKey?: string): TableConfig {
+  const def = defaultConfig(tabKey);
   if (!cfg) return def;
   return {
     visible: Array.isArray(cfg.visible) && cfg.visible.length > 0 ? cfg.visible : def.visible,
@@ -83,7 +116,7 @@ function writeAll(all: AllConfigs) {
   try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(all)); } catch { /* ignore quota */ }
 }
 
-export const loadConfig = (tabKey: string): TableConfig => normalize(readAll()[tabKey]);
+export const loadConfig = (tabKey: string): TableConfig => normalize(readAll()[tabKey], tabKey);
 export function saveConfig(tabKey: string, cfg: TableConfig) {
   const all = readAll(); all[tabKey] = cfg; writeAll(all);
 }

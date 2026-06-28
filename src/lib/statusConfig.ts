@@ -74,31 +74,67 @@ export const USER_STATUS_LABELS: Record<string, string> = {
   client_cancelled: 'Application Closed',
 };
 
-// Badge styling with distinct colors for each step
+// Badge styling — DARK theme (obsidian). Brightened for legibility: text on the
+// -300 tier, bg /15, border /40. `pending` is an ACTIVE state → amber, not gray;
+// gray is reserved for truly-closed states (draft / archived / client_cancelled).
+// No animate-pulse (distracting in a dense table).
 export const STATUS_STYLES: Record<string, string> = {
-  pending: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
-  application_submitted: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  ready_to_submit: 'bg-emerald-900/30 text-emerald-300 border-emerald-400/50',
-  sent_to_banks: 'bg-yellow-400/30 text-yellow-300 border-yellow-400/50',
-  pre_approved: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30 animate-pulse',
-  documents_received: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
-  validations_pending: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-  validations_complete: 'bg-green-500/20 text-green-400 border-green-500/30',
-  contract_sent: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-  contract_signed: 'bg-emerald-600/20 text-emerald-500 border-emerald-600/30',
-  vehicle_delivered: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-  declined: 'bg-red-500/20 text-red-400 border-red-500/30',
-  declined_conditional: 'bg-gray-500/20 text-gray-300 border-gray-500/30',
-  blacklisted: 'bg-red-500/20 text-red-400 border-red-500/30',
-  vehicle_selected: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-  approved: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-  finalized: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-  draft: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
-  archived: 'bg-gray-600/20 text-gray-500 border-gray-600/30',
-  needs_revision: 'bg-pink-500/20 text-pink-400 border-pink-500/30 animate-pulse',
-  revision_submitted: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
-  client_cancelled: 'bg-gray-600/20 text-gray-500 border-gray-600/30',
+  pending:               'bg-amber-500/15 text-amber-300 border-amber-500/40',
+  application_submitted: 'bg-blue-500/15 text-blue-300 border-blue-500/40',
+  ready_to_submit:       'bg-emerald-500/15 text-emerald-300 border-emerald-500/40',
+  sent_to_banks:         'bg-sky-500/15 text-sky-300 border-sky-500/40',
+  pre_approved:          'bg-emerald-500/15 text-emerald-300 border-emerald-500/40',
+  documents_received:    'bg-cyan-500/15 text-cyan-300 border-cyan-500/40',
+  validations_pending:   'bg-orange-500/15 text-orange-300 border-orange-500/40',
+  validations_complete:  'bg-green-500/15 text-green-300 border-green-500/40',
+  contract_sent:         'bg-violet-500/15 text-violet-300 border-violet-500/40',
+  contract_signed:       'bg-emerald-500/15 text-emerald-300 border-emerald-500/40',
+  vehicle_delivered:     'bg-amber-400/15 text-amber-300 border-amber-400/40',
+  declined:              'bg-red-500/15 text-red-300 border-red-500/40',
+  declined_conditional:  'bg-rose-500/15 text-rose-300 border-rose-500/40',
+  blacklisted:           'bg-red-500/15 text-red-300 border-red-500/40',
+  vehicle_selected:      'bg-violet-500/15 text-violet-300 border-violet-500/40',
+  approved:              'bg-emerald-500/15 text-emerald-300 border-emerald-500/40',
+  finalized:             'bg-amber-400/15 text-amber-300 border-amber-400/40',
+  draft:                 'bg-gray-500/12 text-gray-400 border-gray-500/25',
+  archived:              'bg-gray-500/12 text-gray-400 border-gray-500/25',
+  needs_revision:        'bg-pink-500/15 text-pink-300 border-pink-500/40',
+  revision_submitted:    'bg-indigo-500/15 text-indigo-300 border-indigo-500/40',
+  client_cancelled:      'bg-gray-500/12 text-gray-400 border-gray-500/25',
 };
+
+// Badge styling — LIGHT (admin paper) theme. Same status keys, ZTC-style soft bg
+// + dark text so each status stays legible on white. Resolved per theme by
+// `statusBadgeClass(status, theme)`; the public client dashboard never uses this.
+export const STATUS_STYLES_LIGHT: Record<string, string> = {
+  pending:               'bg-amber-100 text-amber-800 border-amber-300',
+  application_submitted: 'bg-blue-100 text-blue-800 border-blue-300',
+  ready_to_submit:       'bg-emerald-100 text-emerald-800 border-emerald-300',
+  sent_to_banks:         'bg-sky-100 text-sky-800 border-sky-300',
+  pre_approved:          'bg-emerald-100 text-emerald-800 border-emerald-300',
+  documents_received:    'bg-cyan-100 text-cyan-800 border-cyan-300',
+  validations_pending:   'bg-orange-100 text-orange-800 border-orange-300',
+  validations_complete:  'bg-green-100 text-green-800 border-green-300',
+  contract_sent:         'bg-violet-100 text-violet-800 border-violet-300',
+  contract_signed:       'bg-emerald-100 text-emerald-800 border-emerald-300',
+  vehicle_delivered:     'bg-amber-100 text-amber-800 border-amber-300',
+  declined:              'bg-red-100 text-red-800 border-red-300',
+  declined_conditional:  'bg-rose-100 text-rose-800 border-rose-300',
+  blacklisted:           'bg-red-100 text-red-800 border-red-300',
+  vehicle_selected:      'bg-violet-100 text-violet-800 border-violet-300',
+  approved:              'bg-emerald-100 text-emerald-800 border-emerald-300',
+  finalized:             'bg-amber-100 text-amber-800 border-amber-300',
+  draft:                 'bg-gray-100 text-gray-600 border-gray-300',
+  archived:              'bg-gray-100 text-gray-600 border-gray-300',
+  needs_revision:        'bg-pink-100 text-pink-800 border-pink-300',
+  revision_submitted:    'bg-indigo-100 text-indigo-800 border-indigo-300',
+  client_cancelled:      'bg-gray-100 text-gray-600 border-gray-300',
+};
+
+/** Resolve a status badge class for the active admin theme. Falls back to the
+ *  dark map when a key is missing from the light map. Pure presentation. */
+export const statusBadgeClass = (status: string, theme: 'light' | 'dark' = 'dark'): string =>
+  (theme === 'light' ? STATUS_STYLES_LIGHT[status] : STATUS_STYLES[status]) || STATUS_STYLES[status] || '';
 
 // Admin labels (internal view)
 export const ADMIN_STATUS_LABELS: Record<string, string> = {

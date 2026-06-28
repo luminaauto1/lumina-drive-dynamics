@@ -114,7 +114,7 @@ export function ColumnsPicker({
         <div className="mb-2 flex items-center justify-between">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Columns</span>
           <button className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
-            onClick={() => persist(defaultConfig())}>
+            onClick={() => persist(defaultConfig(tabKey))}>
             <RotateCcw className="h-3 w-3" /> Reset
           </button>
         </div>

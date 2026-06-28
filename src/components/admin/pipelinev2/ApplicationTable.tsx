@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import type { FinanceApplication } from '@/hooks/useFinanceApplications';
-import { STATUS_STYLES, ADMIN_STATUS_LABELS } from '@/lib/statusConfig';
+import { STATUS_STYLES, ADMIN_STATUS_LABELS, statusBadgeClass } from '@/lib/statusConfig';
+import { useDeskTheme } from '@/hooks/useDeskTheme';
 import { INTERNAL_STATUSES, normalizeInternalStatus, type InternalStatus } from '@/lib/internalStatusConfig';
 import { formatCurrencyR, formatDate, formatTime, formatPhone, relativeTime } from '@/lib/pipelinev2/format';
 import { TABLE_COLUMNS, columnClass, type TableConfig } from '@/lib/pipelinev2/columns';
@@ -29,6 +30,7 @@ export function ApplicationTable({
   statusLabels?: Record<string, string>;
   statusStyles?: Record<string, string>;
 }) {
+  const { theme } = useDeskTheme();
   const colByKey = new Map(TABLE_COLUMNS.map((c) => [c.key, c]));
   const visible = config.visible.map((k) => colByKey.get(k)).filter(Boolean) as TableColumnDef[];
   type TableColumnDef = (typeof TABLE_COLUMNS)[number];
@@ -58,7 +60,7 @@ export function ApplicationTable({
 
   return (
     <div className="overflow-x-auto rounded-lg border border-border bg-card">
-      <table className="w-full text-sm">
+      <table className="pipeline-table w-full text-sm">
         <thead className="bg-muted/40 text-[11px] uppercase tracking-wide text-muted-foreground">
           <tr>
             {selectable && (
@@ -91,7 +93,7 @@ export function ApplicationTable({
                 )}
                 {visible.map((col) => (
                   <td key={col.key} className={'px-3 py-2 align-top ' + classFor(col.key) + (col.align === 'right' ? ' text-right tabular-nums' : '')}>
-                    {renderCell(col.key, a, busy, onChangeStatus, statusLabels, statusStyles)}
+                    {renderCell(col.key, a, busy, onChangeStatus, statusLabels, statusStyles, theme)}
                   </td>
                 ))}
               </tr>
@@ -115,13 +117,14 @@ function renderCell(
   onChangeStatus?: (app: FinanceApplication) => void,
   statusLabels?: Record<string, string>,
   statusStyles?: Record<string, string>,
+  theme: 'light' | 'dark' = 'dark',
 ): React.ReactNode {
   const any = a as any;
   switch (key) {
     case 'applicant':
       return (
         <>
-          <div className="font-medium text-foreground">{appName(a)}</div>
+          <div className="font-semibold text-foreground">{appName(a)}</div>
           <div className="text-xs text-muted-foreground truncate">{any.email || ''}</div>
           {busy && (
             <div className="mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white" style={{ backgroundColor: busy.color }}>
@@ -132,7 +135,7 @@ function renderCell(
         </>
       );
     case 'status': {
-      const cls = statusStyles?.[any.status] || STATUS_STYLES[any.status] || 'bg-muted text-muted-foreground border-border';
+      const cls = statusStyles?.[any.status] || statusBadgeClass(any.status, theme) || 'bg-muted text-muted-foreground border-border';
       const label = statusLabels?.[any.status] || ADMIN_STATUS_LABELS[any.status] || any.status || '—';
       return onChangeStatus ? (
         <button type="button" onClick={(e) => { e.stopPropagation(); onChangeStatus(a); }} title="Click to change status"
@@ -168,7 +171,7 @@ function renderCell(
       return k === 'no_notes' ? <span className="text-xs text-muted-foreground/50">—</span>
         : <span className="text-xs text-foreground">{lbl}</span>;
     }
-    case 'phone': return <span className="whitespace-nowrap">{formatPhone(any.phone)}</span>;
+    case 'phone': return <span className="whitespace-nowrap tabular-nums">{formatPhone(any.phone)}</span>;
     case 'email': return <span className="text-xs">{any.email || '—'}</span>;
     case 'id_number': return <span className="font-mono text-xs">{any.id_number || '—'}</span>;
     case 'vehicle':
@@ -183,7 +186,7 @@ function renderCell(
     case 'deal_type': return <span className="text-xs capitalize">{any.deal_type || '—'}</span>;
     case 'created':
       return (
-        <div className="whitespace-nowrap text-muted-foreground">
+        <div className="whitespace-nowrap text-muted-foreground tabular-nums">
           <div>{formatDate(any.created_at) || '—'}</div>
           {formatTime(any.created_at) && <div className="text-[10px] opacity-60">{formatTime(any.created_at)}</div>}
         </div>

@@ -19,15 +19,19 @@ export function PipelineTabNav({
             type="button"
             onClick={() => onChange(t.key)}
             className={cn(
-              'flex items-center gap-2 rounded-t-md px-3 py-2 text-sm font-medium transition border-b-2 -mb-px',
+              'flex items-center gap-2 rounded-t-md px-3 py-2 text-sm transition border-b-2 -mb-px',
               active
-                ? `bg-muted/40 ${t.accent} border-current`
-                : 'text-muted-foreground hover:text-foreground border-transparent',
+                // Active: bright full-foreground label + 2px gold accent underline.
+                ? 'bg-muted/40 text-foreground font-semibold'
+                // Inactive: muted label, transparent border.
+                : 'text-muted-foreground hover:text-foreground border-transparent font-medium',
             )}
+            style={active ? { borderBottomColor: 'hsl(var(--desk-accent))' } : undefined}
           >
             {t.label}
-            <span className={cn('rounded-full px-1.5 py-0.5 text-[10px] tabular-nums',
-              active ? 'bg-background/60' : 'bg-muted text-muted-foreground')}>
+            {/* Active count = solid gold accent chip; inactive = quiet muted chip. */}
+            <span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums',
+              active ? 'desk-accent-fill' : 'bg-muted text-muted-foreground')}>
               {count.toLocaleString()}
             </span>
           </button>

@@ -5,10 +5,11 @@ import AdminSidebar from './AdminSidebar';
 import AIAssistantWidget from './AIAssistantWidget';
 import GlobalSearch from './GlobalSearch';
 import TaskOSButton from './taskos/TaskOSButton';
-import { Menu } from 'lucide-react';
+import { Menu, Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useAdminDensity } from '@/hooks/useAdminDensity';
+import { useDeskTheme } from '@/hooks/useDeskTheme';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -17,6 +18,7 @@ interface AdminLayoutProps {
 const AdminLayout = ({ children }: AdminLayoutProps) => {
   const { user, isStaff, loading } = useAuth();
   const { density } = useAdminDensity();
+  const { theme, toggle: toggleTheme } = useDeskTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -33,7 +35,11 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex w-full">
+    // `desk-root` on the OUTER shell so the WHOLE admin chrome (sidebar + header +
+    // main) shares the DM Sans UI font and re-themes together in light mode. The
+    // light tokens are scoped to `.desk-root.theme-light`, so the public site is
+    // never touched. `<main>` keeps its own desk-root for the density rules.
+    <div className={`desk-root${theme === 'light' ? ' theme-light' : ''} min-h-screen bg-background flex w-full`}>
       {/* Desktop Sidebar - spacer div matches fixed sidebar width */}
       <div className={`hidden md:block flex-shrink-0 transition-all duration-300 ${collapsed ? 'w-16' : 'w-60'}`}>
         <AdminSidebar onCollapse={setCollapsed} />
@@ -52,10 +58,19 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           </SheetContent>
         </Sheet>
         <span className="font-display text-lg font-bold text-gradient ml-3">Admin</span>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="ml-auto"
+          onClick={toggleTheme}
+          title={`Theme: ${theme === 'light' ? 'Light' : 'Dark'} — tap to switch`}
+        >
+          {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+        </Button>
       </div>
 
       {/* Main Content - flex-1 fills remaining space, min-w-0 prevents overflow */}
-      <main className={`desk-root density-${density} flex-1 min-w-0 min-h-screen pt-14 md:pt-0 overflow-x-hidden`}>
+      <main className={`desk-root density-${density}${theme === 'light' ? ' theme-light' : ''} flex-1 min-w-0 min-h-screen pt-14 md:pt-0 overflow-x-hidden`}>
         {children}
       </main>
 
