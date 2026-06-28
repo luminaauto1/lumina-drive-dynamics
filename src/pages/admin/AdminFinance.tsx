@@ -26,8 +26,9 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useFinanceApplications, useUpdateFinanceApplication, useDeleteFinanceApplication, FinanceApplication } from '@/hooks/useFinanceApplications';
 import { formatPrice } from '@/hooks/useVehicles';
-import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS, STATUS_STEP_ORDER, getWhatsAppMessage, canShowDealActions } from '@/lib/statusConfig';
+import { STATUS_OPTIONS, ADMIN_STATUS_LABELS, STATUS_STEP_ORDER, getWhatsAppMessage, canShowDealActions, statusBadgeClass } from '@/lib/statusConfig';
 import { useStatusConfig } from '@/hooks/useZtcSettings';
+import { useDeskTheme } from '@/hooks/useDeskTheme';
 import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
 import { INTERNAL_STATUSES, type InternalStatus, normalizeInternalStatus } from '@/lib/internalStatusConfig';
 import { CommentGateModal } from '@/components/admin/CommentGateModal';
@@ -80,6 +81,7 @@ const AdminFinance = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { isSuperAdmin, isSeniorFAndI, isFAndI, role, user } = useAuth();
+  const { theme } = useDeskTheme();
   const { whatsappMessageFor, commentRequiredFor, commentPromptFor } = useStatusConfig();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -1018,17 +1020,16 @@ const AdminFinance = () => {
             </div>
           ) : (
             <div className="overflow-x-auto">
-            <Table className="min-w-[1040px] [&_td]:py-2 [&_th]:py-2">
+            <Table className="min-w-[1040px] [&_td]:py-3 [&_th]:py-2.5">
               <TableHeader>
-                <TableRow className="border-white/10 hover:bg-white/5">
-                  <TableHead className="text-muted-foreground">Name</TableHead>
-                  <TableHead className="text-muted-foreground">Mobile</TableHead>
-                  
-                  <TableHead className="text-muted-foreground">Status</TableHead>
-                  <TableHead className="text-muted-foreground">Credit Check</TableHead>
-                  <TableHead className="text-muted-foreground">Internal</TableHead>
-                  <TableHead className="text-muted-foreground">Date</TableHead>
-                  <TableHead className="text-muted-foreground text-right">Actions</TableHead>
+                <TableRow className="border-border hover:bg-transparent">
+                  <TableHead className="text-muted-foreground text-[11px] uppercase tracking-wider">Name</TableHead>
+                  <TableHead className="text-muted-foreground text-[11px] uppercase tracking-wider">Mobile</TableHead>
+                  <TableHead className="text-muted-foreground text-[11px] uppercase tracking-wider">Status</TableHead>
+                  <TableHead className="text-muted-foreground text-[11px] uppercase tracking-wider">Credit Check</TableHead>
+                  <TableHead className="text-muted-foreground text-[11px] uppercase tracking-wider">Internal</TableHead>
+                  <TableHead className="text-muted-foreground text-[11px] uppercase tracking-wider">Date</TableHead>
+                  <TableHead className="text-muted-foreground text-[11px] uppercase tracking-wider text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1069,16 +1070,17 @@ const AdminFinance = () => {
                   <TableRow
                     key={app.id}
                     id={`app-row-${app.id}`}
-                    className={`border-white/10 hover:bg-white/5 cursor-pointer transition-colors ${app.status === 'pre_approved' ? 'bg-green-900/10 border-l-4 !border-l-green-500 shadow-[0_0_12px_-4px_rgba(34,197,94,0.5)]' : ''} ${isNew ? 'bg-emerald-500/5' : ''} ${isStagnant ? 'bg-orange-500/5' : ''} ${isHighlighted ? 'ring-2 ring-amber-300/70 bg-amber-300/10 animate-pulse' : ''}`}
+                    className={`border-border hover:bg-muted/40 cursor-pointer transition-colors ${app.status === 'pre_approved' ? 'bg-green-900/10 border-l-4 !border-l-green-500 shadow-[0_0_12px_-4px_rgba(34,197,94,0.5)]' : ''} ${isNew ? 'bg-emerald-500/5' : ''} ${isStagnant ? 'bg-orange-500/5' : ''} ${isHighlighted ? 'ring-2 ring-amber-300/70 bg-amber-300/10 animate-pulse' : ''}`}
                     onClick={() => navigate(`/admin/finance/${app.id}`)}
                   >
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center gap-2">
+                    <TableCell className="align-top" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex flex-col gap-1.5 min-w-[15rem]">
+                        {/* Identity — primary line: name + email + rep */}
                         <button
                           onClick={(e) => { e.preventDefault(); openClientHub(app.email, app.phone); }}
-                          className="hover:text-emerald-400 hover:underline cursor-pointer text-left focus:outline-none"
+                          className="group/name text-left focus:outline-none"
                         >
-                          <p className="font-medium flex items-center gap-2 flex-wrap">
+                          <p className="font-medium text-foreground flex items-center gap-2 flex-wrap group-hover/name:text-emerald-400 group-hover/name:underline transition-colors">
                             {(app as any).bank_reference && (
                               <BankReferenceBadge
                                 reference={(app as any).bank_reference}
@@ -1088,47 +1090,8 @@ const AdminFinance = () => {
                               />
                             )}
                             <span>{app.first_name} {app.last_name}</span>
-                            {(() => {
-                              const fni = (app as any).fni_owner;
-                              const canReassign = role === 'super_admin' || role === 'senior_f_and_i';
-                              if (!fni?.full_name && !fni?.email) {
-                                if (!canReassign) return null;
-                                return (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditBankRefApp(app); setEditBankRefOpen(true); }}
-                                    className="ml-1 text-[10px] uppercase tracking-wider text-amber-300 font-semibold border border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 px-1.5 py-0.5 rounded"
-                                    title="Assign F&I"
-                                  >
-                                    + Assign F&amp;I
-                                  </button>
-                                );
-                              }
-                              const fniFirst = fni.full_name
-                                ? String(fni.full_name).trim().split(/\s+/)[0]
-                                : String(fni.email).split('@')[0];
-                              const baseCls = "ml-1 text-[10px] uppercase tracking-wider text-pink-300 font-semibold border border-pink-500/50 bg-pink-500/15 px-1.5 py-0.5 rounded shadow-[0_0_8px_-2px_rgba(236,72,153,0.5)]";
-                              if (canReassign) {
-                                return (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditBankRefApp(app); setEditBankRefOpen(true); }}
-                                    className={`${baseCls} hover:bg-pink-500/25 cursor-pointer`}
-                                    title={`Reassign F&I (current: ${fni.full_name || fni.email})`}
-                                  >
-                                    F&amp;I: {fniFirst}
-                                  </button>
-                                );
-                              }
-                              return (
-                                <span className={baseCls} title={`Assigned F&I: ${fni.full_name || fni.email}`}>
-                                  F&amp;I: {fniFirst}
-                                </span>
-                              );
-                            })()}
-
                           </p>
-                          <p className="text-xs text-muted-foreground">{app.email}</p>
+                          <p className="text-xs text-muted-foreground truncate max-w-[15rem]">{app.email}</p>
                           {(() => {
                             const creator = (app as any).creator;
                             if (!creator?.full_name && !creator?.email) return null;
@@ -1136,98 +1099,151 @@ const AdminFinance = () => {
                               ? String(creator.full_name).trim().split(/\s+/)[0]
                               : String(creator.email).split('@')[0];
                             return (
-                              <p className="text-[10px] text-zinc-500 mt-0.5 flex items-center gap-1">
+                              <p className="text-[10px] text-muted-foreground/80 mt-0.5 flex items-center gap-1">
                                 <User className="w-2.5 h-2.5" />
                                 <span className="font-medium">Rep:</span>{' '}
-                                <span className="text-zinc-400">{firstName}</span>
+                                <span>{firstName}</span>
                               </p>
                             );
                           })()}
                         </button>
-                        {isNew && (
-                          <span className="px-1.5 py-0.5 text-[10px] uppercase font-bold rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse">
-                            🔥 NEW
-                          </span>
-                        )}
-                        {isStagnant && !isNew && (
-                          <span className="px-1.5 py-0.5 text-[10px] uppercase font-bold rounded bg-orange-500/20 text-orange-400 border border-orange-500/30">
-                            ⏳ STALE
-                          </span>
-                        )}
-                        {riskReason && (
-                          <span className="px-1.5 py-0.5 text-[10px] uppercase font-bold rounded bg-red-500/20 text-red-400 border border-red-500/30" title={riskReason}>
-                            ⚠ {riskReason}
-                          </span>
-                        )}
+
+                        {/* F&I assignment — one clean, consistent chip/control */}
                         {(() => {
-                          const src = (app as any).submission_source;
-                          let icon: JSX.Element;
-                          let label: string;
-                          if (src === 'whatsapp_parser') {
-                            icon = <MessageCircle className="w-3 h-3" />;
-                            label = 'WhatsApp PDF';
-                          } else if (src === 'website') {
-                            icon = <Globe className="w-3 h-3" />;
-                            label = 'Website';
-                          } else if (src && String(src).trim() !== '') {
-                            icon = <FileText className="w-3 h-3" />;
-                            label = String(src);
-                          } else {
-                            icon = <FileText className="w-3 h-3" />;
-                            label = 'Legacy';
-                          }
-                          return (
-                            <span
-                              className="inline-flex items-center justify-center p-1 rounded border border-white/10 bg-white/5 text-white/60"
-                              title={`Source: ${label}`}
-                              aria-label={`Source: ${label}`}
-                            >
-                              {icon}
-                            </span>
-                          );
-                        })()}
-                        {(() => {
-                          const dEmail = !!(app as any).docs_email;
-                          const dWa = !!(app as any).docs_whatsapp;
-                          if (!dEmail && !dWa) {
+                          const fni = (app as any).fni_owner;
+                          const canReassign = role === 'super_admin' || role === 'senior_f_and_i';
+                          // Uniform chip footprint shared by all three states.
+                          const chipBase = "inline-flex items-center gap-1 h-5 px-2 rounded-full text-[10px] uppercase tracking-wider font-semibold border transition-colors";
+                          if (!fni?.full_name && !fni?.email) {
+                            if (!canReassign) return null;
                             return (
-                              <span
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] uppercase tracking-wider rounded border border-red-500/30 bg-red-500/10 text-red-400"
-                                title="No documents received yet"
+                              <button
+                                type="button"
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditBankRefApp(app); setEditBankRefOpen(true); }}
+                                className={`${chipBase} w-fit text-muted-foreground border-border bg-muted/40 hover:bg-muted/70 hover:text-foreground`}
+                                title="Assign F&I"
                               >
-                                <FileX className="w-3 h-3" /> No Docs
-                              </span>
+                                + Assign F&amp;I
+                              </button>
+                            );
+                          }
+                          const fniFirst = fni.full_name
+                            ? String(fni.full_name).trim().split(/\s+/)[0]
+                            : String(fni.email).split('@')[0];
+                          const assignedCls = `${chipBase} w-fit text-pink-400 border-pink-500/40 bg-pink-500/10`;
+                          if (canReassign) {
+                            return (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditBankRefApp(app); setEditBankRefOpen(true); }}
+                                className={`${assignedCls} hover:bg-pink-500/20 cursor-pointer`}
+                                title={`Reassign F&I (current: ${fni.full_name || fni.email})`}
+                              >
+                                <User className="w-2.5 h-2.5" />
+                                F&amp;I: {fniFirst}
+                              </button>
                             );
                           }
                           return (
-                            <span
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                              title={`Docs received via ${[dEmail && 'Email', dWa && 'WhatsApp'].filter(Boolean).join(' & ')}`}
-                            >
-                              {dEmail && <Mail className="w-3 h-3" />}
-                              {dWa && <MessageCircle className="w-3 h-3" />}
+                            <span className={assignedCls} title={`Assigned F&I: ${fni.full_name || fni.email}`}>
+                              <User className="w-2.5 h-2.5" />
+                              F&amp;I: {fniFirst}
                             </span>
+                          );
+                        })()}
+
+                        {/* Secondary indicators — one tidy, uniform cluster.
+                            Muted unless meaningful; consistent h-5 pill / square footprint. */}
+                        {(() => {
+                          const indicatorBase = "inline-flex items-center gap-1 h-5 px-1.5 rounded text-[10px] uppercase tracking-wider font-medium border whitespace-nowrap";
+                          const iconTileBase = "inline-flex items-center justify-center h-5 w-5 rounded border";
+
+                          // Source descriptor
+                          const src = (app as any).submission_source;
+                          let srcIcon: JSX.Element;
+                          let srcLabel: string;
+                          if (src === 'whatsapp_parser') {
+                            srcIcon = <MessageCircle className="w-3 h-3" />;
+                            srcLabel = 'WhatsApp PDF';
+                          } else if (src === 'website') {
+                            srcIcon = <Globe className="w-3 h-3" />;
+                            srcLabel = 'Website';
+                          } else if (src && String(src).trim() !== '') {
+                            srcIcon = <FileText className="w-3 h-3" />;
+                            srcLabel = String(src);
+                          } else {
+                            srcIcon = <FileText className="w-3 h-3" />;
+                            srcLabel = 'Legacy';
+                          }
+
+                          const dEmail = !!(app as any).docs_email;
+                          const dWa = !!(app as any).docs_whatsapp;
+                          const hasDocs = dEmail || dWa;
+
+                          return (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {isNew && (
+                                <span className={`${indicatorBase} font-bold border-emerald-500/30 bg-emerald-500/10 text-emerald-400`}>
+                                  🔥 NEW
+                                </span>
+                              )}
+                              {isStagnant && !isNew && (
+                                <span className={`${indicatorBase} font-bold border-orange-500/30 bg-orange-500/10 text-orange-400`}>
+                                  ⏳ STALE
+                                </span>
+                              )}
+                              {riskReason && (
+                                <span className={`${indicatorBase} font-bold border-red-500/30 bg-red-500/10 text-red-400`} title={riskReason}>
+                                  ⚠ {riskReason}
+                                </span>
+                              )}
+                              {/* Source — muted icon tile (informational, never alarming) */}
+                              <span
+                                className={`${iconTileBase} border-border bg-muted/40 text-muted-foreground`}
+                                title={`Source: ${srcLabel}`}
+                                aria-label={`Source: ${srcLabel}`}
+                              >
+                                {srcIcon}
+                              </span>
+                              {/* Docs — red pill when missing (meaningful), muted tile when received */}
+                              {hasDocs ? (
+                                <span
+                                  className={`${iconTileBase} border-border bg-muted/40 text-muted-foreground`}
+                                  title={`Docs received via ${[dEmail && 'Email', dWa && 'WhatsApp'].filter(Boolean).join(' & ')}`}
+                                >
+                                  {dEmail && <Mail className="w-3 h-3" />}
+                                  {dWa && <MessageCircle className="w-3 h-3" />}
+                                </span>
+                              ) : (
+                                <span
+                                  className={`${indicatorBase} border-red-500/30 bg-red-500/10 text-red-400`}
+                                  title="No documents received yet"
+                                >
+                                  <FileX className="w-3 h-3" /> No Docs
+                                </span>
+                              )}
+                            </div>
                           );
                         })()}
                       </div>
                     </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="align-top" onClick={(e) => e.stopPropagation()}>
                       {app.phone ? (
                         <a
                           href={`https://wa.me/${whatsAppPhone}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 text-sm text-green-500 hover:text-green-400 transition-colors"
+                          className="inline-flex items-center gap-1.5 text-sm text-green-500 hover:text-green-400 transition-colors tabular-nums whitespace-nowrap"
                           title="Open WhatsApp"
                         >
-                          <MessageCircle className="w-4 h-4 fill-green-500/20" />
+                          <MessageCircle className="w-4 h-4 fill-green-500/20 shrink-0" />
                           {app.phone}
                         </a>
                       ) : (
                         <span className="text-muted-foreground text-sm">N/A</span>
                       )}
                     </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="align-top" onClick={(e) => e.stopPropagation()}>
                       <Select
                         value={app.status}
                         onValueChange={(newStatus) => requestFinanceStatusChange(app, newStatus)}
@@ -1240,7 +1256,7 @@ const AdminFinance = () => {
                            return (
                              <SelectTrigger
                                title={tip}
-                               className={`w-[180px] h-7 text-xs uppercase tracking-wider border whitespace-nowrap ${STATUS_STYLES[app.status] || STATUS_STYLES.pending}`}
+                               className={`w-[180px] h-7 text-xs uppercase tracking-wider border whitespace-nowrap ${statusBadgeClass(app.status, theme) || statusBadgeClass('pending', theme)}`}
                              >
                                <SelectValue>
                                  <span className="whitespace-nowrap">
@@ -1259,7 +1275,7 @@ const AdminFinance = () => {
                         </SelectContent>
                       </Select>
                      </TableCell>
-                     <TableCell onClick={(e) => e.stopPropagation()}>
+                     <TableCell className="align-top" onClick={(e) => e.stopPropagation()}>
                        {(() => {
                          const cc = (app as any).credit_check_status as 'passed' | 'failed' | null | undefined;
                          const ccStyle =
@@ -1267,7 +1283,7 @@ const AdminFinance = () => {
                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
                              : cc === 'failed'
                                ? 'bg-red-500/10 text-red-400 border-red-500/30'
-                               : 'bg-zinc-900 text-zinc-400 border-white/10';
+                               : 'bg-muted/40 text-muted-foreground border-border';
                          return (
                            <Select
                              value={cc || ''}
@@ -1288,7 +1304,7 @@ const AdminFinance = () => {
                          );
                        })()}
                      </TableCell>
-                     <TableCell onClick={(e) => e.stopPropagation()}>
+                     <TableCell className="align-top" onClick={(e) => e.stopPropagation()}>
                        {(() => {
                          const safeStatusKey = getDisplayStatus(app);
                          const statusConfig = INTERNAL_STATUSES[safeStatusKey as keyof typeof INTERNAL_STATUSES] || INTERNAL_STATUSES.no_notes;
@@ -1330,27 +1346,27 @@ const AdminFinance = () => {
                                  setStatusNote('');
                                  setStatusModalOpen(true);
                                }}
-                               className="relative flex h-7 w-7 items-center justify-center rounded border border-zinc-800 bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors"
+                               className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded border border-border bg-muted/40 text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors"
                                title={hasNotes ? "View Notes" : "Add Note"}
                              >
                                <span className="text-xs leading-none">📝</span>
                                {showDot && (
-                                 <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-zinc-950" />
+                                 <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-background" />
                                )}
                              </button>
                            </div>
                          );
                        })()}
                     </TableCell>
-                     <TableCell className="text-sm text-muted-foreground">
-                       <div className="whitespace-nowrap text-sm text-zinc-200">
+                     <TableCell className="align-top text-sm text-muted-foreground">
+                       <div className="whitespace-nowrap text-sm text-foreground tabular-nums">
                          {new Date(app.created_at).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short' })}
-                         <span className="text-xs text-zinc-500 ml-2">
+                         <span className="text-xs text-muted-foreground ml-2">
                            {new Date(app.created_at).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })}
                          </span>
                        </div>
                      </TableCell>
-                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="align-top text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
                         {/* Request Revision */}
                         {['pending', 'application_submitted', 'pre_approved', 'documents_received', 'revision_submitted'].includes(app.status) && (
