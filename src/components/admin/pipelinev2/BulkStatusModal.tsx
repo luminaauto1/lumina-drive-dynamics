@@ -1,12 +1,21 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import type { useUpdateFinanceApplication } from '@/hooks/useFinanceApplications';
 import { StatusSelect } from '@/components/admin/StatusSelect';
 import type { StatusTrack } from '@/lib/admin/statusTracks';
+import { useStatusConfig } from '@/hooks/useZtcSettings';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { addPipelineNote } from '@/lib/pipelinev2/notes';
 
 const TERMINAL = ['declined', 'blacklisted', 'lost'];
+
+const authorName = (user: any): string =>
+  user?.user_metadata?.full_name?.trim() || user?.email?.split('@')[0] || 'Unknown';
 
 export function BulkStatusModal({
   appIds, updateApplication, onClose, onDone, role, labelOverrides, onApplyDealStage,
@@ -25,12 +34,20 @@ export function BulkStatusModal({
 }) {
   const [track, setTrack] = useState<StatusTrack>('finance');
   const [status, setStatus] = useState('');
+  const [comment, setComment] = useState('');
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(0);
   const [failures, setFailures] = useState<string[]>([]);
+  const { commentRequiredFor, commentPromptFor } = useStatusConfig();
+  const { user } = useAuth();
+
+  // Comment gate only applies to the finance track here (deal stage has no rules).
+  const commentRequired = track === 'finance' && !!status && commentRequiredFor(status);
+  const commentMissing = commentRequired && !comment.trim();
 
   const run = async () => {
     if (!status) return;
+    if (commentMissing) return;
     setRunning(true); setDone(0); setFailures([]);
 
     // Deal-stage track: delegate the whole batch to the caller's updater (writes
@@ -50,6 +67,7 @@ export function BulkStatusModal({
     }
 
     const fails: string[] = [];
+    const noteBody = comment.trim();
     // Sequential — each row goes through the SAME mutation so every notification
     // fires (matches ZTC's per-row change-status loop). The hook toasts per row.
     for (const id of appIds) {
@@ -58,6 +76,21 @@ export function BulkStatusModal({
         if (TERMINAL.includes(status)) updates.is_archived = true;
         if (status === 'sent_to_banks') updates.internal_status = 'no_notes';
         await updateApplication.mutateAsync({ id, updates });
+        // Persist the same batch comment per row as a status_change note. Fetch the
+        // current pipeline_notes for this row so the prepend is correct.
+        if (noteBody) {
+          const { data: row } = await supabase
+            .from('finance_applications')
+            .select('id, pipeline_notes')
+            .eq('id', id)
+            .maybeSingle();
+          await addPipelineNote(row ?? { id }, {
+            body: noteBody,
+            category: 'status_change',
+            author_id: user?.id ?? null,
+            author_name: authorName(user),
+          });
+        }
       } catch {
         fails.push(id);
       }
@@ -68,7 +101,7 @@ export function BulkStatusModal({
     if (fails.length === 0) { onDone(); onClose(); }
   };
 
-  const setTrackAndReset = (t: StatusTrack) => { setTrack(t); setStatus(''); };
+  const setTrackAndReset = (t: StatusTrack) => { setTrack(t); setStatus(''); setComment(''); };
 
   return (
     <Dialog open onOpenChange={(o) => !o && !running && onClose()}>
@@ -98,6 +131,21 @@ export function BulkStatusModal({
             className="w-full"
           />
 
+          {/* Comment gate — shown for the finance track when the chosen status requires it. */}
+          {commentRequired && !running && (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">
+                {commentPromptFor(status) || 'Comment'}<span className="text-red-400"> *</span>
+              </Label>
+              <Textarea
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                rows={2}
+                placeholder="A comment is required for this status — applied to every selected application."
+              />
+            </div>
+          )}
+
           {running && <p className="text-sm text-muted-foreground">Processing {done}/{appIds.length}…{track === 'finance' ? ' (each fires its own notifications)' : ''}</p>}
           {failures.length > 0 && <p className="text-sm text-red-400">{failures.length} failed — others applied. Close and retry the rest.</p>}
           {!running && track === 'finance' && <p className="text-[11px] text-muted-foreground">Each application is updated individually so its WhatsApp / email / CRM notification fires — expect one toast per application.</p>}
@@ -105,7 +153,7 @@ export function BulkStatusModal({
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} disabled={running}>Cancel</Button>
-          <Button onClick={run} disabled={running || !status}>
+          <Button onClick={run} disabled={running || !status || commentMissing}>
             {running ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Apply to {appIds.length}
           </Button>
         </DialogFooter>

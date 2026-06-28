@@ -12,11 +12,15 @@
 // (finance = pill / rounded-full; deal = tag / rounded-sm with a left notch dot).
 
 import type { ComponentType } from 'react';
-import { Banknote, Truck } from 'lucide-react';
+import { Banknote, Truck, UserCheck } from 'lucide-react';
 import { STATUS_OPTIONS, STATUS_STYLES, ADMIN_STATUS_LABELS } from '@/lib/statusConfig';
 import { DEAL_STAGE_OPTIONS, DEAL_STAGE_LABEL, type DealStage } from '@/lib/dealdesk/types';
 
-export type StatusTrack = 'finance' | 'deal';
+// 'client' = the admin-defined client-facing status track (status_overrides rows
+// with status_type='client'). Its options/labels/colours are 100% DB-driven and
+// injected at call sites from useStatusConfig().clientStatuses — there is no
+// built-in option list or fallback map for it.
+export type StatusTrack = 'finance' | 'deal' | 'client';
 
 const FALLBACK_CLASS = 'bg-muted text-muted-foreground border-border';
 
@@ -52,6 +56,13 @@ export const TRACK_META: Record<StatusTrack, TrackMeta> = {
     Icon: Truck,
     shapeClass: 'rounded-sm',
     options: DEAL_STAGE_OPTIONS,
+  },
+  // Client = rounded "card" silhouette. Options are DB-driven (empty here) and
+  // passed to <StatusSelect options={…}> from useStatusConfig().clientStatuses.
+  client: {
+    Icon: UserCheck,
+    shapeClass: 'rounded-md',
+    options: [],
   },
 };
 
@@ -92,6 +103,10 @@ export function trackLabel(
   if (track === 'finance') {
     return overrides?.[value] || ADMIN_STATUS_LABELS[value] || value;
   }
+  // Client statuses are 100% admin-defined — no built-in fallback map.
+  if (track === 'client') {
+    return overrides?.[value] || value;
+  }
   return DEAL_STAGE_LABEL[value as keyof typeof DEAL_STAGE_LABEL] || value;
 }
 
@@ -105,6 +120,10 @@ export function trackClass(
   if (!value) return FALLBACK_CLASS;
   if (track === 'finance') {
     return overrides?.[value] || STATUS_STYLES[value] || FALLBACK_CLASS;
+  }
+  // Client statuses are 100% admin-defined — no built-in fallback map.
+  if (track === 'client') {
+    return overrides?.[value] || FALLBACK_CLASS;
   }
   return DEAL_STAGE_CLASS[value] || FALLBACK_CLASS;
 }

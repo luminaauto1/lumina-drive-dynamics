@@ -533,6 +533,33 @@ export const useUpdateFinanceApplication = () => {
   });
 };
 
+// Isolated writer for the customizable CLIENT-status track (finance_applications.
+// client_status). Lowest possible blast radius: it touches ONLY that one column
+// and fires NO notify-* / easysocial / auto-mailer / status_history side-effects.
+// The finance dispatch fan-out in useUpdateFinanceApplication is never involved.
+export const useUpdateClientStatus = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, client_status }: { id: string; client_status: string }) => {
+      const { error } = await supabase
+        .from('finance_applications')
+        .update({ client_status } as any)
+        .eq('id', id);
+      if (error) throw error;
+      // Lightweight audit trail only — never a status_change dispatch.
+      void logActivity({ actionType: 'other', note: `Client status → ${client_status}`, applicationId: id });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['finance-applications'] });
+      toast.success('Client status updated');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to update client status');
+    },
+  });
+};
+
 export const useDeleteFinanceApplication = () => {
   const queryClient = useQueryClient();
 

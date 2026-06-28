@@ -14,6 +14,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUpdateFinanceApplication } from '@/hooks/useFinanceApplications';
+import { useStatusConfig } from '@/hooks/useZtcSettings';
+import { CommentGateModal } from '@/components/admin/CommentGateModal';
+import { addPipelineNote } from '@/lib/pipelinev2/notes';
 import { STATUS_OPTIONS } from '@/lib/statusConfig';
 import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
 import { format } from 'date-fns';
@@ -53,10 +56,13 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
   // Shared status-change path: fires the same side-effects as the Finance page
   // (client emails / WhatsApp / EasySocial tag sync / status_history).
   const updateApplication = useUpdateFinanceApplication();
-  const { role } = useAuth();
+  const { role, user } = useAuth();
+  const { commentRequiredFor, commentPromptFor } = useStatusConfig();
   // Terminal / customer-messaging transitions get a confirm step (a single mis-tap
   // would otherwise WhatsApp/email the client and archive the deal).
   const [pendingStatusChange, setPendingStatusChange] = useState<{ app: any; status: string } | null>(null);
+  // Comment-gate interception (pops before any write when comment_required).
+  const [commentGate, setCommentGate] = useState<{ app: any; status: string } | null>(null);
 
   // Role-appropriate options, and always include the app's CURRENT status so the
   // trigger renders a label even for legacy statuses not in STATUS_OPTIONS.
@@ -331,11 +337,13 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
 
   const requestStatusChange = (app: any, newStatus: string) => {
     if (!app || !newStatus || newStatus === app.status) return;
+    // Comment gate takes priority — a required comment must be captured first.
+    if (commentRequiredFor(newStatus)) { setCommentGate({ app, status: newStatus }); return; }
     if (CONFIRM_STATUSES.has(newStatus)) { setPendingStatusChange({ app, status: newStatus }); return; }
     handleStatusChange(app, newStatus);
   };
 
-  const handleStatusChange = async (app: any, newStatus: string) => {
+  const handleStatusChange = async (app: any, newStatus: string, comment?: string) => {
     if (!app || !newStatus || newStatus === app.status) return;
     const archiveOnTerminal = ['declined', 'blacklisted', 'lost', 'client_cancelled'].includes(newStatus);
     try {
@@ -347,6 +355,17 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
     } catch (e: any) {
       toast.error('Failed to update status: ' + (e?.message || 'unknown error'));
       return;
+    }
+    // Comment gate — persist the entered comment as a status_change note.
+    if (comment && comment.trim()) {
+      try {
+        await addPipelineNote(app, {
+          body: comment.trim(),
+          category: 'status_change',
+          author_id: user?.id ?? null,
+          author_name: (user as any)?.user_metadata?.full_name?.trim() || user?.email?.split('@')[0] || 'Unknown',
+        });
+      } catch { /* non-fatal */ }
     }
     // Status is saved; the audit note + refresh are best-effort (never undo the change).
     const label = STATUS_OPTIONS.find((o) => o.value === newStatus)?.label || newStatus.replace(/_/g, ' ');
@@ -848,6 +867,22 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
           </DialogContent>
         </Dialog>
       </SheetContent>
+      {commentGate && (
+        <CommentGateModal
+          open
+          required={commentRequiredFor(commentGate.status)}
+          prompt={commentPromptFor(commentGate.status)}
+          onCancel={() => setCommentGate(null)}
+          onConfirm={(comment) => {
+            const g = commentGate;
+            setCommentGate(null);
+            // The comment gate is explicit intent — write directly with the comment
+            // (no second confirm dialog for CONFIRM_STATUSES).
+            void handleStatusChange(g.app, g.status, comment);
+          }}
+        />
+      )}
+
       <AlertDialog open={!!pendingStatusChange} onOpenChange={(o) => { if (!o) setPendingStatusChange(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
