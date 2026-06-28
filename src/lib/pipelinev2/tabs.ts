@@ -34,16 +34,20 @@ const STATUS_TO_TAB: Record<string, string> = (() => {
 export const statusToTab = (status: string | null | undefined): string =>
   (status && STATUS_TO_TAB[status]) || 'intake';
 
-// Valid lane keys (every real PIPELINE_TABS id) — used to validate overrides.
-const VALID_TAB_KEYS = new Set(PIPELINE_TABS.map((t) => t.key));
+// Valid DESTINATION lane keys — every real PIPELINE_TABS id EXCEPT 'all'. 'all'
+// is a view-all pseudo-tab, never a routing target: an app routed to 'all' would
+// match no specific lane (inTab is false for every t.key !== 'all') and so would
+// vanish from every working tab + count. Excluding it here means a stale/invalid
+// lane='all' override falls back to the hardcoded default instead of orphaning.
+const VALID_TAB_KEYS = new Set(PIPELINE_TABS.map((t) => t.key).filter((k) => k !== 'all'));
 
 /**
  * Effective destination lane for a status, honouring a per-slug override map.
  * `overrides` maps a finance status slug -> a PIPELINE_TABS id (from the editable
  * status_overrides.lane column). The override wins ONLY when present AND a real
- * lane id; otherwise we fall back to the hardcoded statusToTab default. So an
- * empty/missing/invalid override === current behaviour. statusToTab itself is
- * never mutated.
+ * destination lane id (a real lane, not the 'all' pseudo-tab); otherwise we fall
+ * back to the hardcoded statusToTab default. So an empty/missing/invalid override
+ * === current behaviour. statusToTab itself is never mutated.
  */
 export const resolveStatusTab = (
   status: string | null | undefined,

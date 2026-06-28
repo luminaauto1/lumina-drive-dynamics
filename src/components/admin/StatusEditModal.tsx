@@ -321,7 +321,10 @@ export function StatusEditModal({
                     <SelectValue placeholder="Pipeline tab" />
                   </SelectTrigger>
                   <SelectContent>
-                    {PIPELINE_TABS.map((t) => (
+                    {/* 'all' is a view-all pseudo-tab, never a routing destination
+                        (an app routed there would match no real lane and vanish
+                        from every working tab + count) — so it's excluded here. */}
+                    {PIPELINE_TABS.filter((t) => t.key !== 'all').map((t) => (
                       <SelectItem key={t.key} value={t.key} className="text-sm">
                         {t.label}{t.key === defaultLaneKey ? ' (default)' : ''}
                       </SelectItem>
