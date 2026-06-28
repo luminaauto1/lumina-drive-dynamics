@@ -56,6 +56,10 @@ const STATUS_COLOR_PRESETS: { label: string; cls: string }[] = [
 
 const FALLBACK_CLASS = 'bg-muted text-muted-foreground border-border';
 
+// <datalist> id backing the EasySocial tag combobox (sourced from config.tags_cache,
+// the same synced dictionary EasySocialTab autocompletes its override fields from).
+const TAG_DATALIST_ID = 'easysocial-tag-cache-statusedit';
+
 const slugifyClientLabel = (label: string): string =>
   'client_' + label
     .toLowerCase()
@@ -90,6 +94,16 @@ export function StatusEditModal({
   // Finance option is inert (shown for parity, but only Client can be saved here).
   const [type, setType] = useState<'finance' | 'client'>(initialMode);
   const isEdit = !!slug;
+
+  // Synced EasySocial tag dictionary (name → id) populated by easysocial-list-tags,
+  // read from config.tags_cache — the same source EasySocialTab uses for its pickers.
+  // Backward-safe: when empty, the tag field below stays plain free-text.
+  const cachedTags: { name: string; id: number }[] = useMemo(() => {
+    const raw = (easySocial?.config as any)?.tags_cache;
+    return Array.isArray(raw)
+      ? raw.filter((t: any) => t && typeof t.name === 'string')
+      : [];
+  }, [easySocial]);
 
   const existing = useMemo(() => overrides.find((o) => o.slug === slug), [overrides, slug]);
   const isClientCreate = type === 'client' && !slug;
@@ -403,11 +417,23 @@ export function StatusEditModal({
             </p>
           </div>
 
-          {/* EasySocial tag-to-add */}
+          {/* EasySocial tag-to-add — combobox over the synced tag dictionary
+              (config.tags_cache); free-text fallback when the cache is empty. */}
           <div className="space-y-1.5">
             <Label className="text-sm">EasySocial tag to add</Label>
-            <Input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="EasySocial tag name (optional)" className="h-8 text-sm" />
-            <p className="text-[11px] text-muted-foreground">Mirrored into the EasySocial status → tag overrides on save.</p>
+            <Input
+              value={tag}
+              onChange={(e) => setTag(e.target.value)}
+              placeholder="EasySocial tag name (optional)"
+              className="h-8 text-sm"
+              list={cachedTags.length > 0 ? TAG_DATALIST_ID : undefined}
+            />
+            {cachedTags.length > 0 && (
+              <datalist id={TAG_DATALIST_ID}>
+                {cachedTags.map((t) => <option key={t.id} value={t.name} />)}
+              </datalist>
+            )}
+            <p className="text-[11px] text-muted-foreground">Mirrored into the EasySocial status → tag overrides on save. · pick from synced tags or type one</p>
           </div>
 
           {error && <p className="text-sm text-red-400">{error}</p>}
