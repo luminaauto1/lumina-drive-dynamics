@@ -18,7 +18,13 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, Save, Trash2, Check } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Loader2, Save, Trash2, Check, ChevronDown, ArrowRight } from 'lucide-react';
 import {
   useStatusConfig,
   useStatusOverrides,
@@ -26,8 +32,10 @@ import {
   useDeleteStatusOverride,
   useEasySocialSettings,
   useUpdateEasySocialSettings,
+  useWhatsAppTemplates,
 } from '@/hooks/useZtcSettings';
 import { getWhatsAppMessage, STATUS_OPTIONS } from '@/lib/statusConfig';
+import { statusToTab, PIPELINE_TABS } from '@/lib/pipelinev2/tabs';
 
 // Expanded palette (the 7 from the inline StatusesTab editor + 5 more).
 const STATUS_COLOR_PRESETS: { label: string; cls: string }[] = [
@@ -75,6 +83,7 @@ export function StatusEditModal({
   const del = useDeleteStatusOverride();
   const { data: easySocial } = useEasySocialSettings();
   const updateEasySocial = useUpdateEasySocialSettings();
+  const { data: waTemplates = [] } = useWhatsAppTemplates();
 
   // Status-type radio: defaulted from initialMode, editable only on CREATE, and
   // disabled on EDIT (slug present). Finance is built-in/fixed in Lumina, so the
@@ -120,6 +129,15 @@ export function StatusEditModal({
   const previewClass = cls || FALLBACK_CLASS;
   const previewLabel = label || effectiveSlug || 'Preview';
   const builtInWaPreview = type === 'finance' && slug ? getWhatsAppMessage(slug, '{name}') : '';
+
+  // Which pipeline tab a FINANCE status routes the application to (read-only —
+  // Lumina lanes are hardcoded in pipelinev2/tabs.ts; this just surfaces the
+  // existing slug→lane mapping for clarity). Empty for client statuses.
+  const destTabLabel = useMemo(() => {
+    if (type !== 'finance' || !slug) return '';
+    const tabKey = statusToTab(slug);
+    return PIPELINE_TABS.find((t) => t.key === tabKey)?.label ?? '';
+  }, [type, slug]);
 
   const titleText = type === 'finance'
     ? (isEdit ? 'Edit finance status' : 'Add status')
@@ -256,6 +274,26 @@ export function StatusEditModal({
             )}
           </div>
 
+          {/* Destination pipeline tab (READ-ONLY). Lumina lanes are hardcoded in
+              pipelinev2/tabs.ts — this surfaces, but does not edit, the slug→lane
+              mapping. Finance only; client statuses don't move pipeline tabs. */}
+          {type === 'finance' && slug && (
+            <div className="space-y-1.5">
+              <Label className="text-sm">Moves the application to</Label>
+              <div className="flex items-center gap-1.5 rounded-md border border-border bg-muted/20 px-2.5 py-2 text-sm">
+                <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="font-medium text-foreground">{destTabLabel || 'New Applications'}</span>
+                <span className="ml-auto text-[11px] uppercase tracking-wide text-muted-foreground/70">Pipeline tab</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                When this status is set on an application, it appears in this pipeline tab. The lane mapping is fixed and can't be edited here.
+              </p>
+            </div>
+          )}
+          {type === 'client' && (
+            <p className="text-[11px] text-muted-foreground">Does not move pipeline tabs.</p>
+          )}
+
           {/* Label */}
           <div className="space-y-1.5">
             <Label className="text-sm">Label <span className="text-red-400">*</span></Label>
@@ -321,9 +359,37 @@ export function StatusEditModal({
             <p className="text-[11px] text-muted-foreground pl-6">Stored only — not yet wired to skip notifications.</p>
           </div>
 
-          {/* WhatsApp message */}
+          {/* WhatsApp message (the click-to-chat body) */}
           <div className="space-y-1.5">
-            <Label className="text-sm">WhatsApp message</Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-sm">WhatsApp message</Label>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" disabled={waTemplates.length === 0}>
+                    Load from template <ChevronDown className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="max-h-72 overflow-y-auto">
+                  {waTemplates.length === 0 ? (
+                    <DropdownMenuItem disabled className="text-xs">No saved templates</DropdownMenuItem>
+                  ) : (
+                    waTemplates.map((tpl) => {
+                      const text = (tpl.preview_text ?? '').trim() || (tpl.body ?? '').trim();
+                      return (
+                        <DropdownMenuItem
+                          key={tpl.key}
+                          disabled={!text}
+                          onSelect={() => { if (text) setWaMessage(text); }}
+                          className="text-xs"
+                        >
+                          {tpl.title || tpl.key}
+                        </DropdownMenuItem>
+                      );
+                    })
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
             <Textarea
               value={waMessage}
               onChange={(e) => setWaMessage(e.target.value)}
@@ -331,7 +397,10 @@ export function StatusEditModal({
               placeholder={builtInWaPreview || 'Blank uses the built-in default; {name} = client first name'}
               className="text-sm"
             />
-            <p className="text-[11px] text-muted-foreground">Blank uses the built-in default. <code className="font-mono">{'{name}'}</code> = client first name.</p>
+            <p className="text-[11px] text-muted-foreground">
+              This is the click-to-chat message body (what the dealer's WhatsApp opens pre-filled) — distinct from the auto-notification templates.
+              Blank uses the built-in default. <code className="font-mono">{'{name}'}</code> = client first name. Loading a template fills this box; you can still edit it freely.
+            </p>
           </div>
 
           {/* EasySocial tag-to-add */}

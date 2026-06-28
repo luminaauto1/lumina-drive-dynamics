@@ -53,7 +53,10 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="p-0 w-64">
+          {/* The drawer is portaled to <body> (outside the .desk-root wrapper), so
+              it must carry the theme class itself — otherwise the sidebar inside it
+              renders with the default dark tokens even in admin light mode. */}
+          <SheetContent side="left" className={`desk-root${theme === 'light' ? ' theme-light' : ''} p-0 w-64`}>
             <AdminSidebar onNavigate={() => setMobileOpen(false)} />
           </SheetContent>
         </Sheet>

@@ -76,6 +76,69 @@ export const useUpdateWhatsAppTemplate = () => {
   });
 };
 
+// Slugify a custom-template title into a stable key fragment (lowercase, _-joined).
+const slugifyTemplateTitle = (title: string): string =>
+  title.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+
+// Create an admin-added custom template. The generated key is `custom_<slug>`,
+// made unique against the existing keys so it can NEVER collide with (or clobber)
+// a built-in auto-notification key. Custom rows are for Test-send + selection only:
+// they are NOT wired to any notify-* dispatch (those fire off fixed built-in keys).
+export const useCreateWhatsAppTemplate = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { title: string; send_url?: string | null; preview_text?: string | null }) => {
+      const title = input.title.trim();
+      if (!title) throw new Error('A title is required.');
+
+      // Read existing rows to (a) pick a collision-free key and (b) sort after them.
+      const { data: existing, error: readErr } = await db
+        .from('whatsapp_templates')
+        .select('key, sort_order');
+      if (readErr) throw readErr;
+      const rows: { key: string; sort_order: number | null }[] = existing ?? [];
+      const keys = new Set(rows.map((r) => r.key));
+
+      const base = 'custom_' + (slugifyTemplateTitle(title) || 'template');
+      let key = base;
+      let n = 2;
+      while (keys.has(key)) key = `${base}_${n++}`;
+
+      const maxSort = rows.reduce((mx, r) => Math.max(mx, r.sort_order ?? 0), 0);
+
+      const { error } = await db.from('whatsapp_templates').insert({
+        key,
+        title,
+        body: '',
+        active: true,
+        send_url: input.send_url?.trim() ? input.send_url.trim() : null,
+        preview_text: input.preview_text?.trim() ? input.preview_text.trim() : null,
+        sort_order: maxSort + 1,
+        updated_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+      return key;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['whatsapp-templates'] }); toast.success('Template added'); },
+    onError: (e: any) => toast.error('Add failed: ' + e.message),
+  });
+};
+
+// Delete a template row. The UI gates this to CUSTOM (custom_*) keys only — the
+// 5 built-in auto-notification rows are never deletable (their keys are wired into
+// the notify-* functions).
+export const useDeleteWhatsAppTemplate = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (key: string) => {
+      const { error } = await db.from('whatsapp_templates').delete().eq('key', key);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['whatsapp-templates'] }); toast.success('Template deleted'); },
+    onError: (e: any) => toast.error('Delete failed: ' + e.message),
+  });
+};
+
 /* ---------------- Status display overrides ---------------- */
 export interface StatusOverride {
   slug: string;
