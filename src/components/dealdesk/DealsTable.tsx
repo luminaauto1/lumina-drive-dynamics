@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card';
 import type { Deal } from '@/lib/dealdesk/types';
 import { natisStatus } from '@/lib/dealdesk/natis';
-import { formatRand, formatRandCompact, formatDate, monthKey, formatMonth } from '@/lib/dealdesk/format';
+import { formatRand, formatDate, monthKey, formatMonth } from '@/lib/dealdesk/format';
 import { StatusBadge, NatisChip } from './badges';
 import { StatusBadge as FinanceStatusBadge } from '@/components/admin/StatusBadge';
 import { useStatusConfig } from '@/hooks/useZtcSettings';
@@ -94,8 +94,8 @@ export function DealsTable(
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-3">
-        <Stat label="Total GP (ledger)" value={formatRandCompact(totalGP)} />
-        <Stat label="Avg GP" value={formatRandCompact(avgGP)} />
+        <Stat label="Total GP (ledger)" value={formatRand(totalGP)} />
+        <Stat label="Avg GP" value={formatRand(avgGP)} />
         <Stat label="Units" value={String(units)} />
       </div>
 
