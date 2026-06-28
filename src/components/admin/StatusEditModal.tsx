@@ -19,6 +19,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -35,7 +42,7 @@ import {
   useWhatsAppTemplates,
 } from '@/hooks/useZtcSettings';
 import { getWhatsAppMessage, STATUS_OPTIONS } from '@/lib/statusConfig';
-import { statusToTab, PIPELINE_TABS } from '@/lib/pipelinev2/tabs';
+import { statusToTab, resolveStatusTab, PIPELINE_TABS } from '@/lib/pipelinev2/tabs';
 
 // Expanded palette (the 7 from the inline StatusesTab editor + 5 more).
 const STATUS_COLOR_PRESETS: { label: string; cls: string }[] = [
@@ -118,6 +125,13 @@ export function StatusEditModal({
   const [isInternal, setIsInternal] = useState(!!existing?.is_internal);
   const [waMessage, setWaMessage] = useState(existing?.whatsapp_message ?? '');
   const [tag, setTag] = useState(existing?.easysocial_tag_to_add ?? '');
+  // FINANCE destination tab (lane). Defaults to the resolved tab: a saved lane
+  // override if present, else the hardcoded statusToTab default. Editing this only
+  // changes which Pipeline v2 tab the app is shown/counted in — never the status
+  // value, dispatch, slugs, or the client track. Inert for client statuses.
+  const [lane, setLane] = useState<string>(() =>
+    slug ? resolveStatusTab(slug, existing?.lane ? { [slug]: existing.lane } : undefined) : 'intake',
+  );
   const [tagSeeded, setTagSeeded] = useState(false);
   const [error, setError] = useState('');
 
@@ -144,14 +158,13 @@ export function StatusEditModal({
   const previewLabel = label || effectiveSlug || 'Preview';
   const builtInWaPreview = type === 'finance' && slug ? getWhatsAppMessage(slug, '{name}') : '';
 
-  // Which pipeline tab a FINANCE status routes the application to (read-only —
-  // Lumina lanes are hardcoded in pipelinev2/tabs.ts; this just surfaces the
-  // existing slug→lane mapping for clarity). Empty for client statuses.
-  const destTabLabel = useMemo(() => {
-    if (type !== 'finance' || !slug) return '';
-    const tabKey = statusToTab(slug);
-    return PIPELINE_TABS.find((t) => t.key === tabKey)?.label ?? '';
-  }, [type, slug]);
+  // The hardcoded default lane for this FINANCE slug (shown as the "(default)"
+  // hint in the dropdown so the owner can see what empty would route to).
+  const defaultLaneKey = useMemo(() => (slug ? statusToTab(slug) : 'intake'), [slug]);
+  const defaultLaneLabel = useMemo(
+    () => PIPELINE_TABS.find((t) => t.key === defaultLaneKey)?.label ?? '',
+    [defaultLaneKey],
+  );
 
   const titleText = type === 'finance'
     ? (isEdit ? 'Edit finance status' : 'Add status')
@@ -208,6 +221,10 @@ export function StatusEditModal({
         is_internal: isInternal,
         easysocial_tag_to_add: tag.trim() ? tag.trim() : null,
         status_type: type,
+        // Destination-tab routing: FINANCE only. Store NULL when the chosen lane
+        // equals the hardcoded default (empty override = exact current behaviour,
+        // fully reversible). Client statuses never route lanes => always NULL.
+        lane: type === 'finance' && lane && lane !== defaultLaneKey ? lane : null,
       });
 
       // Mirror the EasySocial tag into the live integration path (read-modify-write).
@@ -288,19 +305,33 @@ export function StatusEditModal({
             )}
           </div>
 
-          {/* Destination pipeline tab (READ-ONLY). Lumina lanes are hardcoded in
-              pipelinev2/tabs.ts — this surfaces, but does not edit, the slug→lane
-              mapping. Finance only; client statuses don't move pipeline tabs. */}
+          {/* Destination pipeline tab (EDITABLE — FINANCE only). Picks which
+              Pipeline v2 lane an application is shown/counted in when it has this
+              status. Default = the resolved tab (saved override ?? hardcoded
+              statusToTab default). Choosing the default stores NULL => identical
+              to current behaviour, fully reversible. This ONLY changes bucketing —
+              never the status value, dispatch, slugs, or the client track. */}
           {type === 'finance' && slug && (
             <div className="space-y-1.5">
               <Label className="text-sm">Moves the application to</Label>
-              <div className="flex items-center gap-1.5 rounded-md border border-border bg-muted/20 px-2.5 py-2 text-sm">
+              <div className="flex items-center gap-1.5">
                 <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="font-medium text-foreground">{destTabLabel || 'New Applications'}</span>
-                <span className="ml-auto text-[11px] uppercase tracking-wide text-muted-foreground/70">Pipeline tab</span>
+                <Select value={lane} onValueChange={setLane}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="Pipeline tab" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PIPELINE_TABS.map((t) => (
+                      <SelectItem key={t.key} value={t.key} className="text-sm">
+                        {t.label}{t.key === defaultLaneKey ? ' (default)' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <p className="text-[11px] text-muted-foreground">
-                When this status is set on an application, it appears in this pipeline tab. The lane mapping is fixed and can't be edited here.
+                When this status is set on an application, it appears (and counts) in this pipeline tab. Reversible — pick
+                <span className="font-medium text-foreground"> {defaultLaneLabel || 'the default'} (default)</span> to restore the built-in routing.
               </p>
             </div>
           )}
