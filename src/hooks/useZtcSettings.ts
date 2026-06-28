@@ -32,14 +32,33 @@ export const useUpdateEasySocialSettings = () => {
   });
 };
 
-/* ---------------- WhatsApp notification templates ---------------- */
-export interface WhatsAppTemplate { key: string; title: string; body: string; active: boolean }
+/* ---------------- WhatsApp notification templates ----------------
+   ZTC-parity curated columns (send_url / body*_source / preview_text / sort_order)
+   are additive + nullable; defaults preserve current behaviour. They do NOT affect
+   notify-* dispatch or the active on/off gate — those still key off key/active. */
+export interface WhatsAppTemplate {
+  key: string;
+  title: string;
+  body: string;
+  active: boolean;
+  // ZTC-parity curated-template fields (additive; may be null/undefined on old rows).
+  send_url: string | null;       // EasySocial hosted send URL (the credential) — owner-pasted, NOT seeded.
+  body1_source: string | null;   // which source field fills {body1} (curated mapping note).
+  body2_source: string | null;
+  body3_source: string | null;
+  preview_text: string | null;   // rendered preview of the message wording.
+  sort_order: number | null;     // editor display order (ascending).
+}
 
 export const useWhatsAppTemplates = () =>
   useQuery({
     queryKey: ['whatsapp-templates'],
     queryFn: async (): Promise<WhatsAppTemplate[]> => {
-      const { data, error } = await db.from('whatsapp_templates').select('key, title, body, active').order('key');
+      const { data, error } = await db
+        .from('whatsapp_templates')
+        .select('key, title, body, active, send_url, body1_source, body2_source, body3_source, preview_text, sort_order')
+        .order('sort_order', { ascending: true })
+        .order('key');
       if (error) throw error;
       return data ?? [];
     },
