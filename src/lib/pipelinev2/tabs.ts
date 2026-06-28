@@ -34,6 +34,35 @@ const STATUS_TO_TAB: Record<string, string> = (() => {
 export const statusToTab = (status: string | null | undefined): string =>
   (status && STATUS_TO_TAB[status]) || 'intake';
 
-/** Whether an application (by status) belongs in the given lane. 'all' matches everything. */
-export const inTab = (tabKey: string, status: string | null | undefined): boolean =>
-  tabKey === 'all' ? true : statusToTab(status) === tabKey;
+// Valid DESTINATION lane keys — every real PIPELINE_TABS id EXCEPT 'all'. 'all'
+// is a view-all pseudo-tab, never a routing target: an app routed to 'all' would
+// match no specific lane (inTab is false for every t.key !== 'all') and so would
+// vanish from every working tab + count. Excluding it here means a stale/invalid
+// lane='all' override falls back to the hardcoded default instead of orphaning.
+const VALID_TAB_KEYS = new Set(PIPELINE_TABS.map((t) => t.key).filter((k) => k !== 'all'));
+
+/**
+ * Effective destination lane for a status, honouring a per-slug override map.
+ * `overrides` maps a finance status slug -> a PIPELINE_TABS id (from the editable
+ * status_overrides.lane column). The override wins ONLY when present AND a real
+ * destination lane id (a real lane, not the 'all' pseudo-tab); otherwise we fall
+ * back to the hardcoded statusToTab default. So an empty/missing/invalid override
+ * === current behaviour. statusToTab itself is never mutated.
+ */
+export const resolveStatusTab = (
+  status: string | null | undefined,
+  overrides?: Record<string, string>,
+): string => {
+  const ov = status ? overrides?.[status] : undefined;
+  if (ov && VALID_TAB_KEYS.has(ov)) return ov;
+  return statusToTab(status);
+};
+
+/** Whether an application (by status) belongs in the given lane. 'all' matches everything.
+ *  Pass `overrides` to honour editable per-slug lane routing (resolveStatusTab). */
+export const inTab = (
+  tabKey: string,
+  status: string | null | undefined,
+  overrides?: Record<string, string>,
+): boolean =>
+  tabKey === 'all' ? true : resolveStatusTab(status, overrides) === tabKey;

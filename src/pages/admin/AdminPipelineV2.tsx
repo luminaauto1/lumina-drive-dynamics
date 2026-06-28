@@ -45,7 +45,7 @@ const AdminPipelineV2 = () => {
   const { data: apps = [], isLoading } = useFinanceApplications();
   const { data: fniUsers = [] } = useFAndIUsers();
   const updateApplication = useUpdateFinanceApplication();
-  const { labels: statusLabels, styles: statusStyles } = useStatusConfig();
+  const { labels: statusLabels, styles: statusStyles, financeLaneOverrides } = useStatusConfig();
 
   const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch] = useState('');
@@ -144,10 +144,10 @@ const AdminPipelineV2 = () => {
     const c: Record<string, number> = {};
     for (const t of PIPELINE_TABS) c[t.key] = 0;
     for (const a of baseFiltered) {
-      for (const t of PIPELINE_TABS) if (inTab(t.key, (a as any).status)) c[t.key] += 1;
+      for (const t of PIPELINE_TABS) if (inTab(t.key, (a as any).status, financeLaneOverrides)) c[t.key] += 1;
     }
     return c;
-  }, [baseFiltered]);
+  }, [baseFiltered, financeLaneOverrides]);
 
   // When searching with scope = 'all', results span every lane (the active-tab
   // filter is bypassed); otherwise rows stay scoped to the active tab.
@@ -155,13 +155,13 @@ const AdminPipelineV2 = () => {
   const rows = useMemo(() => {
     const list = searchingAllTabs
       ? baseFiltered
-      : baseFiltered.filter((a) => inTab(activeTab, (a as any).status));
+      : baseFiltered.filter((a) => inTab(activeTab, (a as any).status, financeLaneOverrides));
     return [...list].sort((x, y) => {
       const dx = new Date((x as any).created_at || 0).getTime();
       const dy = new Date((y as any).created_at || 0).getTime();
       return sortDir === 'desc' ? dy - dx : dx - dy;
     });
-  }, [baseFiltered, activeTab, sortDir, searchingAllTabs]);
+  }, [baseFiltered, activeTab, sortDir, searchingAllTabs, financeLaneOverrides]);
 
   // ---- Selection -----------------------------------------------------------
   const toggleSelect = (id: string) => setSelectedIds((prev) => {

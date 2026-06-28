@@ -153,13 +153,16 @@ export interface StatusOverride {
   comment_prompt: string | null;   // prompt shown above the comment box
   is_internal: boolean;            // store-only flag (not yet wired)
   easysocial_tag_to_add: string | null; // mirrored into integration_settings.config.tag_add_overrides
+  // Editable destination-tab routing (FINANCE only). NULL => fall back to the
+  // hardcoded slug→lane map (statusToTab); see src/lib/pipelinev2/tabs.ts.
+  lane: string | null;             // chosen PIPELINE_TABS id for this finance slug
 }
 
 export const useStatusOverrides = () =>
   useQuery({
     queryKey: ['status-overrides'],
     queryFn: async (): Promise<StatusOverride[]> => {
-      const { data, error } = await db.from('status_overrides').select('slug, label, color_class, sort_order, is_hidden, whatsapp_message, status_type, comment_required, comment_prompt, is_internal, easysocial_tag_to_add');
+      const { data, error } = await db.from('status_overrides').select('slug, label, color_class, sort_order, is_hidden, whatsapp_message, status_type, comment_required, comment_prompt, is_internal, easysocial_tag_to_add, lane');
       if (error) throw error;
       return data ?? [];
     },
@@ -266,9 +269,25 @@ export const useStatusConfig = () => {
   const commentRequiredFor = (slug: string) => byslug.get(slug)?.comment_required ?? false;
   const commentPromptFor = (slug: string) => byslug.get(slug)?.comment_prompt ?? '';
 
+  /* ---------------- Finance destination-tab (lane) overrides ----------------
+     Per-finance-slug Pipeline v2 tab routing. Built from rows that are finance
+     (status_type='finance' OR legacy rows with no type) AND have a non-null lane.
+     Client rows are excluded — they never move pipeline lanes. Empty map =>
+     resolveStatusTab falls back to statusToTab everywhere (current behaviour).
+     The lane id is validated against PIPELINE_TABS inside resolveStatusTab. */
+  const financeLaneOverrides: Record<string, string> = {};
+  for (const o of overrides) {
+    const isFinance = !o.status_type || o.status_type === 'finance';
+    if (isFinance && o.lane) financeLaneOverrides[o.slug] = o.lane;
+  }
+  // Effective lane resolver for a finance slug (override ?? hardcoded default),
+  // for editor defaults / display.
+  const laneFor = (slug: string) => financeLaneOverrides[slug];
+
   return {
     merged, labelFor, classFor, whatsappMessageFor, labels, styles,
     clientStatuses, allClientStatuses, clientLabels, clientStyles,
     commentRequiredFor, commentPromptFor,
+    financeLaneOverrides, laneFor,
   };
 };
