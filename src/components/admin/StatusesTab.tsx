@@ -134,25 +134,18 @@ const StatusesTab = () => {
 
   return (
     <div className="space-y-3 max-w-3xl">
-      <div className="flex items-center gap-2">
-        <ListChecks className="w-4 h-4 text-primary" />
-        <h2 className="text-lg font-semibold">Pipeline Statuses</h2>
-      </div>
       <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-2.5 text-xs text-amber-300">
         <Info className="w-4 h-4 shrink-0 mt-0.5" />
         <span>
           <strong>Finance statuses</strong> have fixed keys (wired into the auto-mailer, WhatsApp notifications and pipeline lanes), but their
           presentation <em>and</em> rules — label, colour, order, visibility, WhatsApp message, comment gate, internal flag, EasySocial tag — are
-          editable. <strong>Client statuses</strong> below are free-form: add, rename, recolour and delete them freely; they never move pipeline lanes
+          editable. <strong>Client statuses</strong> are free-form: add, rename, recolour and delete them freely; they never move pipeline lanes
           and never fire client notifications.
         </span>
       </div>
 
-      {isLoading ? <div className="py-8 text-center text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin inline" /></div>
-        : merged.map((s, i) => <Row key={s.value} s={s} order={s.sortOrder ?? i} onEdit={(slug) => setEditor({ mode: 'finance', slug })} />)}
-
-      {/* Client Statuses panel */}
-      <div className="pt-4">
+      {/* Client Statuses panel — placed first so "Add client status" is reachable without scrolling past the finance list. */}
+      <div>
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <UserCheck className="w-4 h-4 text-primary" />
@@ -171,6 +164,14 @@ const StatusesTab = () => {
             : allClientStatuses.map((c) => <ClientRow key={c.value} c={c} onEdit={(slug) => setEditor({ mode: 'client', slug })} />)}
         </div>
       </div>
+
+      {/* Pipeline (finance) statuses */}
+      <div className="pt-4 flex items-center gap-2">
+        <ListChecks className="w-4 h-4 text-primary" />
+        <h2 className="text-lg font-semibold">Pipeline Statuses</h2>
+      </div>
+      {isLoading ? <div className="py-8 text-center text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin inline" /></div>
+        : merged.map((s, i) => <Row key={s.value} s={s} order={s.sortOrder ?? i} onEdit={(slug) => setEditor({ mode: 'finance', slug })} />)}
 
       {editor && (
         <StatusEditModal initialMode={editor.mode} slug={editor.slug} onClose={() => setEditor(null)} />
