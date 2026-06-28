@@ -8,6 +8,15 @@
 @import '@fontsource/montserrat/600.css';
 @import '@fontsource/montserrat/700.css';
 
+/* DM Sans (400–700) — the ADMIN UI face. Loaded the same way as Montserrat
+ * (@fontsource). Montserrat stays the public/brand face; the admin layout
+ * opts into DM Sans via the `.desk-root` wrapper (see the admin font split
+ * rule below). */
+@import '@fontsource/dm-sans/400.css';
+@import '@fontsource/dm-sans/500.css';
+@import '@fontsource/dm-sans/600.css';
+@import '@fontsource/dm-sans/700.css';
+
 @layer base {
   :root {
     /* Lumina Auto - Tech Minimalist Theme */
@@ -28,7 +37,8 @@
     --secondary-foreground: 0 0% 98%;
 
     --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 65%;
+    /* Raised 65% → 72% for sturdier muted-text contrast (admin readability). */
+    --muted-foreground: 0 0% 72%;
 
     /* Electric White Accent */
     --accent: 0 0% 100%;
@@ -67,6 +77,16 @@
 
     /* Typography */
     --font-body: 'Montserrat', sans-serif;
+    /* Admin UI face — DM Sans (loaded above). Applied only via `.desk-root`
+     * so the public/brand site keeps Montserrat. */
+    --font-ui: 'DM Sans', 'Montserrat', sans-serif;
+
+    /* Admin accent anchor (gold). Single emphasis colour for primary actions +
+     * the active tab inside the admin wrapper. Reversible to platinum by
+     * pointing these at the platinum tokens. Public brand never reads these. */
+    --desk-accent: 51 100% 50%;          /* #FFD600 gold fill */
+    --desk-accent-foreground: 0 0% 6%;   /* dark text on the gold fill */
+    --desk-accent-text: 51 100% 50%;     /* emphasis text colour (dark theme) */
 
     /* Heading Glow */
     --heading-glow: 0 0 20px rgba(255,255,255,0.3);
@@ -383,13 +403,88 @@ td.wrap-text, th.wrap-text {
 }
 
 /* ============================================================================
+   ADMIN TYPOGRAPHY + THEME — scoped to `.desk-root` (the admin layout wrapper).
+   The public/brand site (outside .desk-root) is untouched: obsidian + Montserrat.
+
+   Font split (mirrors ZTC's .desk-root): the admin UI runs on DM Sans for a
+   sturdier read, while the public site keeps Montserrat. Weights are raised so
+   the UI no longer reads "too thin": body/UI 500, labels 600, titles 700.
+   Numbers render with tabular + lining figures so money columns align cleanly
+   with no coding-font look.
+   ============================================================================ */
+.desk-root {
+  font-family: var(--font-ui);
+  font-weight: 500;                 /* sturdier base UI weight (was 400) */
+}
+.desk-root :is(label, th, .font-semibold) { font-weight: 600; }
+.desk-root :is(h1, h2, h3, h4, .font-bold) { font-weight: 700; }
+/* Tabular + lining figures for aligned, clean money/figures. Tailwind's
+   `.tabular-nums` only sets tabular — we add lining here so amounts never show
+   old-style/dotted digits. `.font-mono` (IDs / bank refs) keeps the mono face
+   but also gets tabular+lining for tidy columns. */
+.desk-root :is(.tabular-nums, .font-mono) { font-variant-numeric: tabular-nums lining-nums; }
+
+/* ============================================================================
+   ADMIN ACCENT ANCHOR (gold #FFD600) — admin-only, reversible.
+   Primary buttons + the active tab inside .desk-root pick up the accent; every
+   other control stays outline/ghost. Public brand (platinum) is unaffected.
+   ============================================================================ */
+.desk-root .bg-primary { background-color: hsl(var(--desk-accent)); }
+.desk-root .text-primary-foreground { color: hsl(var(--desk-accent-foreground)); }
+.desk-root .hover\:bg-primary\/90:hover { background-color: hsl(var(--desk-accent) / 0.9); }
+.desk-root .desk-accent-text { color: hsl(var(--desk-accent-text)); }
+.desk-root .desk-accent-fill { background-color: hsl(var(--desk-accent)); color: hsl(var(--desk-accent-foreground)); }
+
+/* ============================================================================
+   ADMIN LIGHT MODE — `.desk-root.theme-light` token override (paper palette,
+   ZTC-desk inspired). Scoped to the admin wrapper ONLY; the public site never
+   gets these. Toggled by the header sun/moon control (persisted to
+   localStorage; default stays dark = brand). The yellow fill stays bright while
+   the emphasis-text accent darkens to a readable gold on white.
+   ============================================================================ */
+.desk-root.theme-light {
+  --background: 60 9% 93%;            /* #f1f1ee paper */
+  --foreground: 240 6% 10%;          /* #18181b ink */
+  --card: 0 0% 100%;                 /* #ffffff surface */
+  --card-foreground: 240 6% 10%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 6% 10%;
+  --primary: 240 6% 10%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 60 9% 96%;            /* #f6f6f3 surface-2 */
+  --secondary-foreground: 240 6% 10%;
+  --muted: 48 12% 94%;
+  --muted-foreground: 240 4% 37%;    /* #5b5b63 */
+  --accent: 60 9% 96%;
+  --accent-foreground: 240 6% 10%;
+  --border: 51 12% 88%;              /* #e3e3dd */
+  --input: 51 12% 88%;
+  --ring: 240 6% 10%;
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 240 6% 10%;
+  --sidebar-accent: 60 9% 96%;
+  --sidebar-accent-foreground: 240 6% 10%;
+  --sidebar-border: 51 12% 88%;
+  /* accent fill stays bright gold; emphasis TEXT darkens for white surfaces */
+  --desk-accent: 51 100% 50%;        /* #FFD600 */
+  --desk-accent-foreground: 0 0% 10%;
+  --desk-accent-text: 39 100% 33%;   /* ~#a16207 readable gold on white */
+}
+.desk-root.theme-light { background: hsl(var(--background)); color: hsl(var(--foreground)); }
+
+/* Pipeline v2 table — tighten row vertical padding a notch (denser scan) while
+   keeping the horizontal rhythm. Higher specificity than the density `tbody td`
+   rule so it wins in both Comfortable and Compact. */
+.desk-root .pipeline-table tbody td { padding-top: 0.4rem; padding-bottom: 0.4rem; }
+.desk-root.density-compact .pipeline-table tbody td { padding-top: 0.3rem; padding-bottom: 0.3rem; }
+
+/* ============================================================================
    ADMIN DENSITY — per-user toggle. Base (.desk-root) = Comfortable (default):
    clean & calm with breathing room, no heading glow. .desk-root.density-compact
    = the denser pass. AdminLayout applies `desk-root density-<mode>`; the sidebar
    toggles it (persisted per browser). Storefront untouched; reversible.
    ============================================================================ */
 .desk-root :is(h1, h2, h3) { text-shadow: none; letter-spacing: -0.01em; }
-.desk-root .font-mono { font-variant-numeric: tabular-nums; }
 
 /* Comfortable (default) — cleaner than storefront, with room to breathe */
 .desk-root h1 { font-size: 1.5rem; line-height: 2rem; }

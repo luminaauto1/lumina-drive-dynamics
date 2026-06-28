@@ -193,7 +193,8 @@ const AdminPipelineV2 = () => {
           )}
         </div>
 
-        {/* Toolbar */}
+        {/* Toolbar — every control locked to one 36px (h-9) height and one gap-2
+            rhythm so search / scope / F&I / sort / columns align on a single row. */}
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative flex-1 min-w-[220px]">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />

@@ -325,8 +325,8 @@ const Calculator = () => {
               </div>
             </div>
 
-            {/* Summary */}
-            <div className="pt-6 border-t border-border space-y-4">
+            {/* Summary — amounts use tabular lining figures so the column aligns. */}
+            <div className="pt-6 border-t border-border space-y-4 [&_span:last-child]:[font-variant-numeric:tabular-nums_lining-nums]">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Vehicle Price</span>
                 <span>{formatPrice(priceValue)}</span>
@@ -350,7 +350,7 @@ const Calculator = () => {
               <div className="pt-6 border-t border-border">
                 <div className="text-center">
                   <p className="text-muted-foreground text-sm mb-2">Your Estimated Monthly Payment</p>
-                  <p className="font-display text-5xl md:text-6xl font-bold text-foreground">
+                  <p className="font-display text-5xl md:text-6xl font-bold text-foreground tabular-nums [font-variant-numeric:tabular-nums_lining-nums]">
                     {formatPrice(monthlyPayment)}
                     <span className="text-2xl text-muted-foreground">/pm</span>
                   </p>
