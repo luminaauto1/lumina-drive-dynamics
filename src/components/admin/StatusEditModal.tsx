@@ -56,11 +56,15 @@ const slugifyClientLabel = (label: string): string =>
     .replace(/^_+|_+$/g, '');
 
 export function StatusEditModal({
-  mode,
+  initialMode,
   slug,
   onClose,
 }: {
-  mode: 'finance' | 'client';
+  /** Initial status track. State-ified below: a radio reflects/sets it on CREATE
+   *  (Client proceeds; Finance is built-in/inert) and is DISABLED on EDIT — an
+   *  existing row's track can't be flipped (it would orphan a wired finance slug
+   *  or inject a non-built-in slug into the finance pipeline). */
+  initialMode: 'finance' | 'client';
   /** Existing row to edit. Absent in client CREATE mode. */
   slug?: string;
   onClose: () => void;
@@ -72,8 +76,16 @@ export function StatusEditModal({
   const { data: easySocial } = useEasySocialSettings();
   const updateEasySocial = useUpdateEasySocialSettings();
 
+  // Status-type radio: defaulted from initialMode, editable only on CREATE, and
+  // disabled on EDIT (slug present). Finance is built-in/fixed in Lumina, so the
+  // Finance option is inert (shown for parity, but only Client can be saved here).
+  const [type, setType] = useState<'finance' | 'client'>(initialMode);
+  const isEdit = !!slug;
+
   const existing = useMemo(() => overrides.find((o) => o.slug === slug), [overrides, slug]);
-  const isClientCreate = mode === 'client' && !slug;
+  const isClientCreate = type === 'client' && !slug;
+  // On CREATE, selecting Finance is inert (built-in slugs aren't row-created here).
+  const isFinanceCreateBlocked = !isEdit && type === 'finance';
 
   const [label, setLabel] = useState(existing?.label ?? '');
   const [cls, setCls] = useState(existing?.color_class ?? FALLBACK_CLASS);
@@ -104,17 +116,22 @@ export function StatusEditModal({
   }, [tagSeeded, slug, existing?.easysocial_tag_to_add, easySocial]);
 
   // Effective slug for previews / writes.
-  const effectiveSlug = mode === 'finance' ? (slug ?? '') : (slug ?? slugifyClientLabel(label));
+  const effectiveSlug = type === 'finance' ? (slug ?? '') : (slug ?? slugifyClientLabel(label));
   const previewClass = cls || FALLBACK_CLASS;
   const previewLabel = label || effectiveSlug || 'Preview';
-  const builtInWaPreview = mode === 'finance' && slug ? getWhatsAppMessage(slug, '{name}') : '';
+  const builtInWaPreview = type === 'finance' && slug ? getWhatsAppMessage(slug, '{name}') : '';
 
-  const titleText = mode === 'finance'
-    ? 'Edit finance status'
+  const titleText = type === 'finance'
+    ? (isEdit ? 'Edit finance status' : 'Add status')
     : isClientCreate ? 'Add client status' : 'Edit client status';
 
   const save = async () => {
     setError('');
+    // Finance statuses are built-in/fixed and aren't created from this editor.
+    if (isFinanceCreateBlocked) {
+      setError('Finance statuses are built-in — edit them from the list above.');
+      return;
+    }
     if (!label.trim()) { setError('Label is required.'); return; }
     if (commentRequired && !commentPrompt.trim()) {
       setError('When you require a comment, give a prompt the user sees.');
@@ -124,7 +141,7 @@ export function StatusEditModal({
     let writeSlug = effectiveSlug;
     let sortOrder = existing?.sort_order ?? 0;
 
-    if (mode === 'client') {
+    if (type === 'client') {
       if (isClientCreate) {
         writeSlug = slugifyClientLabel(label);
         if (!writeSlug || writeSlug === 'client_') { setError('Enter a label with at least one letter or number.'); return; }
@@ -158,7 +175,7 @@ export function StatusEditModal({
         comment_prompt: commentPrompt.trim() ? commentPrompt.trim() : null,
         is_internal: isInternal,
         easysocial_tag_to_add: tag.trim() ? tag.trim() : null,
-        status_type: mode,
+        status_type: type,
       });
 
       // Mirror the EasySocial tag into the live integration path (read-modify-write).
@@ -175,7 +192,7 @@ export function StatusEditModal({
   };
 
   const remove = async () => {
-    if (!slug || mode !== 'client') return;
+    if (!slug || type !== 'client') return;
     if (!window.confirm(`Delete client status "${label || slug}"? Applications keeping this value will show it until reassigned.`)) return;
     try {
       await del.mutateAsync(slug);
@@ -193,10 +210,47 @@ export function StatusEditModal({
         </SheetHeader>
 
         <div className="mt-4 space-y-5">
+          {/* Status TYPE radio — reflects/sets the track. Editable on CREATE only;
+              disabled on EDIT (a row's track can't be flipped). */}
+          <div className="space-y-1.5">
+            <Label className="text-sm">Status type</Label>
+            <div className="flex flex-wrap gap-2">
+              {(['client', 'finance'] as const).map((t) => {
+                const selected = type === t;
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    disabled={isEdit}
+                    onClick={() => { if (!isEdit) { setType(t); setError(''); } }}
+                    className={
+                      'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm transition ' +
+                      (selected ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:text-foreground') +
+                      (isEdit ? ' opacity-60 cursor-not-allowed' : '')
+                    }
+                  >
+                    {selected && <Check className="h-3.5 w-3.5 text-primary" />}
+                    {t === 'client' ? 'Client status' : 'Finance status'}
+                  </button>
+                );
+              })}
+            </div>
+            {isEdit && (
+              <p className="text-[11px] text-muted-foreground">A status's type is fixed after creation and can't be changed here.</p>
+            )}
+            {isFinanceCreateBlocked && (
+              <p className="text-[11px] text-amber-400">Finance statuses are built-in — edit them from the list above.</p>
+            )}
+          </div>
+
           {/* Status type (read-only context) */}
           <div className="rounded-md border border-border bg-muted/20 p-2.5 text-xs text-muted-foreground">
-            {mode === 'finance' ? (
-              <>Finance — fixed slug (<code className="font-mono text-foreground/80">{slug}</code>), presentation + rules editable.</>
+            {type === 'finance' ? (
+              slug
+                ? <>Finance — fixed slug (<code className="font-mono text-foreground/80">{slug}</code>), presentation + rules editable.</>
+                : <>Finance statuses are built-in (wired into the pipeline, mailer and notifications) and can't be created here — edit them from the list above.</>
             ) : (
               <>Client status — free-form. {slug ? <>Slug <code className="font-mono text-foreground/80">{slug}</code>.</> : 'A slug is generated from the label on save.'}</>
             )}
@@ -292,7 +346,7 @@ export function StatusEditModal({
           {/* Footer */}
           <div className="flex items-center justify-between gap-2 pt-2 pb-6">
             <div>
-              {mode === 'client' && slug && (
+              {type === 'client' && slug && (
                 <Button variant="ghost" onClick={remove} disabled={del.isPending} className="text-red-400 hover:text-red-300 gap-1">
                   {del.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />} Delete
                 </Button>
@@ -300,7 +354,7 @@ export function StatusEditModal({
             </div>
             <div className="flex items-center gap-2">
               <Button variant="ghost" onClick={onClose}>Cancel</Button>
-              <Button onClick={save} disabled={pending} className="gap-1">
+              <Button onClick={save} disabled={pending || isFinanceCreateBlocked} className="gap-1">
                 {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save
               </Button>
             </div>

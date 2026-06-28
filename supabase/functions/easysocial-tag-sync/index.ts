@@ -16,17 +16,13 @@
 //   config.tag_add_overrides {status: tagName} → remaps which tag is ADDED for a status
 // All optional & fallback-safe: no row / empty config = current behaviour.
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { fetchTagDictionary, resolveEasySocialSettings, ES_LEAD_UPDATE } from "../_shared/easysocialTags.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-lumina-key, x-supabase-api-version, x-region',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
-
-const ES_BASE = 'https://client-api.e-so.in';
-const ES_TAGS_ENDPOINT = `${ES_BASE}/engage/v1/tags`;
-const ES_LEAD_UPDATE = (phone: string) => `${ES_BASE}/api/v1/leads/${phone}/update`;
 
 // Permanent tags that must NEVER be removed (traffic sources, ops markers).
 const SAFE_TAG_NAMES = [
@@ -162,45 +158,8 @@ const planForStatus = (status: string): PlanStep => {
   }
 };
 
-/** Fetch all tags from EasySocial and build a {name: id} dictionary. */
-const fetchTagDictionary = async (apiKey: string): Promise<Record<string, number>> => {
-  console.log('[tag-sync] GET tags →', ES_TAGS_ENDPOINT, '(token len=', apiKey.length, ')');
-  const res = await fetch(ES_TAGS_ENDPOINT, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      Accept: 'application/json',
-    },
-  });
-  const text = await res.text();
-  console.log('[tag-sync] tag list response status=', res.status, 'body=', text.slice(0, 500));
-  if (!res.ok) {
-    throw new Error(`tag list fetch failed: ${res.status} ${text.slice(0, 300)}`);
-  }
-  let parsed: any;
-  try { parsed = JSON.parse(text); } catch {
-    throw new Error('tag list response was not JSON');
-  }
-  // Be permissive about response shape: array, {data:[]}, {tags:[]}, {payload:[]}.
-  const list: any[] = Array.isArray(parsed)
-    ? parsed
-    : Array.isArray(parsed?.data) ? parsed.data
-    : Array.isArray(parsed?.tags) ? parsed.tags
-    : Array.isArray(parsed?.payload) ? parsed.payload
-    : Array.isArray(parsed?.payload?.data) ? parsed.payload.data
-    : [];
-
-  const dict: Record<string, number> = {};
-  for (const t of list) {
-    const name = t?.name ?? t?.tag_name ?? t?.title;
-    const id = t?.id ?? t?.tag_id;
-    if (typeof name === 'string' && (typeof id === 'number' || /^\d+$/.test(String(id)))) {
-      dict[name] = Number(id);
-    }
-  }
-  console.log('[tag-sync] tag dictionary resolved with', Object.keys(dict).length, 'tags');
-  return dict;
-};
+// fetchTagDictionary now lives in ../_shared/easysocialTags.ts (imported above)
+// so easysocial-list-tags can reuse it verbatim. Behaviour is unchanged.
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
@@ -228,32 +187,15 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Bundled EasySocial bearer token (fallback when no key is set in settings).
-  let apiKey = "eSt2dc1be4b95a4ccdabf289645ba0bf8ea85c016b5cde84430c3749430fbca43c627fa3b46e9db9fa9fe217aa74136ba";
-
   // Load EasySocial settings (active gate + key + per-status add-tag overrides).
   // Fallback-safe: any failure or missing row keeps the current default behaviour.
-  let tagAddOverrides: Record<string, string> = {};
-  try {
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-    const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (SUPABASE_URL && SERVICE) {
-      const svc = createClient(SUPABASE_URL, SERVICE);
-      const { data: cfg } = await svc.from("integration_settings").select("active, config").eq("key", "easysocial").maybeSingle();
-      if (cfg) {
-        if (cfg.active === false) {
-          console.log("[tag-sync] EasySocial sync disabled in settings — skipping", { phone, newStatus });
-          return new Response(JSON.stringify({ ok: true, skipped: "disabled" }), {
-            status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        const c: any = cfg.config ?? {};
-        if (typeof c.api_key === "string" && c.api_key.trim()) apiKey = c.api_key.trim();
-        if (c.tag_add_overrides && typeof c.tag_add_overrides === "object") tagAddOverrides = c.tag_add_overrides;
-      }
-    }
-  } catch (e) {
-    console.error("[tag-sync] settings load failed, using defaults", String((e as Error).message ?? e));
+  // Resolution + key fallback are shared with easysocial-list-tags.
+  const { active, apiKey, tagAddOverrides } = await resolveEasySocialSettings();
+  if (!active) {
+    console.log("[tag-sync] EasySocial sync disabled in settings — skipping", { phone, newStatus });
+    return new Response(JSON.stringify({ ok: true, skipped: "disabled" }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   // Build the plan (by name) from the state machine + flags.

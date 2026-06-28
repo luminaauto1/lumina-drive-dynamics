@@ -173,7 +173,7 @@ const StatusesTab = () => {
       </div>
 
       {editor && (
-        <StatusEditModal mode={editor.mode} slug={editor.slug} onClose={() => setEditor(null)} />
+        <StatusEditModal initialMode={editor.mode} slug={editor.slug} onClose={() => setEditor(null)} />
       )}
     </div>
   );
