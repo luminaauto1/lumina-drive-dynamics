@@ -2,8 +2,7 @@ import {
   LayoutDashboard, TableProperties, CreditCard, ClipboardList, Car,
   Calculator, FileSignature, FolderOpen, Building2, ShoppingCart,
   Receipt, Coins, Truck, FileBarChart, BarChart3, LineChart, Download,
-  Briefcase, Gift, Contact, Settings, ChevronLeft, ChevronRight, Home, Rows3,
-  Sun, Moon,
+  Briefcase, Gift, Contact, Settings, ChevronLeft, ChevronRight, Home,
 } from 'lucide-react';
 import { NavLink, useLocation, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
@@ -12,8 +11,6 @@ import { Button } from '@/components/ui/button';
 import { useOutstandingReferralCount } from '@/hooks/useReferrals';
 import { useMyAllowedSections } from '@/hooks/useRolePermissions';
 import { sectionForPath } from '@/lib/permissions';
-import { useAdminDensity } from '@/hooks/useAdminDensity';
-import { useDeskTheme } from '@/hooks/useDeskTheme';
 import { useDocumentSettings } from '@/hooks/useDocumentSettings';
 import { applyNavConfig } from '@/lib/navConfig';
 
@@ -98,8 +95,6 @@ const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
   const location = useLocation();
   const { allowed, isAdmin } = useMyAllowedSections();
   const { data: outstandingRefs = 0 } = useOutstandingReferralCount();
-  const { density, toggle: toggleDensity } = useAdminDensity();
-  const { theme, toggle: toggleTheme } = useDeskTheme();
   const { data: docSettings } = useDocumentSettings();
 
   useEffect(() => {
@@ -204,44 +199,8 @@ const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
         ))}
       </nav>
 
-      {/* Footer: theme toggle + density toggle + back to home */}
+      {/* Footer: back to home */}
       <div className="absolute bottom-0 left-0 right-0 p-2 border-t border-border bg-card space-y-0.5">
-        <button
-          type="button"
-          onClick={toggleTheme}
-          title={`Theme: ${theme === 'light' ? 'Light' : 'Dark'} — click to switch`}
-          className={cn(
-            'flex items-center gap-2.5 rounded-md transition-colors w-full text-left',
-            collapsed ? 'justify-center px-2 py-2' : 'px-3 py-1.5',
-            'text-muted-foreground hover:bg-secondary hover:text-foreground',
-          )}
-        >
-          {theme === 'light'
-            ? <Moon className="h-[18px] w-[18px] flex-shrink-0" />
-            : <Sun className="h-[18px] w-[18px] flex-shrink-0" />}
-          {!collapsed && (
-            <span className="text-sm font-medium flex-1 truncate">
-              {theme === 'light' ? 'Light mode' : 'Dark mode'}
-            </span>
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={toggleDensity}
-          title={`Density: ${density === 'compact' ? 'Compact' : 'Comfortable'} — click to switch`}
-          className={cn(
-            'flex items-center gap-2.5 rounded-md transition-colors w-full text-left',
-            collapsed ? 'justify-center px-2 py-2' : 'px-3 py-1.5',
-            'text-muted-foreground hover:bg-secondary hover:text-foreground',
-          )}
-        >
-          <Rows3 className="h-[18px] w-[18px] flex-shrink-0" />
-          {!collapsed && (
-            <span className="text-sm font-medium flex-1 truncate">
-              {density === 'compact' ? 'Compact' : 'Comfortable'}
-            </span>
-          )}
-        </button>
         <Link
           to="/"
           onClick={onNavigate}
