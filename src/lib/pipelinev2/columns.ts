@@ -15,7 +15,7 @@ export interface TableColumnDef {
 
 export const TABLE_COLUMNS: TableColumnDef[] = [
   { key: 'applicant',      label: 'Applicant',      defaultVisible: true,  defaultWidth: 'wide', wrap: true },
-  { key: 'status',         label: 'Status',         defaultVisible: true,  defaultWidth: 'normal' },
+  { key: 'status',         label: 'Finance Status', defaultVisible: true,  defaultWidth: 'normal' },
   { key: 'client_status',  label: 'Client Status',  defaultVisible: false, defaultWidth: 'normal' },
   { key: 'internal',       label: 'Notes',          defaultVisible: true,  defaultWidth: 'wide', wrap: true },
   { key: 'phone',          label: 'Phone',          defaultVisible: true,  defaultWidth: 'normal' },
