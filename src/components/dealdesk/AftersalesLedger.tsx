@@ -418,7 +418,7 @@ const getServiceStatus = (saleDate: string) => {
 };
 
 const getVehicleHealthStatus = (saleDateString: string | null) => {
-  if (!saleDateString) return { label: "No Sale Date", color: "text-zinc-500", bg: "bg-zinc-900", days: 0 };
+  if (!saleDateString) return { label: "No Sale Date", color: "text-muted-foreground", bg: "bg-muted", days: 0 };
 
   const saleDate = new Date(saleDateString);
   const now = new Date();
@@ -1171,9 +1171,9 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="glass-card rounded-xl overflow-hidden"
+          className="rounded-xl overflow-hidden border border-border bg-card"
         >
-          <div className="p-4 border-b border-white/10">
+          <div className="p-4 border-b border-border">
             <h2 className="text-lg font-semibold">Customer Follow-ups</h2>
             <p className="text-sm text-muted-foreground">Service &amp; trade-in follow-ups for delivered customers</p>
           </div>
@@ -1191,7 +1191,7 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
             <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="border-white/10 hover:bg-white/5">
+                <TableRow className="border-border hover:bg-muted/30">
                   <TableHead className="text-muted-foreground">Customer</TableHead>
                   <TableHead className="text-muted-foreground">Vehicle</TableHead>
                   <TableHead className="text-muted-foreground">Sale Date</TableHead>
@@ -1208,7 +1208,7 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
                   return (
                     <TableRow
                       key={record.id}
-                      className={`border-white/10 hover:bg-white/5 ${hasAlert ? 'bg-yellow-500/5' : ''}`}
+                      className={`border-border hover:bg-muted/30 ${hasAlert ? 'bg-yellow-500/5' : ''}`}
                     >
                       <TableCell>
                         <div>
@@ -1339,7 +1339,7 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
           <Badge variant="outline" className="text-xs">{format(new Date(), 'MMMM yyyy')}</Badge>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          <div className="glass-card rounded-lg p-4">
+          <div className="rounded-lg p-4 border border-border bg-card">
             <div className="flex items-center gap-2 mb-1">
               <TrendingUp className="w-4 h-4 text-emerald-400" />
               <p className="text-sm text-muted-foreground">Net Profit</p>
@@ -1349,7 +1349,7 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
             </p>
             <p className="text-xs text-muted-foreground mt-1">{currentMonthDeals.length} units</p>
           </div>
-          <div className="glass-card rounded-lg p-4">
+          <div className="rounded-lg p-4 border border-border bg-card">
             <div className="flex items-center gap-2 mb-1">
               <Calculator className="w-4 h-4 text-purple-400" />
               <p className="text-sm text-muted-foreground">Avg / Unit</p>
@@ -1358,7 +1358,7 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
               {formatPrice(avgProfitPerUnit)}
             </p>
           </div>
-          <div className="glass-card rounded-lg p-4">
+          <div className="rounded-lg p-4 border border-border bg-card">
             <div className="flex items-center gap-2 mb-1">
               <DollarSign className="w-4 h-4 text-cyan-400" />
               <p className="text-sm text-muted-foreground">DIC Earned</p>
@@ -1367,7 +1367,7 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
           </div>
 
           {/* COMMISSION BOARD: LAST MONTH */}
-          <div className="glass-card rounded-lg p-4">
+          <div className="rounded-lg p-4 border border-border bg-card">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4 text-primary" />
@@ -1389,7 +1389,7 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
           </div>
 
           {/* COMMISSION BOARD: THIS MONTH */}
-          <div className="glass-card rounded-lg p-4">
+          <div className="rounded-lg p-4 border border-border bg-card">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4 text-emerald-400" />
@@ -1452,7 +1452,7 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="glass-card rounded-xl p-8 text-center text-muted-foreground"
+          className="rounded-xl p-8 text-center text-muted-foreground border border-border bg-card"
         >
           <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
           <p>No finalized deals yet</p>
@@ -1464,9 +1464,9 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
-            className="glass-card rounded-xl overflow-hidden"
+            className="rounded-xl overflow-hidden border border-border bg-card"
           >
-            <div className="p-4 border-b border-white/10 flex items-center justify-between">
+            <div className="p-4 border-b border-border flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold">{month}</h2>
                 <p className="text-sm text-muted-foreground">{monthDeals.length} deal{monthDeals.length !== 1 ? 's' : ''}</p>
@@ -1478,7 +1478,7 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-white/10 hover:bg-white/5">
+                  <TableRow className="border-border hover:bg-muted/30">
                     <TableHead className="text-muted-foreground w-8"></TableHead>
                     <TableHead className="text-muted-foreground">Client & Vehicle</TableHead>
                     <TableHead className="text-muted-foreground">Sold Price</TableHead>
@@ -1498,7 +1498,7 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
                     return (
                       <TableRow
                         key={deal.id}
-                        className={`border-white/10 hover:bg-white/5 cursor-pointer ${serviceDue.isDue ? 'bg-red-500/5' : ''} ${isLocked ? 'opacity-80' : ''}`}
+                        className={`border-border hover:bg-muted/30 cursor-pointer ${serviceDue.isDue ? 'bg-red-500/5' : ''} ${isLocked ? 'opacity-80' : ''}`}
                         onClick={() => {
                           if (isLocked) {
                             toast.info('This deal is locked. Unlock it first to edit.');
@@ -1567,7 +1567,7 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
                                 <span className={`px-2 py-1 rounded text-xs font-bold border border-transparent cursor-help ${healthStatus.bg} ${healthStatus.color}`}>
                                   {healthStatus.label}
                                 </span>
-                                <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-max bg-black text-white text-[10px] px-2 py-1 rounded border border-zinc-700 z-50 shadow-xl">
+                                <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-max bg-popover text-popover-foreground text-[10px] px-2 py-1 rounded border border-border z-50 shadow-xl">
                                   Owned: {healthStatus.days} days
                                   <br/>
                                   Date: {deal.sale_date}
