@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Save, Plus, Trash2, Plug, RefreshCw } from 'lucide-react';
+import { Loader2, Save, Plus, Trash2, Plug, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,6 +27,7 @@ const EasySocialTab = () => {
   const [overrides, setOverrides] = useState<Override[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [showTags, setShowTags] = useState(false);
 
   // Cached tag dictionary (name → id) populated by the easysocial-list-tags
   // function. Backward-safe: when empty, the tag fields stay plain free-text.
@@ -109,12 +110,39 @@ const EasySocialTab = () => {
             {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} Sync tags from EasySocial
           </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
           <p className="text-xs text-muted-foreground">
             {cachedTags.length > 0
               ? <>Synced {cachedTags.length} tag{cachedTags.length === 1 ? '' : 's'}{tagsSyncedAt ? <> · {new Date(tagsSyncedAt).toLocaleString()}</> : null}. The tag fields below autocomplete from this list.</>
               : <>No tags synced yet. Click <em>Sync tags from EasySocial</em> to pull the live list; until then the tag fields stay free-text.</>}
           </p>
+          {cachedTags.length > 0 && (
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowTags((v) => !v)}
+                aria-expanded={showTags}
+                className="inline-flex items-center gap-1 text-xs font-medium text-foreground hover:text-foreground/80 transition-colors"
+              >
+                {showTags
+                  ? <>Hide tags <ChevronUp className="w-3.5 h-3.5" /></>
+                  : <>View all {cachedTags.length} tags <ChevronDown className="w-3.5 h-3.5" /></>}
+              </button>
+              {showTags && (
+                <div className="mt-2 flex flex-wrap gap-1.5 rounded-md border border-border bg-muted/40 p-2 max-h-64 overflow-y-auto">
+                  {cachedTags.map((t) => (
+                    <span
+                      key={t.id}
+                      className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-xs text-foreground"
+                    >
+                      {t.name}
+                      <span className="text-muted-foreground">#{t.id}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
