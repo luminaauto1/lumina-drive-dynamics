@@ -67,7 +67,8 @@
   const ACCOUNT_TYPE = { savings: 'Savings', cheque: 'Cheque', current: 'Cheque', transmission: 'Transmission' };
   const BRANCH_CODE = { capitec: '470010', fnb: '250655', 'first national': '250655', absa: '632005',
     'standard bank': '051001', standard: '051001', nedbank: '198765', tymebank: '678910', tyme: '678910',
-    'african bank': '430000', discovery: '679000', investec: '580105', bidvest: '462005' };
+    'african bank': '430000', discovery: '679000', investec: '580105', bidvest: '462005',
+    'old mutual': '462005' }; // Old Mutual uses the universal branch code 462005
   function bankOptionName(raw) { // match the form's uppercased bank list
     const k = norm(raw).replace(/[^a-z]/g, '');
     if (!k) return null;
@@ -80,6 +81,7 @@
     if (/tyme/.test(k)) return 'TYME BANK';
     if (/africanbank/.test(k)) return 'AFRICAN BANK';
     if (/bidvest/.test(k)) return 'BIDVEST BANK';
+    if (/oldmutual/.test(k)) return 'OLD MUTUAL BANK';
     if (/investec/.test(k)) return 'INVESTEC';
     return null;
   }
@@ -95,6 +97,82 @@
     const cur = new Date().getFullYear() % 100;
     const cc = yy <= cur ? '20' : '19';
     return cc + id.substr(0, 2) + mm + dd; // CCYYMMDD
+  }
+
+  // ---- province inference + random in-province location (for the Relative address) ----
+  // The relative's City/Suburb/Postal are READ-ONLY on the form (filled via a lookup
+  // popup), but a programmatic value-set writes through fine and needs no region code,
+  // so we fill a real random town in the CUSTOMER'S province directly.
+  const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  const STREETS = ['Main Road', 'Church Street', 'Park Avenue', 'Oak Street', 'Acacia Road',
+    'Long Street', 'Market Street', 'Station Road', 'Kerk Street', 'Voortrekker Road', 'Pretorius Street', 'Du Plessis Avenue'];
+  const PROVINCE_CITIES = {
+    'Gauteng': [
+      { suburb: 'Sandton', city: 'Johannesburg', postal: '2196' }, { suburb: 'Centurion', city: 'Centurion', postal: '0157' },
+      { suburb: 'Randburg', city: 'Johannesburg', postal: '2194' }, { suburb: 'Arcadia', city: 'Pretoria', postal: '0083' },
+      { suburb: 'Benoni', city: 'Benoni', postal: '1501' }, { suburb: 'Roodepoort', city: 'Roodepoort', postal: '1724' },
+      { suburb: 'Boksburg', city: 'Boksburg', postal: '1459' }, { suburb: 'Kempton Park', city: 'Kempton Park', postal: '1619' } ],
+    'Western Cape': [
+      { suburb: 'Bellville', city: 'Cape Town', postal: '7530' }, { suburb: 'Claremont', city: 'Cape Town', postal: '7708' },
+      { suburb: 'Durbanville', city: 'Cape Town', postal: '7550' }, { suburb: 'George', city: 'George', postal: '6529' },
+      { suburb: 'Paarl', city: 'Paarl', postal: '7646' }, { suburb: 'Stellenbosch', city: 'Stellenbosch', postal: '7600' } ],
+    'KwaZulu-Natal': [
+      { suburb: 'Umhlanga', city: 'Durban', postal: '4319' }, { suburb: 'Berea', city: 'Durban', postal: '4001' },
+      { suburb: 'Pinetown', city: 'Pinetown', postal: '3610' }, { suburb: 'Scottsville', city: 'Pietermaritzburg', postal: '3201' },
+      { suburb: 'Ballito', city: 'Ballito', postal: '4420' }, { suburb: 'Richards Bay', city: 'Richards Bay', postal: '3900' } ],
+    'Eastern Cape': [
+      { suburb: 'Summerstrand', city: 'Gqeberha', postal: '6001' }, { suburb: 'Vincent', city: 'East London', postal: '5247' },
+      { suburb: 'Southernwood', city: 'Mthatha', postal: '5099' }, { suburb: 'Uitenhage', city: 'Kariega', postal: '6230' } ],
+    'Free State': [
+      { suburb: 'Westdene', city: 'Bloemfontein', postal: '9301' }, { suburb: 'Welkom', city: 'Welkom', postal: '9460' },
+      { suburb: 'Bethlehem', city: 'Bethlehem', postal: '9701' }, { suburb: 'Sasolburg', city: 'Sasolburg', postal: '1947' } ],
+    'Mpumalanga': [
+      { suburb: 'Sonheuwel', city: 'Mbombela', postal: '1200' }, { suburb: 'Witbank', city: 'Emalahleni', postal: '1035' },
+      { suburb: 'Secunda', city: 'Secunda', postal: '2302' }, { suburb: 'Middelburg', city: 'Middelburg', postal: '1050' } ],
+    'Limpopo': [
+      { suburb: 'Bendor', city: 'Polokwane', postal: '0699' }, { suburb: 'Tzaneen', city: 'Tzaneen', postal: '0850' },
+      { suburb: 'Bela-Bela', city: 'Bela-Bela', postal: '0480' }, { suburb: 'Mokopane', city: 'Mokopane', postal: '0600' } ],
+    'North West': [
+      { suburb: 'Rustenburg', city: 'Rustenburg', postal: '0299' }, { suburb: 'Potchefstroom', city: 'Potchefstroom', postal: '2531' },
+      { suburb: 'Klerksdorp', city: 'Klerksdorp', postal: '2571' }, { suburb: 'Brits', city: 'Brits', postal: '0250' } ],
+    'Northern Cape': [
+      { suburb: 'Kimberley', city: 'Kimberley', postal: '8301' }, { suburb: 'Upington', city: 'Upington', postal: '8801' },
+      { suburb: 'Springbok', city: 'Springbok', postal: '8240' } ],
+  };
+  // Keyword → province (matched against the customer's address text).
+  const PROVINCE_KEYWORDS = [
+    ['Gauteng', /gauteng|johannesburg|joburg|jhb|pretoria|tshwane|sandton|midrand|centurion|soweto|randburg|roodepoort|kempton|benoni|boksburg|germiston|vereeniging|vanderbijl|krugersdorp|alberton|edenvale|gp\b/i],
+    ['Western Cape', /western\s*cape|cape\s*town|kaapstad|bellville|stellenbosch|paarl|george|worcester|somerset\s*west|durbanville|claremont|mitchell|table\s*view|wc\b/i],
+    ['KwaZulu-Natal', /kwazulu|natal|kzn|durban|pietermaritzburg|umhlanga|pinetown|newcastle|richards\s*bay|ballito|chatsworth|umlazi/i],
+    ['Eastern Cape', /eastern\s*cape|port\s*elizabeth|gqeberha|east\s*london|mthatha|umtata|queenstown|king\s*william|uitenhage|kariega|ec\b/i],
+    ['Free State', /free\s*state|vrystaat|bloemfontein|welkom|bethlehem|sasolburg|kroonstad|fs\b/i],
+    ['Mpumalanga', /mpumalanga|nelspruit|mbombela|witbank|emalahleni|secunda|middelburg|ermelo|standerton|mp\b/i],
+    ['Limpopo', /limpopo|polokwane|pietersburg|tzaneen|thohoyandou|mokopane|bela\s*bela|musina|lp\b/i],
+    ['North West', /north\s*west|noordwes|rustenburg|mahikeng|mafikeng|potchefstroom|klerksdorp|brits|lichtenburg|nw\b/i],
+    ['Northern Cape', /northern\s*cape|noord\s*kaap|kimberley|upington|springbok|kuruman|de\s*aar|nc\b/i],
+  ];
+  // Approximate postal-code → province (4-digit ranges), used when no keyword matches.
+  function provinceFromPostal(pc) {
+    const n = parseInt(String(pc || '').replace(/\D/g, '').slice(0, 4), 10);
+    if (!n) return null;
+    if (n <= 249) return 'Gauteng';
+    if (n <= 499) return 'North West';
+    if (n <= 599) return 'North West';
+    if (n <= 999) return 'Limpopo';
+    if (n <= 1399) return 'Mpumalanga';
+    if (n <= 2199) return 'Gauteng';
+    if (n <= 2499) return 'Mpumalanga';
+    if (n <= 2899) return 'North West';
+    if (n <= 4730) return 'KwaZulu-Natal';
+    if (n <= 6499) return 'Eastern Cape';
+    if (n <= 8099) return 'Western Cape';
+    if (n <= 8999) return 'Northern Cape';
+    return 'Free State';
+  }
+  function provinceOf(d) {
+    const text = [d.province, d.city, d.town, d.suburb, d.street_address].filter(Boolean).join(' ');
+    for (const [prov, re] of PROVINCE_KEYWORDS) if (re.test(text)) return prov;
+    return provinceFromPostal(d.area_code) || 'Gauteng';
   }
 
   // ---- expense intelligence (sum amounts; keep fixed; normalise variable to income) ----
@@ -202,7 +280,7 @@
     setN('customerResidentialAddressLine1', (d.street_address ? String(d.street_address).split(/[,\n]/)[0].trim() : '').slice(0, 60));
     setN('customerPeriodAtCurrentAddressYears', d.years_at_address != null ? d.years_at_address : 3);
     setN('customerPeriodAtCurrentAddressMonths', d.months_at_address != null ? d.months_at_address : 0);
-    setSelN('sameAsRes', 'Yes', { fuzzy: true }); // postal = residential (avoids re-entry)
+    setSelN('sameAsRes', 'Use Residential Address'); // "Postal Address" dropdown → copy the residential address
     setSelN('ownerTenantLodger', d.residence_type || 'Tenant', { fuzzy: true }) || ensureSelN('ownerTenantLodger', /tenant|owner/i);
 
     // Next of kin
@@ -213,6 +291,15 @@
     if (d.kin_relation == null) flag('Next-of-kin relation not in Lumina — defaulted; set it if you know it.');
     setN('relativeCellphone', (d.kin_contact || '').replace(/\D/g, ''));
     setSelN('relativePreferredContactMethod', 'Cellphone', { fuzzy: true });
+    // Relative address — a RANDOM real town in the CUSTOMER'S OWN province (per requirement).
+    // The City/Suburb/Postal fields are read-only (normally set via a lookup popup), but a
+    // programmatic value-set writes through and needs no region code, so we fill directly.
+    const relProv = provinceOf(d);
+    const relLoc = rand(PROVINCE_CITIES[relProv] || PROVINCE_CITIES['Gauteng']);
+    setN('relativeAddressLine1', (Math.floor(Math.random() * 98) + 1) + ' ' + rand(STREETS));
+    setN('relativeAddressSuburb', relLoc.suburb);
+    setN('relativeAddressCity', relLoc.city);
+    setN('relativeAddressPostalCode', relLoc.postal);
 
     // Employer
     setN('employerName', d.employer_name);
@@ -260,12 +347,48 @@
     }
     if (ex.adjusted) flag('Variable living expenses normalised to a realistic level for the income (≈ R' + ex.total + ' total) — adjust if needed.');
 
-    // Vehicle — sensible defaults; the human picks the actual car via SELECT VEHICLE (M&M lookup).
+    // Payment History — all adverse-credit questions answered "No" (standard clean profile).
+    ['debtReviewIndicator', 'debtCounselling', 'administrationOrderIndicator', 'DebtAdminHist',
+      'previousJudgementIndicator', 'DebtDisp', 'debtSeqOrder'].forEach((n) => setSelN(n, 'No'));
+
+    // Application Details consents — both "Yes" (marketing share + credit-bureau access).
+    setSelN('marketingConsentIndicator', 'Yes');
+    setSelN('itcConcentIndicator', 'Yes');
+
+    // Vehicle — FIXED placeholder car, selected via the SELECT VEHICLE (M&M) lookup so the
+    // make/model/code populate exactly as Signio expects (direct typing is rejected — the
+    // Model field is controlled by the lookup). Standard car for every quote: 2026 Suzuki
+    // Swift 1.2 GL, M&M 59007082, R220 000, Used / Private.
     setSelN('articleType', 'Motor Vehicle', { fuzzy: true });
-    setSelN('articleCondition', d.vehicle_condition || 'Used', { fuzzy: true });
+    setSelN('articleCondition', 'Used', { fuzzy: true });
     setSelN('articleUse', 'Private', { fuzzy: true });
-    if (+d.purchase_price) setN('purchasePrice', d.purchase_price);
-    flag('VEHICLE: pick the actual car with the "SELECT VEHICLE" button (M&M lookup) — type/condition/use were defaulted.');
+    const vehicleOk = await selectFixedVehicle('59007082');
+    if (vehicleOk) setN('purchasePrice', '220000.00');
+    else flag('Could not auto-select the vehicle — click "SELECT VEHICLE", search M&M 59007082, pick it, then set Purchase Price 220000.');
+  }
+
+  // Drive the "Vehicle Lookup" modal to select a car by its M&M code, the way the form
+  // expects (open → type code → Search → wait for the match → OK → fields populate).
+  async function selectFixedVehicle(mm) {
+    try {
+      const openBtn = document.querySelector('[onclick*="lookupVehicle"]');
+      if (!openBtn) return false;
+      openBtn.click();
+      const search = await waitFor(() => document.querySelector('#searchMMCode, [name="searchMMCode"]'), { timeout: 6000 });
+      if (!search) return false;
+      setVal(search, mm);
+      const searchBtn = document.querySelector('#cmdMMCode')
+        || [...document.querySelectorAll('input[type=button],button')].find((b) => /search/i.test(b.value || b.textContent || ''));
+      if (searchBtn) searchBtn.click();
+      // Wait for the lookup to resolve the model select to the matching code.
+      await waitFor(() => { const m = document.querySelector('#selectModel'); return m && /\d{6,}/.test(m.value || ''); }, { timeout: 8000 });
+      const okBtn = document.querySelector('#cmdVehicleOk')
+        || [...document.querySelectorAll('input[type=button],button')].find((b) => /^ok$/i.test((b.value || b.textContent || '').trim()));
+      if (okBtn) okBtn.click();
+      // Confirm the main form's M&M code populated.
+      const ok = await waitFor(() => { const c = byName('mmCode'); return c && (c.value || '').replace(/\D/g, '') === mm; }, { timeout: 5000 });
+      return !!ok;
+    } catch (e) { console.warn('[Lumina] vehicle select failed', e); return false; }
   }
 
   async function run() {
@@ -275,7 +398,7 @@
     await waitFor(() => byName('customerIdNumber'), { timeout: 12000 });
     try { await fillAll(d); } catch (e) { console.error('[Lumina]', e); flag('Engine error: ' + (e && e.message)); }
     const body = flags.length ? '\n\nCheck:\n• ' + flags.join('\n• ') : '';
-    alert('Lumina auto-fill done (LIGHTSTONE).' + body + '\n\nNow: pick the vehicle (SELECT VEHICLE), review highlighted/empty required fields, tick the declaration, clear the reCAPTCHA, then Submit.');
+    alert('Lumina auto-fill done (LIGHTSTONE).' + body + '\n\nVehicle set to the standard quote car (Suzuki Swift 1.2 GL). Now: review any highlighted/empty required fields, tick the declaration, clear the reCAPTCHA, then Submit.');
   }
 
   const HANDOFF_PREFIX = 'LUMINA_SIGNIO:';
