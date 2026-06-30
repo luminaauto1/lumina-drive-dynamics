@@ -51,7 +51,9 @@ export function StatusChangeModal({
 
   const submit = async () => {
     setError('');
-    if (!financeChanged && !clientChanged) { onClose(); return; }
+    // Allow a comment-only update (log a note without changing a status), so the
+    // button isn't permanently greyed out when the shown status is already current.
+    if (!financeChanged && !clientChanged && !comment.trim()) { onClose(); return; }
     if (commentMissing) { setError('A comment is required for this status.'); return; }
     setBusy(true);
     try {
@@ -71,7 +73,7 @@ export function StatusChangeModal({
       if (comment.trim()) {
         await addPipelineNote(app, {
           body: comment.trim(),
-          category: 'status_change',
+          category: financeChanged || clientChanged ? 'status_change' : 'note',
           author_id: user?.id ?? null,
           author_name: authorName(user),
         });
@@ -167,7 +169,7 @@ export function StatusChangeModal({
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button onClick={submit} disabled={busy || (!financeChanged && !clientChanged) || commentMissing}>
+          <Button onClick={submit} disabled={busy || (!financeChanged && !clientChanged && !comment.trim()) || commentMissing}>
             {busy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Update status
           </Button>
         </DialogFooter>
