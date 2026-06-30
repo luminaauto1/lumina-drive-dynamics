@@ -18,6 +18,7 @@ import AdminLayout from '@/components/admin/AdminLayout';
 import PageHeader from '@/components/admin/PageHeader';
 import StatTile from '@/components/admin/StatTile';
 import { ADMIN_ROUTES } from '@/lib/adminRoutes';
+import { sourceLabel } from '@/lib/pipelinev2/source';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -1170,7 +1171,7 @@ const AdminFinance = () => {
                             srcLabel = 'Website';
                           } else if (src && String(src).trim() !== '') {
                             srcIcon = <FileText className="w-3 h-3" />;
-                            srcLabel = String(src);
+                            srcLabel = sourceLabel(src);
                           } else {
                             srcIcon = <FileText className="w-3 h-3" />;
                             srcLabel = 'Legacy';

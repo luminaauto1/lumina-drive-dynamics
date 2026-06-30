@@ -6,6 +6,7 @@ import { useStatusConfig } from '@/hooks/useZtcSettings';
 import { INTERNAL_STATUSES, normalizeInternalStatus, type InternalStatus } from '@/lib/internalStatusConfig';
 import { formatCurrencyR, formatDate, formatTime, formatPhone, relativeTime } from '@/lib/pipelinev2/format';
 import { TABLE_COLUMNS, columnClass, type TableConfig } from '@/lib/pipelinev2/columns';
+import { sourceLabel } from '@/lib/pipelinev2/source';
 import { latestPipelineNote, noteCategory } from '@/lib/pipelinev2/notes';
 
 interface Busy { userId: string; name: string; color: string }
@@ -217,6 +218,12 @@ function renderCell(
     case 'rep': return <span className="text-xs">{a.creator?.full_name || a.creator?.email || '—'}</span>;
     case 'bank_reference': return <span className="font-mono text-xs">{any.bank_reference || '—'}</span>;
     case 'deal_type': return <span className="text-xs capitalize">{any.deal_type || '—'}</span>;
+    case 'source':
+      return (
+        <span className="inline-flex items-center rounded border border-border bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+          {sourceLabel(any.submission_source)}
+        </span>
+      );
     case 'created':
       return (
         <div className="whitespace-nowrap text-muted-foreground tabular-nums">

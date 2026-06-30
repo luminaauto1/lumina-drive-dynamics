@@ -364,6 +364,8 @@ const AdminCreateApplication = () => {
         credit_score_status: formData.credit_score_status || 'unsure',
         notes: formData.admin_notes?.trim() || 'Created by Admin on behalf of client',
         status: 'pending',
+        // Admin-created on behalf of a client → tag the origin explicitly.
+        submission_source: 'manual',
       };
 
       console.log('Submitting application data:', { ...applicationData, user_id: '[REDACTED]' });

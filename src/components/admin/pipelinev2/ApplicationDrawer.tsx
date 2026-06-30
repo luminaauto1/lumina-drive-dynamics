@@ -9,7 +9,10 @@ import type { FinanceApplication } from '@/hooks/useFinanceApplications';
 import { STATUS_STYLES, ADMIN_STATUS_LABELS } from '@/lib/statusConfig';
 import { formatCurrencyR, formatPhone, formatPhoneIntl, formatDate } from '@/lib/pipelinev2/format';
 import { StatusBadge } from '@/components/admin/StatusBadge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useStatusConfig } from '@/hooks/useZtcSettings';
+import { useUpdateApplicationSource } from '@/hooks/useFinanceApplications';
+import { SOURCE_OPTIONS, sourceLabel } from '@/lib/pipelinev2/source';
 import { NotesFeed } from './NotesFeed';
 import { HistoryFeed } from './HistoryFeed';
 
@@ -34,6 +37,7 @@ export function ApplicationDrawer({
 }) {
   const [feed, setFeed] = useState<'notes' | 'history'>('notes');
   const { clientLabels, clientStyles } = useStatusConfig();
+  const updateSource = useUpdateApplicationSource();
   const navigate = useNavigate();
   if (!app) return null;
   const any = app as any;
@@ -47,6 +51,12 @@ export function ApplicationDrawer({
       toast.error('Could not copy');
     }
   };
+  // Map the stored source onto a set-able slug for the dropdown's value.
+  // Legacy server value 'whatsapp_parser' shows selected as WhatsApp.
+  const rawSource = String(any.submission_source ?? '').trim().toLowerCase();
+  const sourceSlug = rawSource === 'whatsapp_parser' ? 'whatsapp'
+    : SOURCE_OPTIONS.some((o) => o.value === rawSource) ? rawSource
+    : undefined;
   const statusCls = STATUS_STYLES[any.status] || 'bg-muted text-muted-foreground border-border';
   const vehicleText = app.vehicle
     ? `${app.vehicle.year} ${app.vehicle.make} ${app.vehicle.model}`
@@ -99,6 +109,22 @@ export function ApplicationDrawer({
           <Field label="Email" value={any.email || '—'} />
           <Field label="ID Number" value={any.id_number || '—'} />
           <Field label="Deal Type" value={any.deal_type ? <span className="capitalize">{any.deal_type}</span> : '—'} />
+          <Field label="Source" value={
+            <Select
+              value={sourceSlug}
+              onValueChange={(v) => updateSource.mutate({ id: app.id, submission_source: v })}
+              disabled={updateSource.isPending}
+            >
+              <SelectTrigger className="h-7 w-full px-2 text-sm">
+                <SelectValue placeholder={sourceLabel(any.submission_source)} />
+              </SelectTrigger>
+              <SelectContent>
+                {SOURCE_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          } />
           <Field label="Vehicle" value={vehicleText} />
           <Field label="Bank" value={any.bank_name || '—'} />
           <Field label="Bank Ref" value={any.bank_reference || '—'} />
