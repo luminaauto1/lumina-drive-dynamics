@@ -172,26 +172,26 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-zinc-950 border border-white/10 text-white max-w-xl">
+      <DialogContent className="bg-background border border-border text-foreground max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 font-light tracking-wide text-xl">
             <span className={`px-2 py-0.5 rounded text-xs uppercase tracking-wider border ${accentBorder} ${accentBg} ${accentText}`}>
               Credit Check {outcome === 'passed' ? 'Passed' : 'Failed'}
             </span>
           </DialogTitle>
-          <DialogDescription className="text-white/50 text-sm">
+          <DialogDescription className="text-muted-foreground text-sm">
             Confirm the outcome, choose the resulting main status, and attach the bureau screenshot.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label className="text-white/70 text-xs uppercase tracking-wider">Main status</Label>
+            <Label className="text-muted-foreground text-xs uppercase tracking-wider">Main status</Label>
             <Select value={mainStatus} onValueChange={setMainStatus}>
-              <SelectTrigger className="bg-black/60 border-white/10 text-white focus:ring-white/30">
+              <SelectTrigger className="bg-background border-input text-foreground focus:ring-ring">
                 <SelectValue placeholder="Select status…" />
               </SelectTrigger>
-              <SelectContent className="bg-zinc-950 border-white/10 text-white">
+              <SelectContent>
                 {statusOptions.map((o) => (
                   <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                 ))}
@@ -200,8 +200,8 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
           </div>
 
           <div className="space-y-2">
-            <Label className="text-white/70 text-xs uppercase tracking-wider">
-              Credit Score <span className="text-white/40 normal-case tracking-normal">— optional</span>
+            <Label className="text-muted-foreground text-xs uppercase tracking-wider">
+              Credit Score <span className="text-muted-foreground normal-case tracking-normal">— optional</span>
             </Label>
             <Input
               type="number"
@@ -209,14 +209,14 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
               value={creditScore}
               onChange={(e) => setCreditScore(e.target.value)}
               placeholder="e.g. 645"
-              className="bg-black/60 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-white/30"
+              className="bg-background border-input text-foreground placeholder:text-muted-foreground/60 focus-visible:ring-ring"
             />
-            <p className="text-[11px] text-white/40">The bureau score the customer received, if shown.</p>
+            <p className="text-[11px] text-muted-foreground">The bureau score the customer received, if shown.</p>
           </div>
 
           {mainStatus === 'declined_conditional' && (
             <div className="space-y-2">
-              <Label className="text-white/70 text-xs uppercase tracking-wider">
+              <Label className="text-muted-foreground text-xs uppercase tracking-wider">
                 F&amp;I Comment <span className="text-amber-400 normal-case tracking-normal">— required, goes to admin inbox</span>
               </Label>
               <Textarea
@@ -224,10 +224,10 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
                 onChange={(e) => setConditionalComment(e.target.value)}
                 placeholder="e.g. Recommend a cheaper vehicle under R250k, or larger deposit required…"
                 rows={3}
-                className="bg-black/60 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-white/30"
+                className="bg-background border-input text-foreground placeholder:text-muted-foreground/60 focus-visible:ring-ring"
                 maxLength={1000}
               />
-              <p className="text-[11px] text-white/40">
+              <p className="text-[11px] text-muted-foreground">
                 This note will be timestamped and prepended to the application's internal notes.
               </p>
             </div>
@@ -236,7 +236,7 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
 
 
           <div className="space-y-2">
-            <Label className="text-white/70 text-xs uppercase tracking-wider">
+            <Label className="text-muted-foreground text-xs uppercase tracking-wider">
               Screenshot (optional) — paste (Ctrl/Cmd+V) or upload
             </Label>
             <div
@@ -247,7 +247,7 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
                 const f = e.dataTransfer.files?.[0];
                 if (f) acceptFile(f);
               }}
-              className={`relative rounded-lg border border-dashed border-white/15 bg-black/40 hover:border-white/30 transition-colors min-h-[160px] flex items-center justify-center p-3`}
+              className={`relative rounded-lg border border-dashed border-border bg-muted/40 hover:border-foreground/30 transition-colors min-h-[160px] flex items-center justify-center p-3`}
             >
               {previewUrl ? (
                 <div className="relative w-full">
@@ -255,17 +255,17 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
                   <button
                     type="button"
                     onClick={() => { setFile(null); setPreviewUrl(null); }}
-                    className="absolute top-1 right-1 p-1 rounded bg-black/70 border border-white/10 hover:bg-black"
+                    className="absolute top-1 right-1 p-1 rounded bg-background/70 border border-border hover:bg-background"
                     aria-label="Remove image"
                   >
-                    <X className="w-3 h-3 text-white/80" />
+                    <X className="w-3 h-3 text-foreground/80" />
                   </button>
                 </div>
               ) : (
-                <label className="flex flex-col items-center gap-2 text-white/50 cursor-pointer text-sm">
+                <label className="flex flex-col items-center gap-2 text-muted-foreground cursor-pointer text-sm">
                   <ImageIcon className="w-6 h-6" />
                   <span>Paste with Ctrl/Cmd+V, drop a file, or</span>
-                  <span className="inline-flex items-center gap-1.5 text-white/80 underline underline-offset-2">
+                  <span className="inline-flex items-center gap-1.5 text-foreground/80 underline underline-offset-2">
                     <Upload className="w-3 h-3" /> choose a file
                   </span>
                   <input
@@ -284,13 +284,13 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} className="text-white/60 hover:text-white hover:bg-white/5">
+          <Button variant="ghost" onClick={() => onOpenChange(false)} className="text-muted-foreground hover:text-foreground hover:bg-muted/40">
             Cancel
           </Button>
           <Button
             onClick={onSave}
             disabled={submitting || !mainStatus}
-            className="bg-white text-black hover:bg-white/90 font-medium"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
           >
             {submitting ? 'Saving…' : 'Save'}
           </Button>

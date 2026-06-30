@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminSidebar from './AdminSidebar';
@@ -20,6 +20,24 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   const { theme, toggle: toggleTheme } = useDeskTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+
+  // Radix overlays (Dialog/Sheet/Popover/DropdownMenu/Select/Tooltip/etc.) portal
+  // into document.body, OUTSIDE the .desk-root.theme-light wrapper, so they inherit
+  // the default dark :root tokens. Mark <html> with `desk-portal-light` in admin
+  // light mode so portaled overlay content can re-scope to the light palette.
+  // Always cleared on cleanup / when theme flips to dark, so the public site
+  // (which never mounts AdminLayout) is never affected.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'light') {
+      root.classList.add('desk-portal-light');
+    } else {
+      root.classList.remove('desk-portal-light');
+    }
+    return () => {
+      root.classList.remove('desk-portal-light');
+    };
+  }, [theme]);
 
   if (loading) {
     return (

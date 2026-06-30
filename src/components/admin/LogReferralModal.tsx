@@ -58,14 +58,14 @@ export const LogReferralModal = ({ open, onOpenChange, defaultReferee }: LogRefe
     });
   };
 
-  const fieldCls = 'bg-black/40 border-zinc-800 text-zinc-200 focus:border-zinc-600';
-  const sectionCls = 'space-y-3 p-4 rounded-md border border-zinc-800 bg-zinc-900/40';
+  const fieldCls = 'bg-background border-input text-foreground focus:border-ring';
+  const sectionCls = 'space-y-3 p-4 rounded-md border border-border bg-muted/40';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-zinc-950 border border-zinc-800 text-zinc-200 max-w-xl">
+      <DialogContent className="bg-background border border-border text-foreground max-w-xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-zinc-100">
+          <DialogTitle className="flex items-center gap-2 text-foreground">
             <Gift className="h-4 w-4 text-emerald-400" />
             Log New Referral
           </DialogTitle>
@@ -73,49 +73,49 @@ export const LogReferralModal = ({ open, onOpenChange, defaultReferee }: LogRefe
 
         <div className="grid gap-4">
           <div className={sectionCls}>
-            <p className="text-xs uppercase tracking-wider text-zinc-500">Referrer (who is owed)</p>
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Referrer (who is owed)</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs text-zinc-400">Name</Label>
+                <Label className="text-xs text-muted-foreground">Name</Label>
                 <Input className={fieldCls} value={form.referrer_name} onChange={update('referrer_name')} />
               </div>
               <div>
-                <Label className="text-xs text-zinc-400">Phone</Label>
+                <Label className="text-xs text-muted-foreground">Phone</Label>
                 <Input className={fieldCls} value={form.referrer_phone} onChange={update('referrer_phone')} />
               </div>
               <div className="col-span-2">
-                <Label className="text-xs text-zinc-400">Email (optional)</Label>
+                <Label className="text-xs text-muted-foreground">Email (optional)</Label>
                 <Input className={fieldCls} value={form.referrer_email} onChange={update('referrer_email')} />
               </div>
             </div>
           </div>
 
           <div className={sectionCls}>
-            <p className="text-xs uppercase tracking-wider text-zinc-500">Referee (potential buyer)</p>
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Referee (potential buyer)</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs text-zinc-400">Name</Label>
+                <Label className="text-xs text-muted-foreground">Name</Label>
                 <Input className={fieldCls} value={form.referee_name} onChange={update('referee_name')} />
               </div>
               <div>
-                <Label className="text-xs text-zinc-400">Phone</Label>
+                <Label className="text-xs text-muted-foreground">Phone</Label>
                 <Input className={fieldCls} value={form.referee_phone} onChange={update('referee_phone')} />
               </div>
               <div className="col-span-2">
-                <Label className="text-xs text-zinc-400">Email (optional)</Label>
+                <Label className="text-xs text-muted-foreground">Email (optional)</Label>
                 <Input className={fieldCls} value={form.referee_email} onChange={update('referee_email')} />
               </div>
             </div>
           </div>
 
           <div>
-            <Label className="text-xs text-zinc-400">Notes (optional)</Label>
+            <Label className="text-xs text-muted-foreground">Notes (optional)</Label>
             <Textarea className={fieldCls} rows={2} value={form.notes} onChange={update('notes')} />
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} className="text-zinc-400">
+          <Button variant="ghost" onClick={() => onOpenChange(false)} className="text-muted-foreground">
             Cancel
           </Button>
           <Button

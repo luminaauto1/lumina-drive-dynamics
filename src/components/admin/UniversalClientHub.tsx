@@ -384,7 +384,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-2xl p-0 bg-card border-border flex flex-col h-[100dvh] overflow-y-auto md:overflow-hidden" aria-describedby={undefined}>
-        <SheetHeader className="px-5 pt-5 pb-4 border-b border-white/10 bg-gradient-to-r from-zinc-900 to-black shadow-md">
+        <SheetHeader className="px-5 pt-5 pb-4 border-b border-border bg-gradient-to-r from-card to-background shadow-md">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
@@ -395,7 +395,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
               {clientPhone ? (
                 <button
                   onClick={copyPhoneToClipboard}
-                  className="group mt-2 flex items-center gap-2 text-2xl md:text-3xl font-bold text-white hover:text-zinc-300 cursor-pointer transition-colors"
+                  className="group mt-2 flex items-center gap-2 text-2xl md:text-3xl font-bold text-foreground hover:text-foreground/70 cursor-pointer transition-colors"
                   title="Click to copy"
                 >
                   <Phone className="w-5 h-5 text-emerald-400" />
@@ -407,7 +407,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
                   )}
                 </button>
               ) : (
-                <p className="mt-2 text-sm text-zinc-500 italic">No phone on record</p>
+                <p className="mt-2 text-sm text-muted-foreground italic">No phone on record</p>
               )}
             </div>
             <Button onClick={() => setCalcOpen(true)} size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2 text-xs shrink-0">
@@ -418,10 +418,10 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
 
         <div className="flex-1 flex flex-col md:flex-row md:overflow-hidden min-h-0">
           {/* LEFT: Data */}
-          <div className="w-full md:w-1/2 md:border-r border-b md:border-b-0 border-white/10 p-6 flex flex-col gap-6 md:overflow-y-auto h-auto md:h-full">
+          <div className="w-full md:w-1/2 md:border-r border-b md:border-b-0 border-border p-6 flex flex-col gap-6 md:overflow-y-auto h-auto md:h-full">
             {/* 0. CLIENT AI PROFILE (persistent core requirements) */}
-            <div className="rounded-md bg-zinc-800/50 border border-zinc-700/50 p-4">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-300 mb-3 flex items-center gap-2">
+            <div className="rounded-md bg-muted border border-border p-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground/80 mb-3 flex items-center gap-2">
                 <Brain className="w-4 h-4 text-primary" /> Client AI Profile
               </h3>
               <div className="space-y-2.5">
@@ -437,7 +437,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
                   <CalendarClock className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
                   <div><span className="text-muted-foreground">Timeline: </span><span className="text-foreground font-medium">{primaryApp?.ai_timeline || '—'}</span></div>
                 </div>
-                <div className="flex items-start gap-2 text-xs pt-1.5 border-t border-zinc-700/40">
+                <div className="flex items-start gap-2 text-xs pt-1.5 border-t border-border">
                   <AlertOctagon className="w-3.5 h-3.5 text-orange-400 mt-0.5 shrink-0" />
                   <div><span className="text-muted-foreground">Action Status: </span><span className="text-orange-400 font-semibold">{primaryApp?.ai_current_action_status || '—'}</span></div>
                 </div>
@@ -447,8 +447,8 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
 
             {/* FINANCIAL SNAPSHOT */}
             {primaryApp ? (
-              <div className="rounded-md bg-zinc-800/50 border border-zinc-700/50 p-4">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-300 mb-3 flex items-center gap-2">
+              <div className="rounded-md bg-muted border border-border p-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground/80 mb-3 flex items-center gap-2">
                   <Banknote className="w-4 h-4 text-emerald-400" /> Financial Snapshot
                 </h3>
                 <div className="space-y-2.5">
@@ -462,8 +462,8 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
                         </span>
                       </div>
                       {primaryApp.net_salary ? (
-                        <div className="text-[10px] text-zinc-400 mt-0.5">
-                          Max Allowed Installment (~30%): <span className="font-medium text-zinc-300">{formatPrice(Number(primaryApp.net_salary) * 0.30)}</span>
+                        <div className="text-[10px] text-muted-foreground mt-0.5">
+                          Max Allowed Installment (~30%): <span className="font-medium text-foreground/80">{formatPrice(Number(primaryApp.net_salary) * 0.30)}</span>
                         </div>
                       ) : null}
                     </div>
@@ -487,8 +487,8 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
                 </div>
               </div>
             ) : (
-              <div className="rounded-md bg-zinc-800/50 border border-zinc-700/50 p-4">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-300 mb-2 flex items-center gap-2">
+              <div className="rounded-md bg-muted border border-border p-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground/80 mb-2 flex items-center gap-2">
                   <Banknote className="w-4 h-4 text-emerald-400" /> Financial Snapshot
                 </h3>
                 <p className="text-[11px] text-muted-foreground italic">Financial details pending application submission.</p>
@@ -501,11 +501,11 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
                 <Trophy className="w-4 h-4"/> The Garage (Purchase History)
               </h3>
               {pastDeals.length === 0 ? (
-                <div className="bg-black/30 border border-white/5 p-3 rounded-md flex items-center gap-3 shadow-inner">
-                  <div className="p-2 bg-zinc-900 border border-white/5 rounded-full"><Car className="w-4 h-4 text-zinc-600"/></div>
+                <div className="bg-muted/30 border border-border p-3 rounded-md flex items-center gap-3 shadow-inner">
+                  <div className="p-2 bg-card border border-border rounded-full"><Car className="w-4 h-4 text-muted-foreground"/></div>
                   <div>
-                    <p className="text-xs font-medium text-zinc-300">First-Time Buyer</p>
-                    <p className="text-[10px] text-zinc-500">No finalized deliveries on record.</p>
+                    <p className="text-xs font-medium text-foreground/80">First-Time Buyer</p>
+                    <p className="text-[10px] text-muted-foreground">No finalized deliveries on record.</p>
                   </div>
                 </div>
               ) : (
@@ -515,7 +515,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
                     <div key={deal.id} className="bg-gradient-to-r from-amber-950/30 to-black border border-amber-500/20 p-3 rounded-md flex justify-between items-center shadow-[0_0_15px_rgba(245,158,11,0.05)]">
                       <div>
                         <p className="text-sm font-bold text-amber-400">{deal.preferred_vehicle_text || deal.full_name || 'Unknown Vehicle'}</p>
-                        <p className="text-[10px] text-zinc-400 font-mono mt-0.5">App ID: {deal.id.slice(0,8)}</p>
+                        <p className="text-[10px] text-muted-foreground font-mono mt-0.5">App ID: {deal.id.slice(0,8)}</p>
                       </div>
                       <span className="text-[9px] px-2 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 uppercase tracking-wider font-bold">
                         {deal.status}
@@ -531,10 +531,10 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
               <h3 className="text-xs font-semibold uppercase tracking-wider text-emerald-500 mb-3 flex items-center gap-2">
                 <Car className="w-4 h-4"/> Active Applications
               </h3>
-              {activeApps.length === 0 ? <p className="text-xs text-zinc-600 italic">No active applications.</p> : activeApps.map(app => (
-                <div key={app.id} className="bg-black/50 border border-emerald-500/20 p-3 rounded-md mb-2 shadow-[0_0_10px_rgba(16,185,129,0.05)]">
+              {activeApps.length === 0 ? <p className="text-xs text-muted-foreground italic">No active applications.</p> : activeApps.map(app => (
+                <div key={app.id} className="bg-background border border-emerald-500/20 p-3 rounded-md mb-2 shadow-[0_0_10px_rgba(16,185,129,0.05)]">
                   <div className="flex justify-between items-center gap-2 mb-1">
-                    <span className="text-xs font-bold text-white truncate">{app.preferred_vehicle_text || app.full_name || 'Vehicle Pending'}</span>
+                    <span className="text-xs font-bold text-foreground truncate">{app.preferred_vehicle_text || app.full_name || 'Vehicle Pending'}</span>
                     <Select value={app.status || undefined} onValueChange={(v) => requestStatusChange(app, v)} disabled={updateApplication.isPending}>
                       <SelectTrigger className="h-7 w-auto min-w-[150px] shrink-0 text-[10px] uppercase font-bold tracking-wider bg-emerald-500/15 border-emerald-500/30 text-emerald-300 px-2 gap-1">
                         <SelectValue placeholder="Set status" />
@@ -546,7 +546,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
                       </SelectContent>
                     </Select>
                   </div>
-                  <p className="text-[10px] text-zinc-500 font-mono">App ID: {app.id.slice(0,8)}</p>
+                  <p className="text-[10px] text-muted-foreground font-mono">App ID: {app.id.slice(0,8)}</p>
                   {(() => {
                     const history: Array<{ status: string; timestamp: string }> = Array.isArray(app.status_history) ? app.status_history : [];
                     const isOpen = openHistoryIds.has(app.id);
@@ -555,22 +555,22 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
                         <button
                           type="button"
                           onClick={() => toggleHistory(app.id)}
-                          className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors mt-4"
+                          className="text-xs text-muted-foreground hover:text-foreground transition-colors mt-4"
                         >
                           {isOpen ? 'Hide Progress History' : 'View Progress History'}
                         </button>
                         {isOpen && (
                           history.length === 0 ? (
-                            <p className="text-[10px] text-zinc-600 italic mt-2 ml-2">No status changes recorded yet.</p>
+                            <p className="text-[10px] text-muted-foreground italic mt-2 ml-2">No status changes recorded yet.</p>
                           ) : (
-                            <div className="relative border-l border-zinc-800 ml-2 pl-4 space-y-3 mt-3">
+                            <div className="relative border-l border-border ml-2 pl-4 space-y-3 mt-3">
                               {[...history]
                                 .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
                                 .map((entry, idx) => (
                                   <div key={idx} className="relative">
-                                    <span className="w-2 h-2 rounded-full bg-zinc-600 -ml-[21px] mt-1.5 absolute" />
-                                    <p className="text-zinc-200 text-sm capitalize">{entry.status?.replace(/_/g, ' ')}</p>
-                                    <p className="text-zinc-500 text-xs font-mono">{format(new Date(entry.timestamp), 'dd MMM yyyy • HH:mm')}</p>
+                                    <span className="w-2 h-2 rounded-full bg-muted-foreground -ml-[21px] mt-1.5 absolute" />
+                                    <p className="text-foreground text-sm capitalize">{entry.status?.replace(/_/g, ' ')}</p>
+                                    <p className="text-muted-foreground text-xs font-mono">{format(new Date(entry.timestamp), 'dd MMM yyyy • HH:mm')}</p>
                                   </div>
                                 ))}
                             </div>
@@ -597,26 +597,26 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
               <h3 className="text-xs font-semibold uppercase tracking-wider text-blue-500 mb-3 flex items-center gap-2">
                 <FileText className="w-4 h-4"/> Active CRM Leads
               </h3>
-              {leads.length === 0 ? <p className="text-xs text-zinc-600 italic">No active leads.</p> : leads.map(lead => (
-                <div key={lead.id} className="bg-black/50 border border-blue-500/20 p-3 rounded-md mb-2 shadow-[0_0_10px_rgba(59,130,246,0.05)]">
+              {leads.length === 0 ? <p className="text-xs text-muted-foreground italic">No active leads.</p> : leads.map(lead => (
+                <div key={lead.id} className="bg-background border border-blue-500/20 p-3 rounded-md mb-2 shadow-[0_0_10px_rgba(59,130,246,0.05)]">
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-bold text-white">{lead.deal_headline || lead.client_name || 'Lead Profile'}</span>
+                    <span className="text-xs font-bold text-foreground">{lead.deal_headline || lead.client_name || 'Lead Profile'}</span>
                     <span className="text-[9px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30 uppercase font-bold tracking-wider">{lead.status?.replace('_', ' ')}</span>
                   </div>
                   {lead.deal_headline && lead.client_name && (
-                    <p className="text-[10px] text-zinc-400">{lead.client_name}</p>
+                    <p className="text-[10px] text-muted-foreground">{lead.client_name}</p>
                   )}
-                  <p className="text-[10px] text-zinc-500 font-mono">Created: {format(new Date(lead.created_at), 'dd MMM yyyy')}</p>
+                  <p className="text-[10px] text-muted-foreground font-mono">Created: {format(new Date(lead.created_at), 'dd MMM yyyy')}</p>
                 </div>
               ))}
             </div>
           </div>
 
           {/* RIGHT: Timeline */}
-          <div className="w-full md:w-1/2 p-6 flex flex-col bg-black/20 h-auto md:h-full min-h-0 overflow-hidden">
+          <div className="w-full md:w-1/2 p-6 flex flex-col bg-muted/20 h-auto md:h-full min-h-0 overflow-hidden">
             {/* DAILY ACTION & FOLLOW-UP */}
             {primaryApp && (
-              <div className={`mb-4 rounded-md p-3 transition-all ${isOverdue ? 'border-2 border-red-500 animate-pulse bg-red-950/20' : 'border border-zinc-700/50 bg-zinc-800/40'}`}>
+              <div className={`mb-4 rounded-md p-3 transition-all ${isOverdue ? 'border-2 border-red-500 animate-pulse bg-red-950/20' : 'border border-border bg-muted/40'}`}>
                 <div className="flex items-center justify-between mb-2">
                   <p className={`text-[10px] uppercase tracking-wider font-semibold ${isOverdue ? 'text-red-400' : 'text-muted-foreground'}`}>
                     {isOverdue ? 'OVERDUE — Contact now' : contactedToday ? 'Contacted today ✓' : 'Daily Action'}
@@ -624,7 +624,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
                   {isOverdue && <AlertOctagon className="w-4 h-4 text-red-500 animate-pulse" />}
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <label className="flex items-start gap-2 p-2 rounded bg-black/30 border border-white/5 cursor-pointer hover:bg-black/40 transition">
+                  <label className="flex items-start gap-2 p-2 rounded bg-muted/30 border border-border cursor-pointer hover:bg-muted/40 transition">
                     <Checkbox
                       checked={contactedToday}
                       onCheckedChange={(checked) => {
@@ -641,7 +641,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
                       <p className="text-[9px] text-muted-foreground">Auto-resets at midnight</p>
                     </div>
                   </label>
-                  <div className={`p-2 rounded border ${isOverdue ? 'bg-red-950/30 border-red-500/60' : 'bg-black/30 border-white/5'}`}>
+                  <div className={`p-2 rounded border ${isOverdue ? 'bg-red-950/30 border-red-500/60' : 'bg-muted/30 border-border'}`}>
                     <Label htmlFor="hub_follow_up" className={`text-[10px] ${isOverdue ? 'text-red-400 font-bold' : 'text-muted-foreground'}`}>Follow-up time</Label>
                     <Input
                       id="hub_follow_up"
@@ -695,11 +695,11 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
                     </div>
                     <div className="p-2.5 rounded-md bg-muted/20 border border-border hover:border-emerald-500/20 transition-colors">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] text-zinc-400 font-medium">
-                          {log.author_name || 'Unknown'} <span className="text-zinc-600">•</span>{' '}
-                          <span className="text-zinc-500 font-mono">{format(new Date(log.created_at), 'dd MMM HH:mm')}</span>
+                        <span className="text-[10px] text-muted-foreground font-medium">
+                          {log.author_name || 'Unknown'} <span className="text-muted-foreground">•</span>{' '}
+                          <span className="text-muted-foreground font-mono">{format(new Date(log.created_at), 'dd MMM HH:mm')}</span>
                         </span>
-                        <button onClick={() => handleDeleteNote(log.id)} className="text-zinc-600 hover:text-red-500 transition-colors" title="Delete Note">
+                        <button onClick={() => handleDeleteNote(log.id)} className="text-muted-foreground hover:text-red-500 transition-colors" title="Delete Note">
                           <Trash2 className="w-3 h-3" />
                         </button>
                       </div>

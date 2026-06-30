@@ -413,7 +413,7 @@ const AccountingVATTab = () => {
                       const financeVendor = d.finance_house_vendor_id ? vendorMap.get(d.finance_house_vendor_id) : undefined;
                       const netProfit = dealNetProfit(d);
                       return (
-                        <TableRow key={d.id} onClick={() => setActiveDeal(d)} className={cn('cursor-pointer transition-colors hover:bg-zinc-800/50', d.application?.is_invoiced && 'opacity-50 text-zinc-500')}>
+                        <TableRow key={d.id} onClick={() => setActiveDeal(d)} className={cn('cursor-pointer transition-colors hover:bg-muted', d.application?.is_invoiced && 'opacity-50 text-muted-foreground')}>
                           <TableCell onClick={(e) => e.stopPropagation()}>
                             <Checkbox checked={!!d.application?.is_invoiced} disabled={!d.application?.id || toggleInvoiced.isPending}
                               onCheckedChange={(checked) => { if (d.application?.id) toggleInvoiced.mutate({ appId: d.application.id, value: checked === true }); }} aria-label="Mark as invoiced" />
@@ -439,12 +439,12 @@ const AccountingVATTab = () => {
 
       {/* === BREAKDOWN DRAWER === */}
       <Sheet open={!!activeDeal} onOpenChange={(open) => !open && setActiveDeal(null)}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl bg-zinc-950 border-zinc-800 text-zinc-200 overflow-y-auto p-5 sm:p-6">
+        <SheetContent side="right" className="w-full sm:max-w-2xl bg-background border-border text-foreground overflow-y-auto p-5 sm:p-6">
           {b && activeDeal && (
             <>
-              <SheetHeader className="space-y-1 pb-3 border-b border-zinc-800">
+              <SheetHeader className="space-y-1 pb-3 border-b border-border">
                 <div className="flex items-center justify-between gap-3">
-                  <SheetTitle className="text-zinc-100 select-text text-lg">{b.clientName}</SheetTitle>
+                  <SheetTitle className="text-foreground select-text text-lg">{b.clientName}</SheetTitle>
                   <div className="flex items-center gap-2">
                     <Button size="sm" variant="outline" className="h-8" onClick={() => handleDownloadInvoice(activeDeal)}>
                       <Download className="w-3.5 h-3.5 mr-1" /> {isTaxInvoiceForDeal(activeDeal) ? 'Tax Invoice' : 'Invoice'}
@@ -454,24 +454,24 @@ const AccountingVATTab = () => {
                     </Button>
                   </div>
                 </div>
-                <SheetDescription className="select-text text-zinc-400 text-xs">
+                <SheetDescription className="select-text text-muted-foreground text-xs">
                   {b.vehicleLabel} · Finalized {b.dateStr}
                 </SheetDescription>
               </SheetHeader>
 
               <div className="mt-4 space-y-4">
                 {/* Parties */}
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/40 px-4 py-3">
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-lg border border-border bg-muted/40 px-4 py-3">
                   <div className="select-text min-w-0">
-                    <div className="text-[10px] uppercase tracking-wider text-zinc-500 flex items-center gap-1"><Truck className="w-3 h-3" /> Bought From</div>
-                    <div className="text-sm font-medium text-zinc-200 mt-0.5 truncate">{b.boughtFromVendor?.name || '— not set —'}</div>
-                    <div className="text-xs text-zinc-500">{fmtR(b.vehicleCost)}</div>
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1"><Truck className="w-3 h-3" /> Bought From</div>
+                    <div className="text-sm font-medium text-foreground mt-0.5 truncate">{b.boughtFromVendor?.name || '— not set —'}</div>
+                    <div className="text-xs text-muted-foreground">{fmtR(b.vehicleCost)}</div>
                   </div>
-                  <ArrowRight className="w-4 h-4 text-zinc-600" />
+                  <ArrowRight className="w-4 h-4 text-muted-foreground" />
                   <div className="text-right select-text min-w-0">
-                    <div className="text-[10px] uppercase tracking-wider text-zinc-500 flex items-center justify-end gap-1">{b.isFinance ? <Banknote className="w-3 h-3" /> : null} Sold To</div>
-                    <div className="text-sm font-medium text-zinc-200 mt-0.5 truncate">{b.soldToName}</div>
-                    <div className="text-xs text-zinc-500">{b.isFinance ? `for ${b.clientName}` : 'Direct to customer'}</div>
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-end gap-1">{b.isFinance ? <Banknote className="w-3 h-3" /> : null} Sold To</div>
+                    <div className="text-sm font-medium text-foreground mt-0.5 truncate">{b.soldToName}</div>
+                    <div className="text-xs text-muted-foreground">{b.isFinance ? `for ${b.clientName}` : 'Direct to customer'}</div>
                   </div>
                 </div>
 
@@ -494,7 +494,7 @@ const AccountingVATTab = () => {
                 </div>
 
                 {/* Financial statement */}
-                <div className="rounded-lg border border-zinc-800 overflow-hidden">
+                <div className="rounded-lg border border-border overflow-hidden">
                   <GroupHeader>Income</GroupHeader>
                   <div className="px-4 py-2">
                     <Line label="Gross selling price" value={fmtR(b.grossSelling)} tone="emerald" />
@@ -513,12 +513,12 @@ const AccountingVATTab = () => {
                     <Line label="Referral payout" value={fmtR(b.referralPayout)} tone="red" />
                     <Line label="Partner profit share" value={fmtR(b.partnerProfitShare)} tone="red" />
                   </div>
-                  <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-800 bg-emerald-500/5">
-                    <span className="text-sm font-semibold text-zinc-100">Net Profit (Lumina)</span>
+                  <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-emerald-500/5">
+                    <span className="text-sm font-semibold text-foreground">Net Profit (Lumina)</span>
                     <span className={cn('text-lg font-bold tabular-nums', b.netProfit >= 0 ? 'text-emerald-400' : 'text-red-400')}>{fmtR(b.netProfit)}</span>
                   </div>
                   {b.partnerCapital > 0 && (
-                    <div className="px-4 pb-2.5 -mt-1 text-[11px] text-zinc-500">
+                    <div className="px-4 pb-2.5 -mt-1 text-[11px] text-muted-foreground">
                       Partner capital returned (not a cost): {fmtR(b.partnerCapital)}
                     </div>
                   )}
@@ -528,25 +528,25 @@ const AccountingVATTab = () => {
                 <section>
                   <GroupTitle>Recon &amp; Vehicle Expenses ({vehicleExpenses.length})</GroupTitle>
                   {vehicleExpenses.length === 0 && additionalRecon <= 0.005 ? (
-                    <p className="text-xs text-zinc-500">No itemised recon costs logged for this vehicle.</p>
+                    <p className="text-xs text-muted-foreground">No itemised recon costs logged for this vehicle.</p>
                   ) : (
                     <ul className="space-y-1">
                       {vehicleExpenses.map((e) => (
                         <li key={e.id} className="flex justify-between gap-3 text-sm select-text">
-                          <span className="text-zinc-300 min-w-0 truncate">
+                          <span className="text-foreground/80 min-w-0 truncate">
                             {e.description || catLabel(e.category)}
-                            <span className="text-zinc-600 text-xs"> · {catLabel(e.category)}{e.date_incurred ? ` · ${format(new Date(e.date_incurred), 'dd MMM')}` : ''}</span>
+                            <span className="text-muted-foreground text-xs"> · {catLabel(e.category)}{e.date_incurred ? ` · ${format(new Date(e.date_incurred), 'dd MMM')}` : ''}</span>
                           </span>
-                          <span className="tabular-nums text-zinc-200">{fmtR(num(e.amount))}</span>
+                          <span className="tabular-nums text-foreground">{fmtR(num(e.amount))}</span>
                         </li>
                       ))}
                       {additionalRecon > 0.005 && (
                         <li className="flex justify-between gap-3 text-sm select-text">
-                          <span className="text-zinc-300">Additional deal recon (not on ledger)</span>
-                          <span className="tabular-nums text-zinc-200">{fmtR(additionalRecon)}</span>
+                          <span className="text-foreground/80">Additional deal recon (not on ledger)</span>
+                          <span className="tabular-nums text-foreground">{fmtR(additionalRecon)}</span>
                         </li>
                       )}
-                      <li className="flex justify-between text-sm font-semibold border-t border-zinc-800 pt-1.5 mt-1.5">
+                      <li className="flex justify-between text-sm font-semibold border-t border-border pt-1.5 mt-1.5">
                         <span>Recon total</span><span className="tabular-nums">{fmtR(b.recon)}</span>
                       </li>
                     </ul>
@@ -560,11 +560,11 @@ const AccountingVATTab = () => {
                     <ul className="space-y-1">
                       {b.expenseItems.map((e, i) => (
                         <li key={i} className="flex justify-between gap-3 text-sm select-text">
-                          <span className="text-zinc-300 min-w-0 truncate">{expenseLabel(e)}</span>
-                          <span className="tabular-nums text-zinc-200">{fmtR(expenseAmount(e))}</span>
+                          <span className="text-foreground/80 min-w-0 truncate">{expenseLabel(e)}</span>
+                          <span className="tabular-nums text-foreground">{fmtR(expenseAmount(e))}</span>
                         </li>
                       ))}
-                      <li className="flex justify-between text-sm font-semibold border-t border-zinc-800 pt-1.5 mt-1.5">
+                      <li className="flex justify-between text-sm font-semibold border-t border-border pt-1.5 mt-1.5">
                         <span>Total</span><span className="tabular-nums">{fmtR(b.expensesTotal)}</span>
                       </li>
                     </ul>
@@ -578,8 +578,8 @@ const AccountingVATTab = () => {
                     <ul className="space-y-1">
                       {b.addonItems.map((a, i) => (
                         <li key={i} className="flex justify-between gap-3 text-sm select-text">
-                          <span className="text-zinc-300 min-w-0 truncate">{a.name || 'VAP'}</span>
-                          <span className="tabular-nums text-zinc-400 text-xs">cost {fmtR(num(a.cost))} → sell <span className="text-zinc-200 text-sm">{fmtR(num(a.price))}</span></span>
+                          <span className="text-foreground/80 min-w-0 truncate">{a.name || 'VAP'}</span>
+                          <span className="tabular-nums text-muted-foreground text-xs">cost {fmtR(num(a.cost))} → sell <span className="text-foreground text-sm">{fmtR(num(a.price))}</span></span>
                         </li>
                       ))}
                     </ul>
@@ -587,17 +587,17 @@ const AccountingVATTab = () => {
                 )}
 
                 {/* VAT */}
-                <section className="rounded-lg border border-zinc-800 px-4 py-3">
+                <section className="rounded-lg border border-border px-4 py-3">
                   <div className="flex items-center justify-between">
                     <GroupTitle className="mb-0">VAT</GroupTitle>
-                    <span className="text-xs text-zinc-400">{vatRegistered ? `Registered · ${vatRate}%` : 'Not registered'}</span>
+                    <span className="text-xs text-muted-foreground">{vatRegistered ? `Registered · ${vatRate}%` : 'Not registered'}</span>
                   </div>
                   <Line label={`Output VAT (${vatRate}%) on selling price`} value={fmtR(vatRate > 0 ? b.grossSelling * (vatRate / (100 + vatRate)) : 0)} tone="amber" />
-                  {!vatRegistered && <p className="text-[11px] text-zinc-500 mt-1">No VAT charged. Turn on “We are VAT registered” in Document Settings to issue Tax Invoices (VAT shown, even at 0%).</p>}
+                  {!vatRegistered && <p className="text-[11px] text-muted-foreground mt-1">No VAT charged. Turn on “We are VAT registered” in Document Settings to issue Tax Invoices (VAT shown, even at 0%).</p>}
                 </section>
 
                 {/* Invoice lines */}
-                <section className="rounded-lg border border-zinc-800 bg-zinc-900/40 px-4 py-3">
+                <section className="rounded-lg border border-border bg-muted/40 px-4 py-3">
                   <div className="flex items-center justify-between gap-3">
                     <GroupTitle className="mb-0">Invoice — bill to {b.soldToName}</GroupTitle>
                     <Button size="sm" variant="outline" className="h-7" onClick={() => handleDownloadInvoice(activeDeal)}>
@@ -605,26 +605,26 @@ const AccountingVATTab = () => {
                     </Button>
                   </div>
                   {b.isFinance && (
-                    <div className="mt-2 flex items-center justify-between gap-3 rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-2">
-                      <span className="text-xs text-zinc-400">Finance house pays</span>
-                      <span className="text-xs text-zinc-300">
+                    <div className="mt-2 flex items-center justify-between gap-3 rounded-md border border-border bg-muted/60 px-3 py-2">
+                      <span className="text-xs text-muted-foreground">Finance house pays</span>
+                      <span className="text-xs text-foreground/80">
                         {b.financeBasis === 'margin' ? 'Margin (selling − cost)' : 'Full selling price'}
-                        <span className="text-zinc-600"> · set in Finalize Deal</span>
+                        <span className="text-muted-foreground"> · set in Finalize Deal</span>
                       </span>
                     </div>
                   )}
-                  <ul className="mt-2 space-y-1 border-t border-zinc-800 pt-2">
+                  <ul className="mt-2 space-y-1 border-t border-border pt-2">
                     {b.invoiceLines.map((l, i) => (
                       <li key={i} className="flex justify-between gap-3 text-sm select-text">
-                        <span className="text-zinc-300 min-w-0 truncate">{l.description}</span>
-                        <span className="tabular-nums text-zinc-200">{fmtR(l.amount)}</span>
+                        <span className="text-foreground/80 min-w-0 truncate">{l.description}</span>
+                        <span className="tabular-nums text-foreground">{fmtR(l.amount)}</span>
                       </li>
                     ))}
-                    <li className="flex justify-between text-sm font-semibold border-t border-zinc-800 pt-1.5 mt-1.5">
+                    <li className="flex justify-between text-sm font-semibold border-t border-border pt-1.5 mt-1.5">
                       <span>Invoice total</span><span className="tabular-nums">{fmtR(b.invoiceTotal)}</span>
                     </li>
                   </ul>
-                  <p className="text-[11px] text-zinc-500 mt-1.5">Lines come from the "include on invoice" tickboxes set when finalizing.</p>
+                  <p className="text-[11px] text-muted-foreground mt-1.5">Lines come from the "include on invoice" tickboxes set when finalizing.</p>
                 </section>
               </div>
             </>
@@ -646,25 +646,25 @@ const StatCard = ({ icon, label, value, valueClass, sub }: { icon: React.ReactNo
 );
 
 const GroupHeader = ({ children }: { children: React.ReactNode }) => (
-  <div className="bg-zinc-900/60 px-4 py-1.5 text-[11px] uppercase tracking-wider text-zinc-400 font-bold border-t border-zinc-800 first:border-t-0">{children}</div>
+  <div className="bg-muted/60 px-4 py-1.5 text-[11px] uppercase tracking-wider text-muted-foreground font-bold border-t border-border first:border-t-0">{children}</div>
 );
 const GroupTitle = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-  <h4 className={cn('text-[11px] uppercase font-bold tracking-wider text-zinc-500 mb-2', className)}>{children}</h4>
+  <h4 className={cn('text-[11px] uppercase font-bold tracking-wider text-muted-foreground mb-2', className)}>{children}</h4>
 );
 const Line = ({ label, value, tone }: { label: string; value: string; tone?: 'emerald' | 'red' | 'amber' }) => (
   <div className="flex justify-between gap-4 py-0.5 text-sm select-text">
-    <span className="text-zinc-400">{label}</span>
-    <span className={cn('tabular-nums', tone === 'emerald' ? 'text-emerald-400' : tone === 'red' ? 'text-red-400' : tone === 'amber' ? 'text-amber-400' : 'text-zinc-200')}>{value}</span>
+    <span className="text-muted-foreground">{label}</span>
+    <span className={cn('tabular-nums', tone === 'emerald' ? 'text-emerald-400' : tone === 'red' ? 'text-red-400' : tone === 'amber' ? 'text-amber-400' : 'text-foreground')}>{value}</span>
   </div>
 );
 const InfoList = ({ title, rows }: { title: string; rows: [string, string][] }) => (
   <div>
     <GroupTitle>{title}</GroupTitle>
-    <dl className="divide-y divide-zinc-800/60">
+    <dl className="divide-y divide-border">
       {rows.map(([k, v]) => (
         <div key={k} className="flex justify-between gap-3 py-1.5 text-sm">
-          <dt className="text-zinc-500">{k}</dt>
-          <dd className="text-zinc-200 text-right select-text break-all">{v}</dd>
+          <dt className="text-muted-foreground">{k}</dt>
+          <dd className="text-foreground text-right select-text break-all">{v}</dd>
         </div>
       ))}
     </dl>

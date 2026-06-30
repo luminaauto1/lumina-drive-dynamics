@@ -108,7 +108,7 @@ export const HandoverSetupModal = ({ dealId, currentPhotos = [], clientName = ''
 
         <div className="space-y-4">
           {/* UPLOAD AREA */}
-          <div className="border-2 border-dashed border-zinc-700 rounded-lg p-6 text-center">
+          <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
             {uploading ? <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" /> : <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />}
             <p className="text-sm text-muted-foreground mb-3">Click to upload delivery photos</p>
             <input
@@ -160,16 +160,16 @@ export const HandoverSetupModal = ({ dealId, currentPhotos = [], clientName = ''
           )}
 
           {/* HANDOVER NAME CONFIGURATION */}
-          <div className="space-y-3 p-4 bg-black/20 border border-white/10 rounded-md">
-            <h3 className="text-sm font-medium text-zinc-200">Handover Display Name</h3>
+          <div className="space-y-3 p-4 bg-muted/40 border border-border rounded-md">
+            <h3 className="text-sm font-medium text-foreground">Handover Display Name</h3>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-zinc-400">Select Display Name Format</Label>
+              <Label className="text-xs text-muted-foreground">Select Display Name Format</Label>
               <Select value={nameFormat} onValueChange={setNameFormat}>
-                <SelectTrigger className="w-full bg-black/50 border-white/10 text-sm h-9">
+                <SelectTrigger className="w-full bg-background border-input text-sm h-9">
                   <SelectValue placeholder="Select format" />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-950 border-white/10">
+                <SelectContent>
                   <SelectItem value="first" className="text-xs">First Name Only ({firstName || '—'})</SelectItem>
                   <SelectItem value="full" className="text-xs">Full Name ({firstName} {lastName})</SelectItem>
                   <SelectItem value="last" className="text-xs">Surname (Mr/Ms {lastName || '—'})</SelectItem>
@@ -180,11 +180,11 @@ export const HandoverSetupModal = ({ dealId, currentPhotos = [], clientName = ''
 
             {nameFormat === 'custom' && (
               <div className="space-y-1.5">
-                <Label className="text-xs text-zinc-400">Enter Custom Name</Label>
+                <Label className="text-xs text-muted-foreground">Enter Custom Name</Label>
                 <Input
                   value={customName}
                   onChange={(e) => setCustomName(e.target.value)}
-                  className="bg-black/50 border-white/10 h-9 text-sm focus:border-primary"
+                  className="bg-background border-input h-9 text-sm focus:border-primary"
                   placeholder="e.g., Mr. & Mrs. Smith"
                 />
               </div>
@@ -198,7 +198,7 @@ export const HandoverSetupModal = ({ dealId, currentPhotos = [], clientName = ''
               onClick={handleSaveHandoverConfig}
               disabled={isSaving || (nameFormat === 'custom' && !customName) || !applicationId}
               size="sm"
-              className="w-full bg-zinc-800 hover:bg-zinc-700 text-white border border-white/10"
+              className="w-full bg-secondary hover:bg-muted text-secondary-foreground border border-border"
             >
               <Save className="w-3 h-3 mr-1.5" />
               {isSaving ? 'Saving...' : 'Save Name to Database'}
@@ -206,7 +206,7 @@ export const HandoverSetupModal = ({ dealId, currentPhotos = [], clientName = ''
           </div>
 
           {/* LINK GENERATOR */}
-          <div className="flex items-center justify-between bg-zinc-900 rounded-lg p-3 border border-zinc-800">
+          <div className="flex items-center justify-between bg-card rounded-lg p-3 border border-border">
             <div className="min-w-0 mr-3">
               <p className="text-xs font-semibold text-emerald-500">Handover Link Ready</p>
               <p className="text-xs text-muted-foreground truncate">
@@ -223,7 +223,7 @@ export const HandoverSetupModal = ({ dealId, currentPhotos = [], clientName = ''
           <Button
             type="button"
             onClick={() => setReferralOpen(true)}
-            className="w-full bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100"
+            className="w-full bg-secondary border border-border text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
           >
             <Gift className="w-3.5 h-3.5 mr-2" />
             Log/Check Referral
