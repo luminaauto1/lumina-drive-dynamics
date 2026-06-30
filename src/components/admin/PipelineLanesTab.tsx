@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Loader2, Save, RotateCcw, Check, Info } from 'lucide-react';
+import { readableTextOn } from '@/lib/pipelinev2/color';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -69,9 +70,11 @@ const LaneRow = ({ lane }: { lane: EffectivePipelineLane }) => {
     setColor('');
   };
 
+  // Whether a valid user hex override is in effect (vs. falling back to default gold).
+  const hasOverride = !!trimmedColor && isValidHex(trimmedColor);
   // The colour actually shown in the preview chip/underline: the chosen hex, or
   // the CSS desk-accent (the default active-lane gold) when none is set.
-  const previewColor = trimmedColor && isValidHex(trimmedColor) ? trimmedColor : 'hsl(var(--desk-accent))';
+  const previewColor = hasOverride ? trimmedColor : 'hsl(var(--desk-accent))';
 
   return (
     <div className="rounded-xl border border-border/60 bg-card/40 p-4 space-y-3">
@@ -85,9 +88,15 @@ const LaneRow = ({ lane }: { lane: EffectivePipelineLane }) => {
           style={{ borderBottomColor: previewColor }}
         >
           {trimmedLabel || lane.label}
+          {/* Count chip: default (no override) uses the `desk-accent-fill` utility
+              (gold + correct dark text, matching PipelineTabNav); a valid hex override
+              fills inline with text colour computed from the hex via luminance. */}
           <span
-            className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-background"
-            style={{ backgroundColor: previewColor }}
+            className={
+              'rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums ' +
+              (hasOverride ? '' : 'desk-accent-fill')
+            }
+            style={hasOverride ? { backgroundColor: trimmedColor, color: readableTextOn(trimmedColor) } : undefined}
           >
             0
           </span>
@@ -126,7 +135,12 @@ const LaneRow = ({ lane }: { lane: EffectivePipelineLane }) => {
                 }
                 style={{ backgroundColor: p.hex }}
               >
-                {selected && <Check className="absolute inset-0 m-auto h-4 w-4 text-white drop-shadow" />}
+                {selected && (
+                  <Check
+                    className="absolute inset-0 m-auto h-4 w-4 drop-shadow"
+                    style={{ color: readableTextOn(p.hex) }}
+                  />
+                )}
               </button>
             );
           })}

@@ -1,4 +1,5 @@
 import { usePipelineLanes } from '@/hooks/usePipelineLanes';
+import { readableTextOn } from '@/lib/pipelinev2/color';
 import { cn } from '@/lib/utils';
 
 export function PipelineTabNav({
@@ -37,13 +38,13 @@ export function PipelineTabNav({
           >
             {t.label}
             {/* Active count chip = accent fill. A hex override is applied inline (text
-                forced to the background colour for contrast); with no override we keep
-                the original `desk-accent-fill` utility class (default gold). Inactive
-                = quiet muted chip, unchanged. */}
+                colour computed from the hex via luminance for contrast); with no override
+                we keep the `desk-accent-fill` utility class (default gold + dark text,
+                correct in both themes). Inactive = quiet muted chip, unchanged. */}
             <span
               className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums',
-                active ? (t.color ? 'text-background' : 'desk-accent-fill') : 'bg-muted text-muted-foreground')}
-              style={active && t.color ? { backgroundColor: t.color } : undefined}
+                active ? (t.color ? '' : 'desk-accent-fill') : 'bg-muted text-muted-foreground')}
+              style={active && t.color ? { backgroundColor: t.color, color: readableTextOn(t.color) } : undefined}
             >
               {count.toLocaleString()}
             </span>
