@@ -65,7 +65,9 @@ Deno.serve(async (req) => {
         .insert({ code, user_id: user.id, expires_at: expiresAt });
       if (insErr) throw insErr;
 
-      const bot = Deno.env.get("TELEGRAM_BOT_USERNAME") ?? "";
+      // Strip a leading "@" (and stray whitespace) — t.me links must be
+      // https://t.me/BotName, NOT https://t.me/@BotName (the @ breaks the link).
+      const bot = (Deno.env.get("TELEGRAM_BOT_USERNAME") ?? "").trim().replace(/^@+/, "");
       return json({
         code,
         bot_username: bot,
