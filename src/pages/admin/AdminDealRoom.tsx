@@ -891,7 +891,7 @@ const AdminDealRoom = () => {
                     variant="ghost"
                     size="sm"
                     onClick={handleDownloadUnbrandedPDF}
-                    className="text-xs md:text-sm border border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                    className="text-xs md:text-sm border border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                   >
                     <FileDown className="w-4 h-4 mr-1 md:mr-2" />
                     <span className="hidden sm:inline">Export</span> No Brand

@@ -139,7 +139,7 @@ export default function ClientCockpit({ application, onChange }: Props) {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <label className="flex items-start gap-3 p-4 rounded-lg bg-muted/40 border border-border cursor-pointer hover:bg-accent transition-colors">
+          <label className="flex items-start gap-3 p-4 rounded-lg bg-muted/40 border border-border cursor-pointer hover:bg-muted transition-colors">
             <Checkbox
               checked={contactedToday}
               onCheckedChange={(checked) => {
@@ -220,7 +220,7 @@ export default function ClientCockpit({ application, onChange }: Props) {
                   className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border text-left transition-all ${
                     active
                       ? 'bg-primary border-primary text-primary-foreground'
-                      : 'bg-muted/40 border-border text-muted-foreground hover:bg-accent hover:text-foreground'
+                      : 'bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground'
                   }`}
                 >
                   <Icon className="w-3.5 h-3.5 shrink-0" />

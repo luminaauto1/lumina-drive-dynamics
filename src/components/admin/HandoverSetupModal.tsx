@@ -198,7 +198,7 @@ export const HandoverSetupModal = ({ dealId, currentPhotos = [], clientName = ''
               onClick={handleSaveHandoverConfig}
               disabled={isSaving || (nameFormat === 'custom' && !customName) || !applicationId}
               size="sm"
-              className="w-full bg-secondary hover:bg-accent text-secondary-foreground border border-border"
+              className="w-full bg-secondary hover:bg-muted text-secondary-foreground border border-border"
             >
               <Save className="w-3 h-3 mr-1.5" />
               {isSaving ? 'Saving...' : 'Save Name to Database'}

@@ -93,7 +93,7 @@ const BankReferenceModal = ({
       onClick={() => setPlatform(value)}
       className={
         platform === value
-          ? 'border-foreground/40 bg-accent text-foreground hover:bg-accent/80'
+          ? 'border-foreground/40 bg-muted text-foreground hover:bg-muted/80'
           : 'border-border bg-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40'
       }
     >
@@ -150,7 +150,7 @@ const BankReferenceModal = ({
                   type="button"
                   variant="outline"
                   onClick={copyMsg}
-                  className="border-border bg-muted text-foreground hover:bg-accent shrink-0"
+                  className="border-border bg-muted text-foreground hover:bg-muted/80 shrink-0"
                   title="Copy message"
                 >
                   {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}

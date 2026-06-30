@@ -1504,7 +1504,7 @@ const AdminFinance = () => {
             <DialogHeader>
               <DialogTitle className="flex items-start justify-between gap-3 pr-6">
                 <div className="flex flex-col">
-                  <h2 className="text-xl font-semibold text-white tracking-wide">
+                  <h2 className="text-xl font-semibold text-foreground tracking-wide">
                     Client: {pendingApp?.first_name} {pendingApp?.last_name}
                   </h2>
                   {pendingLeadName && (
@@ -1526,7 +1526,7 @@ const AdminFinance = () => {
                       <Copy className="w-3 h-3 opacity-60" />
                     </button>
                   )}
-                  <p className="text-sm text-zinc-400 mt-1">Update Status &amp; CRM Note</p>
+                  <p className="text-sm text-muted-foreground mt-1">Update Status &amp; CRM Note</p>
                 </div>
                 {pendingApp?.phone && (
                   <span
@@ -1538,7 +1538,7 @@ const AdminFinance = () => {
                         toast({ title: 'Copy failed', variant: 'destructive' });
                       }
                     }}
-                    className="text-base text-zinc-200 hover:text-white cursor-pointer transition-colors font-normal whitespace-nowrap self-center"
+                    className="text-base text-foreground hover:text-foreground cursor-pointer transition-colors font-normal whitespace-nowrap self-center"
                     title="Click to copy"
                   >
                     📞 {pendingApp.phone}
@@ -1562,7 +1562,7 @@ const AdminFinance = () => {
                         setPendingApp(null);
                         navigate(`/admin/finance/${id}`);
                       }}
-                      className="px-3 py-1 text-xs border border-zinc-700 text-zinc-300 hover:bg-zinc-800 rounded transition-colors whitespace-nowrap"
+                      className="px-3 py-1 text-xs border border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded transition-colors whitespace-nowrap"
                     >
                       View Full File
                     </button>
@@ -1780,7 +1780,7 @@ const AdminFinance = () => {
               const dbChecked = !!(pendingApp as any)?.docs_contacted;
               const checked = dbChecked && !stale;
               return (
-                <div className="flex items-center gap-2 px-1 py-2 border-t border-zinc-800">
+                <div className="flex items-center gap-2 px-1 py-2 border-t border-border">
                   <Checkbox
                     id="docs-contacted"
                     checked={checked}
@@ -1803,7 +1803,7 @@ const AdminFinance = () => {
                       }
                     }}
                   />
-                  <Label htmlFor="docs-contacted" className="text-sm text-zinc-200 cursor-pointer">
+                  <Label htmlFor="docs-contacted" className="text-sm text-foreground cursor-pointer">
                     Contacted (Requested Documents)
                   </Label>
                   {dbChecked && stale && (
