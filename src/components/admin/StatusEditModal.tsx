@@ -89,7 +89,7 @@ export function StatusEditModal({
   onClose: () => void;
 }) {
   const { data: overrides = [] } = useStatusOverrides();
-  const { allClientStatuses } = useStatusConfig();
+  const { allClientStatuses, labelFor, classFor } = useStatusConfig();
   const upsert = useUpsertStatusOverride();
   const del = useDeleteStatusOverride();
   const { data: easySocial } = useEasySocialSettings();
@@ -117,8 +117,12 @@ export function StatusEditModal({
   // On CREATE, selecting Finance is inert (built-in slugs aren't row-created here).
   const isFinanceCreateBlocked = !isEdit && type === 'finance';
 
-  const [label, setLabel] = useState(existing?.label ?? '');
-  const [cls, setCls] = useState(existing?.color_class ?? FALLBACK_CLASS);
+  // Pre-fill from the EFFECTIVE current value (override ?? built-in) so editing a
+  // built-in status (e.g. Pending) shows its real name/colour instead of a blank
+  // field — and so a no-op Save can't wipe the label or reset the colour to Slate.
+  // labelFor/classFor resolve both tracks (finance built-ins + client override rows).
+  const [label, setLabel] = useState(slug ? labelFor(slug) : '');
+  const [cls, setCls] = useState(slug ? classFor(slug) : FALLBACK_CLASS);
   const [hidden, setHidden] = useState(!!existing?.is_hidden);
   const [commentRequired, setCommentRequired] = useState(!!existing?.comment_required);
   const [commentPrompt, setCommentPrompt] = useState(existing?.comment_prompt ?? '');
