@@ -34,7 +34,7 @@ const TaskOSButton = () => {
       <SheetTrigger asChild>
         <button
           title="LuminaTaskOS — your second brain (⌘ via Telegram too)"
-          className="fixed bottom-[5.5rem] right-6 z-50 h-9 w-9 rounded-full bg-zinc-900/90 border border-border text-foreground shadow-lg flex items-center justify-center hover:bg-zinc-800 hover:border-primary/50 transition-all"
+          className="fixed bottom-[5.5rem] right-6 z-50 h-9 w-9 rounded-full bg-card/90 border border-border text-foreground shadow-lg flex items-center justify-center hover:bg-accent hover:border-primary/50 transition-all"
         >
           <BrainCircuit className="h-4 w-4 text-primary" />
           {attention > 0 && (

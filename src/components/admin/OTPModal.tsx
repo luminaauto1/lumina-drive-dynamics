@@ -186,13 +186,13 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden bg-zinc-950 border-zinc-800 text-zinc-100">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden bg-background border-border text-foreground">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-zinc-100">
+          <DialogTitle className="flex items-center gap-2 text-foreground">
             <FileText className="w-5 h-5 text-amber-400" />
             Configure Offer to Purchase
           </DialogTitle>
-          <DialogDescription className="text-zinc-500">
+          <DialogDescription className="text-muted-foreground">
             Confirm vehicle & pricing details before generating the legal OTP.
           </DialogDescription>
         </DialogHeader>
@@ -203,64 +203,64 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
             <div>
               <h3 className="font-semibold text-xs uppercase tracking-wider text-amber-400 mb-3">1. Client</h3>
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Client Name</Label><Input value={clientName} onChange={e=>setClientName(e.target.value)} className="bg-zinc-900 border-zinc-800"/></div>
-                <div className="space-y-1.5"><Label className="text-xs text-zinc-400">ID Number</Label><Input value={idNumber} onChange={e=>setIdNumber(e.target.value)} className="bg-zinc-900 border-zinc-800"/></div>
-                <div className="space-y-1.5 col-span-2"><Label className="text-xs text-zinc-400">Address</Label><Input value={address} onChange={e=>setAddress(e.target.value)} className="bg-zinc-900 border-zinc-800"/></div>
-                <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Email</Label><Input value={email} onChange={e=>setEmail(e.target.value)} className="bg-zinc-900 border-zinc-800"/></div>
-                <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Cell Phone</Label><Input value={cellPhone} onChange={e=>setCellPhone(e.target.value)} className="bg-zinc-900 border-zinc-800"/></div>
-                <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Sales Executive</Label><Input value={salesExecutive} onChange={e=>setSalesExecutive(e.target.value)} className="bg-zinc-900 border-zinc-800"/></div>
-                <div className="space-y-1.5 col-span-2"><Label className="text-xs text-zinc-400">Place of Signing / Delivery</Label><Input value={signedPlace} onChange={e=>setSignedPlace(e.target.value)} placeholder="e.g. Client home – 12 Oak Ave, Sandton" className="bg-zinc-900 border-zinc-800"/></div>
+                <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Client Name</Label><Input value={clientName} onChange={e=>setClientName(e.target.value)} className="bg-background border-input"/></div>
+                <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">ID Number</Label><Input value={idNumber} onChange={e=>setIdNumber(e.target.value)} className="bg-background border-input"/></div>
+                <div className="space-y-1.5 col-span-2"><Label className="text-xs text-muted-foreground">Address</Label><Input value={address} onChange={e=>setAddress(e.target.value)} className="bg-background border-input"/></div>
+                <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Email</Label><Input value={email} onChange={e=>setEmail(e.target.value)} className="bg-background border-input"/></div>
+                <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Cell Phone</Label><Input value={cellPhone} onChange={e=>setCellPhone(e.target.value)} className="bg-background border-input"/></div>
+                <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Sales Executive</Label><Input value={salesExecutive} onChange={e=>setSalesExecutive(e.target.value)} className="bg-background border-input"/></div>
+                <div className="space-y-1.5 col-span-2"><Label className="text-xs text-muted-foreground">Place of Signing / Delivery</Label><Input value={signedPlace} onChange={e=>setSignedPlace(e.target.value)} placeholder="e.g. Client home – 12 Oak Ave, Sandton" className="bg-background border-input"/></div>
               </div>
             </div>
 
-            <Separator className="bg-zinc-800" />
+            <Separator className="bg-border" />
 
             {/* Vehicle */}
             <div>
               <h3 className="font-semibold text-xs uppercase tracking-wider text-amber-400 mb-3">2. Vehicle</h3>
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Make</Label><Input value={make} onChange={e=>setMake(e.target.value)} className="bg-zinc-900 border-zinc-800"/></div>
-                <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Model</Label><Input value={model} onChange={e=>setModel(e.target.value)} className="bg-zinc-900 border-zinc-800"/></div>
-                <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Reg No</Label><Input value={regNo} onChange={e=>setRegNo(e.target.value)} className="bg-zinc-900 border-zinc-800"/></div>
-                <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Year</Label><Input value={year} onChange={e=>setYear(e.target.value)} className="bg-zinc-900 border-zinc-800"/></div>
-                <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Colour</Label><Input value={colorVal} onChange={e=>setColorVal(e.target.value)} className="bg-zinc-900 border-zinc-800"/></div>
-                <div className="space-y-1.5"><Label className="text-xs text-zinc-400">VIN No</Label><Input value={vin} onChange={e=>setVin(e.target.value)} className="bg-zinc-900 border-zinc-800"/></div>
-                <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Engine No</Label><Input value={engineNo} onChange={e=>setEngineNo(e.target.value)} className="bg-zinc-900 border-zinc-800"/></div>
-                <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Mileage</Label><Input value={mileage} onChange={e=>setMileage(e.target.value)} className="bg-zinc-900 border-zinc-800"/></div>
+                <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Make</Label><Input value={make} onChange={e=>setMake(e.target.value)} className="bg-background border-input"/></div>
+                <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Model</Label><Input value={model} onChange={e=>setModel(e.target.value)} className="bg-background border-input"/></div>
+                <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Reg No</Label><Input value={regNo} onChange={e=>setRegNo(e.target.value)} className="bg-background border-input"/></div>
+                <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Year</Label><Input value={year} onChange={e=>setYear(e.target.value)} className="bg-background border-input"/></div>
+                <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Colour</Label><Input value={colorVal} onChange={e=>setColorVal(e.target.value)} className="bg-background border-input"/></div>
+                <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">VIN No</Label><Input value={vin} onChange={e=>setVin(e.target.value)} className="bg-background border-input"/></div>
+                <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Engine No</Label><Input value={engineNo} onChange={e=>setEngineNo(e.target.value)} className="bg-background border-input"/></div>
+                <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Mileage</Label><Input value={mileage} onChange={e=>setMileage(e.target.value)} className="bg-background border-input"/></div>
               </div>
             </div>
 
-            <Separator className="bg-zinc-800" />
+            <Separator className="bg-border" />
 
             {/* Financial */}
             <div>
               <h3 className="font-semibold text-xs uppercase tracking-wider text-amber-400 mb-3">3. Pricing (VAT-inclusive inputs)</h3>
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Base Vehicle Price</Label><Input type="number" value={basePrice} onChange={e=>setBasePrice(parseFloat(e.target.value)||0)} className="bg-zinc-900 border-zinc-800"/></div>
-                <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Extras Price</Label><Input type="number" value={extrasPrice} onChange={e=>setExtrasPrice(parseFloat(e.target.value)||0)} className="bg-zinc-900 border-zinc-800"/></div>
-                <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Value Added Products Price</Label><Input type="number" value={vapPrice} onChange={e=>setVapPrice(parseFloat(e.target.value)||0)} className="bg-zinc-900 border-zinc-800"/></div>
-                <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Administration Fee</Label><Input type="number" value={adminFee} onChange={e=>setAdminFee(parseFloat(e.target.value)||0)} className="bg-zinc-900 border-zinc-800"/></div>
-                <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Delivery Fee</Label><Input type="number" value={deliveryFee} onChange={e=>setDeliveryFee(parseFloat(e.target.value)||0)} className="bg-zinc-900 border-zinc-800"/></div>
-                <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Lic &amp; Reg <span className="text-zinc-500">(no VAT)</span></Label><Input type="number" value={licReg} onChange={e=>setLicReg(parseFloat(e.target.value)||0)} className="bg-zinc-900 border-zinc-800"/></div>
-                <div className="space-y-1.5"><Label className="text-xs text-zinc-400">Deposit</Label><Input type="number" value={deposit} onChange={e=>setDeposit(parseFloat(e.target.value)||0)} className="bg-zinc-900 border-zinc-800"/></div>
+                <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Base Vehicle Price</Label><Input type="number" value={basePrice} onChange={e=>setBasePrice(parseFloat(e.target.value)||0)} className="bg-background border-input"/></div>
+                <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Extras Price</Label><Input type="number" value={extrasPrice} onChange={e=>setExtrasPrice(parseFloat(e.target.value)||0)} className="bg-background border-input"/></div>
+                <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Value Added Products Price</Label><Input type="number" value={vapPrice} onChange={e=>setVapPrice(parseFloat(e.target.value)||0)} className="bg-background border-input"/></div>
+                <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Administration Fee</Label><Input type="number" value={adminFee} onChange={e=>setAdminFee(parseFloat(e.target.value)||0)} className="bg-background border-input"/></div>
+                <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Delivery Fee</Label><Input type="number" value={deliveryFee} onChange={e=>setDeliveryFee(parseFloat(e.target.value)||0)} className="bg-background border-input"/></div>
+                <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Lic &amp; Reg <span className="text-muted-foreground">(no VAT)</span></Label><Input type="number" value={licReg} onChange={e=>setLicReg(parseFloat(e.target.value)||0)} className="bg-background border-input"/></div>
+                <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Deposit</Label><Input type="number" value={deposit} onChange={e=>setDeposit(parseFloat(e.target.value)||0)} className="bg-background border-input"/></div>
               </div>
 
-              <div className="mt-4 p-4 bg-zinc-900/60 border border-zinc-800 rounded-lg space-y-2">
-                <div className="flex justify-between text-sm text-zinc-400"><span>Subtotal (excl. VAT)</span><span className="font-mono text-zinc-200">{fmt(vatableSubtotal)}</span></div>
-                <div className="flex justify-between text-sm text-zinc-400"><span>VAT (15%) included</span><span className="font-mono text-zinc-200">{fmt(vatAmount)}</span></div>
-                <div className="flex justify-between text-sm text-zinc-400"><span>Lic &amp; Reg (no VAT)</span><span className="font-mono text-zinc-200">{fmt(licReg)}</span></div>
-                <div className="flex justify-between text-sm text-zinc-400"><span>Total Price (incl. VAT)</span><span className="font-mono text-zinc-200">{fmt(totalPrice)}</span></div>
-                <div className="flex justify-between text-sm text-zinc-400"><span>Less: Deposit</span><span className="font-mono text-zinc-200">- {fmt(deposit)}</span></div>
-                <Separator className="bg-zinc-800 my-2"/>
-                <div className="flex justify-between items-center"><span className="font-semibold text-zinc-100">Balance Payable (incl. VAT)</span><span className="text-xl font-bold text-amber-400 font-mono">{fmt(balancePayable)}</span></div>
+              <div className="mt-4 p-4 bg-muted/60 border border-border rounded-lg space-y-2">
+                <div className="flex justify-between text-sm text-muted-foreground"><span>Subtotal (excl. VAT)</span><span className="font-mono text-foreground">{fmt(vatableSubtotal)}</span></div>
+                <div className="flex justify-between text-sm text-muted-foreground"><span>VAT (15%) included</span><span className="font-mono text-foreground">{fmt(vatAmount)}</span></div>
+                <div className="flex justify-between text-sm text-muted-foreground"><span>Lic &amp; Reg (no VAT)</span><span className="font-mono text-foreground">{fmt(licReg)}</span></div>
+                <div className="flex justify-between text-sm text-muted-foreground"><span>Total Price (incl. VAT)</span><span className="font-mono text-foreground">{fmt(totalPrice)}</span></div>
+                <div className="flex justify-between text-sm text-muted-foreground"><span>Less: Deposit</span><span className="font-mono text-foreground">- {fmt(deposit)}</span></div>
+                <Separator className="bg-border my-2"/>
+                <div className="flex justify-between items-center"><span className="font-semibold text-foreground">Balance Payable (incl. VAT)</span><span className="text-xl font-bold text-amber-400 font-mono">{fmt(balancePayable)}</span></div>
               </div>
             </div>
           </div>
         </ScrollArea>
 
         <DialogFooter className="mt-4 gap-2 sm:gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="bg-transparent border-zinc-800 text-zinc-300 hover:bg-zinc-900">Cancel</Button>
-          <Button variant="outline" onClick={saveDraft} className="gap-2 bg-transparent border-zinc-700 text-zinc-100 hover:bg-zinc-900">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={saveDraft} className="gap-2">
             <Save className="w-4 h-4" /> Save
           </Button>
           <Button onClick={handleDownload} className="gap-2 bg-amber-500 hover:bg-amber-600 text-black">

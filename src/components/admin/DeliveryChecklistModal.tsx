@@ -78,7 +78,7 @@ const DeliveryChecklistModal = ({
         </DialogHeader>
 
         {/* Progress Section */}
-        <div className="space-y-2 pb-4 border-b border-white/10">
+        <div className="space-y-2 pb-4 border-b border-border">
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Ready for Delivery</span>
             <span className={cn(
@@ -119,7 +119,7 @@ const DeliveryChecklistModal = ({
                   "flex items-center gap-3 p-3 rounded-lg border transition-all",
                   task.is_completed 
                     ? "bg-emerald-500/10 border-emerald-500/30" 
-                    : "bg-white/5 border-white/10 hover:border-white/20"
+                    : "bg-muted border-border hover:border-foreground/20"
                 )}
               >
                 <button
@@ -150,7 +150,7 @@ const DeliveryChecklistModal = ({
         </div>
 
         {/* Add Custom Task */}
-        <div className="pt-4 border-t border-white/10">
+        <div className="pt-4 border-t border-border">
           <div className="flex gap-2">
             <Input
               placeholder="Add custom task..."

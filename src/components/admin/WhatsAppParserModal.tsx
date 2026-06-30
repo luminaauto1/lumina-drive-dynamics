@@ -402,13 +402,13 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
 
   return (
     <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) reset(); }}>
-      <DialogContent className="max-w-3xl max-h-[calc(100dvh-2rem)] overflow-y-auto bg-zinc-950 border-white/10 text-white">
+      <DialogContent className="max-w-3xl max-h-[calc(100dvh-2rem)] overflow-y-auto bg-background border-border text-foreground">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MessageSquare className="w-5 h-5 text-emerald-400" />
             WhatsApp to PDF Converter
           </DialogTitle>
-          <DialogDescription className="text-zinc-400">
+          <DialogDescription className="text-muted-foreground">
             Paste the raw client reply below. AI will structure it and generate a finance PDF.
           </DialogDescription>
         </DialogHeader>
@@ -420,7 +420,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
                 value={rawText}
                 onChange={(e) => setRawText(e.target.value)}
                 placeholder="Paste the WhatsApp message here..."
-                className="h-[300px] bg-black/50 border-white/10 text-xs font-mono"
+                className="h-[300px] bg-background border-input text-xs font-mono"
               />
               <Button
                 onClick={handleParse}
@@ -499,8 +499,8 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
                 </div>
               )}
 
-              <div className="shrink-0 flex gap-3 pt-2 pb-4 border-b border-white/5">
-                <Button variant="outline" onClick={reset} className="flex-1 bg-transparent border-white/10 hover:bg-white/5">
+              <div className="shrink-0 flex gap-3 pt-2 pb-4 border-b border-border">
+                <Button variant="outline" onClick={reset} className="flex-1 bg-transparent border-border hover:bg-muted/40">
                   Start Over
                 </Button>
                 <Button onClick={handleDownloadPDF} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white">
@@ -514,7 +514,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
                     {Object.entries(parsedData).map(([key, value]) => (
                       <div key={key} className="space-y-1.5">
                         <div className="flex items-center justify-between">
-                          <Label className="text-[10px] uppercase text-zinc-500 tracking-wider">
+                          <Label className="text-[10px] uppercase text-muted-foreground tracking-wider">
                             {key.replace(/_/g, ' ')}
                           </Label>
                           {key === 'workplace_address' && workplaceMeta && (
@@ -525,7 +525,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
                                   ? 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10 text-[10px]'
                                   : workplaceMeta.source === 'client_provided'
                                   ? 'border-amber-500/40 text-amber-400 bg-amber-500/10 text-[10px]'
-                                  : 'border-zinc-500/40 text-zinc-400 bg-zinc-500/10 text-[10px]'
+                                  : 'border-border text-muted-foreground bg-muted text-[10px]'
                               }
                             >
                               <MapPin className="w-3 h-3 mr-1" />
@@ -540,7 +540,7 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
                         <Input
                           value={(value as string) ?? ''}
                           onChange={(e) => handleUpdateField(key, e.target.value)}
-                          className="bg-black/50 border-white/5 h-8 text-xs focus:border-emerald-500"
+                          className="bg-background border-input h-8 text-xs focus:border-emerald-500"
                         />
                       </div>
                     ))}

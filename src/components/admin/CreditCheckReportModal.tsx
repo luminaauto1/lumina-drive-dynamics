@@ -94,28 +94,28 @@ const CreditCheckReportModal = ({ open, onOpenChange }: Props) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-zinc-950 border border-white/10 text-white max-w-2xl">
+      <DialogContent className="bg-background border border-border text-foreground max-w-2xl">
         <DialogHeader>
           <DialogTitle className="font-light tracking-wide text-xl">Credit Check Report</DialogTitle>
-          <DialogDescription className="text-white/50 text-sm">
+          <DialogDescription className="text-muted-foreground text-sm">
             Billable bureau pulls — counted once per application at the time of the first credit check. Toggling passed ↔ failed afterwards never re-counts.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label className="text-white/70 text-xs uppercase tracking-wider">From</Label>
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-black/60 border-white/10 text-white" />
+            <Label className="text-muted-foreground text-xs uppercase tracking-wider">From</Label>
+            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-background border-input text-foreground" />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-white/70 text-xs uppercase tracking-wider">To</Label>
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="bg-black/60 border-white/10 text-white" />
+            <Label className="text-muted-foreground text-xs uppercase tracking-wider">To</Label>
+            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="bg-background border-input text-foreground" />
           </div>
         </div>
 
         <div className="grid grid-cols-3 gap-3 pt-2">
-          <div className="rounded-lg border border-white/10 bg-black/40 p-4">
-            <div className="text-[11px] uppercase tracking-wider text-white/50">Total</div>
+          <div className="rounded-lg border border-border bg-muted/40 p-4">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total</div>
             <div className="text-3xl font-light mt-1">{loading ? '—' : total}</div>
           </div>
           <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
@@ -132,14 +132,14 @@ const CreditCheckReportModal = ({ open, onOpenChange }: Props) => {
           <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
             <div className="text-[11px] uppercase tracking-wider text-emerald-300/80 mb-2">Passed — resulting status</div>
             {loading ? (
-              <div className="text-white/40 text-sm">—</div>
+              <div className="text-muted-foreground text-sm">—</div>
             ) : passedBreakdown.length === 0 ? (
-              <div className="text-white/40 text-sm">No records.</div>
+              <div className="text-muted-foreground text-sm">No records.</div>
             ) : (
               <ul className="space-y-1">
                 {passedBreakdown.map((b, i) => (
                   <li key={i} className="flex items-center justify-between text-sm">
-                    <span className="text-white/75">{prettify(b.key)}</span>
+                    <span className="text-foreground/80">{prettify(b.key)}</span>
                     <span className="text-emerald-300 font-light tabular-nums">{b.count}</span>
                   </li>
                 ))}
@@ -149,14 +149,14 @@ const CreditCheckReportModal = ({ open, onOpenChange }: Props) => {
           <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3">
             <div className="text-[11px] uppercase tracking-wider text-red-300/80 mb-2">Failed — resulting status</div>
             {loading ? (
-              <div className="text-white/40 text-sm">—</div>
+              <div className="text-muted-foreground text-sm">—</div>
             ) : failedBreakdown.length === 0 ? (
-              <div className="text-white/40 text-sm">No records.</div>
+              <div className="text-muted-foreground text-sm">No records.</div>
             ) : (
               <ul className="space-y-1">
                 {failedBreakdown.map((b, i) => (
                   <li key={i} className="flex items-center justify-between text-sm">
-                    <span className="text-white/75">{prettify(b.key)}</span>
+                    <span className="text-foreground/80">{prettify(b.key)}</span>
                     <span className="text-red-300 font-light tabular-nums">{b.count}</span>
                   </li>
                 ))}
@@ -165,9 +165,9 @@ const CreditCheckReportModal = ({ open, onOpenChange }: Props) => {
           </div>
         </div>
 
-        <div className="mt-2 max-h-[260px] overflow-auto rounded-lg border border-white/10">
+        <div className="mt-2 max-h-[260px] overflow-auto rounded-lg border border-border">
           <table className="w-full text-sm">
-            <thead className="bg-white/5 text-white/60 text-[11px] uppercase tracking-wider">
+            <thead className="bg-muted text-muted-foreground text-[11px] uppercase tracking-wider">
               <tr>
                 <th className="text-left px-3 py-2">Client</th>
                 <th className="text-left px-3 py-2">Outcome</th>
@@ -177,21 +177,21 @@ const CreditCheckReportModal = ({ open, onOpenChange }: Props) => {
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={4} className="px-3 py-4 text-white/50">Loading…</td></tr>
+                <tr><td colSpan={4} className="px-3 py-4 text-muted-foreground">Loading…</td></tr>
               )}
               {!loading && rows.length === 0 && (
-                <tr><td colSpan={4} className="px-3 py-4 text-white/50">No credit checks recorded for this period.</td></tr>
+                <tr><td colSpan={4} className="px-3 py-4 text-muted-foreground">No credit checks recorded for this period.</td></tr>
               )}
               {!loading && rows.map((r, i) => (
-                <tr key={i} className="border-t border-white/5">
+                <tr key={i} className="border-t border-border">
                   <td className="px-3 py-2">{r.full_name || [r.first_name, r.last_name].filter(Boolean).join(' ') || '—'}</td>
                   <td className="px-3 py-2">
                     <span className={`px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider border ${r.status === 'passed' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-red-500/30 bg-red-500/10 text-red-300'}`}>
                       {r.status}
                     </span>
                   </td>
-                  <td className="px-3 py-2 text-white/70">{prettify(r.resulting_status)}</td>
-                  <td className="px-3 py-2 text-white/70">{new Date(r.updated_at).toLocaleString('en-ZA', { hour12: false })}</td>
+                  <td className="px-3 py-2 text-muted-foreground">{prettify(r.resulting_status)}</td>
+                  <td className="px-3 py-2 text-muted-foreground">{new Date(r.updated_at).toLocaleString('en-ZA', { hour12: false })}</td>
                 </tr>
               ))}
             </tbody>
@@ -200,7 +200,7 @@ const CreditCheckReportModal = ({ open, onOpenChange }: Props) => {
 
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} className="text-white/60 hover:text-white hover:bg-white/5">
+          <Button variant="ghost" onClick={() => onOpenChange(false)} className="text-muted-foreground hover:text-foreground hover:bg-muted/40">
             Close
           </Button>
         </DialogFooter>

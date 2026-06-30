@@ -26,14 +26,14 @@ const BankReferenceBadge = ({ reference, className = '', onEdit }: BankReference
 
   return (
     <div
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-mono text-[11px] tracking-wider bg-white/5 border border-white/10 text-white/80 hover:border-white/20 transition-colors ${className}`}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-mono text-[11px] tracking-wider bg-muted border border-border text-foreground/80 hover:border-foreground/20 transition-colors ${className}`}
     >
-      <span className="text-white/80">{reference}</span>
+      <span className="text-foreground/80">{reference}</span>
       <button
         type="button"
         onClick={handleCopy}
         title={`Copy bank reference: ${reference}`}
-        className="p-0.5 rounded hover:bg-white/10 transition-colors"
+        className="p-0.5 rounded hover:bg-accent transition-colors"
       >
         <Copy className="w-3 h-3 opacity-50" />
       </button>
@@ -42,7 +42,7 @@ const BankReferenceBadge = ({ reference, className = '', onEdit }: BankReference
           type="button"
           onClick={(e) => { e.stopPropagation(); onEdit(); }}
           title="Edit bank reference"
-          className="p-0.5 rounded hover:bg-white/10 transition-colors"
+          className="p-0.5 rounded hover:bg-accent transition-colors"
         >
           <Pencil className="w-3 h-3 opacity-50" />
         </button>

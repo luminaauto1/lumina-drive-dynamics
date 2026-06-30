@@ -248,12 +248,12 @@ export default function LiveCallCopilot({ clientEmail, clientPhone, clientName, 
   return (
     <div className="rounded-md border border-border bg-muted/20 p-3 space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1 rounded bg-zinc-900/60 border border-zinc-700 p-0.5">
+        <div className="flex items-center gap-1 rounded bg-muted/60 border border-border p-0.5">
           <button
             onClick={() => setMode('voice')}
             disabled={isListening || isProcessing || isUploading || isProcessingText}
             className={`flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded transition-colors disabled:opacity-50 ${
-              mode === 'voice' ? 'bg-primary/20 text-primary' : 'text-zinc-400 hover:text-zinc-200'
+              mode === 'voice' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <Sparkles className="w-3 h-3" /> Voice Call
@@ -262,7 +262,7 @@ export default function LiveCallCopilot({ clientEmail, clientPhone, clientName, 
             onClick={() => setMode('text')}
             disabled={isListening || isProcessing || isUploading || isProcessingText}
             className={`flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded transition-colors disabled:opacity-50 ${
-              mode === 'text' ? 'bg-primary/20 text-primary' : 'text-zinc-400 hover:text-zinc-200'
+              mode === 'text' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <FileText className="w-3 h-3" /> Paste Text
@@ -330,7 +330,7 @@ export default function LiveCallCopilot({ clientEmail, clientPhone, clientName, 
             onChange={(e) => setPastedText(e.target.value)}
             disabled={isProcessingText}
             placeholder="Paste a long WhatsApp message, email, or raw call notes here. The AI will summarize it and update Vehicle / Budget / Status on the left panel..."
-            className="w-full min-h-[120px] text-[11px] rounded bg-zinc-900 border border-zinc-700 text-zinc-200 placeholder:text-zinc-600 p-2 leading-relaxed focus:outline-none focus:border-primary/60 resize-y disabled:opacity-60"
+            className="w-full min-h-[120px] text-[11px] rounded bg-card border border-border text-foreground placeholder:text-muted-foreground p-2 leading-relaxed focus:outline-none focus:border-primary/60 resize-y disabled:opacity-60"
           />
           <div className="flex justify-end">
             <Button

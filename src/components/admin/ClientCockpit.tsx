@@ -80,7 +80,7 @@ export default function ClientCockpit({ application, onChange }: Props) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
       {/* LEFT: Persistent profile card (1/3) */}
-      <div className="glass-card rounded-xl p-6 bg-zinc-900/40 border border-zinc-800">
+      <div className="glass-card rounded-xl p-6 bg-muted/40 border border-border">
         <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">Applicant / Lead</p>
         <h2 className="text-2xl font-semibold text-foreground leading-tight">{fullName}</h2>
         <p className="text-xs text-muted-foreground mt-1">App ID · {application.id?.slice(0, 8)}</p>
@@ -99,7 +99,7 @@ export default function ClientCockpit({ application, onChange }: Props) {
         </div>
 
         {/* AI persistent memory block */}
-        <div className="mt-6 rounded-lg bg-zinc-800/50 border border-zinc-700/50 p-4 space-y-3">
+        <div className="mt-6 rounded-lg bg-muted border border-border p-4 space-y-3">
           <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">AI Client Profile (persistent)</p>
           <div className="flex items-start gap-2 text-sm">
             <Car className="w-4 h-4 text-primary mt-0.5 shrink-0" />
@@ -139,7 +139,7 @@ export default function ClientCockpit({ application, onChange }: Props) {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <label className="flex items-start gap-3 p-4 rounded-lg bg-zinc-800/40 border border-zinc-700/50 cursor-pointer hover:bg-zinc-800/60 transition-colors">
+          <label className="flex items-start gap-3 p-4 rounded-lg bg-muted/40 border border-border cursor-pointer hover:bg-accent transition-colors">
             <Checkbox
               checked={contactedToday}
               onCheckedChange={(checked) => {
@@ -164,7 +164,7 @@ export default function ClientCockpit({ application, onChange }: Props) {
             </div>
           </label>
 
-          <div className={`p-4 rounded-lg border transition-colors ${isOverdue ? 'bg-red-950/30 border-red-500/60' : 'bg-zinc-800/40 border-zinc-700/50'}`}>
+          <div className={`p-4 rounded-lg border transition-colors ${isOverdue ? 'bg-red-950/30 border-red-500/60' : 'bg-muted/40 border-border'}`}>
             <Label htmlFor="follow_up_time" className={`text-xs ${isOverdue ? 'text-red-400 font-bold' : 'text-muted-foreground'}`}>
               Follow-up time today
             </Label>
@@ -195,7 +195,7 @@ export default function ClientCockpit({ application, onChange }: Props) {
         </div>
 
         {/* Document Source indicators */}
-        <div className="mt-4 pt-4 border-t border-zinc-800/60">
+        <div className="mt-4 pt-4 border-t border-border">
           <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Document Source</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {([
@@ -219,8 +219,8 @@ export default function ClientCockpit({ application, onChange }: Props) {
                   }}
                   className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border text-left transition-all ${
                     active
-                      ? 'bg-zinc-100 border-zinc-100 text-zinc-900'
-                      : 'bg-zinc-800/40 border-zinc-700/50 text-muted-foreground hover:bg-zinc-800/70 hover:text-foreground'
+                      ? 'bg-primary border-primary text-primary-foreground'
+                      : 'bg-muted/40 border-border text-muted-foreground hover:bg-accent hover:text-foreground'
                   }`}
                 >
                   <Icon className="w-3.5 h-3.5 shrink-0" />
@@ -260,10 +260,10 @@ function CreditCheckScreenshot({ path, outcome }: { path?: string | null; outcom
 
   const accent = outcome === 'passed' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
               : outcome === 'failed' ? 'text-red-400 border-red-500/30 bg-red-500/10'
-              : 'text-muted-foreground border-zinc-700/50 bg-zinc-800/40';
+              : 'text-muted-foreground border-border bg-muted/40';
 
   return (
-    <div className="mt-4 pt-4 border-t border-zinc-800/60">
+    <div className="mt-4 pt-4 border-t border-border">
       <div className="flex items-center justify-between mb-2">
         <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5">
           <ImageIcon className="w-3 h-3" /> Credit Check Screenshot
@@ -276,7 +276,7 @@ function CreditCheckScreenshot({ path, outcome }: { path?: string | null; outcom
         <p className="text-xs text-muted-foreground">Loading…</p>
       ) : url ? (
         <a href={url} target="_blank" rel="noopener noreferrer" className="block group">
-          <img src={url} alt="Credit check screenshot" className="max-h-[260px] w-full object-contain rounded border border-zinc-800 bg-black/40" />
+          <img src={url} alt="Credit check screenshot" className="max-h-[260px] w-full object-contain rounded border border-border bg-muted/40" />
           <span className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted-foreground group-hover:text-foreground">
             <ExternalLink className="w-3 h-3" /> Open full size
           </span>

@@ -441,8 +441,17 @@ td.wrap-text, th.wrap-text {
    gets these. Toggled by the header sun/moon control (persisted to
    localStorage; default stays dark = brand). The yellow fill stays bright while
    the emphasis-text accent darkens to a readable gold on white.
+
+   `html.desk-portal-light` is ALSO matched here: Radix overlays (Dialog/Sheet/
+   Popover/DropdownMenu/Select/Tooltip/etc.) portal their content to <body>,
+   OUTSIDE the .desk-root wrapper, so without this they'd inherit the dark :root
+   tokens. AdminLayout marks <html> with `desk-portal-light` in admin light mode,
+   carrying these light token VALUES to portaled overlays. NOTE: only the token
+   block below is shared — the separate background/color rule (further down) stays
+   scoped to .desk-root.theme-light so the <body>/public-site surface is untouched.
    ============================================================================ */
-.desk-root.theme-light {
+.desk-root.theme-light,
+html.desk-portal-light {
   --background: 60 9% 93%;            /* #f1f1ee paper */
   --foreground: 240 6% 10%;          /* #18181b ink */
   --card: 0 0% 100%;                 /* #ffffff surface */

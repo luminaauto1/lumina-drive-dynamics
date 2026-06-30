@@ -93,8 +93,8 @@ const BankReferenceModal = ({
       onClick={() => setPlatform(value)}
       className={
         platform === value
-          ? 'border-white bg-white/10 text-white hover:bg-white/15'
-          : 'border-white/10 bg-transparent text-white/55 hover:text-white hover:bg-white/5'
+          ? 'border-foreground/40 bg-accent text-foreground hover:bg-accent/80'
+          : 'border-border bg-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40'
       }
     >
       {label}
@@ -103,19 +103,19 @@ const BankReferenceModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-zinc-950 border border-white/10 text-white shadow-[0_0_60px_-15px_rgba(255,255,255,0.15)]">
+      <DialogContent className="bg-background border border-border text-foreground shadow-[0_0_60px_-15px_rgba(255,255,255,0.15)]">
         <DialogHeader>
-          <DialogTitle className="text-white tracking-wide font-light text-xl">
+          <DialogTitle className="text-foreground tracking-wide font-light text-xl">
             Submit Application
           </DialogTitle>
-          <DialogDescription className="text-white/50 text-sm">
+          <DialogDescription className="text-muted-foreground text-sm">
             Choose the submission platform, then capture the reference or copy the message.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           {/* Platform */}
           <div className="space-y-2">
-            <Label className="text-white/70 text-xs uppercase tracking-wider">Submission Platform</Label>
+            <Label className="text-muted-foreground text-xs uppercase tracking-wider">Submission Platform</Label>
             <div className="grid grid-cols-2 gap-2">
               {platformBtn('intelliapp', 'IntelliApp')}
               {platformBtn('lightstone', 'Lightstone')}
@@ -125,7 +125,7 @@ const BankReferenceModal = ({
           {/* Reference / message */}
           {platform === 'intelliapp' ? (
             <div className="space-y-2">
-              <Label htmlFor="bank-ref" className="text-white/70 text-xs uppercase tracking-wider">
+              <Label htmlFor="bank-ref" className="text-muted-foreground text-xs uppercase tracking-wider">
                 Bank Reference Code
               </Label>
               <Input
@@ -135,28 +135,28 @@ const BankReferenceModal = ({
                 onChange={(e) => setReference(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleConfirm(); }}
                 placeholder="e.g. ABS-2026-08821"
-                className="bg-black/60 border-white/10 text-white font-mono tracking-wider placeholder:text-white/20 focus-visible:ring-white/30"
+                className="bg-background border-input text-foreground font-mono tracking-wider placeholder:text-muted-foreground/60 focus-visible:ring-ring"
               />
-              <p className="text-[11px] text-white/40">IntelliApp returns a bank reference code — enter it here.</p>
+              <p className="text-[11px] text-muted-foreground">IntelliApp returns a bank reference code — enter it here.</p>
             </div>
           ) : (
             <div className="space-y-2">
-              <Label className="text-white/70 text-xs uppercase tracking-wider">Message to copy</Label>
+              <Label className="text-muted-foreground text-xs uppercase tracking-wider">Message to copy</Label>
               <div className="flex items-stretch gap-2">
-                <div className="flex-1 rounded-md bg-black/60 border border-white/10 px-3 py-2 text-sm text-white/85">
+                <div className="flex-1 rounded-md bg-background border border-border px-3 py-2 text-sm text-foreground">
                   {lightstoneMsg}
                 </div>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={copyMsg}
-                  className="border-white/15 bg-white/5 text-white hover:bg-white/10 shrink-0"
+                  className="border-border bg-muted text-foreground hover:bg-accent shrink-0"
                   title="Copy message"
                 >
                   {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                 </Button>
               </div>
-              <p className="text-[11px] text-white/40">
+              <p className="text-[11px] text-muted-foreground">
                 Lightstone has no reference code — nothing is stored as a reference. Copy this message and send it on WhatsApp.
               </p>
             </div>
@@ -164,18 +164,18 @@ const BankReferenceModal = ({
 
           {showFAndIAssignment && (
             <div className="space-y-2">
-              <Label className="text-white/70 text-xs uppercase tracking-wider">
+              <Label className="text-muted-foreground text-xs uppercase tracking-wider">
                 Assign F&amp;I
               </Label>
               <Select
                 value={fniId ?? '__unassigned__'}
                 onValueChange={(v) => setFniId(v === '__unassigned__' ? null : v)}
               >
-                <SelectTrigger className="bg-black/60 border-white/10 text-white focus:ring-white/30">
+                <SelectTrigger className="bg-background border-input text-foreground focus:ring-ring">
                   <SelectValue placeholder="Select F&I…" />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-950 border-white/10 text-white">
-                  <SelectItem value="__unassigned__" className="text-white/60">
+                <SelectContent>
+                  <SelectItem value="__unassigned__" className="text-muted-foreground">
                     Unassigned
                   </SelectItem>
                   {fniUsers.map((u) => (
@@ -196,13 +196,13 @@ const BankReferenceModal = ({
           )}
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} className="text-white/60 hover:text-white hover:bg-white/5">
+          <Button variant="ghost" onClick={() => onOpenChange(false)} className="text-muted-foreground hover:text-foreground hover:bg-muted/40">
             Cancel
           </Button>
           <Button
             onClick={handleConfirm}
             disabled={!canConfirm || submitting}
-            className="bg-white text-black hover:bg-white/90 font-medium"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
           >
             {submitting ? 'Submitting…' : 'Confirm Submit'}
           </Button>
