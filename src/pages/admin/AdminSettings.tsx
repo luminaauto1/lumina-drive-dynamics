@@ -53,7 +53,7 @@ const AdminSettings = () => {
       <PageHeader title="Settings" subtitle="Configure your dealership — pick a setting to open its page" />
 
       <div className="p-4 sm:p-6">
-        <div className="max-w-3xl space-y-6">
+        <div className="max-w-5xl space-y-8">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -80,12 +80,17 @@ const AdminSettings = () => {
               No settings match “{query.trim()}”.
             </p>
           ) : (
-            <div className="space-y-8">
+            <div className="space-y-10">
               {groups.map((group) => (
-                <section key={group.label} className="space-y-2">
-                  <h2 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                    {group.label}
-                  </h2>
+                <section key={group.label} className="space-y-4">
+                  <div className="flex items-baseline gap-3 border-b border-border pb-2">
+                    <h2 className="text-xl font-semibold tracking-tight text-foreground">
+                      {group.label}
+                    </h2>
+                    <span className="text-xs text-muted-foreground">
+                      {group.items.length} {group.items.length === 1 ? 'setting' : 'settings'}
+                    </span>
+                  </div>
                   <div className="grid gap-2 sm:grid-cols-2">
                     {group.items.map((item) => {
                       const Icon = item.icon;
