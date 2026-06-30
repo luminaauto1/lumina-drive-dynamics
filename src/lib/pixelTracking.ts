@@ -31,14 +31,16 @@ export const trackPageView = () => {
   }
 };
 
-export const trackLeadConversion = (params?: Record<string, any>) => {
+export const trackLeadConversion = (params?: Record<string, any>, eventId?: string) => {
   try {
-    window.fbq?.("track", "Lead", params);
+    // Meta dedup key is `eventID` in the options arg (mirrors the server CAPI event_id).
+    window.fbq?.("track", "Lead", params, eventId ? { eventID: eventId } : undefined);
   } catch (e) {
     /* swallow */
   }
   try {
-    window.ttq?.track("SubmitForm", params);
+    // TikTok dedup key is `event_id` in the options arg (mirrors the server CAPI event_id).
+    window.ttq?.track("SubmitForm", params, eventId ? { event_id: eventId } : undefined);
   } catch (e) {
     /* swallow */
   }

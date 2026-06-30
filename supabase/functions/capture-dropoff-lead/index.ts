@@ -15,6 +15,7 @@ const ALLOWED_FIELDS = new Set([
   "utm_medium",
   "utm_campaign",
   "referrer",
+  "ttclid",
   "traffic_source",
   "last_step_reached",
   "last_step_name",

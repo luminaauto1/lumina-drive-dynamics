@@ -37,6 +37,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getStoredAttribution } from "@/hooks/useUTMTracking";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { trackLeadConversion } from "@/lib/pixelTracking";
+import { publicApiHeaders } from "@/lib/publicApi";
 import { toast } from "sonner";
 import {
   financeApplicationStep1Schema,
@@ -929,10 +930,32 @@ const FinanceApplication = () => {
       // Isolated ad-pixel conversion event — Meta + TikTok.
       // Fires only after a confirmed successful insert/update. Wrapped
       // internally in try/catch so a failed pixel never breaks the flow.
-      trackLeadConversion({
-        content_name: "Finance Application",
-        content_category: "Lead",
-      });
+      // ONE shared event_id is sent to BOTH the browser pixel and the server-side
+      // TikTok CAPI mirror so TikTok/Meta dedupe the pair.
+      const tiktokEventId = crypto.randomUUID();
+      trackLeadConversion(
+        { content_name: "Finance Application", content_category: "Lead" },
+        tiktokEventId,
+      );
+      // Server-side TikTok CAPI mirror (fire-and-forget; no-ops until the access
+      // token is configured; deduped against the pixel via the shared event_id).
+      try {
+        const attr = getAttribution();
+        void supabase.functions.invoke("tiktok-capi", {
+          body: {
+            event: "SubmitForm",
+            event_id: tiktokEventId,
+            email: sanitizedData.email,
+            phone: sanitizedData.phone,
+            ttclid: (attr as { ttclid?: string | null }).ttclid || null,
+            url: typeof window !== "undefined" ? window.location.href : undefined,
+            properties: { content_name: "Finance Application", content_category: "Lead" },
+          },
+          headers: publicApiHeaders(),
+        });
+      } catch (e) {
+        console.warn("[tiktok-capi] submit event skipped:", e);
+      }
 
       // 4. Auto-create Lead via secure edge function
       try {

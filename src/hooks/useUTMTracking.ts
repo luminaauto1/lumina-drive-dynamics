@@ -11,6 +11,8 @@ export interface Attribution {
   utm_term?: string | null;
   utm_content?: string | null;
   referrer: string | null;
+  /** TikTok click id — captured for CAPI conversion attribution. */
+  ttclid?: string | null;
   landing_page?: string | null;
   captured_at?: string;
 }
@@ -26,10 +28,11 @@ export const useUTMTracking = () => {
   useEffect(() => {
     try {
       const sp = new URLSearchParams(location.search);
-      const hasAnyUtm = UTM_KEYS.some((k) => sp.get(k));
+      const ttclid = sp.get('ttclid');
+      const hasAnyUtm = UTM_KEYS.some((k) => sp.get(k)) || !!ttclid;
       const existing = sessionStorage.getItem(STORAGE_KEY);
 
-      // First-touch: only set if not already stored, OR if a fresh utm appears
+      // First-touch: only set if not already stored, OR if a fresh utm/ttclid appears
       if (hasAnyUtm) {
         const referrer = (() => {
           try {
@@ -44,6 +47,7 @@ export const useUTMTracking = () => {
           utm_term: sp.get('utm_term'),
           utm_content: sp.get('utm_content'),
           referrer,
+          ttclid: ttclid || null,
           landing_page: location.pathname,
           captured_at: new Date().toISOString(),
         };
@@ -78,7 +82,7 @@ export const useUTMTracking = () => {
  * Retrieve stored attribution for inclusion in DB payloads.
  * Returns an object safe to spread into leads / finance_applications inserts.
  */
-export const getStoredAttribution = (): Pick<Attribution, 'utm_source' | 'utm_medium' | 'utm_campaign' | 'referrer'> => {
+export const getStoredAttribution = (): Pick<Attribution, 'utm_source' | 'utm_medium' | 'utm_campaign' | 'referrer' | 'ttclid'> => {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) {
@@ -92,6 +96,7 @@ export const getStoredAttribution = (): Pick<Attribution, 'utm_source' | 'utm_me
           try { return document.referrer ? new URL(document.referrer).hostname : null; }
           catch { return null; }
         })(),
+        ttclid: sp.get('ttclid'),
       };
     }
     const parsed = JSON.parse(raw) as Attribution;
@@ -100,8 +105,9 @@ export const getStoredAttribution = (): Pick<Attribution, 'utm_source' | 'utm_me
       utm_medium: parsed.utm_medium ?? null,
       utm_campaign: parsed.utm_campaign ?? null,
       referrer: parsed.referrer ?? null,
+      ttclid: parsed.ttclid ?? null,
     };
   } catch {
-    return { utm_source: null, utm_medium: null, utm_campaign: null, referrer: null };
+    return { utm_source: null, utm_medium: null, utm_campaign: null, referrer: null, ttclid: null };
   }
 };
