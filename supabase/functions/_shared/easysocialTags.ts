@@ -47,6 +47,13 @@ export interface StatusApplyConfig {
   tagRemoveMode: 'none' | 'specific' | 'all_except';
   /** Tag IDs (coerced from text[]), interpreted per tagRemoveMode. */
   tagsToRemove: number[];
+  /**
+   * Multi tag-to-ADD: list of tag NAMES to ADD on apply. When non-empty this
+   * SUPERSEDES the single tag_add_overrides[slug] override; `[]` (default) =>
+   * fall back to today's single-tag behaviour. Names are resolved to ids and run
+   * through the same intersection + SAFE_TAG_NAMES filters in the edge fn.
+   */
+  tagsToAdd: string[];
   /** Whether this status is flagged internal (skips config CRM + WhatsApp). */
   isInternal: boolean;
 }
@@ -99,6 +106,7 @@ export const resolveStatusApplyConfig = async (slug: string): Promise<StatusAppl
     easysocialClientStatus: null,
     tagRemoveMode: 'none',
     tagsToRemove: [],
+    tagsToAdd: [],
     isInternal: false,
   };
   if (!slug) return fallback;
@@ -109,7 +117,7 @@ export const resolveStatusApplyConfig = async (slug: string): Promise<StatusAppl
     const svc = createClient(SUPABASE_URL, SERVICE);
     const { data: row } = await svc
       .from("status_overrides")
-      .select("easysocial_client_status, tag_remove_mode, easysocial_tags_to_remove, is_internal")
+      .select("easysocial_client_status, tag_remove_mode, easysocial_tags_to_remove, easysocial_tags_to_add, is_internal")
       .eq("slug", slug)
       .maybeSingle();
     if (!row) return fallback;
@@ -119,6 +127,15 @@ export const resolveStatusApplyConfig = async (slug: string): Promise<StatusAppl
     const tagsToRemove = rawIds
       .map((v) => Number(v))
       .filter((n) => Number.isFinite(n));
+    // Multi tag-to-ADD NAMES: keep non-empty trimmed strings, de-duped, order-preserving.
+    const rawAddNames: unknown[] = Array.isArray(r.easysocial_tags_to_add) ? r.easysocial_tags_to_add : [];
+    const tagsToAdd = Array.from(
+      new Set(
+        rawAddNames
+          .map((v) => (typeof v === 'string' ? v.trim() : ''))
+          .filter((s): s is string => s.length > 0),
+      ),
+    );
     return {
       easysocialClientStatus:
         typeof r.easysocial_client_status === 'string' && r.easysocial_client_status.trim()
@@ -126,6 +143,7 @@ export const resolveStatusApplyConfig = async (slug: string): Promise<StatusAppl
           : null,
       tagRemoveMode: mode,
       tagsToRemove: Array.from(new Set(tagsToRemove)),
+      tagsToAdd,
       isInternal: r.is_internal === true,
     };
   } catch (e) {

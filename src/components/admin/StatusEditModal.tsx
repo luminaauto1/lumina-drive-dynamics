@@ -31,7 +31,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Loader2, Save, Trash2, Check, ChevronDown, ArrowRight } from 'lucide-react';
+import { Loader2, Save, Trash2, Check, ChevronDown, ArrowRight, X } from 'lucide-react';
 import {
   useStatusConfig,
   useStatusOverrides,
@@ -187,6 +187,21 @@ export function StatusEditModal({
   const [isInternal, setIsInternal] = useState(!!existing?.is_internal);
   const [waMessage, setWaMessage] = useState(existing?.whatsapp_message ?? '');
   const [tag, setTag] = useState(existing?.easysocial_tag_to_add ?? '');
+  // Multi tag-to-ADD (NAMES). When non-empty this is what the edge fn ADDs ALL of,
+  // superseding the single `tag` override; empty => exactly today's single-tag path.
+  // Seeded from the row's easysocial_tags_to_add, else the single tag (back-compat)
+  // so an existing single-tag status opens with that tag already selected.
+  const [tagsToAdd, setTagsToAdd] = useState<string[]>(() => {
+    const multi = Array.isArray(existing?.easysocial_tags_to_add)
+      ? (existing!.easysocial_tags_to_add as string[]).map((s) => String(s).trim()).filter(Boolean)
+      : [];
+    if (multi.length > 0) return Array.from(new Set(multi));
+    const single = (existing?.easysocial_tag_to_add ?? '').trim();
+    return single ? [single] : [];
+  });
+  // Free-text entry for adding a custom tag name (used when the cache is empty or
+  // the wanted tag isn't synced yet).
+  const [customTag, setCustomTag] = useState('');
   // FINANCE destination tab (lane). Defaults to the resolved tab: a saved lane
   // override if present, else the hardcoded statusToTab default. Editing this only
   // changes which Pipeline v2 tab the app is shown/counted in — never the status
@@ -235,7 +250,13 @@ export function StatusEditModal({
     if (tagSeeded || !slug) return;
     if ((existing?.easysocial_tag_to_add ?? '') === '' && easySocial) {
       const fallback = (easySocial.config as any)?.tag_add_overrides?.[slug];
-      if (typeof fallback === 'string' && fallback) setTag(fallback);
+      if (typeof fallback === 'string' && fallback) {
+        setTag(fallback);
+        // Mirror into the multi-list ONLY if it's still empty (don't clobber a
+        // row that already configured easysocial_tags_to_add), so opening + saving
+        // an EasySocialTab-set single tag doesn't silently drop it.
+        setTagsToAdd((cur) => (cur.length > 0 ? cur : [fallback]));
+      }
       setTagSeeded(true);
     } else if (existing?.easysocial_tag_to_add) {
       setTagSeeded(true);
@@ -248,18 +269,31 @@ export function StatusEditModal({
   const previewLabel = label || effectiveSlug || 'Preview';
   const builtInWaPreview = type === 'finance' && slug ? getWhatsAppMessage(slug, '{name}') : '';
 
-  // ZTC-parity: resolve the current tag-to-add NAME → its EasySocial integer id
-  // (from the synced cache) to show beside the name. '' when unknown/empty.
-  const tagToAddId = useMemo(() => {
-    const name = tag.trim();
-    if (!name) return '';
-    const hit = cachedTags.find((t) => t.name === name);
-    return hit ? String(hit.id) : '';
-  }, [tag, cachedTags]);
+  // ZTC-parity: resolve a tag NAME → its EasySocial integer id (from the synced
+  // cache) to show beside the name. '' when unknown/empty. Used for the add chips.
+  const idForTagName = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const t of cachedTags) m.set(t.name, String(t.id));
+    return (name: string) => m.get(name) ?? '';
+  }, [cachedTags]);
 
   // Toggle a tag id in the remove/keep multi-select.
   const toggleRemoveTag = (id: string) =>
     setTagsToRemove((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+
+  // ── Multi tag-to-ADD helpers (NAMES) ───────────────────────────────────────
+  // Toggle a synced tag NAME in the add multi-select.
+  const toggleAddTag = (name: string) =>
+    setTagsToAdd((cur) => (cur.includes(name) ? cur.filter((x) => x !== name) : [...cur, name]));
+  const removeAddTag = (name: string) =>
+    setTagsToAdd((cur) => cur.filter((x) => x !== name));
+  // Commit the free-text custom tag input as a chip (de-duped, trimmed).
+  const addCustomTag = () => {
+    const v = customTag.trim();
+    if (!v) return;
+    setTagsToAdd((cur) => (cur.includes(v) ? cur : [...cur, v]));
+    setCustomTag('');
+  };
 
   // The hardcoded default lane for this FINANCE slug (shown as the "(default)"
   // hint in the dropdown so the owner can see what empty would route to).
@@ -310,6 +344,17 @@ export function StatusEditModal({
       }
     }
 
+    // Multi tag-to-ADD NAMES (trimmed, de-duped, order-preserving). When non-empty
+    // the edge fn ADDs ALL of these (superseding the single add); empty => the
+    // single-tag / hardcoded-plan fallback (exactly today's behaviour).
+    const cleanTagsToAdd = Array.from(
+      new Set(tagsToAdd.map((t) => t.trim()).filter(Boolean)),
+    );
+    // Legacy single add NAME kept in sync for back-compat (first selected): the
+    // edge fn prefers the multi list when present, but EasySocialTab + older reads
+    // still consult the single column / the tag_add_overrides mirror.
+    const legacySingleTag = cleanTagsToAdd[0] ?? '';
+
     try {
       await upsert.mutateAsync({
         slug: writeSlug,
@@ -322,7 +367,8 @@ export function StatusEditModal({
         comment_required: commentRequired,
         comment_prompt: commentPrompt.trim() ? commentPrompt.trim() : null,
         is_internal: isInternal,
-        easysocial_tag_to_add: tag.trim() ? tag.trim() : null,
+        easysocial_tag_to_add: legacySingleTag ? legacySingleTag : null,
+        easysocial_tags_to_add: cleanTagsToAdd,
         status_type: type,
         // Destination-tab routing: FINANCE only. Store NULL when the chosen lane
         // equals the hardcoded default (empty override = exact current behaviour,
@@ -348,8 +394,11 @@ export function StatusEditModal({
       });
 
       // Mirror the EasySocial tag into the live integration path (read-modify-write).
+      // The mirror stays a SINGLE name (the live integration map is {slug: name});
+      // use the first selected tag so EasySocialTab + the single-override fallback
+      // stay coherent. The multi list lives only in the status_overrides column.
       const tagOverrides: Record<string, string> = { ...((easySocial?.config?.tag_add_overrides as Record<string, string>) ?? {}) };
-      if (tag.trim()) tagOverrides[writeSlug] = tag.trim();
+      if (legacySingleTag) tagOverrides[writeSlug] = legacySingleTag;
       else delete tagOverrides[writeSlug];
       const config = { ...(easySocial?.config ?? {}), tag_add_overrides: tagOverrides };
       await updateEasySocial.mutateAsync({ config });
@@ -571,28 +620,90 @@ export function StatusEditModal({
             </p>
           </div>
 
-          {/* EasySocial tag-to-add — combobox over the synced tag dictionary
-              (config.tags_cache); free-text fallback when the cache is empty. */}
+          {/* EasySocial tags-to-add — MULTI-SELECT over the synced tag dictionary
+              (config.tags_cache); free-text fallback so a tag can be added even when
+              the cache is empty. ALL selected tags are ADDed on apply. Empty => the
+              status behaves exactly as today (single-override / hardcoded plan). */}
           <div className="space-y-1.5">
+            <Label className="text-sm">EasySocial tags to add</Label>
+
+            {/* Selected chips (removable). */}
+            {tagsToAdd.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {tagsToAdd.map((name) => {
+                  const id = idForTagName(name);
+                  return (
+                    <span
+                      key={name}
+                      className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2 py-1 text-xs text-foreground"
+                    >
+                      {name}
+                      {id && <span className="font-mono text-[10px] opacity-60">#{id}</span>}
+                      <button
+                        type="button"
+                        onClick={() => removeAddTag(name)}
+                        className="ml-0.5 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                        aria-label={`Remove ${name}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Pick from synced tags (toggle on/off). */}
+            {cachedTags.length > 0 ? (
+              <div className="flex max-h-40 flex-wrap gap-1.5 overflow-y-auto rounded-md border border-border p-2">
+                {cachedTags.map((t) => {
+                  const on = tagsToAdd.includes(t.name);
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => toggleAddTag(t.name)}
+                      className={
+                        'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition ' +
+                        (on ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:text-foreground')
+                      }
+                    >
+                      {on && <Check className="h-3 w-3 text-primary" />}
+                      {t.name} <span className="font-mono text-[10px] opacity-60">#{t.id}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-[11px] text-amber-400">
+                No synced tags available — sync EasySocial tags first (Settings → EasySocial), or type a tag name below.
+              </p>
+            )}
+
+            {/* Free-text custom tag (always available — fallback when a tag isn't synced). */}
             <div className="flex items-center gap-2">
-              <Label className="text-sm">EasySocial tag to add</Label>
-              {tagToAddId && (
-                <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">id {tagToAddId}</span>
-              )}
+              <Input
+                value={customTag}
+                onChange={(e) => setCustomTag(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { e.preventDefault(); addCustomTag(); }
+                }}
+                placeholder="Add a custom tag name…"
+                className="h-8 text-sm"
+                list={cachedTags.length > 0 ? TAG_DATALIST_ID : undefined}
+              />
+              <Button type="button" variant="outline" size="sm" className="h-8 shrink-0" onClick={addCustomTag} disabled={!customTag.trim()}>
+                Add
+              </Button>
             </div>
-            <Input
-              value={tag}
-              onChange={(e) => setTag(e.target.value)}
-              placeholder="EasySocial tag name (optional)"
-              className="h-8 text-sm"
-              list={cachedTags.length > 0 ? TAG_DATALIST_ID : undefined}
-            />
             {cachedTags.length > 0 && (
               <datalist id={TAG_DATALIST_ID}>
                 {cachedTags.map((t) => <option key={t.id} value={t.name} />)}
               </datalist>
             )}
-            <p className="text-[11px] text-muted-foreground">Mirrored into the EasySocial status → tag overrides on save. · pick from synced tags or type one</p>
+            <p className="text-[11px] text-muted-foreground">
+              All selected tags are ADDed on apply. The first selected is mirrored into the EasySocial status → tag overrides for back-compat. Empty = unchanged behaviour.
+            </p>
           </div>
 
           {/* ════════════ ZTC-parity status-apply config (FINANCE only) ════════════
