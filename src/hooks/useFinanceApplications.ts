@@ -506,6 +506,29 @@ export const useUpdateFinanceApplication = () => {
         } catch (paEx) {
           console.error('[notify-pre-approval-internal] failed to invoke:', paEx);
         }
+
+        // TikTok CAPI — server-side conversion event when a lead is pre-approved
+        // (a qualified, high-value conversion for ad optimization). Deterministic
+        // event_id so re-toggling the status never double-counts. Fire-and-forget;
+        // the function no-ops until the TikTok access token is configured.
+        try {
+          const { publicApiHeaders } = await import('@/lib/publicApi');
+          supabase.functions.invoke('tiktok-capi', {
+            headers: publicApiHeaders(),
+            body: {
+              event: 'CompleteRegistration',
+              event_id: `preapp:${id}`,
+              email: currentApp?.email || null,
+              phone: currentApp?.phone || null,
+              ttclid: (currentApp as any)?.ttclid || null,
+              properties: { content_name: 'Pre-Approved', content_category: 'Lead' },
+            },
+          }).then(({ error: ttErr }) => {
+            if (ttErr) console.error('[tiktok-capi] pre-approval error:', ttErr);
+          });
+        } catch (ttEx) {
+          console.error('[tiktok-capi] pre-approval invoke failed:', ttEx);
+        }
       }
 
       // EasySocial 2-way tag sync — isolated microservice, runs in addition

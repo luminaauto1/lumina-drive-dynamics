@@ -13,7 +13,7 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-verify-token, x-tiktok-signature",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 };
 
 const EASYSOCIAL_TEMPLATE_BASE =
@@ -45,6 +45,7 @@ const sanitizePhone = (raw: unknown): string | null => {
 const FIELD_ALIASES = {
   name: ["name", "full_name", "full name", "client_name", "customer_name", "lead_name"],
   phone: ["phone", "phone_number", "mobile", "mobile_number", "cell", "contact_number"],
+  email: ["email", "email_address", "e-mail", "client_email"],
   buyingPower: ["buying_power", "buying power", "bank_qualification", "qualification", "approved_amount", "budget"],
 } as const;
 
@@ -77,6 +78,7 @@ function extractLeadFields(formData: unknown) {
   const extracted: Record<keyof typeof FIELD_ALIASES, string | null> = {
     name: null,
     phone: null,
+    email: null,
     buyingPower: null,
   };
 
@@ -147,8 +149,33 @@ function scheduleBackground(promise: Promise<unknown>) {
 }
 
 Deno.serve(async (req) => {
+  const url = new URL(req.url);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
+  }
+
+  // GET — verification handshake (TikTok / Meta-style): echo back ?challenge after
+  // checking the verify token. Token is configurable via the TIKTOK_VERIFY_TOKEN
+  // secret (the exact value is read from the TikTok console at setup). If the
+  // secret is unset we still echo the challenge so the very first verify succeeds.
+  if (req.method === "GET") {
+    const expected = Deno.env.get("TIKTOK_VERIFY_TOKEN") || "";
+    const token =
+      url.searchParams.get("verify_token") ||
+      url.searchParams.get("hub.verify_token") ||
+      req.headers.get("x-verify-token") ||
+      req.headers.get("x-tiktok-signature") ||
+      "";
+    const challenge =
+      url.searchParams.get("challenge") || url.searchParams.get("hub.challenge") || "";
+    if (expected && token && token !== expected) {
+      return new Response("forbidden", { status: 403, headers: corsHeaders });
+    }
+    return new Response(challenge || "ok", {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "text/plain" },
+    });
   }
 
   if (req.method !== "POST") {
@@ -172,20 +199,31 @@ Deno.serve(async (req) => {
     payload.name ?? payload.full_name ?? payload.client_name ?? payload.customer_name ?? payload.lead_name;
   let rawPhone: unknown =
     payload.phone ?? payload.phone_number ?? payload.mobile ?? payload.mobile_number ?? payload.cell ?? payload.contact_number;
+  let rawEmail: unknown =
+    payload.email ?? payload.email_address ?? payload.client_email;
   let rawBuyingPower: unknown =
     payload.buying_power ?? payload.buyingPower ?? payload.bank_qualification ?? payload.qualification ?? payload.approved_amount ?? payload.budget;
+  // ttclid (TikTok click id) for CAPI attribution — lives in tracking, not the form.
+  const rawTtclid: unknown =
+    payload.ttclid ?? (payload as any).click_id ?? (payload as any).tt_click_id ??
+    (payload.data as Record<string, unknown> | undefined)?.ttclid ??
+    (payload.tracking as Record<string, unknown> | undefined)?.ttclid;
 
-  // 2) Fallback to TikTok native nested form_data structure
-  if (!rawName || !rawPhone) {
-    const formData = (payload.data as Record<string, unknown> | undefined)?.form_data;
+  // 2) Fallback to TikTok native nested form/field_data structure
+  if (!rawName || !rawPhone || !rawEmail) {
+    const d = payload.data as Record<string, unknown> | undefined;
+    const formData = d?.form_data ?? d?.field_data ?? (payload as any).field_data ?? (payload as any).form_data;
     const fields = extractLeadFields(formData);
     rawName = rawName ?? fields.name;
     rawPhone = rawPhone ?? fields.phone;
+    rawEmail = rawEmail ?? fields.email;
     rawBuyingPower = rawBuyingPower ?? fields.buyingPower;
   }
 
   const clientName = sanitizeText(rawName, 120);
   const clientPhone = sanitizePhone(rawPhone);
+  const clientEmail = sanitizeText(rawEmail, 255);
+  const ttclid = sanitizeText(rawTtclid, 255);
   const buyingPower = sanitizeText(rawBuyingPower, 200);
 
   if (!clientName || !clientPhone) {
@@ -200,15 +238,38 @@ Deno.serve(async (req) => {
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
 
+  // Idempotency — TikTok delivers "at least once" and retries for up to 72h until
+  // it gets a 200, so the same lead can arrive twice. Dedupe by the TikTok lead id
+  // via the shared webhook_events table so we never double-insert a lead or
+  // double-fire the WhatsApp welcome. (Prefix 'tt:' — the PK is shared w/ EasySocial.)
+  const ttLeadId = sanitizeText(
+    (payload.data as Record<string, unknown> | undefined)?.lead_id ??
+      (payload as Record<string, unknown>).lead_id ??
+      (payload.data as Record<string, unknown> | undefined)?.leadgen_id ??
+      (payload as Record<string, unknown>).leadgen_id,
+    200,
+  );
+  if (ttLeadId) {
+    const { error: dupErr } = await supabase
+      .from("webhook_events")
+      .insert({ event_id: `tt:${ttLeadId}`, source: "tiktok" });
+    if (dupErr && (dupErr as { code?: string }).code === "23505") {
+      console.log("[tiktok-receiver] duplicate lead ignored", ttLeadId);
+      return json({ success: true, skipped: "duplicate", lead_id: ttLeadId }, 200);
+    }
+  }
+
   const leadData = {
     client_name: clientName,
     client_phone: clientPhone,
+    client_email: clientEmail,
     phone_number: clientPhone,
     source: "TikTok",
     status: "new",
     notes,
     platform: "tiktok",
     origin: "tiktok_lead_ad",
+    ...(ttclid ? { ttclid } : {}),
     updated_at: new Date().toISOString(),
   };
 

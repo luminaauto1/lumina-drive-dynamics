@@ -18,7 +18,7 @@ const ALLOWED_FIELDS = new Set([
   "buyer_type", "source_of_funds", "preferred_vehicle_text",
   "vehicle_id", "selected_vehicle_id", "deposit_amount", "loan_term_months",
   "deal_type", "signature_url", "handover_name", "notes",
-  "utm_source", "utm_medium", "utm_campaign", "referrer",
+  "utm_source", "utm_medium", "utm_campaign", "referrer", "ttclid",
   "employment_type", "has_6_months_statements", "workplace_cell_no", "business_address_auto",
 ]);
 
