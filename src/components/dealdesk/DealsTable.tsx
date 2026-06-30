@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import type { Deal } from '@/lib/dealdesk/types';
+import { DEAL_STAGE_LABEL } from '@/lib/dealdesk/types';
 import { natisStatus } from '@/lib/dealdesk/natis';
 import { formatRand, formatDate, monthKey, formatMonth } from '@/lib/dealdesk/format';
 import { StatusBadge, NatisChip } from './badges';
@@ -13,6 +14,10 @@ import { useDeskSettings } from '@/hooks/dealdesk/useDealDesk';
 import { useAuth } from '@/contexts/AuthContext';
 import { SavedViewsBar } from '@/components/admin/SavedViewsBar';
 import { useSavedViews } from '@/hooks/useSavedViews';
+import {
+  DEAL_COLUMNS, columnClass, loadConfig, type DealColumnDef, type DealTableConfig,
+} from '@/lib/dealdesk/columns';
+import { DealsColumnsPicker } from './DealsColumnsPicker';
 
 import { isAwaitingFinalize } from './isAwaitingFinalize';
 export { isAwaitingFinalize };
@@ -45,6 +50,19 @@ export function DealsTable(
   // Saved views (per-user filter presets) — month + awaiting toggle.
   const { views, saveView, deleteView } = useSavedViews<DealDeskPreset>('dealdesk', user?.id);
   const [activeViewId, setActiveViewId] = useState<string | null>(null);
+
+  // Customizable columns (show/hide, reorder, resize) — persisted per-browser in
+  // localStorage under the Deal-Desk-namespaced key (distinct from the pipeline).
+  const [colConfig, setColConfig] = useState<DealTableConfig>(() => loadConfig());
+  const colByKey = useMemo(() => new Map(DEAL_COLUMNS.map((c) => [c.key, c])), []);
+  const visibleCols = useMemo(
+    () => colConfig.visible.map((k) => colByKey.get(k)).filter(Boolean) as DealColumnDef[],
+    [colConfig.visible, colByKey],
+  );
+  const classFor = (key: string) => {
+    const def = colByKey.get(key);
+    return columnClass(def, colConfig.widths[key] ?? def?.defaultWidth ?? 'normal');
+  };
 
   // Non-admins never see un-finalized drafts at all.
   const visibleDeals = useMemo(
@@ -120,6 +138,7 @@ export function DealsTable(
             {months.map((m) => <SelectItem key={m} value={m}>{formatMonth(m + '-01')}</SelectItem>)}
           </SelectContent>
         </Select>
+        <DealsColumnsPicker config={colConfig} onChange={setColConfig} />
       </div>
 
       <SavedViewsBar
@@ -131,15 +150,15 @@ export function DealsTable(
       />
 
       <div className="overflow-x-auto rounded-lg border border-border bg-card">
-        <table className="w-full text-sm">
+        <table className="pipeline-table w-full text-sm">
           <thead className="bg-muted/40 text-[11px] uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="px-3 py-2 text-left font-medium">Client</th>
-              <th className="px-3 py-2 text-left font-medium">Vehicle</th>
-              <th className="px-3 py-2 text-left font-medium">Status</th>
-              <th className="px-3 py-2 text-left font-medium">Natis</th>
-              <th className="px-3 py-2 text-left font-medium">Sale date</th>
-              <th className="px-3 py-2 text-right font-medium">GP (ledger)</th>
+              {visibleCols.map((col) => (
+                <th key={col.key}
+                  className={'px-3 py-2 font-medium ' + classFor(col.key) + (col.align === 'right' ? ' text-right' : ' text-left')}>
+                  {col.label}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody ref={tbodyRef} className="divide-y divide-border">
@@ -147,27 +166,16 @@ export function DealsTable(
               <tr key={d.id} data-row-index={idx} tabIndex={0} onClick={() => onOpen(d)}
                 onKeyDown={(e) => onRowKeyDown(e, idx, d)}
                 className="cursor-pointer transition hover:bg-muted/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/60">
-                <td className="px-3 py-2">
-                  <div className="font-medium">{d.client_name || '—'}</div>
-                  <div className="text-xs text-muted-foreground">{d.client_phone || ''}</div>
-                </td>
-                <td className="px-3 py-2 text-xs">{d.vehicle_make_model || '—'}{d.vehicle_year ? ` · ${d.vehicle_year}` : ''}</td>
-                <td className="px-3 py-2">
-                  <div className="flex flex-wrap items-center gap-1">
-                    <StatusBadge stage={d.deal_stage} />
-                    {d.finance_status && (
-                      <FinanceStatusBadge track="finance" value={d.finance_status}
-                        labelOverrides={financeLabels} styleOverrides={financeStyles} />
-                    )}
-                  </div>
-                </td>
-                <td className="px-3 py-2"><NatisChip status={natisStatus(d, settings)} /></td>
-                <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">{formatDate(d.sale_date) || '—'}</td>
-                <td className="px-3 py-2 text-right tabular-nums font-medium text-emerald-400">{formatRand(d.gross_profit)}</td>
+                {visibleCols.map((col) => (
+                  <td key={col.key}
+                    className={'px-3 py-2 align-top ' + classFor(col.key) + (col.align === 'right' ? ' text-right tabular-nums' : '')}>
+                    {renderDealCell(col.key, d, { settings, financeLabels, financeStyles })}
+                  </td>
+                ))}
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={6} className="py-12">
+              <tr><td colSpan={Math.max(1, visibleCols.length)} className="py-12">
                 <div className="flex flex-col items-center gap-2 text-center text-muted-foreground">
                   <ClipboardList className="h-8 w-8 opacity-40" />
                   {visibleDeals.length === 0 ? (
@@ -193,4 +201,59 @@ export function DealsTable(
       </p>
     </div>
   );
+}
+
+/** Per-column cell renderer for the Deals table. Display-only; never mutates a deal.
+ *  GP keeps the same emerald colour + formatRand it had before. */
+function renderDealCell(
+  key: string,
+  d: Deal,
+  ctx: {
+    settings: Parameters<typeof natisStatus>[1];
+    financeLabels: Record<string, string>;
+    financeStyles: Record<string, string>;
+  },
+): React.ReactNode {
+  switch (key) {
+    case 'client':
+      return (
+        <>
+          <div className="font-medium">{d.client_name || '—'}</div>
+          <div className="text-xs text-muted-foreground">{d.client_phone || ''}</div>
+          {d.client_id_number && <div className="text-[10px] text-muted-foreground/70 font-mono">{d.client_id_number}</div>}
+        </>
+      );
+    case 'vehicle':
+      return (
+        <span className="text-xs">
+          {d.vehicle_make_model || '—'}{d.vehicle_year ? ` · ${d.vehicle_year}` : ''}
+        </span>
+      );
+    case 'vin':
+      return <span className="font-mono text-xs">{d.vehicle_vin || '—'}</span>;
+    case 'stock_no':
+      return <span className="font-mono text-xs">{d.vehicle_stock_no || '—'}</span>;
+    case 'status':
+      return (
+        <div className="flex flex-wrap items-center gap-1">
+          <StatusBadge stage={d.deal_stage} />
+          {d.finance_status && (
+            <FinanceStatusBadge track="finance" value={d.finance_status}
+              labelOverrides={ctx.financeLabels} styleOverrides={ctx.financeStyles} />
+          )}
+        </div>
+      );
+    case 'deal_stage':
+      return <span className="text-xs">{DEAL_STAGE_LABEL[d.deal_stage] ?? '—'}</span>;
+    case 'natis':
+      return <NatisChip status={natisStatus(d, ctx.settings)} />;
+    case 'sale_date':
+      return <span className="text-xs text-muted-foreground whitespace-nowrap">{formatDate(d.sale_date) || '—'}</span>;
+    case 'sold_price':
+      return <span className="font-medium">{d.sold_price != null ? formatRand(d.sold_price) : '—'}</span>;
+    case 'gp':
+      return <span className="font-medium text-emerald-400">{formatRand(d.gross_profit)}</span>;
+    default:
+      return null;
+  }
 }
