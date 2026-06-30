@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, ExternalLink, Copy } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import type { FinanceApplication } from '@/hooks/useFinanceApplications';
 import { STATUS_STYLES, ADMIN_STATUS_LABELS } from '@/lib/statusConfig';
-import { formatCurrencyR, formatPhone, formatDate } from '@/lib/pipelinev2/format';
+import { formatCurrencyR, formatPhone, formatPhoneIntl, formatDate } from '@/lib/pipelinev2/format';
 import { StatusBadge } from '@/components/admin/StatusBadge';
 import { useStatusConfig } from '@/hooks/useZtcSettings';
 import { NotesFeed } from './NotesFeed';
@@ -34,6 +36,17 @@ export function ApplicationDrawer({
   const { clientLabels, clientStyles } = useStatusConfig();
   if (!app) return null;
   const any = app as any;
+  const navigate = useNavigate();
+  const phoneIntl = formatPhoneIntl(any.phone);
+  const copyPhone = async () => {
+    if (!any.phone) return;
+    try {
+      await navigator.clipboard.writeText(phoneIntl);
+      toast.success('Phone number copied');
+    } catch {
+      toast.error('Could not copy');
+    }
+  };
   const statusCls = STATUS_STYLES[any.status] || 'bg-muted text-muted-foreground border-border';
   const vehicleText = app.vehicle
     ? `${app.vehicle.year} ${app.vehicle.make} ${app.vehicle.model}`
@@ -52,9 +65,14 @@ export function ApplicationDrawer({
         </SheetHeader>
 
         <div className="mt-2">
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => onChangeStatus(app)}>
-            <RefreshCw className="w-3.5 h-3.5" /> Change status
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => onChangeStatus(app)}>
+              <RefreshCw className="w-3.5 h-3.5" /> Change status
+            </Button>
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { onClose(); navigate(`/admin/finance/${app.id}`); }}>
+              <ExternalLink className="w-3.5 h-3.5" /> Finance View
+            </Button>
+          </div>
           <p className="mt-1 text-[11px] text-muted-foreground">
             Fires the same WhatsApp / email / CRM notifications as the Finance page.
           </p>
@@ -68,7 +86,16 @@ export function ApplicationDrawer({
         <Separator className="my-4" />
 
         <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-          <Field label="Phone" value={formatPhone(any.phone)} />
+          <Field label="Phone" value={
+            any.phone ? (
+              <button type="button" onClick={copyPhone}
+                title="Click to copy"
+                className="inline-flex items-center gap-1 text-sm text-foreground hover:text-primary hover:underline cursor-pointer">
+                {phoneIntl}
+                <Copy className="w-3 h-3 opacity-60" />
+              </button>
+            ) : '—'
+          } />
           <Field label="Email" value={any.email || '—'} />
           <Field label="ID Number" value={any.id_number || '—'} />
           <Field label="Deal Type" value={any.deal_type ? <span className="capitalize">{any.deal_type}</span> : '—'} />
