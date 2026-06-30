@@ -624,6 +624,34 @@ export const useUpdateClientStatus = () => {
   });
 };
 
+// Isolated writer for the application's SUBMISSION SOURCE
+// (finance_applications.submission_source). Same minimal blast radius as
+// useUpdateClientStatus: it touches ONLY that one column and fires NO notify-* /
+// wa-status-send / easysocial / auto-mailer dispatch. The finance fan-out in
+// useUpdateFinanceApplication is never involved — this is a plain, silent write.
+export const useUpdateApplicationSource = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, submission_source }: { id: string; submission_source: string }) => {
+      const { error } = await supabase
+        .from('finance_applications')
+        .update({ submission_source } as any)
+        .eq('id', id);
+      if (error) throw error;
+      // Lightweight audit trail only — never a status_change dispatch.
+      void logActivity({ actionType: 'other', note: `Source → ${submission_source}`, applicationId: id });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['finance-applications'] });
+      toast.success('Source updated');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to update source');
+    },
+  });
+};
+
 export const useDeleteFinanceApplication = () => {
   const queryClient = useQueryClient();
 

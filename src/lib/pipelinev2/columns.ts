@@ -29,6 +29,7 @@ export const TABLE_COLUMNS: TableColumnDef[] = [
   { key: 'rep',            label: 'Rep',            defaultVisible: false, defaultWidth: 'normal' },
   { key: 'bank_reference', label: 'Bank Ref',       defaultVisible: false, defaultWidth: 'normal' },
   { key: 'deal_type',      label: 'Deal Type',      defaultVisible: false, defaultWidth: 'narrow' },
+  { key: 'source',         label: 'Source',         defaultVisible: true,  defaultWidth: 'narrow' },
   { key: 'created',        label: 'Date',           defaultVisible: true,  defaultWidth: 'normal' },
 ];
 
