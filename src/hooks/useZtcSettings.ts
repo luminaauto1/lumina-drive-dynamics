@@ -152,7 +152,8 @@ export interface StatusOverride {
   comment_required: boolean;       // UI comment gate — enforced in modals only
   comment_prompt: string | null;   // prompt shown above the comment box
   is_internal: boolean;            // skips config-driven CRM + WhatsApp auto-send (wired in ZTC-parity)
-  easysocial_tag_to_add: string | null; // mirrored into integration_settings.config.tag_add_overrides
+  easysocial_tag_to_add: string | null; // legacy single add NAME, mirrored into integration_settings.config.tag_add_overrides
+  easysocial_tags_to_add: string[];      // multi add tag NAMES; when non-empty supersedes the single add in easysocial-tag-sync
   // Editable destination-tab routing (FINANCE only). NULL => fall back to the
   // hardcoded slug→lane map (statusToTab); see src/lib/pipelinev2/tabs.ts.
   lane: string | null;             // chosen PIPELINE_TABS id for this finance slug
@@ -171,7 +172,7 @@ export const useStatusOverrides = () =>
   useQuery({
     queryKey: ['status-overrides'],
     queryFn: async (): Promise<StatusOverride[]> => {
-      const { data, error } = await db.from('status_overrides').select('slug, label, color_class, sort_order, is_hidden, whatsapp_message, status_type, comment_required, comment_prompt, is_internal, easysocial_tag_to_add, lane, easysocial_client_status, tag_remove_mode, easysocial_tags_to_remove, whatsapp_template_key, wa_body1_source, wa_body2_source, wa_body3_source');
+      const { data, error } = await db.from('status_overrides').select('slug, label, color_class, sort_order, is_hidden, whatsapp_message, status_type, comment_required, comment_prompt, is_internal, easysocial_tag_to_add, easysocial_tags_to_add, lane, easysocial_client_status, tag_remove_mode, easysocial_tags_to_remove, whatsapp_template_key, wa_body1_source, wa_body2_source, wa_body3_source');
       if (error) throw error;
       return data ?? [];
     },

@@ -14,6 +14,8 @@
 //   active=false      → sync is skipped (returns skipped:'disabled')
 //   config.api_key    → overrides the bundled key
 //   config.tag_add_overrides {status: tagName} → remaps which tag is ADDED for a status
+// Per-status (status_overrides.easysocial_tags_to_add text[]) → ADD MULTIPLE tags on
+//   apply; when non-empty it supersedes the single tag_add_overrides remap above.
 // All optional & fallback-safe: no row / empty config = current behaviour.
 
 import { fetchTagDictionary, resolveEasySocialSettings, resolveStatusApplyConfig, ES_LEAD_UPDATE } from "../_shared/easysocialTags.ts";
@@ -227,8 +229,17 @@ Deno.serve(async (req) => {
 
   // Build the plan (by name) from the state machine + flags.
   const plan = planForStatus(newStatus);
-  // Admin remap: replace the ADD tag for this status if configured.
-  if (typeof tagAddOverrides[newStatus] === "string" && tagAddOverrides[newStatus].trim()) {
+  // ADD-tag override resolution (precedence: multi list → single override → hardcoded):
+  //   • Multi tag-to-ADD (NEW): when applyCfg.tagsToAdd is non-empty, ADD ALL of them.
+  //     This supersedes the single-tag override. Only when config is active (not
+  //     internal) — an internal status skips ALL config-driven augmentation.
+  //   • Single override (legacy): tag_add_overrides[newStatus] replaces the add tag.
+  //   • Else: the hardcoded planForStatus add (untouched).
+  // Empty multi list => EXACTLY today's behaviour. The resolved names still flow
+  // through resolveIds + the intersection/SAFE-list filters below (unchanged).
+  if (configActive && applyCfg.tagsToAdd.length > 0) {
+    plan.add = [...applyCfg.tagsToAdd];
+  } else if (typeof tagAddOverrides[newStatus] === "string" && tagAddOverrides[newStatus].trim()) {
     plan.add = [tagAddOverrides[newStatus].trim()];
   }
   for (const f of flags) {
@@ -256,7 +267,10 @@ Deno.serve(async (req) => {
   const wantsNote = configActive && !!comment;
   const hasConfigRemove =
     configActive && (applyCfg.tagRemoveMode === 'specific' || applyCfg.tagRemoveMode === 'all_except');
-  const configContributes = wantsClientStatusWrite || wantsNote || hasConfigRemove || !!prevTagName;
+  // A non-empty multi tag-to-ADD list contributes adds (already reflected in
+  // plan.add above), so it must keep us past the no-plan early-return.
+  const hasMultiAdd = configActive && applyCfg.tagsToAdd.length > 0;
+  const configContributes = wantsClientStatusWrite || wantsNote || hasConfigRemove || hasMultiAdd || !!prevTagName;
 
   if (plan.add.length === 0 && plan.remove.length === 0 && !configContributes) {
     console.log('[tag-sync] no plan for status, skipping', { phone, newStatus });
