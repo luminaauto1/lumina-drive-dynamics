@@ -23,6 +23,32 @@ export interface EasySocialResolution {
   tagAddOverrides: Record<string, string>;
   /** Raw config blob (jsonb), for merge-writes that must preserve siblings. */
   config: Record<string, unknown>;
+  /**
+   * client_status KILL-SWITCH (ZTC-parity safe-partial). When this is NOT
+   * exactly true the EasySocial lead_data.client_status write is held dark —
+   * tags still flow (proven payload), but the client_status field is never sent.
+   * Default OFF: ships dark until a canary verifies Lumina's ES account accepts
+   * lead_data. Flip integration_settings.config.easysocial_client_status_enabled
+   * to true to enable. Tag add/remove are unaffected by this gate.
+   */
+  clientStatusEnabled: boolean;
+}
+
+/**
+ * ZTC-parity per-status apply config, read DIRECTLY from the new status_overrides
+ * columns (NOT the tag_add_overrides JSON mirror — those new columns have no
+ * mirror). Returned with safe defaults when the row/columns are absent so an
+ * unconfigured status augments the wire payload with NOTHING.
+ */
+export interface StatusApplyConfig {
+  /** lead_data.client_status text to write (NULL/'' => not written). */
+  easysocialClientStatus: string | null;
+  /** 'none' (default) | 'specific' | 'all_except'. */
+  tagRemoveMode: 'none' | 'specific' | 'all_except';
+  /** Tag IDs (coerced from text[]), interpreted per tagRemoveMode. */
+  tagsToRemove: number[];
+  /** Whether this status is flagged internal (skips config CRM + WhatsApp). */
+  isInternal: boolean;
 }
 
 /**
@@ -39,6 +65,7 @@ export const resolveEasySocialSettings = async (): Promise<EasySocialResolution>
   let tagAddOverrides: Record<string, string> = {};
   let active = true;
   let config: Record<string, unknown> = {};
+  let clientStatusEnabled = false; // KILL-SWITCH default OFF — write ships dark.
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -51,12 +78,60 @@ export const resolveEasySocialSettings = async (): Promise<EasySocialResolution>
         config = c;
         if (typeof c.api_key === "string" && c.api_key.trim()) apiKey = c.api_key.trim();
         if (c.tag_add_overrides && typeof c.tag_add_overrides === "object") tagAddOverrides = c.tag_add_overrides;
+        // Kill-switch: only the literal boolean true enables the client_status write.
+        if (c.easysocial_client_status_enabled === true) clientStatusEnabled = true;
       }
     }
   } catch (e) {
     console.error("[easysocial] settings load failed, using defaults", String((e as Error).message ?? e));
   }
-  return { active, apiKey, tagAddOverrides, config };
+  return { active, apiKey, tagAddOverrides, config, clientStatusEnabled };
+};
+
+/**
+ * Resolve the ZTC-parity per-status apply config for a single status slug from
+ * status_overrides (new columns). Server-side read via the service client so the
+ * tag-remove list and client_status text are never trusted from the browser.
+ * Fallback-safe: any failure / missing row => "do nothing extra" defaults.
+ */
+export const resolveStatusApplyConfig = async (slug: string): Promise<StatusApplyConfig> => {
+  const fallback: StatusApplyConfig = {
+    easysocialClientStatus: null,
+    tagRemoveMode: 'none',
+    tagsToRemove: [],
+    isInternal: false,
+  };
+  if (!slug) return fallback;
+  try {
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!SUPABASE_URL || !SERVICE) return fallback;
+    const svc = createClient(SUPABASE_URL, SERVICE);
+    const { data: row } = await svc
+      .from("status_overrides")
+      .select("easysocial_client_status, tag_remove_mode, easysocial_tags_to_remove, is_internal")
+      .eq("slug", slug)
+      .maybeSingle();
+    if (!row) return fallback;
+    const r: any = row;
+    const mode = r.tag_remove_mode === 'specific' || r.tag_remove_mode === 'all_except' ? r.tag_remove_mode : 'none';
+    const rawIds: unknown[] = Array.isArray(r.easysocial_tags_to_remove) ? r.easysocial_tags_to_remove : [];
+    const tagsToRemove = rawIds
+      .map((v) => Number(v))
+      .filter((n) => Number.isFinite(n));
+    return {
+      easysocialClientStatus:
+        typeof r.easysocial_client_status === 'string' && r.easysocial_client_status.trim()
+          ? r.easysocial_client_status.trim()
+          : null,
+      tagRemoveMode: mode,
+      tagsToRemove: Array.from(new Set(tagsToRemove)),
+      isInternal: r.is_internal === true,
+    };
+  } catch (e) {
+    console.error("[easysocial] status-apply config load failed, using defaults", String((e as Error).message ?? e));
+    return fallback;
+  }
 };
 
 /** Fetch all tags from EasySocial and build a {name: id} dictionary. */

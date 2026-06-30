@@ -151,18 +151,27 @@ export interface StatusOverride {
   status_type: string;             // 'finance' (built-in slugs) | 'client' (admin CRUD)
   comment_required: boolean;       // UI comment gate — enforced in modals only
   comment_prompt: string | null;   // prompt shown above the comment box
-  is_internal: boolean;            // store-only flag (not yet wired)
+  is_internal: boolean;            // skips config-driven CRM + WhatsApp auto-send (wired in ZTC-parity)
   easysocial_tag_to_add: string | null; // mirrored into integration_settings.config.tag_add_overrides
   // Editable destination-tab routing (FINANCE only). NULL => fall back to the
   // hardcoded slug→lane map (statusToTab); see src/lib/pipelinev2/tabs.ts.
   lane: string | null;             // chosen PIPELINE_TABS id for this finance slug
+  // ── ZTC-parity status-apply config (additive; defaults preserve behaviour) ──
+  // Read server-side by easysocial-tag-sync (CRM) + wa-status-send (WhatsApp).
+  easysocial_client_status: string | null;   // lead_data.client_status text (NULL => not written)
+  tag_remove_mode: string;                    // 'none' | 'specific' | 'all_except'
+  easysocial_tags_to_remove: string[];        // tag IDs as text[], interpreted per tag_remove_mode
+  whatsapp_template_key: string | null;       // FK-by-convention to whatsapp_templates.key (auto-send)
+  wa_body1_source: string | null;             // BodySource for {body1} (full_name|first_name|comment|vehicle|email|phone|bank|static:…|none)
+  wa_body2_source: string | null;
+  wa_body3_source: string | null;
 }
 
 export const useStatusOverrides = () =>
   useQuery({
     queryKey: ['status-overrides'],
     queryFn: async (): Promise<StatusOverride[]> => {
-      const { data, error } = await db.from('status_overrides').select('slug, label, color_class, sort_order, is_hidden, whatsapp_message, status_type, comment_required, comment_prompt, is_internal, easysocial_tag_to_add, lane');
+      const { data, error } = await db.from('status_overrides').select('slug, label, color_class, sort_order, is_hidden, whatsapp_message, status_type, comment_required, comment_prompt, is_internal, easysocial_tag_to_add, lane, easysocial_client_status, tag_remove_mode, easysocial_tags_to_remove, whatsapp_template_key, wa_body1_source, wa_body2_source, wa_body3_source');
       if (error) throw error;
       return data ?? [];
     },

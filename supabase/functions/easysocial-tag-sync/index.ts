@@ -16,7 +16,7 @@
 //   config.tag_add_overrides {status: tagName} → remaps which tag is ADDED for a status
 // All optional & fallback-safe: no row / empty config = current behaviour.
 
-import { fetchTagDictionary, resolveEasySocialSettings, ES_LEAD_UPDATE } from "../_shared/easysocialTags.ts";
+import { fetchTagDictionary, resolveEasySocialSettings, resolveStatusApplyConfig, ES_LEAD_UPDATE } from "../_shared/easysocialTags.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -74,6 +74,8 @@ interface SyncBody {
   new_status?: string;
   old_status?: string;
   flags?: string[];
+  /** ZTC-parity: status-change comment, written to lead_data.last_note when present. */
+  comment?: string;
 }
 
 interface PlanStep { add: string[]; remove: string[]; }
@@ -176,6 +178,8 @@ Deno.serve(async (req) => {
 
   const phone = cleanPhone(body.phone_number);
   const newStatus = String(body.new_status || '').toLowerCase().trim();
+  const oldStatus = String(body.old_status || '').toLowerCase().trim();
+  const comment = typeof body.comment === 'string' ? body.comment.trim() : '';
   const flags = Array.isArray(body.flags) ? body.flags.map((f) => String(f).toLowerCase()) : [];
 
   console.log('[tag-sync] sanitized', { phone, newStatus, flags });
@@ -187,15 +191,38 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Load EasySocial settings (active gate + key + per-status add-tag overrides).
-  // Fallback-safe: any failure or missing row keeps the current default behaviour.
-  // Resolution + key fallback are shared with easysocial-list-tags.
-  const { active, apiKey, tagAddOverrides } = await resolveEasySocialSettings();
+  // Load EasySocial settings (active gate + key + per-status add-tag overrides +
+  // client_status kill-switch). Fallback-safe: any failure or missing row keeps
+  // the current default behaviour. Shared with easysocial-list-tags.
+  const { active, apiKey, tagAddOverrides, clientStatusEnabled } = await resolveEasySocialSettings();
   if (!active) {
     console.log("[tag-sync] EasySocial sync disabled in settings — skipping", { phone, newStatus });
     return new Response(JSON.stringify({ ok: true, skipped: "disabled" }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+  }
+
+  // ── ZTC-parity per-status apply config (ADDITIVE, fallback-safe) ────────────
+  // Read the new status_overrides columns server-side for the NEW status (and,
+  // for the previous-tag strip, the OLD status's tag-to-add). When a status has
+  // NO config the resolver returns "do-nothing" defaults => the wire payload is
+  // byte-for-byte identical to today. is_internal => skip ALL config augmentation
+  // (the hardcoded tag plan below still runs, preserving current behaviour for any
+  // already-internal slug).
+  const applyCfg = await resolveStatusApplyConfig(newStatus);
+  const configActive = !applyCfg.isInternal;
+  if (applyCfg.isInternal) {
+    console.log('[tag-sync] status is internal — skipping config-driven CRM augmentation', { newStatus });
+  }
+  // Previous status's configured add-tag NAME, for the ZTC previous-tag strip:
+  // when the status changed and the prior status added a (different) tag, that tag
+  // is pushed onto the removes so the lead never carries a stale phase tag. Read
+  // from the same per-status add-tag override map the new status uses; resolved by
+  // NAME so it flows through the intersection + safe-list filters below.
+  let prevTagName = '';
+  if (configActive && oldStatus && oldStatus !== newStatus) {
+    const prevOverride = tagAddOverrides[oldStatus];
+    if (typeof prevOverride === 'string' && prevOverride.trim()) prevTagName = prevOverride.trim();
   }
 
   // Build the plan (by name) from the state machine + flags.
@@ -213,7 +240,25 @@ Deno.serve(async (req) => {
     }
   }
 
-  if (plan.add.length === 0 && plan.remove.length === 0) {
+  // Previous-tag strip (ZTC extra rule): remove the prior status's add-tag unless
+  // it's the tag we're now adding. By NAME so it flows through resolveIds + the
+  // intersection/safe-list filters below (a protected tag can still never go).
+  if (prevTagName && !plan.add.includes(prevTagName) && !plan.remove.includes(prevTagName)) {
+    plan.remove.push(prevTagName);
+  }
+
+  // Does config contribute anything that should keep us going past the no-plan
+  // early-return? (config-driven removes via mode, a client_status write, or a
+  // note/comment). Tag-id removes are merged AFTER id resolution (below), so we
+  // only need to know whether the modes/fields are populated here.
+  const wantsClientStatusWrite =
+    configActive && clientStatusEnabled && !!applyCfg.easysocialClientStatus;
+  const wantsNote = configActive && !!comment;
+  const hasConfigRemove =
+    configActive && (applyCfg.tagRemoveMode === 'specific' || applyCfg.tagRemoveMode === 'all_except');
+  const configContributes = wantsClientStatusWrite || wantsNote || hasConfigRemove || !!prevTagName;
+
+  if (plan.add.length === 0 && plan.remove.length === 0 && !configContributes) {
     console.log('[tag-sync] no plan for status, skipping', { phone, newStatus });
     return new Response(JSON.stringify({ ok: true, skipped: 'no_plan', status: newStatus }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -249,18 +294,58 @@ Deno.serve(async (req) => {
   const addResolved = resolveIds(plan.add);
   const removeResolved = resolveIds(plan.remove);
 
+  // ── Config-driven REMOVE ids (ZTC parity: specific | all_except) ────────────
+  // These are MERGED with the hardcoded plan's removes and then run through the
+  // SAME intersection + safe-list filters below — config can only ever ADD to the
+  // removable set; it can never bypass the protections (a tag being added, or a
+  // SAFE_TAG_NAMES traffic-source/ops tag, is still never removed).
+  const allTagIds = new Set<number>(Object.values(tagDict));
+  let configRemoveIds: number[] = [];
+  if (configActive) {
+    if (applyCfg.tagRemoveMode === 'specific') {
+      // Remove exactly the listed ids that actually exist in the dictionary.
+      configRemoveIds = applyCfg.tagsToRemove.filter((id) => allTagIds.has(id));
+    } else if (applyCfg.tagRemoveMode === 'all_except') {
+      // Keep-set = listed ids ∪ {tag-to-add ids}; remove EVERYTHING else.
+      const keep = new Set<number>([...applyCfg.tagsToRemove, ...addResolved.ids]);
+      configRemoveIds = Array.from(allTagIds).filter((id) => !keep.has(id));
+    }
+  }
+
   const addIdSet = new Set(addResolved.ids);
+  // Combine hardcoded-plan removes with config-driven removes BEFORE filtering.
+  const mergedRemoveIds = Array.from(new Set([...removeResolved.ids, ...configRemoveIds]));
   // STEP 1 — Intersection filter: never remove a tag we are actively adding.
-  const intersectionFiltered = removeResolved.ids.filter((id) => !addIdSet.has(id));
+  const intersectionFiltered = mergedRemoveIds.filter((id) => !addIdSet.has(id));
   // STEP 2 — Safe-list filter: never remove protected traffic-source/ops tags.
   const removeIds = intersectionFiltered.filter((id) => !safeIds.has(id));
 
   // Single combined PUT exactly as EasySocial documents/blesses: add_tags + remove_tags
   // (underscored field names) in one /leads/{phone}/update call. Only include a field
   // when it has ids, so we never send an empty array that could be misread.
-  const payload: { add_tags?: number[]; remove_tags?: number[] } = {};
+  // ZTC parity: lead_data carries client_status (kill-switch-gated) + last_note,
+  // and is OMITTED entirely when there's nothing config-driven to write — so an
+  // unconfigured status produces a byte-for-byte identical payload to today.
+  const payload: { add_tags?: number[]; remove_tags?: number[]; lead_data?: Record<string, unknown> } = {};
   if (addResolved.ids.length > 0) payload.add_tags = addResolved.ids;
   if (removeIds.length > 0) payload.remove_tags = removeIds;
+
+  const leadData: Record<string, unknown> = {};
+  if (wantsClientStatusWrite) leadData.client_status = applyCfg.easysocialClientStatus;
+  if (wantsNote) { leadData.last_note = comment; leadData.last_note_at = new Date().toISOString(); }
+  if (Object.keys(leadData).length > 0) payload.lead_data = leadData;
+  // If client_status is configured but the kill-switch is OFF, log loudly (dark).
+  if (configActive && applyCfg.easysocialClientStatus && !clientStatusEnabled) {
+    console.warn('[tag-sync] client_status configured but kill-switch OFF — write held dark', { newStatus });
+  }
+
+  // Nothing to send at all (no tags, no lead_data) => skip the PUT entirely.
+  if (!payload.add_tags && !payload.remove_tags && !payload.lead_data) {
+    console.log('[tag-sync] no-op after filters/config, skipping PUT', { phone, newStatus });
+    return new Response(JSON.stringify({ ok: true, skipped: 'no_op', status: newStatus }), {
+      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
 
   let upstreamStatus = 0;
   let upstreamBody: any = null;

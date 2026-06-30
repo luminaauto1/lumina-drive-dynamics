@@ -67,6 +67,55 @@ const FALLBACK_CLASS = 'bg-muted text-muted-foreground border-border';
 // the same synced dictionary EasySocialTab autocompletes its override fields from).
 const TAG_DATALIST_ID = 'easysocial-tag-cache-statusedit';
 
+// Finance slugs whose client WhatsApp notification is ALREADY owned by a built-in
+// notify-* auto-send. Per-status auto-send is DISABLED for these (no double-send) —
+// the dispatch hook + wa-status-send both exclude them; this drives the editor's
+// amber warning banner + disabled template picker. Kept in sync with both.
+const NOTIFY_OWNED_STATUSES = new Set<string>([
+  'application_submitted',
+  'ready_to_submit',
+  'declined',
+  'blacklisted',
+  'client_cancelled',
+  'pre_approved',
+]);
+
+// WhatsApp BodySource options (ZTC parity). 'static:' reveals a literal text input.
+const BODY_SOURCE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'none', label: 'Not used' },
+  { value: 'full_name', label: 'Full name' },
+  { value: 'first_name', label: 'First name' },
+  { value: 'comment', label: 'Status comment' },
+  { value: 'vehicle', label: 'Vehicle (year make model)' },
+  { value: 'email', label: 'Email' },
+  { value: 'phone', label: 'Phone' },
+  { value: 'bank', label: 'Bank name' },
+  { value: 'static', label: 'Static text…' },
+];
+
+// Sentinel value for the "no template" option in the auto-send picker (Radix
+// Select forbids an empty-string item value).
+const NO_TEMPLATE = '__none__';
+
+// Split a stored body-source ("static:Foo" | "first_name" | null) into the select
+// value (the kind) + the static literal (only meaningful when kind === 'static').
+const splitBodySource = (raw: string | null | undefined): { kind: string; literal: string } => {
+  const s = String(raw ?? '').trim();
+  if (!s || s === 'none') return { kind: 'none', literal: '' };
+  if (s.startsWith('static:')) return { kind: 'static', literal: s.slice('static:'.length) };
+  return { kind: s, literal: '' };
+};
+
+// Re-join a select-value + literal back into the stored form. NULL when not used.
+const joinBodySource = (kind: string, literal: string): string | null => {
+  if (!kind || kind === 'none') return null;
+  if (kind === 'static') {
+    const lit = literal.trim();
+    return lit ? `static:${lit}` : null;
+  }
+  return kind;
+};
+
 const slugifyClientLabel = (label: string): string =>
   'client_' + label
     .toLowerCase()
@@ -112,6 +161,15 @@ export function StatusEditModal({
       : [];
   }, [easySocial]);
 
+  // id (as string) → name, for rendering the remove/keep multi-select chips and the
+  // ZTC-parity "tag to add" resolved-id hint. Falls back to the raw id when unknown.
+  const tagNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const t of cachedTags) m.set(String(t.id), t.name);
+    return m;
+  }, [cachedTags]);
+  const tagLabelForId = (id: string) => tagNameById.get(id) ?? `#${id}`;
+
   const existing = useMemo(() => overrides.find((o) => o.slug === slug), [overrides, slug]);
   const isClientCreate = type === 'client' && !slug;
   // On CREATE, selecting Finance is inert (built-in slugs aren't row-created here).
@@ -139,6 +197,34 @@ export function StatusEditModal({
   const [tagSeeded, setTagSeeded] = useState(false);
   const [error, setError] = useState('');
 
+  // ── ZTC-parity status-apply config (FINANCE only) ──────────────────────────
+  // EasySocial CRM: client_status text + tag remove-mode + remove/keep tag id list.
+  const [esClientStatus, setEsClientStatus] = useState(existing?.easysocial_client_status ?? '');
+  const [tagRemoveMode, setTagRemoveMode] = useState<'none' | 'specific' | 'all_except'>(
+    (existing?.tag_remove_mode as any) === 'specific' || (existing?.tag_remove_mode as any) === 'all_except'
+      ? (existing!.tag_remove_mode as any)
+      : 'none',
+  );
+  // Remove/keep list stored as tag IDs (text[]); held here as a string[] of ids.
+  const [tagsToRemove, setTagsToRemove] = useState<string[]>(
+    Array.isArray(existing?.easysocial_tags_to_remove) ? (existing!.easysocial_tags_to_remove as string[]) : [],
+  );
+  // WhatsApp auto-send: curated template link + body1/2/3 sources.
+  const [waTemplateKey, setWaTemplateKey] = useState<string>(existing?.whatsapp_template_key ?? '');
+  const b1 = splitBodySource(existing?.wa_body1_source);
+  const b2 = splitBodySource(existing?.wa_body2_source);
+  const b3 = splitBodySource(existing?.wa_body3_source);
+  const [waBody1Kind, setWaBody1Kind] = useState(b1.kind);
+  const [waBody1Static, setWaBody1Static] = useState(b1.literal);
+  const [waBody2Kind, setWaBody2Kind] = useState(b2.kind);
+  const [waBody2Static, setWaBody2Static] = useState(b2.literal);
+  const [waBody3Kind, setWaBody3Kind] = useState(b3.kind);
+  const [waBody3Static, setWaBody3Static] = useState(b3.literal);
+
+  // This finance slug already has a built-in notify-* auto-send → block per-status
+  // auto-send (no double messaging). Drives the amber banner + disabled picker.
+  const isNotifyOwned = type === 'finance' && !!slug && NOTIFY_OWNED_STATUSES.has(slug);
+
   // Seed the "tag to add" field from the canonical store so a no-op save is a true
   // no-op. The override COLUMN is preferred, but it's a dual source of truth with
   // integration_settings.config.tag_add_overrides (what EasySocialTab reads/writes).
@@ -161,6 +247,19 @@ export function StatusEditModal({
   const previewClass = cls || FALLBACK_CLASS;
   const previewLabel = label || effectiveSlug || 'Preview';
   const builtInWaPreview = type === 'finance' && slug ? getWhatsAppMessage(slug, '{name}') : '';
+
+  // ZTC-parity: resolve the current tag-to-add NAME → its EasySocial integer id
+  // (from the synced cache) to show beside the name. '' when unknown/empty.
+  const tagToAddId = useMemo(() => {
+    const name = tag.trim();
+    if (!name) return '';
+    const hit = cachedTags.find((t) => t.name === name);
+    return hit ? String(hit.id) : '';
+  }, [tag, cachedTags]);
+
+  // Toggle a tag id in the remove/keep multi-select.
+  const toggleRemoveTag = (id: string) =>
+    setTagsToRemove((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
 
   // The hardcoded default lane for this FINANCE slug (shown as the "(default)"
   // hint in the dropdown so the owner can see what empty would route to).
@@ -229,6 +328,23 @@ export function StatusEditModal({
         // equals the hardcoded default (empty override = exact current behaviour,
         // fully reversible). Client statuses never route lanes => always NULL.
         lane: type === 'finance' && lane && lane !== defaultLaneKey ? lane : null,
+        // ── ZTC-parity status-apply config (FINANCE only). Client statuses never
+        //    dispatch, so they always write the inert defaults. Empty => NULL /
+        //    'none' / [] so an unconfigured finance status behaves exactly as today. ──
+        easysocial_client_status:
+          type === 'finance' && esClientStatus.trim() ? esClientStatus.trim() : null,
+        tag_remove_mode: type === 'finance' ? tagRemoveMode : 'none',
+        easysocial_tags_to_remove:
+          type === 'finance' && tagRemoveMode !== 'none' ? tagsToRemove : [],
+        // Auto-send link is suppressed for notify-* owned slugs (no double-send).
+        whatsapp_template_key:
+          type === 'finance' && !isNotifyOwned && waTemplateKey ? waTemplateKey : null,
+        wa_body1_source:
+          type === 'finance' && !isNotifyOwned ? joinBodySource(waBody1Kind, waBody1Static) : null,
+        wa_body2_source:
+          type === 'finance' && !isNotifyOwned ? joinBodySource(waBody2Kind, waBody2Static) : null,
+        wa_body3_source:
+          type === 'finance' && !isNotifyOwned ? joinBodySource(waBody3Kind, waBody3Static) : null,
       });
 
       // Mirror the EasySocial tag into the live integration path (read-modify-write).
@@ -408,7 +524,7 @@ export function StatusEditModal({
               <Checkbox id="internal" checked={isInternal} onCheckedChange={(v) => setIsInternal(!!v)} />
               <Label htmlFor="internal" className="text-sm font-normal">Internal only</Label>
             </div>
-            <p className="text-[11px] text-muted-foreground pl-6">Stored only — not yet wired to skip notifications.</p>
+            <p className="text-[11px] text-muted-foreground pl-6">Skips the config-driven EasySocial CRM write and WhatsApp auto-send (the built-in tag plan still runs).</p>
           </div>
 
           {/* WhatsApp message (the click-to-chat body) */}
@@ -458,7 +574,12 @@ export function StatusEditModal({
           {/* EasySocial tag-to-add — combobox over the synced tag dictionary
               (config.tags_cache); free-text fallback when the cache is empty. */}
           <div className="space-y-1.5">
-            <Label className="text-sm">EasySocial tag to add</Label>
+            <div className="flex items-center gap-2">
+              <Label className="text-sm">EasySocial tag to add</Label>
+              {tagToAddId && (
+                <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">id {tagToAddId}</span>
+              )}
+            </div>
             <Input
               value={tag}
               onChange={(e) => setTag(e.target.value)}
@@ -473,6 +594,182 @@ export function StatusEditModal({
             )}
             <p className="text-[11px] text-muted-foreground">Mirrored into the EasySocial status → tag overrides on save. · pick from synced tags or type one</p>
           </div>
+
+          {/* ════════════ ZTC-parity status-apply config (FINANCE only) ════════════
+              Client statuses never dispatch to EasySocial/WhatsApp, so these
+              sections are finance-only. Empty config => an unconfigured status
+              behaves byte-for-byte as today. */}
+          {type === 'finance' && slug && (
+            <>
+              {/* A. EasySocial CRM — client_status write + tag remove-mode */}
+              <div className="space-y-3 rounded-md border border-border p-3">
+                <div className="text-sm font-medium">EasySocial CRM (on apply)</div>
+
+                {/* Client status value → easysocial_client_status */}
+                <div className="space-y-1.5">
+                  <Label className="text-sm">Client status value</Label>
+                  <Input
+                    value={esClientStatus}
+                    onChange={(e) => setEsClientStatus(e.target.value)}
+                    placeholder="e.g. Submitted to Bank"
+                    className="h-8 text-sm"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Written to the EasySocial lead's status field on apply. Blank = not written.
+                    {' '}Shipped behind a kill-switch (default OFF) until canary-verified — tags still sync regardless.
+                  </p>
+                </div>
+
+                {/* Remove mode → tag_remove_mode (+ tag list) */}
+                <div className="space-y-1.5">
+                  <Label className="text-sm">Tag remove mode</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {(['none', 'specific', 'all_except'] as const).map((m) => {
+                      const selected = tagRemoveMode === m;
+                      const labelMap = { none: 'None', specific: 'Remove specific', all_except: 'Remove all except' } as const;
+                      return (
+                        <button
+                          key={m}
+                          type="button"
+                          role="radio"
+                          aria-checked={selected}
+                          onClick={() => setTagRemoveMode(m)}
+                          className={
+                            'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm transition ' +
+                            (selected ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:text-foreground')
+                          }
+                        >
+                          {selected && <Check className="h-3.5 w-3.5 text-primary" />}
+                          {labelMap[m]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {tagRemoveMode !== 'none' && (
+                    <div className="space-y-1.5 pt-1">
+                      <Label className="text-xs text-muted-foreground">
+                        {tagRemoveMode === 'specific'
+                          ? 'Tags to REMOVE'
+                          : 'Tags to KEEP (everything else gets removed)'}
+                      </Label>
+                      {cachedTags.length === 0 ? (
+                        <p className="text-[11px] text-amber-400">
+                          No synced tags available — sync EasySocial tags first (Settings → EasySocial) to pick from a list.
+                        </p>
+                      ) : (
+                        <div className="flex max-h-40 flex-wrap gap-1.5 overflow-y-auto rounded-md border border-border p-2">
+                          {cachedTags.map((t) => {
+                            const idStr = String(t.id);
+                            const on = tagsToRemove.includes(idStr);
+                            return (
+                              <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => toggleRemoveTag(idStr)}
+                                className={
+                                  'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition ' +
+                                  (on ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:text-foreground')
+                                }
+                              >
+                                {on && <Check className="h-3 w-3 text-primary" />}
+                                {t.name} <span className="font-mono text-[10px] opacity-60">#{idStr}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {tagsToRemove.length > 0 && (
+                        <p className="text-[11px] text-muted-foreground">
+                          Selected: {tagsToRemove.map(tagLabelForId).join(', ')}
+                        </p>
+                      )}
+                      <p className="text-[11px] text-muted-foreground">
+                        Protected traffic-source/ops tags and the tag being added are never removed (safety filters always run last).
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* B. WhatsApp auto-send — curated template + body sources */}
+              <div className="space-y-3 rounded-md border border-border p-3">
+                <div className="text-sm font-medium">WhatsApp auto-send (on apply)</div>
+
+                {isNotifyOwned ? (
+                  <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 text-[12px] text-amber-300">
+                    This status sends a built-in WhatsApp notification — per-status auto-send is disabled here to prevent double messaging.
+                  </div>
+                ) : (
+                  <>
+                    {/* Template picker → whatsapp_template_key */}
+                    <div className="space-y-1.5">
+                      <Label className="text-sm">Send template</Label>
+                      <Select
+                        value={waTemplateKey || NO_TEMPLATE}
+                        onValueChange={(v) => setWaTemplateKey(v === NO_TEMPLATE ? '' : v)}
+                      >
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="No auto-send" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={NO_TEMPLATE} className="text-sm">None (no auto-send)</SelectItem>
+                          {waTemplates.map((tpl) => {
+                            const hasUrl = !!(tpl.send_url ?? '').trim();
+                            return (
+                              <SelectItem key={tpl.key} value={tpl.key} disabled={!hasUrl} className="text-sm">
+                                {tpl.title || tpl.key}{!hasUrl ? ' (no send URL — set one in Templates)' : ''}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[11px] text-muted-foreground">
+                        When set, this template auto-sends on apply (the curated send URL is the credential). Blank = no auto-send (current behaviour).
+                      </p>
+                    </div>
+
+                    {/* Body 1/2/3 sources → wa_bodyN_source */}
+                    {waTemplateKey && (
+                      <div className="space-y-2">
+                        {([
+                          ['Body 1', waBody1Kind, setWaBody1Kind, waBody1Static, setWaBody1Static],
+                          ['Body 2', waBody2Kind, setWaBody2Kind, waBody2Static, setWaBody2Static],
+                          ['Body 3', waBody3Kind, setWaBody3Kind, waBody3Static, setWaBody3Static],
+                        ] as const).map(([lbl, kind, setKind, lit, setLit]) => (
+                          <div key={lbl} className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">{lbl} source</Label>
+                            <div className="flex items-center gap-2">
+                              <Select value={kind} onValueChange={(v) => (setKind as (s: string) => void)(v)}>
+                                <SelectTrigger className="h-8 text-sm">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {BODY_SOURCE_OPTIONS.map((opt) => (
+                                    <SelectItem key={opt.value} value={opt.value} className="text-sm">{opt.label}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              {kind === 'static' && (
+                                <Input
+                                  value={lit}
+                                  onChange={(e) => (setLit as (s: string) => void)(e.target.value)}
+                                  placeholder="Static text"
+                                  className="h-8 text-sm"
+                                />
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        <p className="text-[11px] text-muted-foreground">
+                          Each body var fills a placeholder in the template. "Status comment" uses the comment entered at apply time; unused vars are omitted.
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </>
+          )}
 
           {error && <p className="text-sm text-red-400">{error}</p>}
 
