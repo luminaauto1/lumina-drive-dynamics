@@ -891,8 +891,6 @@ const FinanceApplication = () => {
       has_drivers_license: formData.has_drivers_license === "yes" ? true : formData.has_drivers_license === "no" ? false : null,
       credit_score_status: formData.credit_score_status || null,
       status: isRevisionMode ? "revision_submitted" : "pending",
-      // Public finance form → tag the origin explicitly (matches the column default).
-      submission_source: "website",
       signature_url: formData.signature_url || null,
       // Marketing attribution — captured by global useUTMTracking hook
       ...getAttribution(),
@@ -1114,8 +1112,6 @@ const FinanceApplication = () => {
       has_drivers_license: formData.has_drivers_license === "yes" ? true : formData.has_drivers_license === "no" ? false : null,
       credit_score_status: formData.credit_score_status || null,
       status: "draft", // Keep as draft
-      // Public finance form (draft) → tag the origin explicitly.
-      submission_source: "website",
     };
     
     let saveError: any = null;

@@ -41,20 +41,20 @@ export const TABLE_COLUMNS: TableColumnDef[] = [
 const GLOBAL_DEFAULT_VISIBLE = TABLE_COLUMNS.filter((c) => c.defaultVisible).map((c) => c.key);
 
 const LANE_DEFAULT_VISIBLE: Record<string, string[]> = {
-  // Fresh leads: who/what + latest note + how to reach them.
-  intake:      ['applicant', 'status', 'internal', 'phone', 'vehicle', 'created'],
+  // Fresh leads: who/what + latest note + how to reach them + where they came from.
+  intake:      ['applicant', 'status', 'internal', 'phone', 'vehicle', 'source', 'created'],
   // Submitted to banks: add the bank in play.
-  submitted:   ['applicant', 'status', 'internal', 'phone', 'vehicle', 'bank', 'fni', 'created'],
+  submitted:   ['applicant', 'status', 'internal', 'phone', 'vehicle', 'bank', 'fni', 'source', 'created'],
   // Approved/working: bank + F&I owner matter most.
-  approved:    ['applicant', 'status', 'internal', 'vehicle', 'bank', 'fni', 'created'],
+  approved:    ['applicant', 'status', 'internal', 'vehicle', 'bank', 'fni', 'source', 'created'],
   // Validations / contract: bank + F&I + bank ref.
-  validations: ['applicant', 'status', 'internal', 'vehicle', 'bank', 'bank_reference', 'fni', 'created'],
+  validations: ['applicant', 'status', 'internal', 'vehicle', 'bank', 'bank_reference', 'fni', 'source', 'created'],
   // Delivered: the win — vehicle + F&I + date.
-  delivered:   ['applicant', 'status', 'internal', 'vehicle', 'fni', 'created'],
+  delivered:   ['applicant', 'status', 'internal', 'vehicle', 'fni', 'source', 'created'],
   // Declined: keep it lean — reason lives in the note.
-  declined:    ['applicant', 'status', 'internal', 'phone', 'created'],
+  declined:    ['applicant', 'status', 'internal', 'phone', 'source', 'created'],
   // Closed/archived: minimal.
-  closed:      ['applicant', 'status', 'internal', 'created'],
+  closed:      ['applicant', 'status', 'internal', 'source', 'created'],
 };
 
 const KNOWN_KEYS = new Set(TABLE_COLUMNS.map((c) => c.key));
@@ -82,7 +82,11 @@ export interface TableConfig {
   widths: Record<string, ColumnWidth>;
 }
 
-const STORAGE_KEY = 'lumina.pipelinev2.table.config.v1';
+// Bumped v1 → v2 when the Source column was added to the lane defaults, so
+// existing persisted configs re-default and surface the new column (instead of
+// staying on a pre-Source `visible` list). Column widths/visibility reset to the
+// per-lane defaults on this bump; saved views are stored separately.
+const STORAGE_KEY = 'lumina.pipelinev2.table.config.v2';
 type AllConfigs = Record<string, TableConfig>;
 
 /** Default table config. Pass a lane key for per-lane default-visible columns;
