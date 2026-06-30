@@ -1,10 +1,8 @@
 import { useRef } from 'react';
 import type { FinanceApplication } from '@/hooks/useFinanceApplications';
-import { useUpdateClientStatus } from '@/hooks/useFinanceApplications';
 import { STATUS_STYLES, ADMIN_STATUS_LABELS, statusBadgeClass } from '@/lib/statusConfig';
 import { useDeskTheme } from '@/hooks/useDeskTheme';
-import { useStatusConfig, type ClientStatus } from '@/hooks/useZtcSettings';
-import { StatusSelect } from '@/components/admin/StatusSelect';
+import { useStatusConfig } from '@/hooks/useZtcSettings';
 import { INTERNAL_STATUSES, normalizeInternalStatus, type InternalStatus } from '@/lib/internalStatusConfig';
 import { formatCurrencyR, formatDate, formatTime, formatPhone, relativeTime } from '@/lib/pipelinev2/format';
 import { TABLE_COLUMNS, columnClass, type TableConfig } from '@/lib/pipelinev2/columns';
@@ -23,7 +21,9 @@ export function ApplicationTable({
   applications: FinanceApplication[];
   config: TableConfig;
   onSelect: (id: string) => void;
-  onChangeStatus?: (app: FinanceApplication) => void;
+  /** Opens the Change-status modal. `track` selects which tab it opens on
+   *  (Finance Status badge → 'finance' (default); Client Status badge → 'client'). */
+  onChangeStatus?: (app: FinanceApplication, track?: 'finance' | 'client') => void;
   selectable?: boolean;
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
@@ -34,12 +34,10 @@ export function ApplicationTable({
   statusStyles?: Record<string, string>;
 }) {
   const { theme } = useDeskTheme();
-  // Client-status track (DB-driven, customizable). Pulled here so the inline
-  // 'client_status' cell can edit it without prop-drilling the mutation. The
-  // writer touches ONLY finance_applications.client_status — no lane move, no
-  // notify-*/easysocial fan-out (useUpdateClientStatus is fully isolated).
-  const { clientStatuses, clientLabels } = useStatusConfig();
-  const updateClientStatus = useUpdateClientStatus();
+  // Client-status track (DB-driven, customizable). Only the label/colour maps are
+  // needed now: the cell renders a badge button and the actual write happens in the
+  // Change-status modal (Client tab), so no mutation is wired here anymore.
+  const { clientLabels, clientStyles } = useStatusConfig();
   const colByKey = new Map(TABLE_COLUMNS.map((c) => [c.key, c]));
   const visible = config.visible.map((k) => colByKey.get(k)).filter(Boolean) as TableColumnDef[];
   type TableColumnDef = (typeof TABLE_COLUMNS)[number];
@@ -103,8 +101,7 @@ export function ApplicationTable({
                 {visible.map((col) => (
                   <td key={col.key} className={'px-3 py-2 align-top ' + classFor(col.key) + (col.align === 'right' ? ' text-right tabular-nums' : '')}>
                     {renderCell(col.key, a, busy, onChangeStatus, statusLabels, statusStyles, theme, {
-                      clientStatuses, clientLabels,
-                      onChangeClientStatus: (id, next) => updateClientStatus.mutate({ id, client_status: next }),
+                      clientLabels, clientStyles,
                     })}
                   </td>
                 ))}
@@ -126,14 +123,13 @@ export function ApplicationTable({
 
 function renderCell(
   key: string, a: FinanceApplication, busy: Busy | undefined,
-  onChangeStatus?: (app: FinanceApplication) => void,
+  onChangeStatus?: (app: FinanceApplication, track?: 'finance' | 'client') => void,
   statusLabels?: Record<string, string>,
   statusStyles?: Record<string, string>,
   theme: 'light' | 'dark' = 'dark',
   client?: {
-    clientStatuses: ClientStatus[];
     clientLabels: Record<string, string>;
-    onChangeClientStatus: (id: string, next: string) => void;
+    clientStyles: Record<string, string>;
   },
 ): React.ReactNode {
   const any = a as any;
@@ -164,22 +160,23 @@ function renderCell(
       );
     }
     case 'client_status': {
-      // Inline client-status editor. Independent of the finance pipeline: it never
-      // moves lanes and fires NO notifications (useUpdateClientStatus is isolated).
-      const v = any.client_status || '';
-      const opts = client?.clientStatuses ?? [];
-      if (opts.length === 0) return <span className="text-xs text-muted-foreground/50">—</span>;
-      return (
-        <div onClick={(e) => e.stopPropagation()}>
-          <StatusSelect
-            track="client"
-            value={v}
-            options={opts}
-            labelOverrides={client?.clientLabels}
-            className="h-7 text-xs"
-            onChange={(next) => { if (next !== v) client?.onChangeClientStatus(a.id, next); }}
-          />
-        </div>
+      // Badge button mirroring `case 'status'`, but for the client track. Clicking it
+      // opens the Change-status modal on the Client tab; the write still goes through
+      // the modal's isolated client-status path (no lane move, no notifications).
+      const slug = any.client_status || '';
+      const hasStatus = !!slug;
+      const cls = hasStatus
+        ? (client?.clientStyles?.[slug] || 'bg-muted text-muted-foreground border-border')
+        : 'bg-transparent text-muted-foreground/60 border-dashed border-border';
+      const label = hasStatus ? (client?.clientLabels?.[slug] || slug) : 'Set status';
+      return onChangeStatus ? (
+        <button type="button" onClick={(e) => { e.stopPropagation(); onChangeStatus(a, 'client'); }}
+          title="Click to change client status"
+          className={'rounded border px-1.5 py-0.5 text-xs font-semibold transition hover:brightness-110 ' + cls}>
+          {label}
+        </button>
+      ) : (
+        <span className={'rounded border px-1.5 py-0.5 text-xs font-semibold ' + cls}>{label}</span>
       );
     }
     case 'internal': {
