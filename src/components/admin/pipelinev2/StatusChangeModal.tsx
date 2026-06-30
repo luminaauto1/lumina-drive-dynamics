@@ -20,17 +20,20 @@ const authorName = (user: any): string =>
   user?.user_metadata?.full_name?.trim() || user?.email?.split('@')[0] || 'Unknown';
 
 export function StatusChangeModal({
-  app, updateApplication, onClose, role,
+  app, updateApplication, onClose, role, initialTrack = 'finance',
 }: {
   app: FinanceApplication;
   updateApplication: ReturnType<typeof useUpdateFinanceApplication>;
   onClose: () => void;
   /** Staff role — finance status options are filtered to what this role may set. */
   role?: string | null;
+  /** Which track the modal opens on (default 'finance'). The Client Status badge
+   *  passes 'client' so the Client tab is pre-selected. */
+  initialTrack?: 'finance' | 'client';
 }) {
   const [status, setStatus] = useState<string>((app as any).status || 'pending');
   const [clientStatus, setClientStatus] = useState<string>((app as any).client_status || '');
-  const [track, setTrack] = useState<'finance' | 'client'>('finance');
+  const [track, setTrack] = useState<'finance' | 'client'>(initialTrack);
   const [comment, setComment] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');

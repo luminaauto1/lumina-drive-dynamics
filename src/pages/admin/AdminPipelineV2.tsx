@@ -53,7 +53,11 @@ const AdminPipelineV2 = () => {
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
   const [fniFilter, setFniFilter] = useState<FniFilter>(isSuperAdmin || isSeniorFAndI ? 'all' : 'self');
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [statusChangeApp, setStatusChangeApp] = useState<FinanceApplication | null>(null);
+  // Status-change modal target. `track` decides which tab the modal opens on
+  // (Finance Status badge → 'finance'; Client Status badge → 'client').
+  const [statusChangeApp, setStatusChangeApp] = useState<{ app: FinanceApplication; track: 'finance' | 'client' } | null>(null);
+  const openStatusChange = (app: FinanceApplication, track: 'finance' | 'client' = 'finance') =>
+    setStatusChangeApp({ app, track });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulk, setShowBulk] = useState(false);
   const [tableConfig, setTableConfig] = useState<TableConfig>(() => loadConfig('all'));
@@ -261,7 +265,7 @@ const AdminPipelineV2 = () => {
             applications={rows}
             config={tableConfig}
             onSelect={setSelectedId}
-            onChangeStatus={setStatusChangeApp}
+            onChangeStatus={openStatusChange}
             selectable
             selectedIds={selectedIds}
             onToggleSelect={toggleSelect}
@@ -276,12 +280,13 @@ const AdminPipelineV2 = () => {
       <ApplicationDrawer
         app={selectedApp}
         onClose={() => setSelectedId(null)}
-        onChangeStatus={(a) => setStatusChangeApp(a)}
+        onChangeStatus={(a) => openStatusChange(a)}
       />
 
       {statusChangeApp && (
         <StatusChangeModal
-          app={statusChangeApp}
+          app={statusChangeApp.app}
+          initialTrack={statusChangeApp.track}
           updateApplication={updateApplication}
           onClose={() => setStatusChangeApp(null)}
           role={role}
