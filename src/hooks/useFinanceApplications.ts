@@ -90,11 +90,36 @@ export const useFinanceApplications = () => {
   });
 };
 
+// Finance slugs whose client WhatsApp notification is ALREADY owned by a dedicated
+// notify-* function (each fires its own send below). The ZTC-parity config-driven
+// auto-send (block I → wa-status-send) MUST exclude these so exactly ONE path ever
+// fires for them — no double messaging. Kept in sync with wa-status-send's
+// NOTIFY_OWNED_STATUSES (defense-in-depth: guarded in BOTH the hook and the fn).
+const NOTIFY_OWNED_STATUSES = new Set<string>([
+  'application_submitted',
+  'ready_to_submit',
+  'declined',
+  'blacklisted',
+  'client_cancelled',
+  'pre_approved',
+]);
+
 export const useUpdateFinanceApplication = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: any }) => {
+      // Optional transient status-change comment, passed by status-change UIs to
+      // feed lead_data.last_note (EasySocial) + the WhatsApp {comment} body source.
+      // It is NOT a finance_applications column — strip it before the DB write so
+      // the update never fails on an unknown field. Omitted => behaves as today.
+      const statusComment =
+        typeof updates?.comment === 'string' ? updates.comment.trim() : '';
+      if (updates && 'comment' in updates) {
+        const { comment: _omit, ...rest } = updates;
+        updates = rest;
+      }
+
       // 1. Fetch current app to detect status change and get email
       const { data: currentApp } = await supabase
         .from('finance_applications')
@@ -494,6 +519,10 @@ export const useUpdateFinanceApplication = () => {
               phone_number: currentApp.phone,
               new_status: newStatus,
               old_status: currentApp.status,
+              // ZTC-parity additive: the function reads per-status config server-side
+              // (tag remove-mode / client_status). The comment feeds lead_data.last_note.
+              // Omitted comment => lead_data.last_note simply not written (today's payload).
+              comment: statusComment || undefined,
             },
           });
           console.log('[easysocial-tag-sync] response', { tagData, tagErr });
@@ -518,6 +547,41 @@ export const useUpdateFinanceApplication = () => {
           toast.error(`EasySocial sync failed: ${tagEx?.message || tagEx}`, {
             style: { background: '#1A1A1A', color: '#fca5a5', border: '1px solid #7f1d1d' },
           });
+        }
+      }
+
+      // ── Block I — ZTC-parity config-driven WhatsApp auto-send ──────────────
+      // Fires wa-status-send ONLY when:
+      //   • the status actually changed AND there's a phone, AND
+      //   • the new slug is NOT one of the 5 notify-* owned slugs (NO DOUBLE-SEND
+      //     guard — those already auto-send above; one path only).
+      // wa-status-send itself returns skipped:'no_template' when the status has no
+      // curated template configured, so an UNCONFIGURED status sends nothing —
+      // byte-for-byte today's behaviour. Fire-and-forget (NOT awaited): a failed
+      // send must never break the status update or its toast. Defense-in-depth:
+      // the function re-checks NOTIFY_OWNED_STATUSES after its DB read.
+      if (
+        statusActuallyChanged &&
+        newStatus &&
+        currentApp?.phone &&
+        !NOTIFY_OWNED_STATUSES.has(newStatus)
+      ) {
+        try {
+          const { publicApiHeaders } = await import('@/lib/publicApi');
+          supabase.functions.invoke('wa-status-send', {
+            headers: publicApiHeaders(),
+            body: {
+              application_id: id,
+              new_status: newStatus,
+              comment: statusComment || undefined,
+            },
+          }).then(({ data: waData, error: waErr }) => {
+            if (waErr) console.error('[wa-status-send] error:', waErr);
+            else if ((waData as any)?.skipped) console.log('[wa-status-send] skipped:', (waData as any).skipped);
+            else console.log('[wa-status-send] dispatched for application', id, waData);
+          });
+        } catch (waEx) {
+          console.error('[wa-status-send] failed to invoke:', waEx);
         }
       }
 

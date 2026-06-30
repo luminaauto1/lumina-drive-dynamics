@@ -121,6 +121,11 @@ verify_jwt = false
 [functions.notify-referral]
 verify_jwt = false
 
+# ZTC-parity config-driven WhatsApp auto-send (status apply). Public dispatch
+# guarded by the LUMINA_INTERNAL_API_KEY shared secret, like the notify-* flows.
+[functions.wa-status-send]
+verify_jwt = false
+
 # TEMPORARY migration bridge (Lovable Cloud -> self-owned Supabase).
 # Guarded by the LUMINA_INTERNAL_API_KEY shared secret; remove after cutover.
 [functions.migrate-export]
