@@ -34,9 +34,9 @@ export function ApplicationDrawer({
 }) {
   const [feed, setFeed] = useState<'notes' | 'history'>('notes');
   const { clientLabels, clientStyles } = useStatusConfig();
+  const navigate = useNavigate();
   if (!app) return null;
   const any = app as any;
-  const navigate = useNavigate();
   const phoneIntl = formatPhoneIntl(any.phone);
   const copyPhone = async () => {
     if (!any.phone) return;
