@@ -2,7 +2,6 @@ import { ReactNode, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminSidebar from './AdminSidebar';
-import AIAssistantWidget from './AIAssistantWidget';
 import GlobalSearch from './GlobalSearch';
 import TaskOSButton from './taskos/TaskOSButton';
 import { Menu, Sun, Moon } from 'lucide-react';
@@ -77,7 +76,6 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         {children}
       </main>
 
-      <AIAssistantWidget />
       <GlobalSearch />
       <TaskOSButton />
     </div>
