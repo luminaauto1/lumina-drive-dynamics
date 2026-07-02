@@ -15,6 +15,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Calendar } from '@/components/ui/calendar';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { useCreateDealRecord, useUpdateDealRecord, AftersalesExpense, DealAddOnItem } from '@/hooks/useDealRecords';
+import { useDealExpenses } from '@/hooks/useDealExpenses';
+import { DealExpensesSection } from '@/components/admin/DealExpensesSection';
 import { formatPrice, useVehicles, Vehicle } from '@/hooks/useVehicles';
 import { useVehicleExpenses, VehicleExpense, EXPENSE_CATEGORIES } from '@/hooks/useVehicleExpenses';
 import { useVendors } from '@/hooks/useVendors';
@@ -82,6 +84,11 @@ export interface ExistingDealData {
   deal_type?: string | null;
   finance_house_vendor_id?: string | null;
   invoice_config?: Record<string, any> | null;
+  // Refunds & Recoveries (finance house refunds licence/reg + admin)
+  license_reg_cost?: number | null;
+  license_reg_refund?: number | null;
+  admin_recovery_cost?: number | null;
+  admin_recovery_refund?: number | null;
   vehicle?: {
     id: string;
     make: string;
@@ -275,8 +282,18 @@ const FinalizeDealModal = ({
   const [nextServiceDate, setNextServiceDate] = useState('');
   const [nextServiceKm, setNextServiceKm] = useState<number | ''>('');
   
-  // Aftersales Expenses
-  const [expenses, setExpenses] = useState<AftersalesExpense[]>([]);
+  // Deal-level expenses — itemized, attached to the deal via application_id. These
+  // combine with the linked car's vehicle_expenses (recon) to make up the deal's
+  // costs. Edited via <DealExpensesSection> (writes the deal_expenses table); the
+  // sum feeds gross_profit and is snapshotted into aftersales_expenses on save.
+  const { data: dealExpenses = [] } = useDealExpenses(applicationId);
+
+  // Refunds & Recoveries — the finance house refunds licence/reg + admin; we also
+  // front those costs. Net (refund − cost) folds into gross_profit.
+  const [licenseRegCost, setLicenseRegCost] = useState(0);
+  const [licenseRegRefund, setLicenseRegRefund] = useState(0);
+  const [adminRecoveryCost, setAdminRecoveryCost] = useState(0);
+  const [adminRecoveryRefund, setAdminRecoveryRefund] = useState(0);
   
   // Get sales reps: prefer direct DB read (admin sees full sales_reps); fallback to public view
   const salesReps: SalesRep[] = salesRepsFromDb.length > 0 ? salesRepsFromDb : ((settings as any)?.sales_reps || []);
@@ -383,13 +400,13 @@ const FinalizeDealModal = ({
           setSaleDate(new Date());
         }
         
-        // Expenses
-        if (existingDeal.aftersales_expenses && Array.isArray(existingDeal.aftersales_expenses)) {
-          setExpenses(existingDeal.aftersales_expenses);
-        } else {
-          setExpenses([]);
-        }
-        
+        // Deal expenses now come from the deal_expenses table (via useDealExpenses),
+        // so nothing to load here. Load the refund/recovery figures:
+        setLicenseRegCost(existingDeal.license_reg_cost || 0);
+        setLicenseRegRefund(existingDeal.license_reg_refund || 0);
+        setAdminRecoveryCost(existingDeal.admin_recovery_cost || 0);
+        setAdminRecoveryRefund(existingDeal.admin_recovery_refund || 0);
+
         // Mark as initialized to prevent overwrites
         setIsFormInitialized(true);
       } else {
@@ -429,7 +446,10 @@ const FinalizeDealModal = ({
         setDeliveryAddress('');
         setNextServiceDate('');
         setNextServiceKm('');
-        setExpenses([]);
+        setLicenseRegCost(0);
+        setLicenseRegRefund(0);
+        setAdminRecoveryCost(0);
+        setAdminRecoveryRefund(0);
         setSaleDate(new Date()); // Default to today for new deals
         
         setIsFormInitialized(true);
@@ -539,15 +559,19 @@ const FinalizeDealModal = ({
   // Total Finance Amount (what bank pays us)
   const totalFinanceAmount = grossDeal - totalDeposits;
   
-  // Total aftersales expenses
-  const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
-  
+  // Total deal expenses (itemized deal_expenses table — sits alongside the car's recon)
+  const totalExpenses = dealExpenses.reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0);
+
+  // Refunds & Recoveries — refunds are money IN, the paired costs are money OUT.
+  const recoveryRefunds = licenseRegRefund + adminRecoveryRefund;
+  const recoveryCosts = licenseRegCost + adminRecoveryCost;
+
   // === UPDATED PROFIT CALCULATION ===
-  // Gross Income = (Selling Price - Discount) + VAP Revenue + DIC + Referral Income
-  const grossIncome = adjustedSellingPrice + totalAddonPrice + dicAmount + referralIncome;
-  
-  // Total Costs = Vehicle Cost + Recon (Ledger + Additional) + Expenses + Dealer Deposit Contribution + Addon Costs + Referral Expense
-  const totalCosts = costPrice + totalReconCost + totalExpenses + dealerDepositContribution + totalAddonCost + referralCommission;
+  // Gross Income = (Selling Price - Discount) + VAP Revenue + DIC + Referral Income + Recovery Refunds
+  const grossIncome = adjustedSellingPrice + totalAddonPrice + dicAmount + referralIncome + recoveryRefunds;
+
+  // Total Costs = Vehicle Cost + Recon (Ledger + Additional) + Deal Expenses + Dealer Deposit Contribution + Addon Costs + Referral Expense + Recovery Costs
+  const totalCosts = costPrice + totalReconCost + totalExpenses + dealerDepositContribution + totalAddonCost + referralCommission + recoveryCosts;
   
   // Gross Profit = Gross Income - Total Costs
   const grossProfit = grossIncome - totalCosts;
@@ -593,20 +617,6 @@ const FinalizeDealModal = ({
     ));
   };
 
-  const addExpense = () => {
-    setExpenses(prev => [...prev, { type: 'Gift', amount: 0, description: '' }]);
-  };
-
-  const removeExpense = (index: number) => {
-    setExpenses(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const updateExpense = (index: number, field: keyof AftersalesExpense, value: string | number) => {
-    setExpenses(prev => prev.map((exp, i) => 
-      i === index ? { ...exp, [field]: value } : exp
-    ));
-  };
-
   const handleSubmit = async () => {
     if (!selectedRepName || !deliveryAddress || !deliveryDate || !activeVehicleId) {
       return;
@@ -623,7 +633,9 @@ const FinalizeDealModal = ({
       nextServiceKm: nextServiceKm || undefined,
       deliveryAddress,
       deliveryDate: `${deliveryDate}T${deliveryTime}:00`,
-      aftersalesExpenses: expenses,
+      // Snapshot the itemized deal_expenses into the aftersales_expenses JSONB so every
+      // existing reader (Accounting, Reports, Ledger) keeps working unchanged.
+      aftersalesExpenses: dealExpenses.map((e) => ({ type: e.category, amount: Number(e.amount) || 0, description: e.description })),
       costPrice,
       // Sale date for reporting
       saleDate: format(saleDate, 'yyyy-MM-dd'),
@@ -662,6 +674,11 @@ const FinalizeDealModal = ({
       dealType,
       financeHouseVendorId: dealType === 'finance' ? (financeHouseVendorId || null) : null,
       invoiceConfig,
+      // Refunds & Recoveries (licence/reg + admin) — net (refund − cost) folded into gross_profit above
+      licenseRegCost,
+      licenseRegRefund,
+      adminRecoveryCost,
+      adminRecoveryRefund,
     };
 
     try {
@@ -1603,69 +1620,58 @@ const FinalizeDealModal = ({
 
           <Separator />
 
-          {/* Aftersales Expenses Section */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-                <DollarSign className="w-4 h-4" />
-                Aftersales Expenses
-              </div>
-              <Button type="button" variant="outline" size="sm" onClick={addExpense}>
-                <Plus className="w-4 h-4 mr-1" />
-                Add Expense
-              </Button>
+          {/* Deal Expenses — itemized costs on the DEAL (alongside the car's recon). */}
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Costs incurred for this deal (fuel to fetch the car, transport, etc.) — separate from the car's own reconditioning expenses. Both roll into this deal's profit.
+            </p>
+            <DealExpensesSection applicationId={applicationId} dealId={existingDeal?.id ?? null} title="Deal Expenses" />
+          </div>
+
+          <Separator />
+
+          {/* Refunds & Recoveries — licence/reg + admin: cost you front vs refund back. */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+              <Receipt className="w-4 h-4" />
+              Refunds &amp; Recoveries
             </div>
-            
-            {expenses.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                No expenses added. Click "Add Expense" to add items like gifts, car wash, fuel, etc.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {expenses.map((expense, index) => (
-                  <div key={index} className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg">
-                    <Select
-                      value={expense.type}
-                      onValueChange={(val) => updateExpense(index, 'type', val)}
-                    >
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {EXPENSE_TYPES.map((type) => (
-                          <SelectItem key={type} value={type}>{type}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      type="number"
-                      placeholder="Amount"
-                      value={expense.amount || ''}
-                      onChange={(e) => updateExpense(index, 'amount', parseFloat(e.target.value) || 0)}
-                      className="w-28"
-                    />
-                    <Input
-                      placeholder="Description (optional)"
-                      value={expense.description || ''}
-                      onChange={(e) => updateExpense(index, 'description', e.target.value)}
-                      className="flex-1"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeExpense(index)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
+            <p className="text-xs text-muted-foreground -mt-1">
+              Licence/reg &amp; admin you pay out, and what the finance house refunds back. Only the <strong>net</strong> (refund − cost) affects profit. Don't also log licence/reg under Deal Expenses or recon.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded-lg border border-border p-3 space-y-2">
+                <p className="text-xs font-medium">Licence &amp; Registration</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-muted-foreground">Cost paid (R)</Label>
+                    <Input type="number" value={licenseRegCost || ''} onChange={(e) => setLicenseRegCost(parseFloat(e.target.value) || 0)} placeholder="0" />
                   </div>
-                ))}
-                <div className="flex justify-end">
-                  <p className="text-sm font-medium">
-                    Total Expenses: <span className="text-primary">{formatPrice(totalExpenses)}</span>
-                  </p>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-muted-foreground">Refund received (R)</Label>
+                    <Input type="number" value={licenseRegRefund || ''} onChange={(e) => setLicenseRegRefund(parseFloat(e.target.value) || 0)} placeholder="0" />
+                  </div>
                 </div>
+              </div>
+              <div className="rounded-lg border border-border p-3 space-y-2">
+                <p className="text-xs font-medium">Admin</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-muted-foreground">Cost paid (R)</Label>
+                    <Input type="number" value={adminRecoveryCost || ''} onChange={(e) => setAdminRecoveryCost(parseFloat(e.target.value) || 0)} placeholder="0" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-muted-foreground">Refund received (R)</Label>
+                    <Input type="number" value={adminRecoveryRefund || ''} onChange={(e) => setAdminRecoveryRefund(parseFloat(e.target.value) || 0)} placeholder="0" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            {(recoveryRefunds !== 0 || recoveryCosts !== 0) && (
+              <div className="flex justify-end">
+                <p className="text-sm font-medium">
+                  Net recovery: <span className={recoveryRefunds - recoveryCosts >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatPrice(recoveryRefunds - recoveryCosts)}</span>
+                </p>
               </div>
             )}
           </div>

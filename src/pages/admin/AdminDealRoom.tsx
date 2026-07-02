@@ -13,6 +13,7 @@ import PageHeader from '@/components/admin/PageHeader';
 import { ADMIN_ROUTES } from '@/lib/adminRoutes';
 import FinancePodiumModal from '@/components/admin/FinancePodiumModal';
 import FinalizeDealModal from '@/components/admin/FinalizeDealModal';
+import { DealExpensesSection } from '@/components/admin/DealExpensesSection';
 import OTPModal from '@/components/admin/OTPModal';
 import ClientDocumentViewer from '@/components/admin/ClientDocumentViewer';
 import DocumentManager from '@/components/admin/DocumentManager';
@@ -1204,6 +1205,17 @@ const AdminDealRoom = () => {
               clientName={application.first_name || application.full_name || 'Client'}
               applicationId={application.id}
             />
+
+            {/* Deal Expenses (admin only — deal_expenses is admin-RLS). Costs incurred
+                FOR this deal, separate from the car's own reconditioning expenses. */}
+            {isSuperAdmin && (
+              <div className="glass-card rounded-xl p-6">
+                <DealExpensesSection applicationId={application.id} title="Deal Expenses" />
+                <p className="text-[11px] text-muted-foreground mt-3">
+                  Costs on this deal (e.g. fuel to fetch the car, transport). These roll into the deal's profit when you finalize, alongside the car's own reconditioning expenses.
+                </p>
+              </div>
+            )}
 
             {/* Status Controller */}
             <div className="glass-card rounded-xl p-6">
