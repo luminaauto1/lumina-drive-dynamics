@@ -63,6 +63,12 @@ export interface DealRecordInsert {
   dealType?: 'direct' | 'finance';
   financeHouseVendorId?: string | null;
   invoiceConfig?: Record<string, any>;
+  // Refunds & Recoveries (licence/reg + admin) — net (refund − cost) is already
+  // folded into grossProfit by FinalizeDealModal; these persist the components.
+  licenseRegCost?: number;
+  licenseRegRefund?: number;
+  adminRecoveryCost?: number;
+  adminRecoveryRefund?: number;
 }
 
 export interface DealRecordUpdate extends DealRecordInsert {
@@ -123,6 +129,11 @@ export const useCreateDealRecord = () => {
           deal_type: record.dealType || 'direct',
           finance_house_vendor_id: record.financeHouseVendorId || null,
           invoice_config: record.invoiceConfig || {},
+          // Refunds & Recoveries (licence/reg + admin)
+          license_reg_cost: record.licenseRegCost || 0,
+          license_reg_refund: record.licenseRegRefund || 0,
+          admin_recovery_cost: record.adminRecoveryCost || 0,
+          admin_recovery_refund: record.adminRecoveryRefund || 0,
         })
         .select()
         .single();
@@ -239,6 +250,11 @@ export const useUpdateDealRecord = () => {
           deal_type: record.dealType || 'direct',
           finance_house_vendor_id: record.financeHouseVendorId || null,
           invoice_config: record.invoiceConfig || {},
+          // Refunds & Recoveries (licence/reg + admin)
+          license_reg_cost: record.licenseRegCost || 0,
+          license_reg_refund: record.licenseRegRefund || 0,
+          admin_recovery_cost: record.adminRecoveryCost || 0,
+          admin_recovery_refund: record.adminRecoveryRefund || 0,
         })
         .eq('id', record.dealId)
         .select()

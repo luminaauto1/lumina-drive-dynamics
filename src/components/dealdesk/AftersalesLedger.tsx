@@ -28,6 +28,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { differenceInDays, differenceInYears, format, addYears, startOfMonth, endOfMonth, subMonths, isWithinInterval, parseISO } from 'date-fns';
 import ClientProfileModal from '@/components/admin/ClientProfileModal';
 import FinalizeDealModal, { ExistingDealData } from '@/components/admin/FinalizeDealModal';
+import { DealExpensesSection } from '@/components/admin/DealExpensesSection';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -801,59 +802,54 @@ const DealManagementModal = ({ deal, open, onOpenChange }: { deal: DealRecord; o
                   </CardContent>
                 </Card>
 
-                {/* Current Expenses */}
-                {(deal.aftersales_expenses || []).length > 0 && (
+                {/* Deal Expenses — unified with the Deal Room + Finalize (deal_expenses
+                    table). For deals with a linked application we use the same itemized
+                    store; the rare direct deal (no application) keeps the legacy form. */}
+                {deal.application_id ? (
                   <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">Existing Expenses</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        {deal.aftersales_expenses!.map((exp, idx) => (
-                          <div key={idx} className="flex justify-between items-center p-2 bg-secondary/30 rounded">
-                            <span className="text-sm">{exp.type}</span>
-                            <span className="text-red-400 font-medium">-{formatPrice(exp.amount)}</span>
-                          </div>
-                        ))}
-                      </div>
+                    <CardContent className="pt-4">
+                      <DealExpensesSection applicationId={deal.application_id} dealId={deal.id} title="Deal Expenses" />
+                      <p className="text-[11px] text-muted-foreground mt-3">
+                        These roll into the deal's profit at finalize. After changing them here, re-save the deal (Edit) to refresh its saved Net Profit.
+                      </p>
                     </CardContent>
                   </Card>
+                ) : (
+                  <>
+                    {(deal.aftersales_expenses || []).length > 0 && (
+                      <Card>
+                        <CardHeader className="pb-2"><CardTitle className="text-sm">Existing Expenses</CardTitle></CardHeader>
+                        <CardContent>
+                          <div className="space-y-2">
+                            {deal.aftersales_expenses!.map((exp, idx) => (
+                              <div key={idx} className="flex justify-between items-center p-2 bg-secondary/30 rounded">
+                                <span className="text-sm">{exp.type}</span>
+                                <span className="text-red-400 font-medium">-{formatPrice(exp.amount)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2"><Plus className="w-4 h-4" /> Add Post-Sale Expense</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2"><Label>Description</Label>
+                            <Input placeholder="e.g., Traffic Fine, Repair" value={expenseType} onChange={(e) => setExpenseType(e.target.value)} /></div>
+                          <div className="space-y-2"><Label>Amount (R)</Label>
+                            <Input type="number" placeholder="0.00" value={expenseAmount} onChange={(e) => setExpenseAmount(e.target.value)} /></div>
+                        </div>
+                        <Button onClick={handleAddExpense} disabled={addExpense.isPending} variant="outline" className="w-full">
+                          {addExpense.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+                          Add Expense
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </>
                 )}
-
-                {/* Add Expense Form */}
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Plus className="w-4 h-4" />
-                      Add Post-Sale Expense
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Description</Label>
-                        <Input
-                          placeholder="e.g., Traffic Fine, Repair"
-                          value={expenseType}
-                          onChange={(e) => setExpenseType(e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Amount (R)</Label>
-                        <Input
-                          type="number"
-                          placeholder="0.00"
-                          value={expenseAmount}
-                          onChange={(e) => setExpenseAmount(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <Button onClick={handleAddExpense} disabled={addExpense.isPending} variant="outline" className="w-full">
-                      {addExpense.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-                      Add Expense
-                    </Button>
-                  </CardContent>
-                </Card>
               </div>
             </ScrollArea>
           </TabsContent>
