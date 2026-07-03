@@ -1,9 +1,9 @@
 // Consolidated TikTok webhook:
-//   1. Verify TikTok handshake (challenge)
-//   2. Parse + sanitize lead
+//   1. Verify TikTok handshake (challenge) + Business API X-Open-Signature (HMAC)
+//   2. Parse + sanitize lead — native entry[]/changes[], Make flat keys, or form_data
 //   3. Insert into `leads` (source = 'TikTok')
 //   4. Return 200 OK to TikTok immediately
-//   5. Background: wait 10s, then dispatch EasySocial WhatsApp template
+//   5. Dispatch EasySocial WhatsApp welcome (inline, awaited)
 //
 // Deployed with verify_jwt = false (TikTok cannot send Supabase JWTs).
 
@@ -16,8 +16,12 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 };
 
+// EasySocial "new lead / welcome" WhatsApp template. Campaign token + template id
+// (cmr51yngl0lx7vsxp9htlbr7o / 20704) verified live 2026-07-03 — the previous
+// cmoiymj99b30ciyxpdvtndj6n / 18909 template was deleted on EasySocial's side
+// (404 "Campaign not found"), which is why the welcome silently never sent.
 const EASYSOCIAL_TEMPLATE_BASE =
-  "https://api.easysocial.in/api/v1/wa-templates/send/cmoiymj99b30ciyxpdvtndj6n/18909/4026/API";
+  "https://api.easysocial.in/api/v1/wa-templates/send/cmr51yngl0lx7vsxp9htlbr7o/20704/4026/API";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -124,27 +128,25 @@ function extractLeadFields(formData: unknown) {
   return extracted;
 }
 
-async function dispatchWhatsAppAfterDelay(sanitizedNumber: string, clientName: string) {
+// Fire the EasySocial WhatsApp welcome immediately (no artificial delay). The old
+// version waited 10s inside a waitUntil() background task, but the edge instance is
+// torn down right after the ~1s response — so the timer never fired and the welcome
+// silently never sent. Awaited inline so it reliably completes. Returns a diagnostic.
+async function dispatchWhatsApp(sanitizedNumber: string, clientName: string) {
+  const url = `${EASYSOCIAL_TEMPLATE_BASE}/${sanitizedNumber}?body1=${encodeURIComponent(clientName)}`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12000);
   try {
-    await new Promise((resolve) => setTimeout(resolve, 10000));
-    const url = `${EASYSOCIAL_TEMPLATE_BASE}/${sanitizedNumber}?body1=${encodeURIComponent(clientName)}`;
     console.log("[tiktok-receiver] dispatching WhatsApp →", url);
-    const res = await fetch(url, { method: "GET", headers: { Accept: "application/json" } });
+    const res = await fetch(url, { method: "GET", headers: { Accept: "application/json" }, signal: controller.signal });
     const text = await res.text();
     console.log("[tiktok-receiver] EasySocial status:", res.status, "body:", text.slice(0, 500));
+    return { sent: res.ok, status: res.status, body: text.slice(0, 300) };
   } catch (err) {
-    console.error("[tiktok-receiver] background dispatch failed:", err);
-  }
-}
-
-function scheduleBackground(promise: Promise<unknown>) {
-  // @ts-ignore — EdgeRuntime is provided by Supabase Edge runtime
-  const ert: any = (globalThis as any).EdgeRuntime;
-  if (ert && typeof ert.waitUntil === "function") {
-    ert.waitUntil(promise);
-  } else {
-    // Fallback: fire-and-forget
-    promise.catch((e) => console.error("[tiktok-receiver] bg fallback err:", e));
+    console.error("[tiktok-receiver] WhatsApp dispatch failed:", err instanceof Error ? err.message : err);
+    return { sent: false, error: String(err) };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -182,9 +184,28 @@ Deno.serve(async (req) => {
     return json({ error: "Method not allowed" }, 405);
   }
 
+  // Read the RAW body first — TikTok Business API signs the exact payload text it
+  // sends (HMAC-SHA256 with the App Secret, lowercase hex, X-Open-Signature header).
+  // Verification only enforced once TIKTOK_APP_SECRET is configured.
+  const rawBody = await req.text();
+  const appSecret = Deno.env.get("TIKTOK_APP_SECRET") || "";
+  const signature = req.headers.get("x-open-signature") || "";
+  if (appSecret && signature) {
+    const key = await crypto.subtle.importKey(
+      "raw", new TextEncoder().encode(appSecret),
+      { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
+    );
+    const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawBody));
+    const hex = Array.from(new Uint8Array(mac)).map((b) => b.toString(16).padStart(2, "0")).join("");
+    if (hex !== signature.toLowerCase()) {
+      console.error("[tiktok-receiver] X-Open-Signature mismatch — rejecting");
+      return new Response("invalid signature", { status: 403, headers: corsHeaders });
+    }
+  }
+
   let payload: Record<string, unknown>;
   try {
-    payload = await req.json();
+    payload = JSON.parse(rawBody);
   } catch {
     return json({ error: "Invalid JSON" }, 400);
   }
@@ -192,6 +213,69 @@ Deno.serve(async (req) => {
   // TikTok verification handshake
   if (payload.challenge) {
     return json({ challenge: payload.challenge }, 200);
+  }
+
+  const supabaseNative = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+
+  // 0) TikTok Business API NATIVE webhook (subscription/subscribe, subscribe_entity=LEAD).
+  // Shape: { request_id, object: 1, time, entry: [{ id, lead_source, page_id, page_name,
+  // advertiser_id, ..., create_time, changes: [{field, value}, ...] }] }.
+  // Full form answers arrive inline in changes[]; batched up to 1000 entries;
+  // at-least-once delivery -> dedupe per entry.id. Always answer 200.
+  if (Array.isArray((payload as any).entry)) {
+    const entries = (payload as any).entry as Record<string, unknown>[];
+    let inserted = 0, duplicates = 0, skipped = 0;
+    const whatsapp: unknown[] = [];
+    for (const entry of entries.slice(0, 1000)) {
+      const changes = Array.isArray(entry.changes) ? (entry.changes as Record<string, unknown>[]) : [];
+      let name: string | null = null, phone: string | null = null, email: string | null = null;
+      const extras: string[] = [];
+      for (const c of changes) {
+        const field = sanitizeText(c.field, 120) ?? "";
+        const value = firstScalar(c.value ?? (c as any).values) ?? "";
+        if (!field || !value) continue;
+        if (!name && matchesAlias(field, FIELD_ALIASES.name)) name = sanitizeText(value, 120);
+        else if (!phone && matchesAlias(field, FIELD_ALIASES.phone)) phone = sanitizePhone(value);
+        else if (!email && matchesAlias(field, FIELD_ALIASES.email)) email = sanitizeText(value, 255);
+        else extras.push(`${field}: ${sanitizeText(value, 200)}`);
+      }
+      if (!name || !phone) { skipped++; continue; }
+
+      // Idempotency by TikTok lead id (entry.id can arrive as number or string).
+      const entryLeadId = sanitizeText(entry.id, 200);
+      if (entryLeadId) {
+        const { error: dupErr } = await supabaseNative
+          .from("webhook_events")
+          .insert({ event_id: `tt:${entryLeadId}`, source: "tiktok" });
+        if (dupErr && (dupErr as { code?: string }).code === "23505") { duplicates++; continue; }
+      }
+
+      const { data: ins, error: insErr } = await supabaseNative
+        .from("leads")
+        .upsert({
+          client_name: name,
+          client_phone: phone,
+          client_email: email,
+          phone_number: phone,
+          source: "TikTok",
+          status: "new",
+          notes: extras.length ? extras.join(" | ") : null,
+          platform: "tiktok",
+          origin: "tiktok_lead_ad",
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "phone_number" })
+        .select("id")
+        .maybeSingle();
+      if (insErr) { console.error("[tiktok-receiver] native insert failed:", insErr); continue; }
+      inserted++;
+      console.log("[tiktok-receiver] native lead", ins?.id, name, "form", entry.page_name ?? entry.page_id);
+      whatsapp.push(await dispatchWhatsApp(phone, name));
+    }
+    return json({ success: true, mode: "tiktok_native", inserted, duplicates, skipped, whatsapp }, 200);
   }
 
   // 1) Try flat root-level keys first (Make.com / generic webhook style)
@@ -291,11 +375,11 @@ Deno.serve(async (req) => {
     console.error("Database insertion failed/duplicate:", dbError);
   }
 
-  // Kick off the 10s delay + WhatsApp dispatch in the background — always.
-  scheduleBackground(dispatchWhatsAppAfterDelay(clientPhone, clientName));
+  // Fire the WhatsApp welcome inline (awaited) so it reliably sends.
+  const whatsapp = await dispatchWhatsApp(clientPhone, clientName);
 
   // Always respond 200 OK so TikTok / Make.com don't enter retry loops.
-  return new Response(JSON.stringify({ success: true, note: "Handled", lead_id: leadId }), {
+  return new Response(JSON.stringify({ success: true, note: "Handled", lead_id: leadId, whatsapp }), {
     status: 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });

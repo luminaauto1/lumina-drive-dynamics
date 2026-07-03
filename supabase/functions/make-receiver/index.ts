@@ -6,8 +6,12 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+// EasySocial "new lead / welcome" WhatsApp template. Campaign token + template id
+// (cmr51yngl0lx7vsxp9htlbr7o / 20704) verified live 2026-07-03 — the previous
+// cmoiymj99b30ciyxpdvtndj6n / 18909 template was deleted on EasySocial's side
+// (404 "Campaign not found"), which is why the welcome silently never sent.
 const EASYSOCIAL_TEMPLATE_BASE =
-  "https://api.easysocial.in/api/v1/wa-templates/send/cmoiymj99b30ciyxpdvtndj6n/18909/4026/API";
+  "https://api.easysocial.in/api/v1/wa-templates/send/cmr51yngl0lx7vsxp9htlbr7o/20704/4026/API";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -32,26 +36,27 @@ const sanitizePhone = (raw: unknown): string | null => {
   return cleaned;
 };
 
-async function dispatchWhatsAppAfterDelay(sanitizedNumber: string, clientName: string) {
+// Send the EasySocial WhatsApp welcome INLINE (awaited before the response) so it
+// reliably fires. A previous version deferred this behind a 10s setTimeout in a
+// background task — but the edge instance is torn down right after the ~1s response,
+// which killed the timer before EasySocial was ever called. Returns a diagnostic
+// object so the HTTP response (and Make's history) shows exactly what happened.
+async function dispatchWhatsApp(sanitizedNumber: string, clientName: string) {
+  const url = `${EASYSOCIAL_TEMPLATE_BASE}/${sanitizedNumber}?body1=${encodeURIComponent(clientName)}`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12000);
   try {
-    await new Promise((resolve) => setTimeout(resolve, 10000));
-    const url = `${EASYSOCIAL_TEMPLATE_BASE}/${sanitizedNumber}?body1=${encodeURIComponent(clientName)}`;
     console.log("[make-receiver] dispatching WhatsApp →", url);
-    const res = await fetch(url, { method: "GET", headers: { Accept: "application/json" } });
+    const res = await fetch(url, { method: "GET", headers: { Accept: "application/json" }, signal: controller.signal });
     const text = await res.text();
     console.log("[make-receiver] EasySocial status:", res.status, "body:", text.slice(0, 500));
+    return { sent: res.ok, status: res.status, body: text.slice(0, 300) };
   } catch (err) {
-    console.error("[make-receiver] background dispatch failed:", err);
-  }
-}
-
-function scheduleBackground(promise: Promise<unknown>) {
-  // @ts-ignore EdgeRuntime provided by Supabase
-  const ert: any = (globalThis as any).EdgeRuntime;
-  if (ert && typeof ert.waitUntil === "function") {
-    ert.waitUntil(promise);
-  } else {
-    promise.catch((e) => console.error("[make-receiver] bg fallback err:", e));
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[make-receiver] WhatsApp dispatch failed:", msg);
+    return { sent: false, error: msg };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -134,15 +139,16 @@ Deno.serve(async (req) => {
     console.error("DB_INSERT_ERROR:", error);
   }
 
-  // TASK 3: Only dispatch WhatsApp if the DB step did not crash the function.
+  // Dispatch WhatsApp inline (awaited) unless the DB step catastrophically crashed.
+  let whatsapp: Record<string, unknown> = { sent: false, skipped: "db_crashed" };
   if (dbStepCompleted) {
-    scheduleBackground(dispatchWhatsAppAfterDelay(sanitizedPhone, clientName));
+    whatsapp = await dispatchWhatsApp(sanitizedPhone, clientName);
   } else {
     console.error("[make-receiver] skipping WhatsApp dispatch — DB step crashed");
   }
 
   return new Response(
-    JSON.stringify({ success: true, message: "Processed" }),
+    JSON.stringify({ success: true, message: "Processed", whatsapp }),
     { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );
 });
