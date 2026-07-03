@@ -182,9 +182,28 @@ Deno.serve(async (req) => {
     return json({ error: "Method not allowed" }, 405);
   }
 
+  // Read the RAW body first — TikTok Business API signs the exact payload text it
+  // sends (HMAC-SHA256 with the App Secret, lowercase hex, X-Open-Signature header).
+  // Verification only enforced once TIKTOK_APP_SECRET is configured.
+  const rawBody = await req.text();
+  const appSecret = Deno.env.get("TIKTOK_APP_SECRET") || "";
+  const signature = req.headers.get("x-open-signature") || "";
+  if (appSecret && signature) {
+    const key = await crypto.subtle.importKey(
+      "raw", new TextEncoder().encode(appSecret),
+      { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
+    );
+    const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawBody));
+    const hex = Array.from(new Uint8Array(mac)).map((b) => b.toString(16).padStart(2, "0")).join("");
+    if (hex !== signature.toLowerCase()) {
+      console.error("[tiktok-receiver] X-Open-Signature mismatch — rejecting");
+      return new Response("invalid signature", { status: 403, headers: corsHeaders });
+    }
+  }
+
   let payload: Record<string, unknown>;
   try {
-    payload = await req.json();
+    payload = JSON.parse(rawBody);
   } catch {
     return json({ error: "Invalid JSON" }, 400);
   }
@@ -192,6 +211,68 @@ Deno.serve(async (req) => {
   // TikTok verification handshake
   if (payload.challenge) {
     return json({ challenge: payload.challenge }, 200);
+  }
+
+  const supabaseNative = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+
+  // 0) TikTok Business API NATIVE webhook (subscription/subscribe, subscribe_entity=LEAD).
+  // Shape: { request_id, object: 1, time, entry: [{ id, lead_source, page_id, page_name,
+  // advertiser_id, ..., create_time, changes: [{field, value}, ...] }] }.
+  // Full form answers arrive inline in changes[]; batched up to 1000 entries;
+  // at-least-once delivery -> dedupe per entry.id. Always answer 200.
+  if (Array.isArray((payload as any).entry)) {
+    const entries = (payload as any).entry as Record<string, unknown>[];
+    let inserted = 0, duplicates = 0, skipped = 0;
+    for (const entry of entries.slice(0, 1000)) {
+      const changes = Array.isArray(entry.changes) ? (entry.changes as Record<string, unknown>[]) : [];
+      let name: string | null = null, phone: string | null = null, email: string | null = null;
+      const extras: string[] = [];
+      for (const c of changes) {
+        const field = sanitizeText(c.field, 120) ?? "";
+        const value = firstScalar(c.value ?? (c as any).values) ?? "";
+        if (!field || !value) continue;
+        if (!name && matchesAlias(field, FIELD_ALIASES.name)) name = sanitizeText(value, 120);
+        else if (!phone && matchesAlias(field, FIELD_ALIASES.phone)) phone = sanitizePhone(value);
+        else if (!email && matchesAlias(field, FIELD_ALIASES.email)) email = sanitizeText(value, 255);
+        else extras.push(`${field}: ${sanitizeText(value, 200)}`);
+      }
+      if (!name || !phone) { skipped++; continue; }
+
+      // Idempotency by TikTok lead id (entry.id can arrive as number or string).
+      const entryLeadId = sanitizeText(entry.id, 200);
+      if (entryLeadId) {
+        const { error: dupErr } = await supabaseNative
+          .from("webhook_events")
+          .insert({ event_id: `tt:${entryLeadId}`, source: "tiktok" });
+        if (dupErr && (dupErr as { code?: string }).code === "23505") { duplicates++; continue; }
+      }
+
+      const { data: ins, error: insErr } = await supabaseNative
+        .from("leads")
+        .upsert({
+          client_name: name,
+          client_phone: phone,
+          client_email: email,
+          phone_number: phone,
+          source: "TikTok",
+          status: "new",
+          notes: extras.length ? extras.join(" | ") : null,
+          platform: "tiktok",
+          origin: "tiktok_lead_ad",
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "phone_number" })
+        .select("id")
+        .maybeSingle();
+      if (insErr) { console.error("[tiktok-receiver] native insert failed:", insErr); continue; }
+      inserted++;
+      console.log("[tiktok-receiver] native lead", ins?.id, name, "form", entry.page_name ?? entry.page_id);
+      scheduleBackground(dispatchWhatsAppAfterDelay(phone, name));
+    }
+    return json({ success: true, mode: "tiktok_native", inserted, duplicates, skipped }, 200);
   }
 
   // 1) Try flat root-level keys first (Make.com / generic webhook style)
