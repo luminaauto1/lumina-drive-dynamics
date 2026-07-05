@@ -2,7 +2,7 @@ import {
   LayoutDashboard, TableProperties, CreditCard, ClipboardList, Car,
   Calculator, FileSignature, FolderOpen, Building2, ShoppingCart,
   Receipt, Coins, Truck, FileBarChart, BarChart3, LineChart, Download,
-  Briefcase, Gift, Contact, Settings, ChevronLeft, ChevronRight, Home,
+  Briefcase, Gift, Contact, Settings, ChevronLeft, ChevronRight, Home, Users,
 } from 'lucide-react';
 import { NavLink, useLocation, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
@@ -66,6 +66,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { title: 'Reports', icon: FileBarChart, path: '/admin/reports' },
       { title: 'Analytics', icon: BarChart3, path: '/admin/analytics' },
       { title: 'Lead Analytics', icon: LineChart, path: '/admin/reports/lead-analytics' },
+      { title: 'Leads Cycle', icon: Users, path: '/admin/lead-cycle' },
       { title: 'Export Builder', icon: Download, path: '/admin/export' },
     ],
   },
