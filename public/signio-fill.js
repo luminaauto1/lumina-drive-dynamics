@@ -1021,16 +1021,40 @@
     let ok = await doSearch('#searchSuburb', '#cmdSearchSuburb', String(suburb || '').trim());
     if (!ok) ok = await doSearch('#searchPostal', '#cmdSearchPostal', String(postal || '').replace(/\D/g, ''));
     if (!ok) { close(); return false; }
+    const want = String(postal || '').replace(/\D/g, '');
+    // A suburb name can return SEVERAL rows (e.g. "Sandton, Sandton" 2146 vs
+    // "Sandton" 2196) — iterate the matching rows until one offers the client's
+    // ACTUAL postal code; if none does, re-search BY the postal code itself.
+    const codesFor = async (opt) => { const s = q('#selectSuburb'); setVal(s, opt.value); await sleep(600); const c = q('#selectCode'); return c ? [...c.options] : []; };
+    const pickFrom = async () => {
+      const opts = [...q('#selectSuburb').options];
+      const matching = suburb ? opts.filter((o) => norm(o.text).includes(norm(suburb))) : [];
+      const candidates = (matching.length ? [...matching, ...opts.filter((o) => !matching.includes(o))] : opts).slice(0, 8);
+      let fallback = null;
+      for (const o of candidates) {
+        const codes = await codesFor(o);
+        if (!fallback && codes.length) fallback = { opt: o, code: codes[0] };
+        if (!want) return fallback; // nothing to enforce — first match is fine
+        const hit = codes.find((c) => c.text.replace(/\D/g, '') === want);
+        if (hit) return { opt: o, code: hit };
+      }
+      return fallback;
+    };
+    let pick = await pickFrom();
+    if (want && (!pick || pick.code.text.replace(/\D/g, '') !== want)) {
+      // Suburb-name rows never offered the client's postal — search BY the postal.
+      const ok2 = await doSearch('#searchPostal', '#cmdSearchPostal', want);
+      if (ok2) pick = (await pickFrom()) || pick;
+    }
+    if (!pick) { close(); return false; }
     const sSel = q('#selectSuburb');
-    const sOpt = (suburb && [...sSel.options].find((o) => norm(o.text).includes(norm(suburb)))) || sSel.options[0];
-    setVal(sSel, sOpt.value);
-    await sleep(600); // postal codes populate for the chosen suburb
+    setVal(sSel, pick.opt.value);
+    await sleep(600); // re-sync the code list to the chosen suburb
     const cSel = q('#selectCode');
     if (cSel && cSel.options.length) {
-      const want = String(postal || '').replace(/\D/g, '');
-      const cOpt = (want && [...cSel.options].find((o) => o.text.replace(/\D/g, '') === want)) || cSel.options[0];
-      if (want && cOpt.text.replace(/\D/g, '') !== want) flag('Postal code ' + want + ' not offered for "' + sOpt.text + '" — took ' + cOpt.text + '; verify.');
-      setVal(cSel, cOpt.value);
+      const live = [...cSel.options].find((o) => o.text === pick.code.text) || cSel.options[0];
+      if (want && live.text.replace(/\D/g, '') !== want) flag('Postal code ' + want + ' not offered for "' + (pick.opt.text || '').trim() + '" — took ' + live.text + '; verify.');
+      setVal(cSel, live.value);
     }
     await sleep(300);
     const okBtn = q('#cmdAddressOk'); if (okBtn) okBtn.click();
@@ -1244,6 +1268,11 @@
     if (vehOk) setN('purchasePrice', '220000.00');
     else flag('Vehicle not auto-selected — click "select vehicle", search M&M 59007082, OK, then set Purchase Price 220000.');
     if (vis(byName('usedArticleCondtion'))) setSelN('usedArticleCondtion', 'Good');
+    // Condition=Used makes the mileage REQUIRED — realistic, seeded per client.
+    if (!String((byName('kilometerReading') || {}).value || '').trim()) {
+      const rkm = seededRand((d.id_number || '') + 'km');
+      setN('kilometerReading', String(20000 + Math.round(rkm() * 50) * 500)); // 20 000 – 45 000 km
+    }
     setSelN('repaymentPeriod', '72 Months');
     setSelN('rateIndicator', 'Linked');
     setN('interestRate', '12');
@@ -1253,15 +1282,24 @@
     // Dealer Extras — the two standard VAPs.
     await boardAddExtras([{ desc: 'DELIVERY FEE', amt: 5000 }, { desc: 'LICENCE FEE', amt: 2500 }]);
 
-    // Bank details.
+    // Bank details. The bank select's own change handler resets/refills the branch
+    // fields ASYNCHRONOUSLY (it wrote "Universal" as branch name in testing) — so give
+    // it a beat, then assert the universal branch code and only backfill the branch
+    // name if the handler left it empty.
     setN('customerBankAccountHolder', d.full_name);
     setN('customerBankAccountIDHolder', d.id_number);
     setSelN('customerBankAccountBank', bankOptionName(d.bank_name) || d.bank_name, { fuzzy: true }) || flag('Bank "' + (d.bank_name || '') + '" not matched — pick it manually.');
     setN('customerBankAccountNumber', (d.account_number || '').replace(/\s/g, ''));
     setSelN('customerBankAccountType', ACCOUNT_TYPE[norm(d.account_type)] || d.account_type || 'Savings', { fuzzy: true }) || ensureSelN('customerBankAccountType', /savings|cheque/i);
+    await sleep(800); // let the bank change handler finish resetting branch fields
     const bc = branchCodeFor(d.bank_name);
-    if (bc) setN('customerBankAccountBranchCode', bc); else flag('No branch code for "' + (d.bank_name || '') + '".');
-    setN('customerBankAccountBranchName', bankOptionName(d.bank_name) || d.bank_name || '');
+    if (bc) {
+      setN('customerBankAccountBranchCode', bc);
+      await sleep(800);
+      if (!String((byName('customerBankAccountBranchCode') || {}).value || '').trim()) setN('customerBankAccountBranchCode', bc);
+    } else flag('No branch code for "' + (d.bank_name || '') + '".');
+    const bn = byName('customerBankAccountBranchName');
+    if (bn && !String(bn.value || '').trim()) setVal(bn, bankOptionName(d.bank_name) || d.bank_name || '');
 
     // Sales people — owner rules. F&I info block stays untouched (left open).
     const pickPerson = (name, re) => {
