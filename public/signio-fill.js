@@ -510,9 +510,10 @@
     [/mining|\bmine\b/i, 'MINING'],
     [/medical|clinic|hospital|health/i, 'MEDICAL SERVICES'],
     [/estate agent|property|real estate/i, 'REAL ESTATE'],
-    [/retail|supermarket|shop|store/i, 'RETAIL'],
+    [/retail|supermarket|shop|store|spaza|tuck\s*shop|tavern/i, 'RETAIL'],
     [/manufactur|factory/i, 'MANUFACTURING'],
-    [/repair|workshop|panel beat/i, 'REPAIR SERVICES'],
+    [/repair|workshop|panel beat|mechanic/i, 'REPAIR SERVICES'],
+    [/hair|salon|beauty|barber|spa\b|nails?\b|makeup|tattoo/i, 'PERSONAL SERVICES'],
   ];
 
   // Next-of-Kin Relation: Lumina's value if present; else "Other"; else first real option.
