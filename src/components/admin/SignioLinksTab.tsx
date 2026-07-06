@@ -20,6 +20,7 @@ import {
 const SYSTEM_LABEL: Record<SignioSystem, string> = {
   lightstone: 'One-page (LIGHTSTONE)',
   wizard: '7-step wizard',
+  boardroom: 'Direct Submit (Signing-Boardroom)',
 };
 
 const newId = () => 'link_' + Math.random().toString(36).slice(2, 10);
@@ -104,6 +105,7 @@ const SignioLinksTab = () => {
                     <SelectContent>
                       <SelectItem value="lightstone">{SYSTEM_LABEL.lightstone}</SelectItem>
                       <SelectItem value="wizard">{SYSTEM_LABEL.wizard}</SelectItem>
+                      <SelectItem value="boardroom">{SYSTEM_LABEL.boardroom}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

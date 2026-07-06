@@ -189,41 +189,8 @@
     return provinceFromPostal(d.area_code) || 'Gauteng';
   }
 
-  // ---- LIGHTSTONE expense intelligence (fills by field NAME) ----
-  const EXPENSE_CATS_LS = [
-    { re: /bond|home\s*loan|mortgage/i, name: 'sumExpensesCustomerBondPayment', fixed: true },
-    { re: /\brent\b|lease|accommodation/i, name: 'rentPayment', fixed: true },
-    { re: /rates|water|electric|lights|municipal|utilit/i, name: 'sumExpensesCustomerRates', fixed: true },
-    { re: /vehicle|car\s*(finance|instal|payment)|instal?ment/i, name: 'sumExpensesCustomerVehicleInstallments', fixed: true },
-    { re: /personal\s*loan|micro\s*loan|\bloan\b/i, name: 'sumExpensesCustomerLoanRepayments', fixed: true },
-    { re: /credit\s*card/i, name: 'sumExpensesCustomerCreditCardRepayments', fixed: true },
-    { re: /furniture|appliance/i, name: 'sumExpensesCustomerFurnitureAccounts', fixed: true },
-    { re: /clothing|clothes|\baccounts?\b|retail|store\s*card/i, name: 'sumExpensesCustomerClothingAccounts', fixed: true },
-    { re: /overdraft/i, name: 'sumExpensesCustomerOverdraftRepayments', fixed: true },
-    { re: /policy|insurance|funeral|medical\s*aid/i, name: 'sumExpensesCustomerInsurancePayments', fixed: true },
-    { re: /maintenance|alimony/i, name: 'sumExpensesCustomerMaintenance', fixed: true },
-    { re: /telephone|airtime|\bdata\b|cell\s*phone/i, name: 'sumExpensesCustomerTelephonePayments', fixed: false },
-    { re: /transport|fuel|petrol|diesel|taxi|travel/i, name: 'sumExpensesCustomerTransport', fixed: false },
-  ];
-  function computeExpensesLS(d) {
-    const net = +d.net_salary || +d.gross_salary || 0;
-    const cleaned = String(d.total_expenses || '').replace(/(?<=\d)[ ,](?=\d{3}(\D|$))/g, '');
-    const chunks = cleaned.split(/[,\n;]+|(?<=\d)\s+(?=[A-Za-z])/).map((s) => s.trim()).filter(Boolean);
-    const byField = new Map(); let fixedTotal = 0, variableDeclared = 0;
-    for (const ch of chunks) {
-      const amt = parseAmt(ch); if (!amt) continue;
-      const cat = EXPENSE_CATS_LS.find((c) => c.re.test(ch));
-      if (cat && cat.fixed) { byField.set(cat.name, (byField.get(cat.name) || 0) + amt); fixedTotal += amt; }
-      else variableDeclared += amt; // unlabelled / phone / transport / groceries → variable
-    }
-    let variable = variableDeclared; let adjusted = false;
-    const floor = realisticLiving(net);
-    if (net > 0 && variable < floor) { variable = floor; adjusted = true; }
-    if (net > 0) { const cap = Math.max(0, Math.round(net * 0.92) - fixedTotal); if (cap > 0 && variable > cap) { variable = cap; adjusted = true; } }
-    // Variable living → Food & Entertainment line (the form's general living bucket).
-    byField.set('sumExpensesCustomerFoodAndEntertainment', Math.round(variable));
-    return { byField, total: Math.round(fixedTotal + variable), adjusted };
-  }
+  // (Expense computation for LIGHTSTONE + Direct Submit lives in computeExpensesSmart
+  //  in the BOARDROOM section below — one realistic category split shared by both.)
 
   // Address: split free-text / Google address into line1 + suburb + city + postal.
   function splitAddr(full) {
@@ -275,6 +242,10 @@
     setSelN('customerMaritalStatus', MARITAL[norm(d.marital_status)] || d.marital_status);
     setN('customerEmail', d.email);
     setN('customerMobilePhoneNumber', (d.phone || '').replace(/\D/g, ''));
+    // Employer/work number (Google-resolved when Lumina had none) — fields are a no-op
+    // if this form variant doesn't render them.
+    const wpLS = phoneKind(d.employer_phone || d.workplace_cell_no || '');
+    if (wpLS.num) { setN('customerWorkPhoneNumber', wpLS.num); if (wpLS.kind) setSelN('customerWorkPhoneNumberType', wpLS.kind); }
     setSelN('customerPreferredContactMethod', d.email ? 'Email' : 'Cellphone', { fuzzy: true }) || ensureSelN('customerPreferredContactMethod', /cell|mobile|email/i);
     if (norm(d.marital_status) === 'married') {
       setSelN('customerMaritalContract', MARRIAGE_TYPE[norm(d.marriage_type)] || d.marriage_type, { fuzzy: true });
@@ -348,16 +319,17 @@
     setSelN('customerBankAccountType', ACCOUNT_TYPE[norm(d.account_type)] || d.account_type || 'Savings', { fuzzy: true }) || ensureSelN('customerBankAccountType', /savings|cheque|current/i);
     const bc = branchCodeFor(d.bank_name); if (bc) setN('customerBankAccountBranchCode', bc); else flag('No branch code for "' + (d.bank_name || '') + '".');
 
-    // Expenses
-    const ex = computeExpensesLS(d);
-    // Some expense inputs only appear conditionally (e.g. Rent shows for Tenants). If the
-    // primary field isn't fillable, fall back to its always-present total field.
-    const EXP_FALLBACK = { rentPayment: 'sumExpensesCustomerRent' };
+    // Expenses — the realistic category split (shared with Direct Submit): declared
+    // fixed items stay as declared; everyday living is split across Food/Transport/
+    // Telephone/Household on the low side instead of lumping into one line.
+    const ex = computeExpensesSmart(d);
     for (const [name, amt] of ex.byField) {
       if (amt <= 0) continue;
-      if (!setN(name, Math.round(amt)) && EXP_FALLBACK[name]) setN(EXP_FALLBACK[name], Math.round(amt));
+      // Rent renders as `rentPayment` for Tenants on this form; fall back to the total field.
+      if (name === 'sumExpensesCustomerRent') { setN('rentPayment', Math.round(amt)) || setN(name, Math.round(amt)); continue; }
+      setN(name, Math.round(amt));
     }
-    if (ex.adjusted) flag('Variable living expenses normalised to a realistic level for the income (≈ R' + ex.total + ' total) — adjust if needed.');
+    if (ex.adjusted) flag('Expenses split across realistic categories (≈ R' + ex.total + ' total, low side) — adjust any line if needed.');
 
     // Payment History — all adverse-credit questions answered "No" (standard clean profile).
     ['debtReviewIndicator', 'debtCounselling', 'administrationOrderIndicator', 'DebtAdminHist',
@@ -820,6 +792,488 @@
     alert(head + body + tail);
   }
 
+  /* ══════════════════════════ BOARDROOM (Signio Direct Submit) mode ══════════════════════════
+     lightstone.signio.co.za/Signing-Boardroom — the dealer's own e-application ("Lumina Auto
+     Application Form"). Classic jQuery page (not React) with ~650 NAMED fields (same
+     customer- and sumExpenses-prefixed vocabulary as LIGHTSTONE), suburb/postal resolved via an
+     "Address Lookup" jQuery dialog (#searchSuburb → #selectSuburb → #selectCode → OK) that
+     also sets the hidden region codes, vehicles via the same M&M modal, and a Dealer Extras
+     table (#addExtraButton → extraDescription_N/extraAmtInclVat_N).
+     NEVER touches Print/Forward/Save/Save & Release — the human submits. */
+
+  const squash = (s) => norm(s).replace(/[^a-z0-9]/g, '');
+  function setSelSquash(name, target) {
+    const el = byName(name); if (!el || el.tagName !== 'SELECT' || !target) return false;
+    const o = [...el.options].find((x) => squash(x.text) === squash(target));
+    if (o) { setVal(el, o.value); return true; }
+    return false;
+  }
+  const vis = (el) => !!(el && el.offsetParent);
+  // Deterministic per-client "random" (stable across re-runs of the same client).
+  function seededRand(seed) {
+    let h = 2166136261; const s = String(seed || 'x');
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return () => { h = Math.imul(h ^ (h >>> 15), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); return ((h ^= h >>> 16) >>> 0) / 4294967296; };
+  }
+  // SA number → local 0XXXXXXXXX + Land line vs Cell (06x/07x/081-084 are mobile).
+  function phoneKind(raw) {
+    let p = String(raw || '').replace(/\D/g, '');
+    if (p.startsWith('27')) p = '0' + p.slice(2);
+    if (!/^0\d{9}/.test(p)) return { num: p, kind: null };
+    return { num: p.slice(0, 10), kind: /^0(6\d|7\d|8[1-4])/.test(p) ? 'Cell' : 'Land line' };
+  }
+  // Time at current address: 5–12 years, scaled by the client's age (older → longer),
+  // with a seeded ±1 wobble so it varies per client but is stable on re-fill.
+  function yearsAtAddressFor(d) {
+    const r = seededRand(d.id_number || d.phone || 'lumina');
+    const dob = dobFromId(d.id_number);
+    let age = 32;
+    if (dob) age = new Date().getFullYear() - parseInt(dob.slice(0, 4), 10);
+    const t = Math.min(Math.max((age - 22) / 40, 0), 1); // 22 → young end, 62+ → top end
+    let years = 5 + Math.round(t * 7 + (r() * 2 - 1));
+    years = Math.min(12, Math.max(5, years));
+    return { years, months: Math.floor(r() * 12) };
+  }
+  // Residential Address 1 = street number + name ONLY; Address 2 = the unit/complex/
+  // estate part when the client has one (never the suburb — that comes via the lookup).
+  function splitResLines(full) {
+    const segs = String(full || '').split(/[,\n]/).map((x) => x.trim()).filter(Boolean);
+    if (!segs.length) return { line1: '', line2: '' };
+    const unitRe = /\b(unit|flat|apartment|apt|estate|complex|block|door|room|suite|villa|no\.?\s*\d+[a-z]?$)\b/i;
+    if (segs.length >= 2 && unitRe.test(segs[0]) && !unitRe.test(segs[1])) {
+      return { line1: segs[1].slice(0, 50), line2: segs[0].slice(0, 50) };
+    }
+    const line1 = segs[0].slice(0, 50);
+    const line2 = segs.length >= 2 && unitRe.test(segs[1]) ? segs[1].slice(0, 50) : '';
+    return { line1, line2 };
+  }
+
+  /* ---- smart employment classification (the bank-accuracy fix) ----
+     Derives Status / Client Type / Level / Occupation / Industry / employer name as a
+     CONSISTENT story: self-employed people get "Self-Employed" as employer, Senior
+     Management level and the right professional/non-professional client type;
+     pensioners get Pensioner everywhere; employed people get a level inferred from
+     their actual job title instead of a blanket default. */
+  const PROFESSIONAL_RE = /doctor|dentist|surgeon|lawyer|attorney|advocate|accountant|auditor|engineer|architect|pharmacist|psycholog|optometr|veterinar|actuar|radiolog|physio/;
+  function classifyEmployment(d) {
+    const t = norm(d.employment_type), title = norm(d.job_title || ''), emp = norm(d.employer_name || '');
+    const kind =
+      /self/.test(t) || /self.?employ|own\s+business|business\s+owner|sole\s+(prop|owner|trader)/.test(title + ' ' + emp) ? 'self'
+      : /pension|retir/.test(t + ' ' + title + ' ' + emp) ? 'pensioner'
+      : /student/.test(t + ' ' + title) ? 'student'
+      : /unemploy/.test(t + ' ' + emp) ? 'unemployed'
+      : /contract/.test(t) ? 'contract'
+      : /part[\s_-]?time|^part/.test(t) ? 'part'
+      : 'permanent';
+    const levelFromTitle = () =>
+      /director|owner|\bceo\b|\bcfo\b|\bcoo\b|managing|executive|principal|proprietor/.test(title) ? 'Senior Management'
+      : /manager|manageress|head\s+of|\bhod\b/.test(title) ? 'Management'
+      : /supervisor|foreman|team\s*lead/.test(title) ? 'Supervisor'
+      : /labou?rer|general\s*worker|cleaner|packer|picker|gardener|farm\s*worker|helper/.test(title) ? 'Unskilled Worker'
+      : /operator|driver|machinist|assembler|apprentice|guard|porter|waiter|waitress|barman/.test(title) ? 'Semi-Skilled Worker'
+      : /admin|clerk|cashier|recept|assistant|intern|junior|call\s*cent|teller/.test(title) ? 'Junior Position'
+      : 'Skilled Worker';
+    if (kind === 'self') {
+      const prof = PROFESSIONAL_RE.test(title);
+      return {
+        kind, status: 'Self employed', employerName: 'Self-Employed',
+        clientType: prof ? 'Self Employed(Professional)' : 'Self Employed(Non-professional)',
+        level: 'Senior Management',
+        occupationPrefs: [d.job_title, prof ? 'Self Employed(Professional)' : 'Self Employed(non-professional)', 'Self Employed', 'Sole Owner'],
+        industrySource: [d.industry, d.job_title, d.employer_name].filter(Boolean).join(' '),
+        useResidentialAddress: !(d.business_address_auto || d.employer_address),
+        notes: ['Self-employed: employer "Self-Employed", level Senior Management, client type ' + (prof ? 'Professional' : 'Non-professional') + '.'],
+      };
+    }
+    if (kind === 'pensioner') {
+      return {
+        kind, status: 'Pensioner', employerName: 'Pensioner', clientType: 'Private Individual',
+        level: 'Skilled Worker', occupationPrefs: ['Pensioner', 'Retired'],
+        industrySource: '', useResidentialAddress: true,
+        notes: ['Pensioner: employer/occupation "Pensioner", industry UNKNOWN, employer address = residential. Confirm income is pension.'],
+      };
+    }
+    if (kind === 'student') {
+      return {
+        kind, status: 'Student', employerName: 'Student', clientType: 'Private Individual',
+        level: 'Junior Position', occupationPrefs: ['Student'], industrySource: '',
+        useResidentialAddress: true, notes: ['Student applicant — banks usually need a co-signed/joint application; verify.'],
+      };
+    }
+    if (kind === 'unemployed') {
+      return {
+        kind, status: 'Unemployed', employerName: 'Unemployed', clientType: 'Private Individual',
+        level: 'Unskilled Worker', occupationPrefs: ['Unemployed', 'Housewife'], industrySource: '',
+        useResidentialAddress: true, notes: ['UNEMPLOYED applicant — finance is unlikely to be approved; double-check before submitting.'],
+      };
+    }
+    return {
+      kind, status: kind === 'contract' ? 'Contractual' : kind === 'part' ? 'Part time' : 'Permanent',
+      employerName: d.employer_name, clientType: 'Private Individual', level: levelFromTitle(),
+      occupationPrefs: [d.job_title], industrySource: [d.industry, d.employer_name, d.job_title].filter(Boolean).join(' '),
+      useResidentialAddress: false, notes: [],
+    };
+  }
+
+  /* ---- smart expense split (realistic categories, low side) ----
+     Declared FIXED obligations (rent/bond/vehicle/loans/cards/policies/school…) go to
+     their own lines exactly as declared. Everyday variable living is SPLIT across
+     Food & Entertainment / Transport / Telephone / Household — everyone has these —
+     sized against NET income (low side), never below a small realistic floor, and a
+     modest policy/funeral line is added when no insurance was declared. A client's own
+     number for a category always wins when it's higher than the baseline. */
+  const EXP_FIXED_CATS = [
+    [/bond|home\s*loan|mortgage/i, 'sumExpensesCustomerBondPayment'],
+    [/\brent\b|lease|accommodation/i, 'sumExpensesCustomerRent'],
+    [/rates|water|electric|lights|municipal|utilit/i, 'sumExpensesCustomerRates'],
+    [/vehicle|car\s*(finance|instal|payment)|instal?ment/i, 'sumExpensesCustomerVehicleInstallments'],
+    [/personal\s*loan|micro\s*loan|\bloan\b/i, 'sumExpensesCustomerLoanRepayments'],
+    [/credit\s*card/i, 'sumExpensesCustomerCreditCardRepayments'],
+    [/furniture|appliance/i, 'sumExpensesCustomerFurnitureAccounts'],
+    [/clothing|clothes|\baccounts?\b|retail|store\s*card/i, 'sumExpensesCustomerClothingAccounts'],
+    [/overdraft/i, 'sumExpensesCustomerOverdraftRepayments'],
+    [/policy|insurance|funeral|medical\s*aid/i, 'sumExpensesCustomerInsurancePayments'],
+    [/school|education|tuition|creche|day\s*care|varsity/i, 'sumExpensesCustomerEducationCosts'],
+    [/maintenance|alimony/i, 'sumExpensesCustomerMaintenance'],
+    [/security|armed\s*response/i, 'sumExpensesCustomerSecurity'],
+  ];
+  const EXP_VAR_CATS = [
+    [/telephone|airtime|\bdata\b|cell|wifi|internet/i, 'sumExpensesCustomerTelephonePayments'],
+    [/transport|fuel|petrol|diesel|taxi|uber|travel/i, 'sumExpensesCustomerTransport'],
+    [/food|grocer|entertain|eating|takeaway/i, 'sumExpensesCustomerFoodAndEntertainment'],
+    [/household|cleaning|domestic|dstv|subscript|toiletr/i, 'sumExpensesCustomerHouseholdExpenses'],
+  ];
+  function computeExpensesSmart(d) {
+    const net = +d.net_salary || +d.gross_salary || 0;
+    const round50 = (v) => Math.round(v / 50) * 50;
+    const F = {};
+    const add = (n, a) => { const v = Math.round(a); if (v > 0) F[n] = (F[n] || 0) + v; };
+    // 1) parse the declared summary into fixed lines / per-category variable / loose.
+    const cleaned = String(d.total_expenses || '').replace(/(?<=\d)[ ,](?=\d{3}(\D|$))/g, '');
+    const chunks = cleaned.split(/[,\n;]+|(?<=\d)\s+(?=[A-Za-z])/).map((s) => s.trim()).filter(Boolean);
+    const decVar = {}; let loose = 0, fixedTotal = 0;
+    for (const ch of chunks) {
+      const amt = parseAmt(ch); if (!amt) continue;
+      const fc = EXP_FIXED_CATS.find((c) => c[0].test(ch));
+      if (fc) { add(fc[1], amt); fixedTotal += amt; continue; }
+      const vc = EXP_VAR_CATS.find((c) => c[0].test(ch));
+      if (vc) decVar[vc[1]] = (decVar[vc[1]] || 0) + amt; else loose += amt;
+    }
+    // 2) low-side realistic baselines for the four everyday categories.
+    const pct = (p, lo, hi) => Math.min(Math.max(round50(net * p), lo), hi);
+    const base = net > 0 ? {
+      sumExpensesCustomerFoodAndEntertainment: pct(0.15, 1200, 4500),
+      sumExpensesCustomerTransport: pct(0.085, 600, 2500),
+      sumExpensesCustomerTelephonePayments: pct(0.025, 200, 800),
+      sumExpensesCustomerHouseholdExpenses: pct(0.05, 300, 1500),
+    } : {};
+    const LOW_MIN = { sumExpensesCustomerFoodAndEntertainment: 800, sumExpensesCustomerTransport: 400,
+      sumExpensesCustomerTelephonePayments: 150, sumExpensesCustomerHouseholdExpenses: 200 };
+    // 3) merge: client's own category number wins when higher; a lone unlabelled total
+    //    is distributed across the four categories by baseline weights.
+    const baseSum = Object.values(base).reduce((a, b) => a + b, 0) || 1;
+    let adjusted = false;
+    const varF = {};
+    for (const k of Object.keys(base)) {
+      const dec = decVar[k] || 0;
+      const distributed = loose > 0 ? round50(loose * (base[k] / baseSum)) : 0;
+      varF[k] = Math.max(dec, loose > 0 ? Math.max(distributed, LOW_MIN[k]) : base[k]);
+      if (!dec) adjusted = true;
+    }
+    for (const k of Object.keys(decVar)) if (!(k in varF)) varF[k] = decVar[k];
+    // 4) a modest policy/funeral line when none declared (near-universal in SA).
+    if (net > 0 && !F['sumExpensesCustomerInsurancePayments']) {
+      add('sumExpensesCustomerInsurancePayments', Math.min(Math.max(round50(net * 0.015), 150), 450));
+      adjusted = true;
+    }
+    // 5) affordability guard: fixed + variable stays ≤ ~62% of net (scale variable, keep floors).
+    let varTotal = Object.values(varF).reduce((a, b) => a + b, 0);
+    if (net > 0) {
+      const cap = Math.max(0, Math.round(net * 0.62) - fixedTotal - (F['sumExpensesCustomerInsurancePayments'] || 0));
+      if (cap > 0 && varTotal > cap) {
+        const s = cap / varTotal;
+        for (const k in varF) varF[k] = Math.max(round50(varF[k] * s), 100);
+        adjusted = true;
+      }
+    }
+    for (const k in varF) add(k, varF[k]);
+    const total = Object.values(F).reduce((a, b) => a + b, 0);
+    return { byField: new Map(Object.entries(F)), total, adjusted };
+  }
+
+  // ---- Boardroom Address Lookup dialog (suburb search → suburb pick → POSTAL pick → OK).
+  // The postal-code dropdown (#selectCode) is where the client's actual postal code is
+  // enforced — a suburb name can map to several codes and the wrong one upsets the banks.
+  async function boardAddressLookup(btnId, suburb, postal) {
+    const btn = document.getElementById(btnId); if (!btn) return false;
+    btn.click();
+    const dlg = await waitFor(() => [...document.querySelectorAll('.ui-dialog')].find((x) => vis(x) && /address lookup/i.test(x.innerText)) || null, { timeout: 6000 });
+    if (!dlg) return false;
+    const q = (sel) => dlg.querySelector(sel);
+    const close = () => { const c = dlg.querySelector('.ui-dialog-titlebar-close'); if (c) c.click(); };
+    const resultsIn = (s) => s && s.options.length > 0 && ![...s.options].every((o) => /0 results|no result|^\s*$/i.test(o.text));
+    const doSearch = async (inputSel, btnSel, value) => {
+      if (!value) return false;
+      setVal(q(inputSel), value);
+      q(btnSel).click();
+      return !!(await waitFor(() => (resultsIn(q('#selectSuburb')) ? q('#selectSuburb') : null), { timeout: 7000 }));
+    };
+    let ok = await doSearch('#searchSuburb', '#cmdSearchSuburb', String(suburb || '').trim());
+    if (!ok) ok = await doSearch('#searchPostal', '#cmdSearchPostal', String(postal || '').replace(/\D/g, ''));
+    if (!ok) { close(); return false; }
+    const sSel = q('#selectSuburb');
+    const sOpt = (suburb && [...sSel.options].find((o) => norm(o.text).includes(norm(suburb)))) || sSel.options[0];
+    setVal(sSel, sOpt.value);
+    await sleep(600); // postal codes populate for the chosen suburb
+    const cSel = q('#selectCode');
+    if (cSel && cSel.options.length) {
+      const want = String(postal || '').replace(/\D/g, '');
+      const cOpt = (want && [...cSel.options].find((o) => o.text.replace(/\D/g, '') === want)) || cSel.options[0];
+      if (want && cOpt.text.replace(/\D/g, '') !== want) flag('Postal code ' + want + ' not offered for "' + sOpt.text + '" — took ' + cOpt.text + '; verify.');
+      setVal(cSel, cOpt.value);
+    }
+    await sleep(300);
+    const okBtn = q('#cmdAddressOk'); if (okBtn) okBtn.click();
+    await sleep(500);
+    return true;
+  }
+
+  // ---- Dealer Extras table: ensure a row per {desc, amt} (idempotent on re-runs).
+  async function boardAddExtras(extras) {
+    for (const ex of extras) {
+      const rows = () => [...document.querySelectorAll('select[name^=extraDescription_]')];
+      if (rows().some((s) => squash((s.options[s.selectedIndex] || {}).text) === squash(ex.desc))) continue;
+      let sel = rows().find((s) => !s.value || isPlaceholder((s.options[s.selectedIndex] || {}).text));
+      if (!sel) {
+        const before = rows();
+        const b = document.getElementById('addExtraButton'); if (!b) { flag('Extras: "Add New Extra" button not found — add ' + ex.desc + ' R' + ex.amt + ' manually.'); return; }
+        b.click();
+        await sleep(400);
+        sel = rows().find((s) => !before.includes(s)) || rows()[rows().length - 1];
+      }
+      if (!sel) { flag('Extras: could not create a row for ' + ex.desc + '.'); continue; }
+      const o = [...sel.options].find((x) => squash(x.text) === squash(ex.desc));
+      if (!o) { flag('Extras: option "' + ex.desc + '" not found in the catalogue — pick it manually.'); continue; }
+      setVal(sel, o.value);
+      await sleep(200);
+      const idx = (sel.name.split('_')[1] || '').trim();
+      setN('extraAmtInclVat_' + idx, ex.amt.toFixed(2));
+    }
+  }
+
+  // ---- Vehicle via the M&M modal (same ids as LIGHTSTONE, different opener button).
+  async function boardSelectVehicle(mm) {
+    try {
+      const openBtn = document.getElementById('vehicleLookup_');
+      if (!openBtn) return false;
+      openBtn.click();
+      const search = await waitFor(() => { const s = document.querySelector('#searchMMCode'); return vis(s) ? s : null; }, { timeout: 6000 });
+      if (!search) return false;
+      setVal(search, mm);
+      const sBtn = document.querySelector('#cmdMMCode'); if (sBtn) sBtn.click();
+      await waitFor(() => { const m = document.querySelector('#selectModel'); return m && /\d{6,}/.test(m.value || ''); }, { timeout: 10000 });
+      const okBtn = document.querySelector('#cmdVehicleOk'); if (okBtn) okBtn.click();
+      return !!(await waitFor(() => { const c = byName('mmCode'); return c && (c.value || '').replace(/\D/g, '') === mm; }, { timeout: 6000 }));
+    } catch (e) { console.warn('[Lumina] boardroom vehicle select failed', e); return false; }
+  }
+
+  // Visible still-empty required fields — reported to the human at the end.
+  function boardRequiredGaps() {
+    return [...document.querySelectorAll('input.required,select.required,textarea.required')]
+      .filter((e) => vis(e))
+      .filter((e) => e.tagName === 'SELECT'
+        ? (!e.value || isPlaceholder((e.options[e.selectedIndex] || {}).text))
+        : !String(e.value || '').trim())
+      .map((e) => e.name || e.id).filter(Boolean);
+  }
+
+  async function fillBoardroom(d) {
+    if (!luhnValid(d.id_number)) flag('ID number "' + (d.id_number || '(missing)') + '" is not a valid 13-digit SA ID — fix before submit.');
+    const gender = genderFromId(d.id_number) || (norm(d.gender) === 'male' ? 'Male' : norm(d.gender) === 'female' ? 'Female' : null);
+
+    // Expand the collapsed application form + set the sale type (owner rule: In-House).
+    const expand = [...document.querySelectorAll('input[type=checkbox]')]
+      .find((b) => /expand application/i.test(((b.closest('div,label,span') || {}).innerText) || ''));
+    if (expand && !expand.checked) { expand.click(); await sleep(800); }
+    setSelSquash('typeOfSaleDOC', 'In - house') || setSelN('typeOfSaleDOC', 'In - house') || flag('Type of Sale "In-House" not set — pick it manually.');
+
+    // Identity
+    setN('customerFirstName', d.first_name);
+    if (d.middle_name) setN('customerMiddleName', d.middle_name);
+    setN('customerSurname', d.last_name);
+    setSelN('customerIdType', 'South African Valid ID');
+    setN('customerIdNumber', d.id_number);
+    await sleep(600); // the form derives DOB/gender from the ID on change
+    const dobEl = byName('customerDateOfBirth');
+    if (dobEl && !String(dobEl.value || '').trim()) {
+      const dob = d.date_of_birth || dobFromId(d.id_number);
+      if (dob) setVal(dobEl, String(dob).replace(/\D/g, '').slice(0, 8));
+    }
+    setSelN('customerGender', gender);
+    setSelN('customerTitle', TITLE(gender, d.marital_status));
+    setSelN('customerCountryOfBirth', 'SOUTH AFRICA', { fuzzy: true });
+    setSelN('customerNationality', d.nationality || 'SOUTH AFRICA', { fuzzy: true });
+    setSelN('customerPreferredLanguage', /afr/i.test(d.language || '') ? 'Afrikaans' : 'English');
+    setSelN('customerMaritalStatus', MARITAL[norm(d.marital_status)] || d.marital_status);
+    if (norm(d.marital_status) === 'married') {
+      setSelN('customerMaritalContract', MARRIAGE_TYPE[norm(d.marriage_type)] || d.marriage_type, { fuzzy: true });
+      setN('spouseFirstNames', d.spouse_first_name);
+      setN('spouseSurname', d.spouse_surname);
+    }
+    setSelN('customerGraduate', 'Yes'); // owner rule: always Yes
+    setN('customerEmail', d.email);
+    setN('customerMobilePhoneNumber', (d.phone || '').replace(/\D/g, ''));
+
+    // Work number — the employer number (Google-resolved when Lumina had none),
+    // with the landline/cell type picked from the SA prefix.
+    const wp = phoneKind(d.employer_phone || d.workplace_cell_no || '');
+    if (wp.num && wp.kind) {
+      setSelN('customerWorkPhoneNumberType', wp.kind);
+      setN('customerWorkPhoneNumber', wp.num);
+    } else if (wp.num) {
+      setN('customerWorkPhoneNumber', wp.num);
+      flag('Work number "' + wp.num + '" has an unusual format — pick Land line/Cell yourself.');
+    } else {
+      flag('No employer phone number found — fill Phone Number (W) manually.');
+    }
+
+    // Residential address — street line(s) only; suburb/city/postal via the lookup
+    // dialog (which also sets the hidden region code + enforces the client's postal).
+    const res = splitResLines(d.street_address);
+    setN('customerResidentialAddressLine1', res.line1);
+    if (res.line2) setN('customerResidentialAddressLine2', res.line2);
+    const resOk = await boardAddressLookup('customerResidentialAddressLookup', d.suburb, d.area_code);
+    if (!resOk) flag('Residential suburb lookup failed — click the suburb button and pick ' + (d.suburb || '(suburb)') + ' ' + (d.area_code || '') + '.');
+    const yrs = yearsAtAddressFor(d);
+    setN('customerPeriodAtCurrentAddressYears', yrs.years);
+    setN('customerPeriodAtCurrentAddressMonths', yrs.months);
+    setSelN('sameAsRes', 'Use Residential Address');
+    setSelN('ownerTenantLodger', d.residence_type || 'Tenant', { fuzzy: true }) || ensureSelN('ownerTenantLodger', /tenant|owner/i);
+    if (/flat|apartment/i.test(d.residence_type || '')) setSelN('residentialType', 'Flat');
+    else if (/town\s*house|estate|complex/i.test(d.residence_type || '')) setSelN('residentialType', 'Townhouse');
+
+    // Next of kin (relative address = random real town in the client's own province;
+    // no hidden region code exists for the relative, so a direct write is safe).
+    const kinTokens = String(d.kin_name || '').trim().split(/\s+/).filter(Boolean);
+    setN('relativeFirstNames', d.kin_first_name || kinTokens[0]);
+    setN('relativeSurname', d.kin_surname || kinTokens.slice(1).join(' '));
+    setSelN('relativeRelation', d.kin_relation, { fuzzy: true }) || ensureSelN('relativeRelation', /other|friend|brother|sister/i);
+    if (!d.kin_relation) flag('Next-of-kin relation defaulted — set it if you know it.');
+    setSelN('relativePreferredContactMethod', 'Cellphone');
+    setN('relativeCellphone', (d.kin_contact || '').replace(/\D/g, ''));
+    const relProv = provinceOf(d);
+    const relLoc = rand(PROVINCE_CITIES[relProv] || PROVINCE_CITIES['Gauteng']);
+    setN('relativeAddressLine1', (Math.floor(Math.random() * 98) + 1) + ' ' + rand(STREETS));
+    setN('relativeAddressSuburb', relLoc.suburb);
+    setN('relativeAddressCity', relLoc.city);
+    setN('relativeAddressPostalCode', relLoc.postal);
+
+    // Employment — the smart, bank-consistent selections.
+    const emp = classifyEmployment(d);
+    emp.notes.forEach(flag);
+    setN('employerName', emp.employerName);
+    setSelN('customerEmploymentStatus', emp.status);
+    setSelSquash('customerType', emp.clientType) || setSelN('customerType', emp.clientType, { fuzzy: true });
+    setSelN('employmentLevel', emp.level);
+    let occSet = false;
+    for (const pref of emp.occupationPrefs.filter(Boolean)) {
+      if (setSelN('customerOccupation', pref) || setSelN('customerOccupation', pref, { fuzzy: true })) { occSet = true; break; }
+    }
+    if (!occSet) { ensureSelN('customerOccupation', /general|other|worker|admin/i); flag('Occupation "' + (d.job_title || '(blank)') + '" had no match — generic chosen; verify.'); }
+    let indSet = false;
+    if (emp.industrySource) {
+      for (const [re, opt] of INDUSTRY_MAP) { if (re.test(emp.industrySource)) { indSet = setSelN('employerIndustryType', opt, { fuzzy: false }) || setSelN('employerIndustryType', opt, { fuzzy: true }); if (indSet) break; } }
+      if (!indSet) indSet = !!setSelN('employerIndustryType', d.industry || d.employer_name, { fuzzy: true });
+    }
+    if (!indSet) { setSelN('employerIndustryType', 'UNKNOWN') || ensureSelN('employerIndustryType', /business services/i); if (emp.kind === 'permanent') flag('Employer industry not matched — set to UNKNOWN; pick the right one.'); }
+    setSelN('customerSalaryDay', String(d.salary_day || 25)) || ensureSelN('customerSalaryDay', /^25$/);
+    if (vis(byName('salaryFrequency'))) setSelN('salaryFrequency', 'Monthly');
+    if (vis(byName('RetrenchmentNotifyInd'))) setSelN('RetrenchmentNotifyInd', 'No');
+    if (vis(byName('governmentEmployeeIndicator'))) setSelN('governmentEmployeeIndicator', /government|municipal|sars|saps|dept|state|provincial/i.test(norm(d.employer_name || '')) ? 'Yes' : 'No');
+    if (vis(byName('isBankEmployee'))) setSelN('isBankEmployee', 'No');
+
+    // Employer address — self-employed (no business address) / pensioner / student /
+    // unemployed use the RESIDENTIAL address; everyone else the Google-resolved one.
+    if (emp.useResidentialAddress) {
+      setN('employerAddressLine1', res.line1);
+      const eOk = await boardAddressLookup('employerAddressLookup', d.suburb, d.area_code);
+      if (!eOk) flag('Employer (residential) suburb lookup failed — resolve it via the employer suburb button.');
+      if (emp.kind === 'self') flag('Self-employed with no business address on file — used the residential address as the business address.');
+    } else {
+      const empFull = d.business_address_auto || d.employer_address || '';
+      setN('employerAddressLine1', firstSegment(empFull).slice(0, 50));
+      const empPostal = d.employer_postal_code || (String(empFull).match(/\b\d{4}\b/g) || []).pop() || '';
+      const eOk = await boardAddressLookup('employerAddressLookup', d.employer_suburb, empPostal);
+      if (!eOk) flag('Employer suburb lookup failed — resolve it via the employer suburb button (' + (d.employer_suburb || empPostal || 'no suburb on file') + ').');
+    }
+    const py = String(d.employment_period || '').match(/(\d+)\s*year/i);
+    const pmo = String(d.employment_period || '').match(/(\d+)\s*month/i);
+    setN('customerPeriodAtCurrentEmployerYears', py ? py[1] : (emp.kind === 'pensioner' ? 5 : 1));
+    setN('customerPeriodAtCurrentEmployerMonths', pmo ? pmo[1] : 0);
+
+    // Income + the realistic expense split.
+    if (+d.gross_salary && +d.net_salary && +d.net_salary > +d.gross_salary) flag('Net (' + d.net_salary + ') > Gross (' + d.gross_salary + ') — likely swapped; verify.');
+    setN('sumIncomeCustomerGrossRemuneration', d.gross_salary);
+    setN('addIncomeCustomerNetTakeHomePay', d.net_salary);
+    if (+d.additional_income) setN('addIncomeCustomerOtherIncome', d.additional_income);
+    const ex = computeExpensesSmart(d);
+    for (const [name, amt] of ex.byField) setN(name, Math.round(amt));
+    if (ex.adjusted) flag('Expenses split across realistic categories (≈ R' + ex.total + ' total, low side) — adjust any line if needed.');
+
+    // Payment history — the adverse-credit questions all "No" (fields exist even when
+    // their panel is collapsed). Consents — owner rule: marketing No, insurance-panel
+    // No, every other visible consent question Yes.
+    ['debtReviewIndicator', 'debtCounselling', 'administrationOrderIndicator', 'DebtAdminHist',
+      'previousJudgementIndicator', 'DebtDisp', 'debtSeqOrder'].forEach((n) => setSelN(n, 'No'));
+    setSelN('marketingConsentIndicator', 'No');
+    setSelN('insuranceConsentIndicator', 'No');
+    const consentSkip = new Set(['marketingConsentIndicator', 'insuranceConsentIndicator']);
+    for (const e of document.querySelectorAll('select[name]')) {
+      if (consentSkip.has(e.name) || !vis(e)) continue;
+      if (!/consent|concent|privacydisclosure|disclosure/i.test(e.name)) continue;
+      const cur = norm((e.options[e.selectedIndex] || {}).text);
+      if (cur === 'yes' || cur === 'no') continue;
+      const yes = [...e.options].find((o) => norm(o.text) === 'yes');
+      if (yes) setVal(e, yes.value);
+    }
+
+    // Vehicle — standard quote car via the M&M modal; owner rules: Used, VIN = A's.
+    setSelSquash('articleCondition', 'Used') || setSelN('articleCondition', 'Used', { fuzzy: true });
+    setN('chassisNo', 'AAAAAAAAAAAAAAAAA'); // VIN placeholder per owner rule (17 A's)
+    const vehOk = await boardSelectVehicle('59007082');
+    if (vehOk) setN('purchasePrice', '220000.00');
+    else flag('Vehicle not auto-selected — click "select vehicle", search M&M 59007082, OK, then set Purchase Price 220000.');
+    if (vis(byName('usedArticleCondtion'))) setSelN('usedArticleCondtion', 'Good');
+    setSelN('repaymentPeriod', '72 Months');
+    setSelN('rateIndicator', 'Linked');
+    setN('interestRate', '12');
+    setN('residualPercent', '35');
+    setSelN('financeInitiationFees', 'Yes');
+
+    // Dealer Extras — the two standard VAPs.
+    await boardAddExtras([{ desc: 'DELIVERY FEE', amt: 5000 }, { desc: 'LICENCE FEE', amt: 2500 }]);
+
+    // Bank details.
+    setN('customerBankAccountHolder', d.full_name);
+    setN('customerBankAccountIDHolder', d.id_number);
+    setSelN('customerBankAccountBank', bankOptionName(d.bank_name) || d.bank_name, { fuzzy: true }) || flag('Bank "' + (d.bank_name || '') + '" not matched — pick it manually.');
+    setN('customerBankAccountNumber', (d.account_number || '').replace(/\s/g, ''));
+    setSelN('customerBankAccountType', ACCOUNT_TYPE[norm(d.account_type)] || d.account_type || 'Savings', { fuzzy: true }) || ensureSelN('customerBankAccountType', /savings|cheque/i);
+    const bc = branchCodeFor(d.bank_name);
+    if (bc) setN('customerBankAccountBranchCode', bc); else flag('No branch code for "' + (d.bank_name || '') + '".');
+    setN('customerBankAccountBranchName', bankOptionName(d.bank_name) || d.bank_name || '');
+
+    // Sales people — owner rules. F&I info block stays untouched (left open).
+    const pickPerson = (name, re) => {
+      const el = byName(name); if (!el) return false;
+      const o = [...el.options].find((x) => re.test(x.text));
+      if (o) { setVal(el, o.value); return true; }
+      return false;
+    };
+    pickPerson('salespersonSelect', /dezi/i) || flag('Salesperson "Dezi" not found — pick manually.');
+    pickPerson('rPFAndI', /siobhan/i) || flag('Advising F&I "Siobhan" not found — pick manually.');
+  }
+
   /* ══════════════════════════ mode detection + run ══════════════════════════ */
 
   async function run() {
@@ -830,8 +1284,14 @@
     // set per-link in Admin → Settings → Signio links). Trust the declaration as soon
     // as that form's markers actually mount; if they never do (misconfigured link),
     // fall back to auto-detection below.
+    // STABLE MARKERS — boardroom (Signio Direct Submit): the Dealer Extras
+    // #addExtraButton / [name=typeOfSaleDOC] (it ALSO has customerIdNumber, so it must
+    // be checked BEFORE lightstone); lightstone: [name=customerIdNumber]; wizard: the
+    // id'd step-1 radios.
+    const isBoardroom = () => !!(document.getElementById('addExtraButton') || byName('typeOfSaleDOC'));
     const declared = norm(d.signio_system || '');
-    const declaredMode = /light|single|one/.test(declared) ? 'lightstone'
+    const declaredMode = /board|direct|submit/.test(declared) ? 'boardroom'
+      : /light|single|one/.test(declared) ? 'lightstone'
       : /wizard|step|goa/.test(declared) ? 'wizard' : null;
     let mode = null;
     if (declaredMode) {
@@ -840,25 +1300,33 @@
       // check would CONFIRM a wrong "wizard" declaration and misroute the fill. With
       // stable markers, a wrong declaration just times out and auto-detection below
       // routes it correctly (slower, never broken).
-      mode = await waitFor(() => declaredMode === 'lightstone'
-        ? (byName('customerIdNumber') ? 'lightstone' : null)
-        : (document.getElementById('debtReviewIndicator-yes') ? 'wizard' : null),
+      mode = await waitFor(() => declaredMode === 'boardroom'
+        ? (isBoardroom() ? 'boardroom' : null)
+        : declaredMode === 'lightstone'
+          ? (byName('customerIdNumber') && !isBoardroom() ? 'lightstone' : null)
+          : (document.getElementById('debtReviewIndicator-yes') ? 'wizard' : null),
       { timeout: 15000 });
       if (!mode) flag('Link is configured as "' + declared + '" but that form never appeared — auto-detected instead.');
     }
-    // Auto-detect: LIGHTSTONE exposes named fields; the wizard has id'd Payment History
-    // radios on step 1. Poll ONLY those stable markers — the LIGHTSTONE page also
-    // contains a "Payment History" heading, so a text check inside the poll could
-    // misroute a still-loading LIGHTSTONE page down the wizard path. Text/step
+    // Auto-detect (boardroom first — it shares LIGHTSTONE's field vocabulary). Text/step
     // heuristics run only AFTER the poll times out (e.g. the bookmark is clicked
     // mid-wizard on a later step, where the step-1 radios no longer exist).
     if (!mode) mode = await waitFor(() => {
+      if (isBoardroom()) return 'boardroom';
       if (byName('customerIdNumber')) return 'lightstone';
       if (document.getElementById('debtReviewIndicator-yes')) return 'wizard';
       return null;
     }, { timeout: 15000 }) || (wizStep() !== 'unknown' ? 'wizard' : null);
     if (!mode) { alert('This does not look like a Signio application form (nothing fillable found) — open the form first, then click the bookmark.'); return; }
     if (mode === 'wizard') { await runWizard(d); return; }
+    if (mode === 'boardroom') {
+      try { await fillBoardroom(d); } catch (e) { console.error('[Lumina]', e); flag('Engine error: ' + (e && e.message)); }
+      const gaps = boardRequiredGaps();
+      const gapTxt = gaps.length ? '\n\nStill required (fill these):\n• ' + gaps.join('\n• ') : '';
+      const body = flags.length ? '\n\nCheck:\n• ' + flags.join('\n• ') : '';
+      alert('Lumina auto-fill done (Signio Direct Submit).' + body + gapTxt + '\n\nReview everything, then Save / Save & Release yourself — the filler never submits.');
+      return;
+    }
     try { await fillLightstone(d); } catch (e) { console.error('[Lumina]', e); flag('Engine error: ' + (e && e.message)); }
     const body = flags.length ? '\n\nCheck:\n• ' + flags.join('\n• ') : '';
     alert('Lumina auto-fill done (LIGHTSTONE).' + body + '\n\nVehicle set to the standard quote car (Suzuki Swift 1.2 GL). Now: review any highlighted/empty required fields, tick the declaration, clear the reCAPTCHA, then Submit.');

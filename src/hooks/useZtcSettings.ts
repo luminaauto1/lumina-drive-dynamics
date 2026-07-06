@@ -40,7 +40,7 @@ export const useUpdateEasySocialSettings = () => {
    integration_settings under key 'signio' as config: { links: [...], default_id }.
    The fill engine (public/signio-fill.js) auto-detects the form either way — the
    per-link `system` is passed along as a hint so it locks on faster. */
-export type SignioSystem = 'lightstone' | 'wizard';
+export type SignioSystem = 'lightstone' | 'wizard' | 'boardroom';
 export interface SignioLink {
   id: string;
   label: string;
@@ -63,6 +63,12 @@ export const DEFAULT_SIGNIO_LINKS: SignioLink[] = [
     url: 'https://goa.signio.co.za/ThirdPartyIntegration/?uuid=00000195-23bc-3df6-8b41-6b29efa3f893',
     system: 'wizard',
   },
+  {
+    id: 'boardroom',
+    label: 'Signio Direct Submit',
+    url: 'https://lightstone.signio.co.za/Signing-Boardroom/application/index?deal=0',
+    system: 'boardroom',
+  },
 ];
 
 const sanitizeSignioLinks = (raw: any): SignioLink[] =>
@@ -73,7 +79,7 @@ const sanitizeSignioLinks = (raw: any): SignioLink[] =>
           id: l.id,
           label: typeof l.label === 'string' && l.label.trim() ? l.label.trim() : l.url,
           url: l.url.trim(),
-          system: l.system === 'wizard' ? 'wizard' : 'lightstone',
+          system: l.system === 'wizard' ? 'wizard' : l.system === 'boardroom' ? 'boardroom' : 'lightstone',
         }))
     : [];
 
