@@ -22,6 +22,15 @@ const sanitizeText = (raw: unknown, max = 255): string | null => {
   return value.slice(0, max);
 };
 
+// "Yes ..." -> true, "No ..." -> false, anything else -> null (unknown)
+const yesNo = (raw: unknown): boolean | null => {
+  if (raw === null || raw === undefined) return null;
+  const value = String(raw).trim();
+  if (/^yes\b/i.test(value)) return true;
+  if (/^no\b/i.test(value)) return false;
+  return null;
+};
+
 // Strip non-digits; convert local 0xxxxxxxxx -> 27xxxxxxxxx (ZA)
 const sanitizePhone = (raw: unknown): string | null => {
   if (raw === null || raw === undefined) return null;
@@ -85,12 +94,32 @@ Deno.serve(async (req) => {
   const sourceRaw = sanitizeText(payload.source, 120) ?? "TikTok";
   const buyingPower = sanitizeText(payload.buyingPower ?? payload.buying_power, 200);
 
+  // Separated TikTok form answers (preferred). Legacy scenarios concatenate all
+  // answers into buyingPower; the first Yes/No there is the blacklist answer.
+  const blacklistedRaw = sanitizeText(payload.blacklisted ?? payload.is_blacklisted, 60);
+  const employedRaw = sanitizeText(payload.employed ?? payload.permanently_employed, 120);
+  const licenceRaw = sanitizeText(payload.licence ?? payload.license ?? payload.drivers_licence, 160);
+
   if (!clientName || !sanitizedPhone) {
     console.error("DB_INSERT_ERROR: missing required fields", { clientName, sanitizedPhone });
     return json({ success: true, message: "Processed" }, 200);
   }
 
-  const notes = buyingPower ? `Bank qualification / buying power: ${buyingPower}` : null;
+  let notes: string | null;
+  let formAnswers: Record<string, string> | null = null;
+  let isBlacklisted: boolean | null;
+
+  if (blacklistedRaw || employedRaw || licenceRaw) {
+    formAnswers = {};
+    if (blacklistedRaw) formAnswers.blacklisted = blacklistedRaw;
+    if (employedRaw) formAnswers.employed = employedRaw;
+    if (licenceRaw) formAnswers.licence = licenceRaw;
+    isBlacklisted = yesNo(blacklistedRaw);
+    notes = `Blacklisted: ${blacklistedRaw ?? "?"} | Employed: ${employedRaw ?? "?"} | Licence: ${licenceRaw ?? "?"}`;
+  } else {
+    notes = buyingPower ? `Bank qualification / buying power: ${buyingPower}` : null;
+    isBlacklisted = yesNo(buyingPower);
+  }
 
   // Track whether the DB step completed without a fatal system crash.
   // Duplicate-key / RLS / validation errors are non-fatal — we still dispatch WhatsApp.
@@ -103,6 +132,8 @@ Deno.serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } },
     );
 
+    // notes / form_answers / is_blacklisted are spread conditionally so a repeat
+    // submission (upsert on phone_number) never nulls out data we already have.
     const leadPayload = {
       client_name: clientName,
       client_phone: sanitizedPhone,
@@ -110,10 +141,12 @@ Deno.serve(async (req) => {
       phone_number: sanitizedPhone,
       source: sourceRaw,
       status: "Lead Received",
-      notes,
       platform: "make.com",
       origin: "make_webhook",
       updated_at: new Date().toISOString(),
+      ...(notes ? { notes } : {}),
+      ...(formAnswers ? { form_answers: formAnswers } : {}),
+      ...(isBlacklisted !== null ? { is_blacklisted: isBlacklisted } : {}),
     };
 
     const { data: upsertData, error: upsertError } = await supabase

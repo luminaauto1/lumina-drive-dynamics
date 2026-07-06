@@ -47,7 +47,19 @@ const FIELD_ALIASES = {
   phone: ["phone", "phone_number", "mobile", "mobile_number", "cell", "contact_number"],
   email: ["email", "email_address", "e-mail", "client_email"],
   buyingPower: ["buying_power", "buying power", "bank_qualification", "qualification", "approved_amount", "budget"],
+  blacklisted: ["blacklisted", "is_blacklisted", "are you blacklisted"],
+  employed: ["employed", "permanently_employed", "permanently employed", "employment"],
+  licence: ["licence", "license", "drivers_licence", "drivers_license", "driver's licence", "driver's license"],
 } as const;
+
+// "Yes ..." -> true, "No ..." -> false, anything else -> null (unknown)
+const yesNo = (raw: unknown): boolean | null => {
+  if (raw === null || raw === undefined) return null;
+  const value = String(raw).trim();
+  if (/^yes\b/i.test(value)) return true;
+  if (/^no\b/i.test(value)) return false;
+  return null;
+};
 
 const matchesAlias = (key: string, aliases: readonly string[]) => {
   const normalized = key.toLowerCase().trim();
@@ -80,6 +92,9 @@ function extractLeadFields(formData: unknown) {
     phone: null,
     email: null,
     buyingPower: null,
+    blacklisted: null,
+    employed: null,
+    licence: null,
   };
 
   if (Array.isArray(formData)) {
@@ -203,6 +218,9 @@ Deno.serve(async (req) => {
     payload.email ?? payload.email_address ?? payload.client_email;
   let rawBuyingPower: unknown =
     payload.buying_power ?? payload.buyingPower ?? payload.bank_qualification ?? payload.qualification ?? payload.approved_amount ?? payload.budget;
+  let rawBlacklisted: unknown = payload.blacklisted ?? payload.is_blacklisted;
+  let rawEmployed: unknown = payload.employed ?? payload.permanently_employed;
+  let rawLicence: unknown = payload.licence ?? payload.license ?? payload.drivers_licence;
   // ttclid (TikTok click id) for CAPI attribution — lives in tracking, not the form.
   const rawTtclid: unknown =
     payload.ttclid ?? (payload as any).click_id ?? (payload as any).tt_click_id ??
@@ -218,6 +236,9 @@ Deno.serve(async (req) => {
     rawPhone = rawPhone ?? fields.phone;
     rawEmail = rawEmail ?? fields.email;
     rawBuyingPower = rawBuyingPower ?? fields.buyingPower;
+    rawBlacklisted = rawBlacklisted ?? fields.blacklisted;
+    rawEmployed = rawEmployed ?? fields.employed;
+    rawLicence = rawLicence ?? fields.licence;
   }
 
   const clientName = sanitizeText(rawName, 120);
@@ -225,12 +246,31 @@ Deno.serve(async (req) => {
   const clientEmail = sanitizeText(rawEmail, 255);
   const ttclid = sanitizeText(rawTtclid, 255);
   const buyingPower = sanitizeText(rawBuyingPower, 200);
+  const blacklistedRaw = sanitizeText(rawBlacklisted, 60);
+  const employedRaw = sanitizeText(rawEmployed, 120);
+  const licenceRaw = sanitizeText(rawLicence, 160);
 
   if (!clientName || !clientPhone) {
     return json({ error: "Missing required lead fields (name, phone)" }, 400);
   }
 
-  const notes = buyingPower ? `Bank qualification / buying power: ${buyingPower}` : null;
+  // Separated TikTok form answers (preferred). Legacy payloads concatenate all
+  // answers into buyingPower; the first Yes/No there is the blacklist answer.
+  let notes: string | null;
+  let formAnswers: Record<string, string> | null = null;
+  let isBlacklisted: boolean | null;
+
+  if (blacklistedRaw || employedRaw || licenceRaw) {
+    formAnswers = {};
+    if (blacklistedRaw) formAnswers.blacklisted = blacklistedRaw;
+    if (employedRaw) formAnswers.employed = employedRaw;
+    if (licenceRaw) formAnswers.licence = licenceRaw;
+    isBlacklisted = yesNo(blacklistedRaw);
+    notes = `Blacklisted: ${blacklistedRaw ?? "?"} | Employed: ${employedRaw ?? "?"} | Licence: ${licenceRaw ?? "?"}`;
+  } else {
+    notes = buyingPower ? `Bank qualification / buying power: ${buyingPower}` : null;
+    isBlacklisted = yesNo(buyingPower);
+  }
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -259,6 +299,8 @@ Deno.serve(async (req) => {
     }
   }
 
+  // notes / form_answers / is_blacklisted are spread conditionally so a repeat
+  // submission (upsert on phone_number) never nulls out data we already have.
   const leadData = {
     client_name: clientName,
     client_phone: clientPhone,
@@ -266,11 +308,13 @@ Deno.serve(async (req) => {
     phone_number: clientPhone,
     source: "TikTok",
     status: "new",
-    notes,
     platform: "tiktok",
     origin: "tiktok_lead_ad",
     ...(ttclid ? { ttclid } : {}),
     updated_at: new Date().toISOString(),
+    ...(notes ? { notes } : {}),
+    ...(formAnswers ? { form_answers: formAnswers } : {}),
+    ...(isBlacklisted !== null ? { is_blacklisted: isBlacklisted } : {}),
   };
 
   let leadId: string | null = null;

@@ -1033,9 +1033,11 @@ export type Database = {
           desired_deposit: number | null
           desired_term: number | null
           easysocial_id: string | null
+          form_answers: Json | null
           id: string
           id_number: string | null
           is_archived: boolean | null
+          is_blacklisted: boolean | null
           last_activity_at: string | null
           last_step_name: string | null
           last_step_reached: number | null
@@ -1076,9 +1078,11 @@ export type Database = {
           desired_deposit?: number | null
           desired_term?: number | null
           easysocial_id?: string | null
+          form_answers?: Json | null
           id?: string
           id_number?: string | null
           is_archived?: boolean | null
+          is_blacklisted?: boolean | null
           last_activity_at?: string | null
           last_step_name?: string | null
           last_step_reached?: number | null
@@ -1119,9 +1123,11 @@ export type Database = {
           desired_deposit?: number | null
           desired_term?: number | null
           easysocial_id?: string | null
+          form_answers?: Json | null
           id?: string
           id_number?: string | null
           is_archived?: boolean | null
+          is_blacklisted?: boolean | null
           last_activity_at?: string | null
           last_step_name?: string | null
           last_step_reached?: number | null

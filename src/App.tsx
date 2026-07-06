@@ -53,6 +53,7 @@ const AdminQuoteGenerator = lazy(() => import("./pages/admin/AdminQuoteGenerator
 const AdminOTP = lazy(() => import("./pages/admin/AdminOTP"));
 const AdminReports = lazy(() => import("./pages/admin/AdminReports"));
 const AdminLeadAnalytics = lazy(() => import("./pages/admin/AdminLeadAnalytics"));
+const AdminLeadsCycle = lazy(() => import("./pages/admin/AdminLeadsCycle"));
 const AdminExtraIncomes = lazy(() => import("./pages/admin/AdminExtraIncomes"));
 const AdminCarsToBuy = lazy(() => import("./pages/admin/AdminCarsToBuy"));
 const AdminPartnerPayout = lazy(() => import("./pages/admin/AdminPartnerPayout"));
@@ -145,6 +146,7 @@ const AppLayout = () => {
             <Route path="/admin/vendors" element={<ProtectedRoute section="vendors"><AdminVendors /></ProtectedRoute>} />
             <Route path="/admin/invoices" element={<ProtectedRoute section="invoices"><AdminInvoiceCreator /></ProtectedRoute>} />
             <Route path="/admin/reports/lead-analytics" element={<ProtectedRoute section="reports"><AdminLeadAnalytics /></ProtectedRoute>} />
+            <Route path="/admin/lead-cycle" element={<ProtectedRoute section="leads_cycle"><AdminLeadsCycle /></ProtectedRoute>} />
             <Route path="/admin/extra-incomes" element={<ProtectedRoute section="extra_incomes"><AdminExtraIncomes /></ProtectedRoute>} />
             <Route path="/admin/cars-to-buy" element={<ProtectedRoute section="cars_to_buy"><AdminCarsToBuy /></ProtectedRoute>} />
             <Route path="/admin/analytics" element={<ProtectedRoute section="analytics"><AdminAnalytics /></ProtectedRoute>} />
