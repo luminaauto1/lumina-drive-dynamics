@@ -27,6 +27,12 @@ var DEST_TAB = 'Apps in website';
 var BATCH_SIZE = 40;
 var MAX_ROWS_PER_RUN = 200; // stays well inside Apps Script's 6-minute limit
 
+// Owner decision (2026-07-06): rows above 507 are the pre-website backlog and
+// must NEVER be sent or moved. Only sheet row 507 and below sync. As synced
+// rows are moved out, new arrivals land right below the frozen backlog and
+// keep being picked up. Do not sort or delete rows in the backlog block.
+var START_ROW = 507;
+
 // Sheet column order (A..W). Header typos intentionally match the sheet.
 var COLUMN_KEYS = [
   'fullName', 'surname', 'phone', 'email', 'idNumber', 'qualification',
@@ -60,13 +66,13 @@ function syncNewApplications() {
     if (!source) throw new Error('Tab "' + SOURCE_TAB + '" not found.');
 
     var lastRow = source.getLastRow();
-    if (lastRow < 2) return; // header only
+    if (lastRow < START_ROW) return; // nothing at or below the sync boundary
 
     // Display values: keeps ID numbers / account numbers exactly as shown,
     // no scientific notation or float mangling.
-    var numRows = Math.min(lastRow - 1, MAX_ROWS_PER_RUN);
+    var numRows = Math.min(lastRow - START_ROW + 1, MAX_ROWS_PER_RUN);
     var values = source
-      .getRange(2, 1, numRows, COLUMN_KEYS.length)
+      .getRange(START_ROW, 1, numRows, COLUMN_KEYS.length)
       .getDisplayValues();
 
     var dest = ensureDestSheet_(ss, source);
@@ -83,7 +89,7 @@ function syncNewApplications() {
         var obj = {};
         for (var c = 0; c < COLUMN_KEYS.length; c++) obj[COLUMN_KEYS[c]] = v[c];
         rows.push(obj);
-        sheetRowIndexes.push(2 + start + i);
+        sheetRowIndexes.push(START_ROW + start + i);
       }
       if (rows.length === 0) continue;
 
