@@ -18,14 +18,16 @@ import { useState } from 'react';
 import { Send, ExternalLink, AlertTriangle, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useSignioLinks } from '@/hooks/useZtcSettings';
 
-// Current Signio link: the Lightstone-branded 7-STEP WIZARD on goa.signio.co.za
-// (replaced the LIGHTSTONE single-page form per owner decision, 2026-07-06). The engine
-// (public/signio-fill.js) is DUAL-MODE — it detects which flavour is open and fills it:
-// the wizard by nearest-label + Address Lookup (postal-first), the single-page LIGHTSTONE
-// form by field name — so this URL can be swapped either way without touching the engine.
-const SIGNIO_URL =
-  'https://goa.signio.co.za/ThirdPartyIntegration/?uuid=00000195-23bc-3df6-8b41-6b29efa3f893';
+// The Signio portal link(s) are CONFIGURABLE in Admin → Settings → Signio Links
+// (integration_settings key 'signio'): each link carries the URL plus which fill
+// SYSTEM its form uses (one-page LIGHTSTONE vs 7-step wizard). The engine
+// (public/signio-fill.js) is DUAL-MODE — the declared system is passed in the
+// payload as a hint and the engine auto-detects the form as a fallback, so links
+// can be swapped in Settings without touching any code.
 
 const HANDOFF_PREFIX = 'LUMINA_SIGNIO:';
 
@@ -135,6 +137,10 @@ function computeChecks(app: any, payload: any): string[] {
 
 export function PushToSignioButton({ application }: { application: any }) {
   const [open, setOpen] = useState(false);
+  // Portal links from Settings (falls back to the built-in defaults when unset).
+  const { links, defaultLink, isFetched } = useSignioLinks();
+  const [portalId, setPortalId] = useState<string | null>(null);
+  const chosenLink = links.find((l) => l.id === portalId) ?? defaultLink;
 
   const payload = application ? buildSignioPayload(application) : null;
   const checks = application && payload ? computeChecks(application, payload) : [];
@@ -152,10 +158,13 @@ export function PushToSignioButton({ application }: { application: any }) {
     );
 
   const openSignio = () => {
+    if (!chosenLink) { alert('No Signio link configured — add one in Settings → Signio Links.'); return; }
     const win = window.open('about:blank', '_blank');
     if (!win) { alert('Allow pop-ups for Lumina so it can open Signio.'); return; }
-    win.name = HANDOFF_PREFIX + JSON.stringify(payload);
-    win.location.href = SIGNIO_URL;
+    // The declared per-link system rides along so the fill engine locks on instantly
+    // (it still auto-detects the form as a fallback if the declaration is wrong).
+    win.name = HANDOFF_PREFIX + JSON.stringify({ ...payload, signio_system: chosenLink.system });
+    win.location.href = chosenLink.url;
   };
 
   return (
@@ -179,6 +188,25 @@ export function PushToSignioButton({ application }: { application: any }) {
               <ul className="list-disc pl-4 space-y-0.5">
                 {checks.map((c, i) => <li key={i}>{c}</li>)}
               </ul>
+            </div>
+          )}
+
+          {/* Portal choice — only shown when Settings has more than one link. Gated on
+              isFetched so the built-in fallback list is never offered as pickable
+              portals while the real config is still loading. */}
+          {isFetched && links.length > 1 && (
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Portal</Label>
+              <Select value={chosenLink?.id} onValueChange={setPortalId}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {links.map((l) => (
+                    <SelectItem key={l.id} value={l.id}>
+                      {l.label}{l.id === defaultLink?.id ? ' (default)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 

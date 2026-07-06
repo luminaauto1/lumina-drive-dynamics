@@ -826,13 +826,33 @@
     flags = [];
     const d = fetchData();
     if (!d) { alert('No Lumina application data found.\n\nIn Lumina click "Push to Signio" → "Open Signio form", then click this bookmark on that tab.'); return; }
-    // LIGHTSTONE exposes named fields; the wizard has id'd Payment History radios on
-    // step 1. Poll ONLY those stable markers — the LIGHTSTONE page also contains a
-    // "Payment History" heading, so a text check inside the poll could misroute a
-    // still-loading LIGHTSTONE page down the wizard path. Text/step heuristics run
-    // only AFTER the poll times out (e.g. the bookmark is clicked mid-wizard on a
-    // later step, where the step-1 radios no longer exist).
-    const mode = await waitFor(() => {
+    // The Lumina settings can DECLARE which system a link uses (payload.signio_system,
+    // set per-link in Admin → Settings → Signio links). Trust the declaration as soon
+    // as that form's markers actually mount; if they never do (misconfigured link),
+    // fall back to auto-detection below.
+    const declared = norm(d.signio_system || '');
+    const declaredMode = /light|single|one/.test(declared) ? 'lightstone'
+      : /wizard|step|goa/.test(declared) ? 'wizard' : null;
+    let mode = null;
+    if (declaredMode) {
+      // Confirm the declaration against STABLE markers only. Do NOT consult wizStep()
+      // here — the LIGHTSTONE page also shows "Payment History" text, so a text-based
+      // check would CONFIRM a wrong "wizard" declaration and misroute the fill. With
+      // stable markers, a wrong declaration just times out and auto-detection below
+      // routes it correctly (slower, never broken).
+      mode = await waitFor(() => declaredMode === 'lightstone'
+        ? (byName('customerIdNumber') ? 'lightstone' : null)
+        : (document.getElementById('debtReviewIndicator-yes') ? 'wizard' : null),
+      { timeout: 15000 });
+      if (!mode) flag('Link is configured as "' + declared + '" but that form never appeared — auto-detected instead.');
+    }
+    // Auto-detect: LIGHTSTONE exposes named fields; the wizard has id'd Payment History
+    // radios on step 1. Poll ONLY those stable markers — the LIGHTSTONE page also
+    // contains a "Payment History" heading, so a text check inside the poll could
+    // misroute a still-loading LIGHTSTONE page down the wizard path. Text/step
+    // heuristics run only AFTER the poll times out (e.g. the bookmark is clicked
+    // mid-wizard on a later step, where the step-1 radios no longer exist).
+    if (!mode) mode = await waitFor(() => {
       if (byName('customerIdNumber')) return 'lightstone';
       if (document.getElementById('debtReviewIndicator-yes')) return 'wizard';
       return null;
