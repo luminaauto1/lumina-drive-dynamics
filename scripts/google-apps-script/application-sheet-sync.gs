@@ -53,6 +53,17 @@ function setupTriggers() {
     .create();
 }
 
+// Tab names in the wild carry trailing spaces / odd whitespace; match loosely.
+function findSheet_(ss, name) {
+  var target = String(name).replace(/\s+/g, ' ').trim().toLowerCase();
+  var sheets = ss.getSheets();
+  for (var i = 0; i < sheets.length; i++) {
+    var n = String(sheets[i].getName()).replace(/\s+/g, ' ').trim().toLowerCase();
+    if (n === target) return sheets[i];
+  }
+  return null;
+}
+
 function syncNewApplications() {
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(5000)) return; // another run is busy
@@ -62,8 +73,11 @@ function syncNewApplications() {
     if (!secret) throw new Error('Script property SYNC_SECRET is not set.');
 
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var source = ss.getSheetByName(SOURCE_TAB);
-    if (!source) throw new Error('Tab "' + SOURCE_TAB + '" not found.');
+    var source = findSheet_(ss, SOURCE_TAB);
+    if (!source) {
+      throw new Error('Tab like "' + SOURCE_TAB + '" not found. Tabs: ' +
+        ss.getSheets().map(function (s) { return JSON.stringify(s.getName()); }).join(', '));
+    }
 
     var lastRow = source.getLastRow();
     if (lastRow < START_ROW) return; // nothing at or below the sync boundary
