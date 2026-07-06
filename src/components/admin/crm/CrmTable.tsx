@@ -33,15 +33,15 @@ const LEAD_STATUS_OPTIONS = [
 
 const getStatusColor = (status: string) => {
   const s = (status || '').toLowerCase().trim();
-  if (['new', 'draft'].includes(s)) return 'border-zinc-400 bg-zinc-500/10 text-zinc-300';
+  if (['new', 'draft'].includes(s)) return 'border-zinc-400 bg-zinc-500/10 text-muted-foreground';
   if (['contacted'].includes(s)) return 'border-sky-400 bg-sky-500/10 text-sky-400';
-  if (['in_progress'].includes(s)) return 'border-yellow-400 bg-yellow-500/10 text-yellow-400';
+  if (['in_progress'].includes(s)) return 'border-yellow-400 bg-yellow-500/10 text-yellow-400 [.desk-portal-light_&]:text-yellow-700';
   if (['pending', 'application_submitted', 'needs_revision', 'revision_submitted', 'under_review'].includes(s)) return 'border-orange-500 bg-orange-500/10 text-orange-400';
   if (['pre_approved', 'documents_received', 'vehicle_selected', 'approved'].includes(s)) return 'border-purple-500 bg-purple-500/10 text-purple-400';
   if (['validations_pending', 'validations_complete', 'contract_sent', 'contract_signed'].includes(s)) return 'border-blue-500 bg-blue-500/10 text-blue-400';
   if (['finalized', 'delivered', 'vehicle_delivered', 'converted', 'qualified'].includes(s)) return 'border-emerald-500 bg-emerald-500/10 text-emerald-400';
   if (['lost', 'declined', 'archived'].includes(s)) return 'border-red-500 bg-red-500/10 text-red-400';
-  return 'border-zinc-600 bg-zinc-500/10 text-zinc-300';
+  return 'border-zinc-600 bg-zinc-500/10 text-muted-foreground';
 };
 
 const getRowBorder = (status: string) => getStatusColor(status).split(' ')[0].replace('border-', 'border-l-');
@@ -50,7 +50,7 @@ const thermal = (d: string) => {
   if (!d) return 'text-muted-foreground';
   const days = differenceInDays(new Date(), new Date(d));
   if (days <= 2) return 'text-muted-foreground';
-  if (days <= 5) return 'text-amber-400';
+  if (days <= 5) return 'text-amber-400 [.desk-portal-light_&]:text-amber-700';
   return 'text-red-500 font-semibold';
 };
 
@@ -168,7 +168,7 @@ const CrmTable = ({ records, onOpen, onChanged, selectedIds, onToggleSelect, can
               const status = (isFinance ? rec.appDetails.status : rec.status) || 'new';
               const options = isFinance ? filterStatusOptionsForRole(FINANCE_STATUS_OPTIONS, role, status) : LEAD_STATUS_OPTIONS;
               return (
-                <TableRow key={rec.id} className={`border-l-4 ${getRowBorder(status)} even:bg-white/[0.02] hover:bg-primary/5 cursor-pointer transition-colors`} onClick={() => onOpen(rec)}>
+                <TableRow key={rec.id} className={`border-l-4 ${getRowBorder(status)} even:bg-foreground/[0.02] hover:bg-primary/5 cursor-pointer transition-colors`} onClick={() => onOpen(rec)}>
                   {canSelect && (
                     <TableCell className="px-2" onClick={(e) => e.stopPropagation()}>
                       {!rec.isVirtual && <Checkbox checked={selectedIds.has(rec.id)} onCheckedChange={() => onToggleSelect(rec.id)} className="h-4 w-4" />}

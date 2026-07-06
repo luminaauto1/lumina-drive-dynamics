@@ -433,22 +433,22 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
             </div>
           ) : (
             <div className="space-y-6 pb-10">
-              <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded text-xs text-amber-400 flex items-center gap-2">
+              <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded text-xs text-amber-400 [.desk-portal-light_&]:text-amber-700 flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
                 Review the extracted data below. You can correct any mistakes before generating the PDF.
               </div>
 
               {addressMeta?.requiresManualVerification && (
-                <div className="bg-red-500/10 border border-red-500/40 p-3 rounded text-xs text-red-300 space-y-1">
+                <div className="bg-red-500/10 border border-red-500/40 p-3 rounded text-xs text-red-300 [.desk-portal-light_&]:text-red-700 space-y-1">
                   <div className="flex items-center gap-2 font-semibold">
                     <AlertTriangle className="w-4 h-4 shrink-0" />
                     Address requires manual verification
                   </div>
-                  <p className="text-red-300/80">
+                  <p className="text-red-300/80 [.desk-portal-light_&]:text-red-700/80">
                     Google could not confidently match this address within South Africa. Please confirm the street, suburb, city and postal code below before generating the PDF.
                   </p>
                   {addressMeta.raw && (
-                    <p className="text-red-300/60">
+                    <p className="text-red-300/60 [.desk-portal-light_&]:text-red-700/60">
                       <span className="uppercase tracking-wider text-[10px]">Raw input:</span> {addressMeta.raw}
                     </p>
                   )}
@@ -456,9 +456,9 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
               )}
 
               {addressMeta && !addressMeta.requiresManualVerification && (
-                <div className="bg-emerald-500/10 border border-emerald-500/30 p-3 rounded text-xs text-emerald-300 space-y-1">
+                <div className="bg-emerald-500/10 border border-emerald-500/30 p-3 rounded text-xs text-emerald-300 [.desk-portal-light_&]:text-emerald-700 space-y-1">
                   <div className="font-semibold">Address normalized (ZA-bound)</div>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-emerald-300/80">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-emerald-300/80 [.desk-portal-light_&]:text-emerald-700/80">
                     {addressMeta.street && <div><span className="text-emerald-500/60">Street:</span> {addressMeta.street}</div>}
                     {addressMeta.suburb && <div><span className="text-emerald-500/60">Suburb:</span> {addressMeta.suburb}</div>}
                     {addressMeta.city && <div><span className="text-emerald-500/60">City:</span> {addressMeta.city}</div>}
@@ -469,29 +469,29 @@ export default function WhatsAppParserModal({ open, onOpenChange }: WhatsAppPars
               )}
 
               {workplaceMeta && workplaceMeta.source === "google_places" && !workplaceMeta.requiresManualInput && (
-                <div className="bg-sky-500/10 border border-sky-500/30 p-3 rounded text-xs text-sky-300 space-y-1">
+                <div className="bg-sky-500/10 border border-sky-500/30 p-3 rounded text-xs text-sky-300 [.desk-portal-light_&]:text-sky-700 space-y-1">
                   <div className="font-semibold">Workplace auto-resolved via Google Places</div>
                   {workplaceMeta.match_name && (
-                    <div className="text-sky-300/80"><span className="text-sky-500/60">Match:</span> {workplaceMeta.match_name}</div>
+                    <div className="text-sky-300/80 [.desk-portal-light_&]:text-sky-700/80"><span className="text-sky-500/60">Match:</span> {workplaceMeta.match_name}</div>
                   )}
-                  <div className="text-sky-300/80"><span className="text-sky-500/60">Address:</span> {workplaceMeta.formatted_address}</div>
+                  <div className="text-sky-300/80 [.desk-portal-light_&]:text-sky-700/80"><span className="text-sky-500/60">Address:</span> {workplaceMeta.formatted_address}</div>
                 </div>
               )}
 
               {workplaceMeta && workplaceMeta.requiresManualInput && (parsedData?.employer_name || '').trim() && (
-                <div className="bg-red-500/10 border border-red-500/40 p-3 rounded text-xs text-red-300 space-y-1">
+                <div className="bg-red-500/10 border border-red-500/40 p-3 rounded text-xs text-red-300 [.desk-portal-light_&]:text-red-700 space-y-1">
                   <div className="flex items-center gap-2 font-semibold">
                     <AlertTriangle className="w-4 h-4 shrink-0" />
                     Workplace address requires manual input
                   </div>
-                  <p className="text-red-300/80">
+                  <p className="text-red-300/80 [.desk-portal-light_&]:text-red-700/80">
                     Google Places could not confidently locate "{parsedData?.employer_name}" in South Africa. Please enter the workplace address manually below.
                   </p>
                   {workplaceMeta.query && (
-                    <p className="text-red-300/60"><span className="uppercase tracking-wider text-[10px]">Query:</span> {workplaceMeta.query}</p>
+                    <p className="text-red-300/60 [.desk-portal-light_&]:text-red-700/60"><span className="uppercase tracking-wider text-[10px]">Query:</span> {workplaceMeta.query}</p>
                   )}
                   {(workplaceMeta.api_status || workplaceMeta.api_error) && (
-                    <p className="text-red-300/60">
+                    <p className="text-red-300/60 [.desk-portal-light_&]:text-red-700/60">
                       <span className="uppercase tracking-wider text-[10px]">Google API:</span>{' '}
                       {workplaceMeta.api_status || ''}{workplaceMeta.api_error ? ` — ${workplaceMeta.api_error}` : ''}
                     </p>

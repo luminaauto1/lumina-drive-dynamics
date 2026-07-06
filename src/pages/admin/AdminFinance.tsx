@@ -644,17 +644,17 @@ const AdminFinance = () => {
 
           // F&I-relevant pipeline statuses (workflow stages F&I owns)
           const FNI_PIPELINE: { key: string; label: string; color: string }[] = [
-            { key: 'application_submitted', label: 'App Submitted', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
-            { key: 'ready_to_submit', label: 'Ready to Submit', color: 'bg-emerald-900/30 text-emerald-300 border-emerald-400/50' },
-            { key: 'sent_to_banks', label: 'Sent to Banks', color: 'bg-sky-500/10 text-sky-400 border-sky-500/20' },
-            { key: 'pre_approved', label: 'Pre-Approved', color: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' },
-            { key: 'validations_pending', label: 'Validations Pending', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
-            { key: 'validations_complete', label: 'Validations Complete', color: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' },
-            { key: 'contract_sent', label: 'Contract Sent', color: 'bg-violet-500/10 text-violet-400 border-violet-500/20' },
-            { key: 'contract_signed', label: 'Contract Signed', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
-            { key: 'declined_conditional', label: 'Declined (Cond.)', color: 'bg-orange-500/10 text-orange-400 border-orange-500/20' },
-            { key: 'declined', label: 'Declined', color: 'bg-red-500/10 text-red-400 border-red-500/20' },
-            { key: 'blacklisted', label: 'Blacklisted', color: 'bg-rose-500/10 text-rose-400 border-rose-500/20' },
+            { key: 'application_submitted', label: 'App Submitted', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20 [.desk-portal-light_&]:text-amber-700' },
+            { key: 'ready_to_submit', label: 'Ready to Submit', color: 'bg-emerald-900/30 text-emerald-300 border-emerald-400/50 [.desk-portal-light_&]:bg-emerald-500/10 [.desk-portal-light_&]:text-emerald-700' },
+            { key: 'sent_to_banks', label: 'Sent to Banks', color: 'bg-sky-500/10 text-sky-400 border-sky-500/20 [.desk-portal-light_&]:text-sky-700' },
+            { key: 'pre_approved', label: 'Pre-Approved', color: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20 [.desk-portal-light_&]:text-indigo-700' },
+            { key: 'validations_pending', label: 'Validations Pending', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20 [.desk-portal-light_&]:text-blue-700' },
+            { key: 'validations_complete', label: 'Validations Complete', color: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20 [.desk-portal-light_&]:text-cyan-700' },
+            { key: 'contract_sent', label: 'Contract Sent', color: 'bg-violet-500/10 text-violet-400 border-violet-500/20 [.desk-portal-light_&]:text-violet-700' },
+            { key: 'contract_signed', label: 'Contract Signed', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 [.desk-portal-light_&]:text-emerald-700' },
+            { key: 'declined_conditional', label: 'Declined (Cond.)', color: 'bg-orange-500/10 text-orange-400 border-orange-500/20 [.desk-portal-light_&]:text-orange-700' },
+            { key: 'declined', label: 'Declined', color: 'bg-red-500/10 text-red-400 border-red-500/20 [.desk-portal-light_&]:text-red-700' },
+            { key: 'blacklisted', label: 'Blacklisted', color: 'bg-rose-500/10 text-rose-400 border-rose-500/20 [.desk-portal-light_&]:text-rose-700' },
           ];
 
           let total = 0;
@@ -683,13 +683,13 @@ const AdminFinance = () => {
             <motion.div
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
-              className="w-full bg-[#1A1A1A] border border-zinc-800 rounded-lg p-3 mb-4"
+              className="w-full bg-card border border-border rounded-lg p-3 mb-4"
             >
               <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-500 font-medium">
+                <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-medium">
                   {headerLabel}
                 </p>
-                <span className="text-[10px] text-zinc-500">{total} active app{total === 1 ? '' : 's'}</span>
+                <span className="text-[10px] text-muted-foreground">{total} active app{total === 1 ? '' : 's'}</span>
               </div>
               <div className={`grid grid-cols-2 sm:grid-cols-3 ${isFAndIRole ? 'lg:grid-cols-5 xl:grid-cols-10' : 'lg:grid-cols-5'} gap-2`}>
                 {isFAndIRole
@@ -704,10 +704,17 @@ const AdminFinance = () => {
                     ))
                   : internalOrder.map((key) => {
                       const cfg = INTERNAL_STATUSES[key];
+                      // Light-mode text overrides for the shared chip palette (config file stays dark-first).
+                      const lightText: Record<InternalStatus, string> = {
+                        no_notes: '[.desk-portal-light_&]:text-zinc-600',
+                        note_to_admin: '[.desk-portal-light_&]:text-red-700',
+                        note_to_f_and_i: '[.desk-portal-light_&]:text-emerald-700',
+                        note_to_senior_f_and_i: '[.desk-portal-light_&]:text-sky-700',
+                      };
                       return (
                         <div
                           key={key}
-                          className={`flex items-center justify-between px-3 py-2 rounded-md border ${cfg.color}`}
+                          className={`flex items-center justify-between px-3 py-2 rounded-md border ${cfg.color} ${lightText[key]}`}
                         >
                           <span className="text-[11px] uppercase tracking-wider truncate">{cfg.label}</span>
                           <span className="text-lg font-semibold tabular-nums ml-2">{counts[key]}</span>
@@ -765,7 +772,7 @@ const AdminFinance = () => {
               className={`text-[11px] px-3 py-1 rounded-md transition-colors border ${
                 effectiveView === key
                   ? activeCls
-                  : 'bg-transparent text-zinc-500 border-zinc-800 hover:text-zinc-300'
+                  : 'bg-transparent text-muted-foreground border-border hover:text-foreground'
               }`}
             >
               {label}
@@ -775,18 +782,18 @@ const AdminFinance = () => {
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="w-full bg-[#1A1A1A] border border-zinc-800 rounded-lg p-4 mb-6 flex flex-col gap-2"
+              className="w-full bg-card border border-border rounded-lg p-4 mb-6 flex flex-col gap-2"
             >
               {canToggle && (
-                <div className="flex items-center gap-2 pb-2 mb-1 border-b border-zinc-800/80">
-                  <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 mr-1">View</span>
-                  {toggleBtn('admin', 'Admin', 'bg-red-900/40 text-red-400 border-red-500/50')}
-                  {toggleBtn('senior', 'Senior F&I', 'bg-purple-900/40 text-purple-400 border-purple-500/50')}
-                  {toggleBtn('f_and_i', 'F&I Team', 'bg-emerald-900/40 text-emerald-400 border-emerald-500/50')}
+                <div className="flex items-center gap-2 pb-2 mb-1 border-b border-border">
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mr-1">View</span>
+                  {toggleBtn('admin', 'Admin', 'bg-red-900/40 text-red-400 border-red-500/50 [.desk-portal-light_&]:bg-red-500/10 [.desk-portal-light_&]:text-red-700')}
+                  {toggleBtn('senior', 'Senior F&I', 'bg-purple-900/40 text-purple-400 border-purple-500/50 [.desk-portal-light_&]:bg-purple-500/10 [.desk-portal-light_&]:text-purple-700')}
+                  {toggleBtn('f_and_i', 'F&I Team', 'bg-emerald-900/40 text-emerald-400 border-emerald-500/50 [.desk-portal-light_&]:bg-emerald-500/10 [.desk-portal-light_&]:text-emerald-700')}
                 </div>
               )}
               {feed.length === 0 ? (
-                <p className="text-[11px] text-zinc-500 py-2">No items in this feed.</p>
+                <p className="text-[11px] text-muted-foreground py-2">No items in this feed.</p>
               ) : (
               <>
               <div className="flex items-center justify-between">
@@ -794,7 +801,7 @@ const AdminFinance = () => {
                   <MailWarning className="w-3.5 h-3.5" />
                   {headerLabel}
                 </p>
-                <span className="text-[10px] text-zinc-500">
+                <span className="text-[10px] text-muted-foreground">
                   {feed.length} ready for review
                 </span>
               </div>
@@ -813,8 +820,10 @@ const AdminFinance = () => {
                       ? 'border-purple-500/40 hover:border-purple-400 hover:bg-purple-400/10'
                       : 'border-emerald-500/40 hover:border-emerald-400 hover:bg-emerald-400/10';
                   const textHover = isAdminFeed
-                    ? 'group-hover:text-red-200'
-                    : effectiveView === 'senior' ? 'group-hover:text-purple-200' : 'group-hover:text-emerald-200';
+                    ? 'group-hover:text-red-200 [.desk-portal-light_&]:group-hover:text-red-600'
+                    : effectiveView === 'senior'
+                      ? 'group-hover:text-purple-200 [.desk-portal-light_&]:group-hover:text-purple-600'
+                      : 'group-hover:text-emerald-200 [.desk-portal-light_&]:group-hover:text-emerald-600';
                   const ts = app.status_updated_at || app.updated_at || app.created_at;
                   const formattedDate = ts
                     ? new Date(ts).toLocaleString('en-GB', {
@@ -826,21 +835,21 @@ const AdminFinance = () => {
                     <button
                       key={app.id}
                       onClick={() => focusApplicationRow(app)}
-                      className={`group grid grid-cols-[1fr_auto_auto] md:grid-cols-3 items-center gap-3 px-3 py-2 rounded-md bg-zinc-900/60 border text-left transition-colors ${containerClass}`}
+                      className={`group grid grid-cols-[1fr_auto_auto] md:grid-cols-3 items-center gap-3 px-3 py-2 rounded-md bg-muted/60 border text-left transition-colors ${containerClass}`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0 justify-self-start">
                         <span className={`w-1.5 h-1.5 rounded-full ${dotClass} animate-pulse shrink-0`} />
-                        <span className={`text-sm text-zinc-200 truncate ${textHover}`}>
+                        <span className={`text-sm text-foreground truncate ${textHover}`}>
                           {app.first_name} {app.last_name}
                         </span>
-                        <span className="text-[11px] text-zinc-500 truncate hidden sm:inline">
+                        <span className="text-[11px] text-muted-foreground truncate hidden sm:inline">
                           {subLabel}
                         </span>
                       </div>
-                      <div className="hidden md:flex justify-center text-[11px] text-zinc-500 font-mono tracking-wide whitespace-nowrap">
+                      <div className="hidden md:flex justify-center text-[11px] text-muted-foreground font-mono tracking-wide whitespace-nowrap">
                         {formattedDate}
                       </div>
-                      <span className="text-[10px] uppercase tracking-wider text-zinc-500 shrink-0 justify-self-end whitespace-nowrap">
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0 justify-self-end whitespace-nowrap">
                         {ADMIN_STATUS_LABELS[app.status] || app.status} →
                       </span>
                     </button>
@@ -973,7 +982,7 @@ const AdminFinance = () => {
               />
               <StatTile
                 label="Ready to Submit"
-                value={<span className="text-emerald-300">{activeApps.filter(a => a.status === 'ready_to_submit').length}</span>}
+                value={<span className="text-emerald-300 [.desk-portal-light_&]:text-emerald-600">{activeApps.filter(a => a.status === 'ready_to_submit').length}</span>}
                 hint={<Sub n={todayByStatus('ready_to_submit')} />}
               />
               <StatTile
@@ -994,7 +1003,7 @@ const AdminFinance = () => {
               <StatTile
                 label="Declined"
                 value={<span className="text-red-400">{declinedCount}</span>}
-                hint={<span className={declinedToday > 0 ? 'text-red-300' : 'text-zinc-400'}>+{declinedToday} today</span>}
+                hint={<span className={declinedToday > 0 ? 'text-red-300 [.desk-portal-light_&]:text-red-600' : 'text-muted-foreground'}>+{declinedToday} today</span>}
               />
               <StatTile
                 label="Active"
@@ -1470,7 +1479,7 @@ const AdminFinance = () => {
                   );
                 })}
                 {visibleCount < filteredApplications.length && (
-                  <TableRow ref={loadMoreRef} className="border-white/10 hover:bg-transparent">
+                  <TableRow ref={loadMoreRef} className="border-border hover:bg-transparent">
                     <TableCell colSpan={7} className="py-6 text-center text-xs text-muted-foreground">
                       Loading more… showing {visibleApplications.length} of {filteredApplications.length}
                     </TableCell>
@@ -1705,7 +1714,7 @@ const AdminFinance = () => {
                   <button
                     type="button"
                     onClick={() => handleFinalize('ready_to_submit', { label: 'Ready to Submit', auditVerb: 'Marked Ready to Submit.' })}
-                    className="w-full bg-emerald-900/30 text-emerald-300 border border-emerald-500/50 hover:bg-emerald-800/40 transition-colors font-medium px-4 py-3 rounded-md"
+                    className="w-full bg-emerald-900/30 text-emerald-300 border border-emerald-500/50 hover:bg-emerald-800/40 [.desk-portal-light_&]:bg-emerald-500/10 [.desk-portal-light_&]:text-emerald-700 [.desk-portal-light_&]:hover:bg-emerald-500/20 transition-colors font-medium px-4 py-3 rounded-md"
                   >
                     ✅ Ready to Submit
                   </button>
@@ -1755,11 +1764,11 @@ const AdminFinance = () => {
                             className={[
                               'p-2.5 rounded-sm font-mono text-xs whitespace-pre-wrap border-l-4',
                               roleStyle ? `${roleStyle.border} ${roleStyle.shadow}` : 'border-border/60',
-                              isNewest ? 'bg-yellow-500/10 text-yellow-100' : 'text-muted-foreground bg-background/40',
+                              isNewest ? 'bg-yellow-500/15 text-foreground' : 'text-muted-foreground bg-background/40',
                             ].join(' ')}
                           >
                             {roleStyle && (
-                              <span className={`inline-block mr-2 px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold border ${roleStyle.border} ${roleStyle.text} bg-black/40`}>
+                              <span className={`inline-block mr-2 px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold border ${roleStyle.border} ${roleStyle.text} bg-zinc-900`}>
                                 {roleStyle.label}
                               </span>
                             )}

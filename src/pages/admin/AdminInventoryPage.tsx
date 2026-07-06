@@ -674,7 +674,7 @@ const AdminInventoryPage = () => {
             <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="border-white/10 hover:bg-white/5">
+                <TableRow className="border-border hover:bg-muted/50">
                   <TableHead className="text-muted-foreground">Image</TableHead>
                   <TableHead className="text-muted-foreground">Stock #</TableHead>
                   <TableHead className="text-muted-foreground">Vehicle</TableHead>
@@ -699,7 +699,7 @@ const AdminInventoryPage = () => {
                   const dealInfo = dealMap[vehicle.id];
                   const isSoldLocked = vehicle.status === 'sold' && !!dealInfo;
                   return (
-                    <TableRow key={vehicle.id} className={`border-white/10 hover:bg-white/5 ${isHidden ? 'opacity-50' : ''}`}>
+                    <TableRow key={vehicle.id} className={`border-border hover:bg-muted/50 ${isHidden ? 'opacity-50' : ''}`}>
                       <TableCell>
                         {vehicle.images && vehicle.images[0] ? (
                           <img

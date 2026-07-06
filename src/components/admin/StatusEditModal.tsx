@@ -807,7 +807,7 @@ export function StatusEditModal({
                 <div className="text-sm font-medium">WhatsApp auto-send (on apply)</div>
 
                 {isNotifyOwned ? (
-                  <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 text-[12px] text-amber-300">
+                  <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 text-[12px] text-amber-300 [.desk-portal-light_&]:text-amber-700">
                     This status sends a built-in WhatsApp notification — per-status auto-send is disabled here to prevent double messaging.
                   </div>
                 ) : (

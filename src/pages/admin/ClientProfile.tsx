@@ -23,15 +23,15 @@ const VEHICLE_JOIN =
 
 const statusColors: Record<string, string> = {
   pending: 'bg-muted text-muted-foreground',
-  pre_approved: 'bg-yellow-500/20 text-yellow-400',
-  approved: 'bg-emerald-500/20 text-emerald-400',
-  contract_sent: 'bg-purple-500/20 text-purple-400',
-  contract_signed: 'bg-emerald-500/20 text-emerald-400',
-  finalized: 'bg-emerald-600/20 text-emerald-300',
-  vehicle_delivered: 'bg-amber-500/20 text-amber-400',
+  pre_approved: 'bg-yellow-500/20 text-yellow-400 [.desk-portal-light_&]:text-yellow-600',
+  approved: 'bg-emerald-500/20 text-emerald-400 [.desk-portal-light_&]:text-emerald-700',
+  contract_sent: 'bg-purple-500/20 text-purple-400 [.desk-portal-light_&]:text-purple-700',
+  contract_signed: 'bg-emerald-500/20 text-emerald-400 [.desk-portal-light_&]:text-emerald-700',
+  finalized: 'bg-emerald-600/20 text-emerald-300 [.desk-portal-light_&]:text-emerald-700',
+  vehicle_delivered: 'bg-amber-500/20 text-amber-400 [.desk-portal-light_&]:text-amber-700',
   declined: 'bg-destructive/20 text-destructive',
-  declined_conditional: 'bg-gray-500/20 text-gray-300',
-  lost: 'bg-zinc-800/50 text-zinc-500',
+  declined_conditional: 'bg-gray-500/20 text-gray-300 [.desk-portal-light_&]:text-gray-600',
+  lost: 'bg-zinc-500/15 text-zinc-500',
 };
 
 const vehicleOf = (app: any) => app?.selected_vehicle || app?.linked_vehicle || null;

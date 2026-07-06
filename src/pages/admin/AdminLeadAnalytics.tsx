@@ -799,14 +799,14 @@ const AdminLeadAnalytics = () => {
   // Force light text on dark background — Recharts default tooltip text inherits
   // OS color and renders unreadable against the dark admin theme.
   const tooltipStyle = {
-    backgroundColor: '#111111',
-    border: '1px solid #333333',
+    backgroundColor: 'hsl(var(--card))',
+    border: '1px solid hsl(var(--border))',
     borderRadius: 8,
-    color: '#ffffff',
+    color: 'hsl(var(--foreground))',
     fontSize: 12,
   };
-  const tooltipItemStyle = { color: '#ffffff' };
-  const tooltipLabelStyle = { color: '#aaaaaa', marginBottom: 4 };
+  const tooltipItemStyle = { color: 'hsl(var(--foreground))' };
+  const tooltipLabelStyle = { color: 'hsl(var(--muted-foreground))', marginBottom: 4 };
 
   return (
     <AdminLayout>
@@ -876,14 +876,14 @@ const AdminLeadAnalytics = () => {
             <section className="space-y-4">
               <div className="flex items-end justify-between">
                 <div>
-                  <h2 className="text-xl font-semibold tracking-tight text-white">
+                  <h2 className="text-xl font-semibold tracking-tight text-foreground">
                     TikTok Campaign Performance
                   </h2>
-                  <p className="text-xs text-white/50 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     Lead acquisition & quality from TikTok-sourced traffic
                   </p>
                 </div>
-                <span className="text-[10px] uppercase tracking-widest text-white/40">
+                <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
                   Live · Read-only
                 </span>
               </div>
@@ -896,12 +896,12 @@ const AdminLeadAnalytics = () => {
                 ].map((m) => (
                   <div
                     key={m.label}
-                    className="rounded-xl bg-black/40 border border-white/10 p-5 backdrop-blur-sm hover:border-white/20 transition-colors"
+                    className="rounded-xl bg-card border border-border p-5 backdrop-blur-sm hover:border-foreground/20 transition-colors"
                   >
-                    <p className="text-[11px] uppercase tracking-wider text-white/60">
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
                       {m.label}
                     </p>
-                    <p className="text-3xl font-semibold text-white mt-2 tabular-nums [text-shadow:0_0_24px_rgba(255,255,255,0.15)]">
+                    <p className="text-3xl font-semibold text-foreground mt-2 tabular-nums">
                       {m.value}
                     </p>
                   </div>
@@ -909,7 +909,7 @@ const AdminLeadAnalytics = () => {
               </div>
 
               <div>
-                <p className="text-[11px] uppercase tracking-widest text-white/40 mb-2">
+                <p className="text-[11px] uppercase tracking-widest text-muted-foreground mb-2">
                   Lead Quality Breakdown
                 </p>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -921,12 +921,12 @@ const AdminLeadAnalytics = () => {
                   ].map((m) => (
                     <div
                       key={m.label}
-                      className="rounded-xl bg-black/40 border border-white/10 p-4 backdrop-blur-sm"
+                      className="rounded-xl bg-card border border-border p-4 backdrop-blur-sm"
                     >
-                      <p className="text-[11px] uppercase tracking-wider text-white/60">
+                      <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
                         {m.label}
                       </p>
-                      <p className="text-2xl font-semibold text-white mt-1.5 tabular-nums">
+                      <p className="text-2xl font-semibold text-foreground mt-1.5 tabular-nums">
                         {m.value}
                       </p>
                     </div>
@@ -1075,32 +1075,32 @@ const AdminLeadAnalytics = () => {
               ).length;
               return (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-1">
-                  <div className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4">
+                  <div className="rounded-xl border border-border/60 bg-card/60 backdrop-blur p-4">
                     <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Landings</div>
                     <div className="mt-1 text-2xl font-bold text-foreground">{totalLandings.toLocaleString()}</div>
                     <div className="text-[11px] text-muted-foreground mt-0.5">All form page views</div>
                   </div>
-                  <div className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4">
+                  <div className="rounded-xl border border-border/60 bg-card/60 backdrop-blur p-4">
                     <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Apps Started</div>
                     <div className="mt-1 text-2xl font-bold text-foreground">{totalStarted.toLocaleString()}</div>
                     <div className="text-[11px] text-muted-foreground mt-0.5">Submitted + drafts</div>
                   </div>
                   <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 backdrop-blur p-4">
-                    <div className="text-[11px] uppercase tracking-wider text-emerald-300/80">Total Apps Submitted</div>
-                    <div className="mt-1 text-2xl font-bold text-emerald-400">{totalSubmitted.toLocaleString()}</div>
+                    <div className="text-[11px] uppercase tracking-wider text-emerald-300/80 [.desk-portal-light_&]:text-emerald-700/90">Total Apps Submitted</div>
+                    <div className="mt-1 text-2xl font-bold text-emerald-400 [.desk-portal-light_&]:text-emerald-600">{totalSubmitted.toLocaleString()}</div>
                     <div className="text-[11px] text-muted-foreground mt-0.5">Finalized applications</div>
                   </div>
-                  <div className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4">
+                  <div className="rounded-xl border border-border/60 bg-card/60 backdrop-blur p-4">
                     <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Abandoned</div>
                     <div className="mt-1 text-2xl font-bold text-foreground">{totalDrafts.toLocaleString()}</div>
                     <div className="text-[11px] text-muted-foreground mt-0.5">{completionRate.toFixed(1)}% completion</div>
                   </div>
                   <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 backdrop-blur p-4">
-                    <div className="text-[11px] uppercase tracking-wider text-rose-300/80">Unqualified Dropoffs</div>
-                    <div className="mt-1 text-2xl font-bold text-rose-400">{unqualifiedDropoffs.toLocaleString()}</div>
+                    <div className="text-[11px] uppercase tracking-wider text-rose-300/80 [.desk-portal-light_&]:text-rose-700/90">Unqualified Dropoffs</div>
+                    <div className="mt-1 text-2xl font-bold text-rose-400 [.desk-portal-light_&]:text-rose-600">{unqualifiedDropoffs.toLocaleString()}</div>
                     <div className="text-[11px] text-muted-foreground mt-0.5">Negative flag triggered</div>
                   </div>
-                  <div className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4">
+                  <div className="rounded-xl border border-border/60 bg-card/60 backdrop-blur p-4">
                     <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Engagement Rate</div>
                     <div className="mt-1 text-2xl font-bold text-foreground">{engagementRate.toFixed(1)}%</div>
                     <div className="text-[11px] text-muted-foreground mt-0.5">{landedOnly.toLocaleString()} landed only</div>
@@ -1338,7 +1338,7 @@ const AdminLeadAnalytics = () => {
                 {statusTransitionStats.map((row) => (
                   <div
                     key={row.key}
-                    className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4"
+                    className="rounded-xl border border-border/60 bg-card/60 backdrop-blur p-4"
                   >
                     <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
                       {row.label}

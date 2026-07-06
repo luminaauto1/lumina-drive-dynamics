@@ -512,7 +512,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
                 <div className="space-y-2">
                   <div className="text-[10px] text-amber-500/80 mb-2 font-mono uppercase tracking-wider">Total Vehicles Bought: {pastDeals.length}</div>
                   {pastDeals.map(deal => (
-                    <div key={deal.id} className="bg-gradient-to-r from-amber-950/30 to-black border border-amber-500/20 p-3 rounded-md flex justify-between items-center shadow-[0_0_15px_rgba(245,158,11,0.05)]">
+                    <div key={deal.id} className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-md flex justify-between items-center">
                       <div>
                         <p className="text-sm font-bold text-amber-400">{deal.preferred_vehicle_text || deal.full_name || 'Unknown Vehicle'}</p>
                         <p className="text-[10px] text-muted-foreground font-mono mt-0.5">App ID: {deal.id.slice(0,8)}</p>
@@ -536,7 +536,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
                   <div className="flex justify-between items-center gap-2 mb-1">
                     <span className="text-xs font-bold text-foreground truncate">{app.preferred_vehicle_text || app.full_name || 'Vehicle Pending'}</span>
                     <Select value={app.status || undefined} onValueChange={(v) => requestStatusChange(app, v)} disabled={updateApplication.isPending}>
-                      <SelectTrigger className="h-7 w-auto min-w-[150px] shrink-0 text-[10px] uppercase font-bold tracking-wider bg-emerald-500/15 border-emerald-500/30 text-emerald-300 px-2 gap-1">
+                      <SelectTrigger className="h-7 w-auto min-w-[150px] shrink-0 text-[10px] uppercase font-bold tracking-wider bg-emerald-500/15 border-emerald-500/30 text-emerald-300 [.desk-portal-light_&]:text-emerald-700 px-2 gap-1">
                         <SelectValue placeholder="Set status" />
                       </SelectTrigger>
                       <SelectContent className="max-h-[320px]">
@@ -654,7 +654,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
                           { note: value ? `Follow-up time set to ${value}` : `Follow-up time cleared`, action_type: 'Follow-up Scheduled' }
                         );
                       }}
-                      className={`mt-1 h-7 text-xs ${isOverdue ? 'border-red-500 text-red-300 font-bold' : ''}`}
+                      className={`mt-1 h-7 text-xs ${isOverdue ? 'border-red-500 text-red-500 font-bold' : ''}`}
                     />
                   </div>
                 </div>

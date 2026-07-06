@@ -297,7 +297,7 @@ const WhatsAppTemplatesTab = () => {
           <h2 className="text-lg font-semibold">WhatsApp Notifications</h2>
         </div>
       </div>
-      <div className="flex items-start gap-2 rounded-md border border-blue-500/30 bg-blue-500/5 p-2.5 text-xs text-blue-300">
+      <div className="flex items-start gap-2 rounded-md border border-blue-500/30 bg-blue-500/5 p-2.5 text-xs text-blue-300 [.desk-portal-light_&]:text-blue-700">
         <Info className="w-4 h-4 shrink-0 mt-0.5" />
         <span>
           The message <strong>wording</strong> is a Meta-approved WhatsApp template hosted in EasySocial. Use the toggle to turn each notification on/off

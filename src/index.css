@@ -478,8 +478,24 @@ html.desk-portal-light {
   --desk-accent: 51 100% 50%;        /* #FFD600 */
   --desk-accent-foreground: 0 0% 10%;
   --desk-accent-text: 39 100% 33%;   /* ~#a16207 readable gold on white */
+  /* platinum is near-white (#e5e5e5) for the dark brand surface — invisible on
+     white cards. Flip it to ink so bg-platinum / text-platinum / chart fills
+     stay visible in admin light mode. */
+  --platinum: 240 6% 10%;
 }
 .desk-root.theme-light { background: hsl(var(--background)); color: hsl(var(--foreground)); }
+
+/* .glass-card hardcodes translucent BLACK glass (see @layer components) — built for
+   the dark brand surface. On the light paper background those cards stay dark and
+   unreadable, so in admin light mode they become plain white cards with a hairline
+   border. Matched on the portal marker too, for glass cards inside Radix overlays. */
+.desk-root.theme-light .glass-card,
+html.desk-portal-light .glass-card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  backdrop-filter: none;
+  box-shadow: 0 1px 2px hsl(240 6% 10% / 0.06);
+}
 
 /* Pipeline v2 table — tighten row vertical padding a notch (denser scan) while
    keeping the horizontal rhythm. Higher specificity than the density `tbody td`

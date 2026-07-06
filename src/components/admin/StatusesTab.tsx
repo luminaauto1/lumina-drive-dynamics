@@ -134,7 +134,7 @@ const StatusesTab = () => {
 
   return (
     <div className="space-y-3 max-w-3xl">
-      <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-2.5 text-xs text-amber-300">
+      <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-2.5 text-xs text-amber-300 [.desk-portal-light_&]:text-amber-700">
         <Info className="w-4 h-4 shrink-0 mt-0.5" />
         <span>
           <strong>Finance statuses</strong> have fixed keys (wired into the auto-mailer, WhatsApp notifications and pipeline lanes), but their

@@ -13,7 +13,7 @@ import { ADMIN_STATUS_LABELS, STATUS_OPTIONS } from '@/lib/statusConfig';
 type ViewKey = 'Pending' | 'In Progress' | 'Fee Outstanding' | 'Paid' | 'Declined';
 
 const tabs: { key: ViewKey; label: string; icon: any; tone: string }[] = [
-  { key: 'Pending', label: 'Pending', icon: Clock, tone: 'text-zinc-300' },
+  { key: 'Pending', label: 'Pending', icon: Clock, tone: 'text-muted-foreground' },
   { key: 'In Progress', label: 'In Progress', icon: Activity, tone: 'text-sky-300' },
   { key: 'Fee Outstanding', label: 'Fees Outstanding', icon: AlertCircle, tone: 'text-amber-300' },
   { key: 'Paid', label: 'Paid', icon: CheckCircle2, tone: 'text-emerald-300' },
@@ -22,11 +22,11 @@ const tabs: { key: ViewKey; label: string; icon: any; tone: string }[] = [
 
 const statusBadge = (s: ReferralStatus) => {
   const map: Record<ReferralStatus, string> = {
-    Pending: 'bg-zinc-800/60 text-zinc-300 border-zinc-700',
-    'In Progress': 'bg-sky-950/60 text-sky-300 border-sky-800/60',
-    'Fee Outstanding': 'bg-amber-950/60 text-amber-300 border-amber-800/60',
-    Paid: 'bg-emerald-950/60 text-emerald-300 border-emerald-800/60',
-    Declined: 'bg-rose-950/60 text-rose-300 border-rose-800/60',
+    Pending: 'bg-muted text-muted-foreground border-border',
+    'In Progress': 'bg-sky-950/60 text-sky-300 border-sky-800/60 [.desk-portal-light_&]:bg-sky-500/15 [.desk-portal-light_&]:text-sky-700 [.desk-portal-light_&]:border-sky-500/30',
+    'Fee Outstanding': 'bg-amber-950/60 text-amber-300 border-amber-800/60 [.desk-portal-light_&]:bg-amber-500/15 [.desk-portal-light_&]:text-amber-700 [.desk-portal-light_&]:border-amber-500/30',
+    Paid: 'bg-emerald-950/60 text-emerald-300 border-emerald-800/60 [.desk-portal-light_&]:bg-emerald-500/15 [.desk-portal-light_&]:text-emerald-700 [.desk-portal-light_&]:border-emerald-500/30',
+    Declined: 'bg-rose-950/60 text-rose-300 border-rose-800/60 [.desk-portal-light_&]:bg-rose-500/15 [.desk-portal-light_&]:text-rose-700 [.desk-portal-light_&]:border-rose-500/30',
   };
   return map[s];
 };
@@ -112,14 +112,14 @@ const AdminReferrals = () => {
 
   return (
     <AdminLayout>
-      <div className="min-h-screen bg-black text-zinc-200">
+      <div className="min-h-screen bg-background text-foreground">
         <div className="max-w-7xl mx-auto px-6 py-10 space-y-8">
           <header className="flex items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 text-zinc-500 text-xs uppercase tracking-[0.2em]">
                 <Gift className="h-3.5 w-3.5" /> Referral Suite
               </div>
-              <h1 className="mt-2 text-3xl font-light text-zinc-100">Referrals</h1>
+              <h1 className="mt-2 text-3xl font-light text-foreground">Referrals</h1>
               <p className="text-sm text-zinc-500 mt-1">
                 Track who sent us business. Linked applications auto-flag fees on delivery, and mirror declines.
               </p>
@@ -133,7 +133,7 @@ const AdminReferrals = () => {
           </header>
 
           {/* Segmented filter */}
-          <div className="inline-flex flex-wrap rounded-md border border-zinc-800 bg-zinc-950 p-1">
+          <div className="inline-flex flex-wrap rounded-md border border-border bg-secondary p-1">
             {tabs.map((t) => {
               const active = view === t.key;
               const Icon = t.icon;
@@ -143,7 +143,7 @@ const AdminReferrals = () => {
                   onClick={() => setView(t.key)}
                   className={cn(
                     'flex items-center gap-2 px-4 py-2 text-xs font-medium rounded transition-colors',
-                    active ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300',
+                    active ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
                   <Icon className={cn('h-3.5 w-3.5', active && t.tone)} />
@@ -155,10 +155,10 @@ const AdminReferrals = () => {
           </div>
 
           {/* Table */}
-          <div className="border border-zinc-800 rounded-lg bg-zinc-950/40 overflow-hidden">
+          <div className="border border-border rounded-lg bg-card overflow-hidden">
             <Table>
               <TableHeader>
-                <TableRow className="border-zinc-800 hover:bg-transparent">
+                <TableRow className="border-border hover:bg-transparent">
                   <TableHead className="text-zinc-500 text-xs uppercase tracking-wider">Referrer (Owed)</TableHead>
                   <TableHead className="text-zinc-500 text-xs uppercase tracking-wider">Referee (Buyer)</TableHead>
                   <TableHead className="text-zinc-500 text-xs uppercase tracking-wider">Created</TableHead>
@@ -184,9 +184,9 @@ const AdminReferrals = () => {
                   filtered.map((r: Referral) => {
                     const isRowPending = pendingId === r.id && markPaid.isPending;
                     return (
-                    <TableRow key={r.id} className="border-zinc-800 hover:bg-zinc-900/40 align-top">
+                    <TableRow key={r.id} className="border-border hover:bg-muted/50 align-top">
                       <TableCell className="select-text">
-                        <div className="text-zinc-200 font-medium">{r.referrer_name}</div>
+                        <div className="text-foreground font-medium">{r.referrer_name}</div>
                         <div className="flex items-center gap-1.5 text-xs text-zinc-500 mt-0.5">
                           <Phone className="h-3 w-3" /> {r.referrer_phone}
                         </div>
@@ -197,7 +197,7 @@ const AdminReferrals = () => {
                         )}
                       </TableCell>
                       <TableCell className="select-text">
-                        <div className="text-zinc-200 font-medium">{r.referee_name}</div>
+                        <div className="text-foreground font-medium">{r.referee_name}</div>
                         <div className="flex items-center gap-1.5 text-xs text-zinc-500 mt-0.5">
                           <Phone className="h-3 w-3" /> {r.referee_phone}
                         </div>
@@ -232,7 +232,7 @@ const AdminReferrals = () => {
                       {showLiveCol && (
                         <TableCell className="text-xs">
                           {r.matched_application_id ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded border border-sky-800/60 bg-sky-950/40 text-sky-300">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded border border-sky-800/60 bg-sky-950/40 text-sky-300 [.desk-portal-light_&]:border-sky-500/30 [.desk-portal-light_&]:bg-sky-500/15 [.desk-portal-light_&]:text-sky-700">
                               {labelForStatus(liveStatuses[r.matched_application_id])}
                             </span>
                           ) : (
