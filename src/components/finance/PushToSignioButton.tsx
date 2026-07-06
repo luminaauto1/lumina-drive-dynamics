@@ -19,11 +19,13 @@ import { Send, ExternalLink, AlertTriangle, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
-// New LIGHTSTONE skin (single-page e-application). The engine (public/signio-fill.js) was
-// rewritten to fill this form by field `name` and to fill addresses DIRECTLY (the old fuzzy
-// Address Lookup was the cause of the inaccurate addresses the F&I reported).
+// Current Signio link: the Lightstone-branded 7-STEP WIZARD on goa.signio.co.za
+// (replaced the LIGHTSTONE single-page form per owner decision, 2026-07-06). The engine
+// (public/signio-fill.js) is DUAL-MODE — it detects which flavour is open and fills it:
+// the wizard by nearest-label + Address Lookup (postal-first), the single-page LIGHTSTONE
+// form by field name — so this URL can be swapped either way without touching the engine.
 const SIGNIO_URL =
-  'https://thirdparty.signio.co.za/ThirdPartyIntegration/application?skin=LIGHTSTONE&uuid=0000019e-fdf8-8197-9b9e-d86384f9e897';
+  'https://goa.signio.co.za/ThirdPartyIntegration/?uuid=00000195-23bc-3df6-8b41-6b29efa3f893';
 
 const HANDOFF_PREFIX = 'LUMINA_SIGNIO:';
 
