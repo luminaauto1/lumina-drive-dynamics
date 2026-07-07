@@ -48,8 +48,15 @@ Deno.serve(async (req) => {
   const force = await req.json().then((b) => b?.force === true).catch(() => false);
 
   try {
-    const { data: links } = await svc.from("taskos_telegram_links")
+    const { data: allLinks } = await svc.from("taskos_telegram_links")
       .select("user_id, telegram_chat_id").eq("is_active", true);
+    // Owner's rule: only ADMIN users get the pre-approval doc-chase digest. Senior
+    // F&I (and other staff) have TaskOS access, but this specific reminder is the
+    // admin's chase list — so filter linked users down to the admin role only.
+    const { data: adminRoleRows } = await svc.from("user_roles")
+      .select("user_id").eq("role", "admin");
+    const adminIds = new Set((adminRoleRows ?? []).map((r: any) => r.user_id));
+    const links = (allLinks ?? []).filter((l: any) => adminIds.has(l.user_id));
     const { data: settingsRows } = await svc.from("taskos_user_settings").select("user_id, timezone, settings");
     const settingsByUser = new Map<string, any>();
     for (const s of settingsRows ?? []) settingsByUser.set(s.user_id, s);
