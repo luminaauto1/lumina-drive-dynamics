@@ -1,0 +1,357 @@
+/* ============================================================================
+   Quotation document — Makhulu Holdings (Pty) Ltd t/a Lumina Auto.
+   Scoped to .quote-doc. Single A4 portrait page. Obsidian header/footer bands
+   with print-color-adjust:exact. Montserrat is loaded site-wide (do NOT @import).
+   ========================================================================== */
+.quote-doc{
+  --obsidian:#0B0B0C;
+  --charcoal:#1C1C1E;
+  --ink:#141416;
+  --grey:#8A8A8A;
+  --grey-band:#9A9A9C;      /* muted text on obsidian bands */
+  --hair:#E5E5E5;           /* hairline dividers */
+  --rule:#111114;           /* dark section rules */
+  --paper:#FFFFFF;
+}
+
+.quote-doc *{margin:0;padding:0;box-sizing:border-box;}
+
+.quote-doc{
+  background:#3A3A3C;
+  font-family:'Montserrat',Arial,Helvetica,sans-serif;
+  color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+  text-rendering:geometricPrecision;
+}
+
+/* ---- A4 sheet ---- */
+.quote-doc .page{
+  width:210mm;
+  min-height:297mm;
+  background:var(--paper);
+  margin:14px auto;
+  position:relative;
+  box-shadow:0 4px 24px rgba(0,0,0,.4);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+
+/* ============================================================ OBSIDIAN HEADER */
+.quote-doc .q-head{
+  background:var(--obsidian);
+  color:#fff;
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  padding:9mm 15mm 8mm;
+  -webkit-print-color-adjust:exact;
+  print-color-adjust:exact;
+}
+.quote-doc .q-head-left{max-width:58%;}
+.quote-doc .q-wordmark{line-height:1;margin-bottom:9px;white-space:nowrap;}
+.quote-doc .q-wordmark .lm{
+  font-weight:800;
+  font-size:26px;
+  letter-spacing:.30em;
+}
+.quote-doc .q-wordmark .au{
+  font-weight:400;
+  font-size:26px;
+  letter-spacing:.30em;
+  color:#9A9A9C;
+}
+.quote-doc .q-co{
+  font-size:9.5px;
+  line-height:1.6;
+  color:#9A9A9C;
+  font-weight:400;
+  letter-spacing:.015em;
+}
+
+.quote-doc .q-head-right{
+  text-align:right;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+}
+.quote-doc .q-quotation{
+  font-weight:400;
+  font-size:38px;
+  letter-spacing:.24em;
+  padding-left:.24em;         /* balance the trailing tracking */
+  color:#fff;
+  margin-bottom:13px;
+  white-space:nowrap;
+}
+.quote-doc .q-meta{font-size:10px;}
+.quote-doc .q-meta-row{
+  display:flex;
+  justify-content:flex-end;
+  align-items:baseline;
+  gap:9px;
+  margin-top:6px;
+}
+.quote-doc .q-meta-row .ml{color:#9A9A9C;font-weight:400;letter-spacing:.02em;}
+.quote-doc .q-meta-row .mv{color:#fff;font-weight:700;letter-spacing:.04em;}
+
+/* ==================================================================== BODY */
+.quote-doc .q-body{
+  padding:8mm 15mm 6mm;
+  flex:1;
+  display:flex;
+  flex-direction:column;
+}
+
+/* tracked uppercase heading + dark rule */
+.quote-doc .q-h{
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.24em;
+  text-transform:uppercase;
+  color:var(--ink);
+  padding-bottom:7px;
+  border-bottom:1px solid var(--rule);
+}
+
+/* --- label/value definition rows (label left grey, value right bold) --- */
+.quote-doc .q-dl{margin-top:4px;}
+.quote-doc .q-dl-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  gap:12px;
+  padding:7px 0;
+  border-bottom:1px solid var(--hair);
+}
+.quote-doc .q-dl-row:last-child{border-bottom:none;}
+.quote-doc .q-dl-row .k{
+  font-size:9px;
+  font-weight:600;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--grey);
+  white-space:nowrap;
+}
+.quote-doc .q-dl-row .v{
+  font-size:12px;
+  font-weight:700;
+  text-align:right;
+  color:var(--ink);
+  line-height:1.3;
+}
+
+/* ROW 1 — client details / sale summary */
+.quote-doc .q-row1{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:36px;
+  margin-bottom:14px;
+}
+
+/* ---- VEHICLE DETAILS ---- */
+.quote-doc .q-vtitle{
+  margin:10px 0 11px;
+  letter-spacing:.005em;
+  line-height:1.1;
+}
+.quote-doc .q-vtitle .yr{font-weight:400;font-size:22px;color:#9A9A9C;margin-right:8px;}
+.quote-doc .q-vtitle .md{font-weight:700;font-size:22px;color:var(--ink);}
+
+.quote-doc .q-vgrid{
+  display:grid;
+  grid-template-columns:40% 1fr;
+  gap:28px;
+  align-items:start;
+}
+
+/* image box (cover-fit) / no-image placeholder */
+.quote-doc .q-img{
+  width:100%;
+  aspect-ratio:4 / 3;
+  background:var(--charcoal);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  -webkit-print-color-adjust:exact;
+  print-color-adjust:exact;
+}
+.quote-doc .q-img > img{width:100%;height:100%;object-fit:cover;display:block;}
+.quote-doc .q-img-ph{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:16px;
+  width:100%;
+  height:100%;
+}
+.quote-doc .q-img-ph svg{width:58%;height:auto;opacity:.9;}
+.quote-doc .q-img-ph .wm{
+  font-size:9px;
+  letter-spacing:.42em;
+  padding-left:.42em;
+  color:#4C4C4F;
+  font-weight:500;
+}
+.quote-doc .q-cap{
+  font-size:8px;
+  color:var(--grey);
+  line-height:1.55;
+  margin-top:8px;
+  max-width:94%;
+}
+
+/* two-sub-column spec grid */
+.quote-doc .q-spec{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  column-gap:28px;
+}
+
+/* ROW 2 — accessories / vaps + comments / totals + rep */
+.quote-doc .q-row2{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:36px;
+  margin-top:16px;
+  flex:1;
+}
+.quote-doc .q-col{display:flex;flex-direction:column;}
+
+/* mini-table (accessories, value added products) */
+.quote-doc .q-tbl-head{
+  display:flex;
+  justify-content:space-between;
+  font-size:9px;
+  font-weight:600;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--grey);
+  padding-bottom:7px;
+  border-bottom:1px solid var(--rule);
+}
+.quote-doc .q-tbl-row{
+  display:flex;
+  justify-content:space-between;
+  gap:14px;
+  padding:8px 0;
+  border-bottom:1px solid var(--hair);
+  font-size:11px;
+}
+.quote-doc .q-tbl-row .desc{color:var(--ink);font-weight:500;line-height:1.35;}
+.quote-doc .q-tbl-row .amt{font-weight:600;text-align:right;white-space:nowrap;}
+.quote-doc .q-tbl-nett{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  gap:14px;
+  padding:10px 0 0;
+}
+.quote-doc .q-tbl-nett .lbl{
+  font-size:9px;
+  font-weight:700;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--ink);
+}
+.quote-doc .q-tbl-nett .amt{font-size:12px;font-weight:700;text-align:right;white-space:nowrap;}
+
+/* totals stack */
+.quote-doc .q-totals{margin-top:30px;}
+.quote-doc .q-tot-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  gap:14px;
+  padding:9px 0;
+  border-bottom:1px solid var(--hair);
+}
+.quote-doc .q-tot-row .lbl{
+  font-size:9px;
+  font-weight:600;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--grey);
+}
+.quote-doc .q-tot-row .amt{font-size:11px;font-weight:600;text-align:right;white-space:nowrap;color:var(--ink);}
+.quote-doc .q-tot-row.strong .lbl{color:var(--ink);font-weight:700;}
+.quote-doc .q-tot-row.strong .amt{font-weight:700;}
+
+/* obsidian TOTAL DUE band */
+.quote-doc .q-totaldue{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background:var(--obsidian);
+  color:#fff;
+  padding:14px 16px;
+  margin-top:12px;
+  -webkit-print-color-adjust:exact;
+  print-color-adjust:exact;
+}
+.quote-doc .q-totaldue .lbl{
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:.22em;
+  text-transform:uppercase;
+}
+.quote-doc .q-totaldue .amt{font-size:20px;font-weight:700;letter-spacing:.02em;white-space:nowrap;}
+
+/* comments */
+.quote-doc .q-comments-wrap{margin-top:30px;}
+.quote-doc .q-comments{
+  font-size:10.5px;
+  line-height:1.75;
+  color:var(--ink);
+  margin-top:12px;
+  white-space:pre-line;
+}
+
+/* sales representative signature block (bottom-left) */
+.quote-doc .q-rep{margin-top:auto;padding-top:20px;}
+.quote-doc .q-rep .sig{
+  border-top:1px solid var(--rule);
+  width:78%;
+  margin-bottom:9px;
+}
+.quote-doc .q-rep .role{
+  font-size:9px;
+  font-weight:600;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--grey);
+}
+.quote-doc .q-rep .name{font-size:12px;font-weight:700;margin-top:6px;}
+.quote-doc .q-rep .cell{font-size:9.5px;color:var(--grey);margin-top:3px;}
+
+/* =========================================================== OBSIDIAN FOOTER */
+.quote-doc .q-foot{
+  background:var(--obsidian);
+  color:var(--grey-band);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:20px;
+  padding:11px 15mm;
+  font-size:9px;
+  letter-spacing:.015em;
+  margin-top:auto;
+  -webkit-print-color-adjust:exact;
+  print-color-adjust:exact;
+}
+.quote-doc .q-foot .r{text-align:right;white-space:nowrap;}
+
+/* ==================================================================== PRINT */
+@page{size:A4;margin:0;}
+@media print{
+  .quote-doc{background:#fff;}
+  .quote-doc .page{
+    margin:0;
+    box-shadow:none;
+    width:210mm;
+    min-height:297mm;
+    page-break-after:avoid;
+  }
+}

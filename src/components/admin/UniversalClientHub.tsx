@@ -25,7 +25,9 @@ import { Clock, Car, User, FileText, Calculator, Copy, Check, Plus, X, Eye, Trop
 import { formatPrice } from '@/lib/formatters';
 import LiveCallCopilot from './LiveCallCopilot';
 import OTPModal from './OTPModal';
-import { FileSignature } from 'lucide-react';
+import { FileSignature, ReceiptText } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { quoteBuilderPath } from '@/lib/adminRoutes';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -53,6 +55,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
   const [otpOpen, setOtpOpen] = useState(false);
   const [otpApp, setOtpApp] = useState<any | null>(null);
   const [otpVehicle, setOtpVehicle] = useState<any | null>(null);
+  const navigate = useNavigate();
   // Shared status-change path: fires the same side-effects as the Finance page
   // (client emails / WhatsApp / EasySocial tag sync / status_history).
   const updateApplication = useUpdateFinanceApplication();
@@ -586,13 +589,21 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
                       </>
                     );
                   })()}
-                  <div className="mt-3 flex">
+                  <div className="mt-3 flex gap-2">
                     <Button
                       onClick={() => openOtpForApp(app)}
                       size="sm"
                       className="h-7 px-2.5 text-[10px] gap-1.5 bg-amber-500 hover:bg-amber-600 text-black font-semibold"
                     >
                       <FileSignature className="w-3 h-3" /> Generate OTP
+                    </Button>
+                    <Button
+                      onClick={() => navigate(quoteBuilderPath(app.id))}
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2.5 text-[10px] gap-1.5"
+                    >
+                      <ReceiptText className="w-3 h-3" /> Quote
                     </Button>
                   </div>
                 </div>

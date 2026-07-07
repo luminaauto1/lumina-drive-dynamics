@@ -5,12 +5,12 @@ import { Helmet } from 'react-helmet-async';
 import { 
   ArrowLeft, User, MapPin, Building, Wallet, Users, Phone, Mail, 
   MessageCircle, Car, Plus, X, Search, FileText, CheckCircle, AlertTriangle, Copy, Check,
-  Download, PartyPopper, Edit2, Save, Building2, FileSignature, Share2, FileDown
+  Download, PartyPopper, Edit2, Save, Building2, FileSignature, Share2, FileDown, ReceiptText
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import AdminLayout from '@/components/admin/AdminLayout';
 import PageHeader from '@/components/admin/PageHeader';
-import { ADMIN_ROUTES } from '@/lib/adminRoutes';
+import { ADMIN_ROUTES, quoteBuilderPath } from '@/lib/adminRoutes';
 import FinancePodiumModal from '@/components/admin/FinancePodiumModal';
 import FinalizeDealModal from '@/components/admin/FinalizeDealModal';
 import { DealExpensesSection } from '@/components/admin/DealExpensesSection';
@@ -929,6 +929,17 @@ const AdminDealRoom = () => {
                     >
                       <FileSignature className="w-4 h-4 mr-1 md:mr-2" />
                       <span className="hidden sm:inline">Create</span> OTP
+                    </Button>
+                  )}
+                  {application?.id && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(quoteBuilderPath(application.id))}
+                      className="text-xs md:text-sm"
+                    >
+                      <ReceiptText className="w-4 h-4 mr-1 md:mr-2" />
+                      Quote
                     </Button>
                   )}
                   {/* Copy Upload Link for pre_approved */}

@@ -38,6 +38,11 @@ export interface DocumentSettings {
   otpDefaultDeliveryFee: number;
   otpDefaultLicensing: number;
   otpLines: OtpLineToggles; // which fee lines are enabled by default
+  // Quote (Quotation)
+  quotePrefix: string; // ref prefix, e.g. "LA-Q-" (ref = prefix + NNNN, NO year)
+  quoteNextNumber: number; // next sequence number
+  quoteValidityDays: number; // how long a quote stays valid
+  quoteSalesExecutive: string; // default sales executive on new quotes
   // Deals automation
   // When ON, marking a finance application "Contract Signed" auto-creates a DRAFT
   // deal_records row so the deal appears in Deal Desk ready to be finalized.
@@ -118,6 +123,10 @@ export const DEFAULT_DOCUMENT_SETTINGS: DocumentSettings = {
   otpDefaultDeliveryFee: 0,
   otpDefaultLicensing: 0,
   otpLines: DEFAULT_LINE_TOGGLES,
+  quotePrefix: 'LA-Q-',
+  quoteNextNumber: 1,
+  quoteValidityDays: 7,
+  quoteSalesExecutive: '',
   autoCreateDealOnContractSigned: false,
   bankBranches: DEFAULT_BANK_BRANCHES,
   navConfig: {},
@@ -183,4 +192,16 @@ export const consumeOtpNumber = async (current: DocumentSettings): Promise<strin
     await (supabase as any).from('site_settings').update({ document_settings: merged }).eq('id', row.id);
   }
   return `${current.otpPrefix || 'OTP-'}${year}-${String(num).padStart(4, '0')}`;
+};
+
+/** Returns the quote reference to use now (e.g. LA-Q-0147 — 4-digit, NO year) and bumps the stored counter. */
+export const consumeQuoteNumber = async (current: DocumentSettings): Promise<string> => {
+  const num = current.quoteNextNumber || 1;
+  const { data: row } = await (supabase as any)
+    .from('site_settings').select('id, document_settings').limit(1).maybeSingle();
+  if (row?.id) {
+    const merged = { ...DEFAULT_DOCUMENT_SETTINGS, ...(row.document_settings || {}), quoteNextNumber: num + 1 };
+    await (supabase as any).from('site_settings').update({ document_settings: merged }).eq('id', row.id);
+  }
+  return `${current.quotePrefix || 'LA-Q-'}${String(num).padStart(4, '0')}`;
 };
