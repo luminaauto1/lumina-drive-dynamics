@@ -10,7 +10,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import AdminLayout from '@/components/admin/AdminLayout';
 import PageHeader from '@/components/admin/PageHeader';
-import { ADMIN_ROUTES } from '@/lib/adminRoutes';
+import { ADMIN_ROUTES, quoteBuilderPath } from '@/lib/adminRoutes';
 import FinancePodiumModal from '@/components/admin/FinancePodiumModal';
 import FinalizeDealModal from '@/components/admin/FinalizeDealModal';
 import { DealExpensesSection } from '@/components/admin/DealExpensesSection';
@@ -935,7 +935,7 @@ const AdminDealRoom = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => navigate(`/admin/quote?app=${application.id}`)}
+                      onClick={() => navigate(quoteBuilderPath(application.id))}
                       className="text-xs md:text-sm"
                     >
                       <ReceiptText className="w-4 h-4 mr-1 md:mr-2" />

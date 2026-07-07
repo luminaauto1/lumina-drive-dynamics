@@ -57,3 +57,39 @@ $$;
 drop trigger if exists quotes_touch on public.quotes;
 create trigger quotes_touch before update on public.quotes
 for each row execute function public.quotes_touch_updated_at();
+
+-- ============================================================================
+-- Storage bucket for Quote Builder vehicle images.
+-- Mirrors the existing public `vehicle-images` bucket + storage.objects RLS
+-- (see 20251230134626_...sql), but grants authenticated staff write access —
+-- consistent with the quotes table policies above — and keeps SELECT public so
+-- supabase.storage.getPublicUrl() renders in the printed quotation document.
+-- Idempotent: ON CONFLICT DO NOTHING + DROP POLICY IF EXISTS.
+-- ============================================================================
+insert into storage.buckets (id, name, public)
+values ('quote-vehicle-images', 'quote-vehicle-images', true)
+on conflict (id) do nothing;
+
+drop policy if exists "Anyone can view quote vehicle images" on storage.objects;
+create policy "Anyone can view quote vehicle images"
+on storage.objects
+for select
+using (bucket_id = 'quote-vehicle-images');
+
+drop policy if exists "Staff can upload quote vehicle images" on storage.objects;
+create policy "Staff can upload quote vehicle images"
+on storage.objects
+for insert to authenticated
+with check (bucket_id = 'quote-vehicle-images');
+
+drop policy if exists "Staff can update quote vehicle images" on storage.objects;
+create policy "Staff can update quote vehicle images"
+on storage.objects
+for update to authenticated
+using (bucket_id = 'quote-vehicle-images');
+
+drop policy if exists "Staff can delete quote vehicle images" on storage.objects;
+create policy "Staff can delete quote vehicle images"
+on storage.objects
+for delete to authenticated
+using (bucket_id = 'quote-vehicle-images');

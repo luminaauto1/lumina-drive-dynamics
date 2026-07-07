@@ -26,7 +26,7 @@ const validity = (base: Date, days: number) => {
   until.setDate(base.getDate() + (Number.isFinite(days) ? days : 0));
   return {
     valid_until: addDaysDate(days, base),
-    valid_until_iso: until.toISOString().slice(0, 10),
+    valid_until_iso: `${until.getFullYear()}-${String(until.getMonth() + 1).padStart(2, '0')}-${String(until.getDate()).padStart(2, '0')}`,
   };
 };
 

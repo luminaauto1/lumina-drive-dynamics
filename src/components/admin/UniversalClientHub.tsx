@@ -27,6 +27,7 @@ import LiveCallCopilot from './LiveCallCopilot';
 import OTPModal from './OTPModal';
 import { FileSignature, ReceiptText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { quoteBuilderPath } from '@/lib/adminRoutes';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -597,7 +598,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
                       <FileSignature className="w-3 h-3" /> Generate OTP
                     </Button>
                     <Button
-                      onClick={() => navigate(`/admin/quote?app=${app.id}`)}
+                      onClick={() => navigate(quoteBuilderPath(app.id))}
                       size="sm"
                       variant="outline"
                       className="h-7 px-2.5 text-[10px] gap-1.5"

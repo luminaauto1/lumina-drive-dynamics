@@ -129,7 +129,7 @@ export function QuoteDocument({ data }: { data: QuoteData }) {
             <div>
               <div className="q-h">Sale Summary</div>
               <div className="q-dl">
-                <div className="q-dl-row"><span className="k">Vehicle</span><span className="v">{orDash(vehicle.title)}</span></div>
+                <div className="q-dl-row"><span className="k">Vehicle</span><span className="v">{orDash([vehicle.year, vehicle.title].map(s=>String(s||'').trim()).filter(Boolean).join(' '))}</span></div>
                 <div className="q-dl-row"><span className="k">Retail Price</span><span className="v">{fmtR(data.retail_price)}</span></div>
                 <div className="q-dl-row"><span className="k">Accessories</span><span className="v">{fmtR(calc.accessoriesTotal)}</span></div>
                 <div className="q-dl-row"><span className="k">Value Added Products</span><span className="v">{fmtR(calc.vapsTotal)}</span></div>
@@ -154,20 +154,23 @@ export function QuoteDocument({ data }: { data: QuoteData }) {
                 ) : (
                   <div className="q-img-ph">
                     <svg viewBox="0 0 240 96" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                      {/* body silhouette: bumper → hood → windscreen → roof → rear glass → boot → bumper, closed along the sill with two wheel arches */}
                       <path
-                        d="M18 66 L40 66 M200 66 L222 66
-                           M52 66 C52 74 44 74 44 66 C44 58 52 58 52 66 Z
-                           M196 66 C196 74 188 74 188 66 C188 58 196 58 196 66 Z"
+                        d="M24 70
+                           C24 61 28 57 38 56 L64 56 L86 38 L148 38 L170 56 L202 56
+                           C212 56 216 61 216 70
+                           L183 70 A17 17 0 0 0 149 70
+                           L91 70 A17 17 0 0 0 57 70 Z"
                         stroke="#4C4C4F" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"
                       />
-                      <path
-                        d="M22 66 C22 56 30 52 44 51 L70 33 C74 30 79 28 85 28 L150 28
-                           C168 28 182 36 196 51 C208 52 218 56 218 66"
-                        stroke="#4C4C4F" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"
-                      />
-                      <path d="M78 33 L120 33 L120 52 L58 52 Z M128 33 L150 33 C162 33 172 40 180 52 L128 52 Z"
-                        stroke="#4C4C4F" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
-                      />
+                      {/* greenhouse / side glass + B-pillar */}
+                      <path d="M92 54 L101 41 L145 41 L154 54 Z" stroke="#4C4C4F" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M123 41 L123 54" stroke="#4C4C4F" strokeWidth="1.8" strokeLinecap="round" />
+                      {/* wheels */}
+                      <circle cx="74" cy="70" r="13" stroke="#4C4C4F" strokeWidth="2.4" />
+                      <circle cx="166" cy="70" r="13" stroke="#4C4C4F" strokeWidth="2.4" />
+                      <circle cx="74" cy="70" r="3.5" stroke="#4C4C4F" strokeWidth="1.8" />
+                      <circle cx="166" cy="70" r="3.5" stroke="#4C4C4F" strokeWidth="1.8" />
                     </svg>
                     <div className="wm">LUMINA AUTO</div>
                   </div>
