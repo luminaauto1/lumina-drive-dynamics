@@ -47,6 +47,7 @@
   const ACCOUNT_TYPE = { savings: 'Savings', cheque: 'Cheque', current: 'Cheque', transmission: 'Transmission' };
   const BRANCH_CODE = { capitec: '470010', fnb: '250655', 'first national': '250655', absa: '632005',
     'standard bank': '051001', standard: '051001', nedbank: '198765', tymebank: '678910', tyme: '678910',
+    thyme: '678910', 'time bank': '678910', // clients spell TymeBank as "Thymebank"/"Time Bank"
     'african bank': '430000', discovery: '679000', investec: '580105', bidvest: '462005',
     'old mutual': '462005' }; // Old Mutual uses the universal branch code 462005
   function bankOptionName(raw) { // match the forms' uppercased bank lists
@@ -57,8 +58,8 @@
     if (/absa/.test(k)) return 'ABSA BANK';
     if (/standardbank|^standard/.test(k)) return 'STANDARD BANK';
     if (/nedbank/.test(k)) return 'NEDBANK';
-    if (/discovery/.test(k)) return 'DISCOVERY BANK';
-    if (/tyme/.test(k)) return 'TYME BANK';
+    if (/discover/.test(k)) return 'DISCOVERY BANK';
+    if (/tyme|thyme|timebank/.test(k)) return 'TYME BANK';
     if (/africanbank/.test(k)) return 'AFRICAN BANK';
     if (/bidvest/.test(k)) return 'BIDVEST BANK';
     if (/oldmutual/.test(k)) return 'OLD MUTUAL BANK';

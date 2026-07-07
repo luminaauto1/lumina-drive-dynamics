@@ -1,5 +1,10 @@
 project_id = "geovwgfbbfhhmommyasj"
 
+# Google Apps Script (Application Sheet Lumina) cannot send Supabase JWTs;
+# sheet-apps-receiver authenticates via the SHEET_SYNC_SECRET header instead.
+[functions.sheet-apps-receiver]
+verify_jwt = false
+
 # LuminaTaskOS — all taskos functions set verify_jwt=false and do their OWN auth
 # inside (webhook: secret-token; process-inbox: internal key; link/query:
 # getUser() + staff check). The platform JWT gate is disabled because it rejects
