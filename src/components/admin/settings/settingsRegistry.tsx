@@ -1,7 +1,7 @@
 import * as React from 'react';
 import {
   DollarSign, Phone, MapPin, CreditCard, Users, Mail, Building2, Shield, FileText,
-  Landmark, Plug, MessageCircle, ListChecks, LayoutDashboard, ClipboardList, Columns3, type LucideIcon,
+  Landmark, Plug, MessageCircle, ListChecks, LayoutDashboard, ClipboardList, Columns3, Send, Calculator, type LucideIcon,
 } from 'lucide-react';
 
 import BankIntegrationsTab from '@/components/admin/BankIntegrationsTab';
@@ -12,6 +12,8 @@ import BankBranchCodesTab from '@/components/admin/BankBranchCodesTab';
 import EasySocialTab from '@/components/admin/EasySocialTab';
 import WhatsAppTemplatesTab from '@/components/admin/WhatsAppTemplatesTab';
 import StatusesTab from '@/components/admin/StatusesTab';
+import SignioLinksTab from '@/components/admin/SignioLinksTab';
+import SalaryCalculatorTab from '@/components/admin/SalaryCalculatorTab';
 import PipelineLanesTab from '@/components/admin/PipelineLanesTab';
 import EmailTemplatesTab from '@/components/admin/EmailTemplatesTab';
 import AppearanceNavTab from '@/components/admin/AppearanceNavTab';
@@ -86,6 +88,8 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
     label: 'Operational',
     items: [
       { key: 'banks', title: 'Banks', description: 'Finance partner banks and their application links.', icon: Building2, body: <BankIntegrationsTab /> },
+      { key: 'signio', title: 'Signio Links', description: 'Signio portal links used by Push to Signio, and which fill system each form uses.', icon: Send, requireSuperAdmin: true, body: <SignioLinksTab /> },
+      { key: 'salaries', title: 'Salary Calculator', description: 'Admin-only staff payroll: PAYE/UIF calculations, employee register and monthly net pay.', icon: Calculator, requireSuperAdmin: true, body: <SalaryCalculatorTab /> },
       { key: 'branches', title: 'Bank Branch Codes', description: 'Universal branch codes printed on finance-application PDFs by client bank.', icon: Landmark, requireSuperAdmin: true, body: <BankBranchCodesTab /> },
       { key: 'documents', title: 'Documents', description: 'Company, banking and VAT details printed on invoices and offers to purchase.', icon: FileText, requireSuperAdmin: true, body: <DocumentsBody /> },
     ],

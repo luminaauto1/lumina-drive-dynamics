@@ -120,12 +120,25 @@ export const useUpdateFinanceApplication = () => {
         updates = rest;
       }
 
-      // 1. Fetch current app to detect status change and get email
+      // 1. Fetch current app to detect status change and get email — narrowed
+      // to ONLY the fields the dispatch logic below actually reads (status +
+      // history, client identity/contact, notes, bank_reference, vehicle_id,
+      // ttclid). The row is never spread or forwarded wholesale, so nothing
+      // else is needed. NOTE: ttclid exists in the DB (migration
+      // 20260630150000_add_ttclid) but not yet in the regenerated Supabase
+      // types, hence the explicit row type on maybeSingle.
       const { data: currentApp } = await supabase
         .from('finance_applications')
-        .select('*')
+        .select('id, status, status_history, email, phone, first_name, last_name, full_name, notes, bank_reference, vehicle_id, ttclid')
         .eq('id', id)
-        .maybeSingle();
+        .maybeSingle<
+          Pick<
+            Tables<'finance_applications'>,
+            | 'id' | 'status' | 'status_history' | 'email' | 'phone'
+            | 'first_name' | 'last_name' | 'full_name' | 'notes'
+            | 'bank_reference' | 'vehicle_id'
+          > & { ttclid: string | null }
+        >();
 
       // F&I auto-claim: any update by an F&I user stamps ownership.
       try {

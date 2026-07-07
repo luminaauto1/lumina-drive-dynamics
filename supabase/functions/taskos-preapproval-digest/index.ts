@@ -13,11 +13,11 @@ import { editTelegramText, sendTelegram } from "../_shared/taskos/telegram.ts";
 
 function localParts(tz: string) {
   const f = new Intl.DateTimeFormat("en-CA", {
-    timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false,
+    timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false, weekday: "short",
   });
   const p: Record<string, string> = {};
   for (const part of f.formatToParts(new Date())) p[part.type] = part.value;
-  return { date: `${p.year}-${p.month}-${p.day}`, hour: Number(p.hour) % 24, minute: Number(p.minute) };
+  return { date: `${p.year}-${p.month}-${p.day}`, hour: Number(p.hour) % 24, minute: Number(p.minute), weekday: p.weekday };
 }
 
 // A pre-approved deal still needs a doc-chase if it was never contacted, or the
@@ -48,8 +48,15 @@ Deno.serve(async (req) => {
   const force = await req.json().then((b) => b?.force === true).catch(() => false);
 
   try {
-    const { data: links } = await svc.from("taskos_telegram_links")
+    const { data: allLinks } = await svc.from("taskos_telegram_links")
       .select("user_id, telegram_chat_id").eq("is_active", true);
+    // Owner's rule: only ADMIN users get the pre-approval doc-chase digest. Senior
+    // F&I (and other staff) have TaskOS access, but this specific reminder is the
+    // admin's chase list — so filter linked users down to the admin role only.
+    const { data: adminRoleRows } = await svc.from("user_roles")
+      .select("user_id").eq("role", "admin");
+    const adminIds = new Set((adminRoleRows ?? []).map((r: any) => r.user_id));
+    const links = (allLinks ?? []).filter((l: any) => adminIds.has(l.user_id));
     const { data: settingsRows } = await svc.from("taskos_user_settings").select("user_id, timezone, settings");
     const settingsByUser = new Map<string, any>();
     for (const s of settingsRows ?? []) settingsByUser.set(s.user_id, s);
@@ -63,9 +70,10 @@ Deno.serve(async (req) => {
       const preHour = Number(s?.settings?.preapproval_hour ?? 9);       // first ask of the day
       const endHour = Number(s?.settings?.preapproval_end_hour ?? 17);  // stop re-asking at endHour:endMin
       const endMin = Number(s?.settings?.preapproval_end_minute ?? 30); // default 17:30 (owner's rule)
-      const { hour, minute } = localParts(tz);
+      const { hour, minute, weekday } = localParts(tz);
       const afterEnd = hour > endHour || (hour === endHour && minute >= endMin);
       if (!force && (hour < preHour || afterEnd)) continue;             // only ask within the working window (≤17:30)
+      if (!force && (weekday === "Sat" || weekday === "Sun")) continue; // owner's rule: doc-chasing is weekday business
 
       // Pre-approved deals dealership-wide that still need documents requested.
       const { data: apps } = await svc.from("finance_applications")

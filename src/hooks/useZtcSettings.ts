@@ -32,6 +32,86 @@ export const useUpdateEasySocialSettings = () => {
   });
 };
 
+/* ---------------- Signio portal links ----------------
+   The dealership submits finance applications through different Signio portals
+   over time (different uuids/hosts), and the two portal FLAVOURS need different
+   fill systems: the one-page LIGHTSTONE e-application vs the 7-step wizard.
+   Links are managed in Admin → Settings → Signio Links and stored in
+   integration_settings under key 'signio' as config: { links: [...], default_id }.
+   The fill engine (public/signio-fill.js) auto-detects the form either way — the
+   per-link `system` is passed along as a hint so it locks on faster. */
+export type SignioSystem = 'lightstone' | 'wizard' | 'boardroom';
+export interface SignioLink {
+  id: string;
+  label: string;
+  url: string;
+  system: SignioSystem;
+}
+
+// Built-in fallbacks (also what the migration seeds) so Push-to-Signio always has
+// a working link even if the settings row is missing or emptied.
+export const DEFAULT_SIGNIO_LINKS: SignioLink[] = [
+  {
+    id: 'lightstone',
+    label: 'One-page portal (LIGHTSTONE)',
+    url: 'https://thirdparty.signio.co.za/ThirdPartyIntegration/application?skin=LIGHTSTONE&uuid=0000019e-fdf8-8197-9b9e-d86384f9e897',
+    system: 'lightstone',
+  },
+  {
+    id: 'wizard',
+    label: '7-step wizard portal',
+    url: 'https://goa.signio.co.za/ThirdPartyIntegration/?uuid=00000195-23bc-3df6-8b41-6b29efa3f893',
+    system: 'wizard',
+  },
+  {
+    id: 'boardroom',
+    label: 'Signio Direct Submit',
+    url: 'https://lightstone.signio.co.za/Signing-Boardroom/application/index?deal=0',
+    system: 'boardroom',
+  },
+];
+
+const sanitizeSignioLinks = (raw: any): SignioLink[] =>
+  Array.isArray(raw)
+    ? raw
+        .filter((l: any) => l && typeof l.url === 'string' && l.url.trim() && typeof l.id === 'string')
+        .map((l: any) => ({
+          id: l.id,
+          label: typeof l.label === 'string' && l.label.trim() ? l.label.trim() : l.url,
+          url: l.url.trim(),
+          system: l.system === 'wizard' ? 'wizard' : l.system === 'boardroom' ? 'boardroom' : 'lightstone',
+        }))
+    : [];
+
+export const useSignioLinks = () => {
+  const q = useQuery({
+    queryKey: ['integration', 'signio'],
+    queryFn: async (): Promise<IntegrationSettings> => {
+      const { data, error } = await db.from('integration_settings').select('key, active, config').eq('key', 'signio').maybeSingle();
+      if (error) throw error;
+      return data ?? { key: 'signio', active: true, config: {} };
+    },
+  });
+  const stored = sanitizeSignioLinks((q.data?.config as any)?.links);
+  const links = stored.length ? stored : DEFAULT_SIGNIO_LINKS;
+  const defaultId = (q.data?.config as any)?.default_id;
+  const defaultLink = links.find((l) => l.id === defaultId) ?? links[0];
+  return { ...q, links, defaultLink };
+};
+
+export const useUpdateSignioLinks = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (config: { links: SignioLink[]; default_id: string | null }) => {
+      const { error } = await db.from('integration_settings')
+        .upsert({ key: 'signio', active: true, config, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['integration', 'signio'] }); toast.success('Signio links saved'); },
+    onError: (e: any) => toast.error('Save failed: ' + e.message),
+  });
+};
+
 /* ---------------- WhatsApp notification templates ----------------
    ZTC-parity curated columns (send_url / body*_source / preview_text / sort_order)
    are additive + nullable; defaults preserve current behaviour. They do NOT affect

@@ -93,9 +93,18 @@ serve(async (req) => {
       }
     };
 
+    // The applicant should NOT wait on downstream notifications: respond as soon as
+    // the insert is safe, and run the WhatsApp notify + EasySocial tag sync in the
+    // background (waitUntil keeps the instance alive until they finish — unlike a
+    // bare setTimeout, these run immediately so teardown can't kill them).
     console.log("[submit-finance-app] dispatching follow-ups for", safe.phone, safe.full_name);
-    await callFn("notify-app-submitted", { phone_number: safe.phone, client_name: safe.full_name });
-    await callFn("easysocial-tag-sync", { phone_number: safe.phone, new_status: "application_submitted" });
+    const followUps = Promise.allSettled([
+      callFn("notify-app-submitted", { phone_number: safe.phone, client_name: safe.full_name }),
+      callFn("easysocial-tag-sync", { phone_number: safe.phone, new_status: "application_submitted" }),
+    ]);
+    // @ts-ignore EdgeRuntime is provided by the Supabase edge environment.
+    if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) EdgeRuntime.waitUntil(followUps);
+    else await followUps; // local/dev fallback
 
     return new Response(JSON.stringify({ success: true, data }), {
       headers: { ...cors, "Content-Type": "application/json" },

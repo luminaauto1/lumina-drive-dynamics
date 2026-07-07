@@ -14,16 +14,21 @@
 // live that Signio loads external scripts (no CSP block on this origin).
 // The fill logic is UNCHANGED (React native-setter technique); only delivery changed.
 
-import { useState } from 'react';
-import { Send, ExternalLink, AlertTriangle, Check } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Send, ExternalLink, AlertTriangle, Check, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useSignioLinks } from '@/hooks/useZtcSettings';
+import { supabase } from '@/integrations/supabase/client';
 
-// New LIGHTSTONE skin (single-page e-application). The engine (public/signio-fill.js) was
-// rewritten to fill this form by field `name` and to fill addresses DIRECTLY (the old fuzzy
-// Address Lookup was the cause of the inaccurate addresses the F&I reported).
-const SIGNIO_URL =
-  'https://thirdparty.signio.co.za/ThirdPartyIntegration/application?skin=LIGHTSTONE&uuid=0000019e-fdf8-8197-9b9e-d86384f9e897';
+// The Signio portal link(s) are CONFIGURABLE in Admin → Settings → Signio Links
+// (integration_settings key 'signio'): each link carries the URL plus which fill
+// SYSTEM its form uses (one-page LIGHTSTONE vs 7-step wizard). The engine
+// (public/signio-fill.js) is DUAL-MODE — the declared system is passed in the
+// payload as a hint and the engine auto-detects the form as a fallback, so links
+// can be swapped in Settings without touching any code.
 
 const HANDOFF_PREFIX = 'LUMINA_SIGNIO:';
 
@@ -133,6 +138,51 @@ function computeChecks(app: any, payload: any): string[] {
 
 export function PushToSignioButton({ application }: { application: any }) {
   const [open, setOpen] = useState(false);
+  // Portal links from Settings (falls back to the built-in defaults when unset).
+  const { links, defaultLink, isFetched } = useSignioLinks();
+  const [portalId, setPortalId] = useState<string | null>(null);
+  const chosenLink = links.find((l) => l.id === portalId) ?? defaultLink;
+
+  // Employer number + address double-check (the F&I keeps being asked to confirm the
+  // employer number). When the app row has no workplace phone / Google-resolved
+  // address, look the employer up via Google Places (employer-lookup function) as the
+  // modal opens, feed the result into the Signio payload, and persist it back to the
+  // application so the PDF + next push get it for free.
+  const [employerInfo, setEmployerInfo] = useState<any>(null);
+  const [employerLookupState, setEmployerLookupState] = useState<'idle' | 'loading' | 'done' | 'none'>('idle');
+  useEffect(() => {
+    if (!open || !application?.employer_name) return;
+    if (application.workplace_cell_no && application.business_address_auto) {
+      setEmployerInfo({ phone: application.workplace_cell_no, formatted_address: application.business_address_auto });
+      setEmployerLookupState('done');
+      return;
+    }
+    let cancelled = false;
+    setEmployerLookupState('loading');
+    supabase.functions
+      .invoke('employer-lookup', {
+        body: {
+          employer_name: application.employer_name,
+          hint: application.employer_address || application.city || application.suburb || '',
+        },
+      })
+      .then(({ data }) => {
+        if (cancelled) return;
+        if (!data?.ok) { setEmployerLookupState('none'); return; }
+        setEmployerInfo(data);
+        setEmployerLookupState('done');
+        // Persist newly-found values (fire-and-forget; never blocks the push).
+        const patch: any = {};
+        if (!application.workplace_cell_no && data.phone) patch.workplace_cell_no = data.phone;
+        if (!application.business_address_auto && data.formatted_address) patch.business_address_auto = data.formatted_address;
+        if (Object.keys(patch).length && application.id) {
+          (supabase as any).from('finance_applications').update(patch).eq('id', application.id)
+            .then(() => {}, () => {});
+        }
+      }, () => { if (!cancelled) setEmployerLookupState('none'); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, application?.id]);
 
   const payload = application ? buildSignioPayload(application) : null;
   const checks = application && payload ? computeChecks(application, payload) : [];
@@ -150,10 +200,23 @@ export function PushToSignioButton({ application }: { application: any }) {
     );
 
   const openSignio = () => {
+    if (!chosenLink) { alert('No Signio link configured — add one in Settings → Signio Links.'); return; }
     const win = window.open('about:blank', '_blank');
     if (!win) { alert('Allow pop-ups for Lumina so it can open Signio.'); return; }
-    win.name = HANDOFF_PREFIX + JSON.stringify(payload);
-    win.location.href = SIGNIO_URL;
+    // The declared per-link system rides along so the fill engine locks on instantly
+    // (it still auto-detects the form as a fallback if the declaration is wrong).
+    // Google-resolved employer details fill any gaps the application row has.
+    const enriched = {
+      ...payload,
+      signio_system: chosenLink.system,
+      employer_phone: application?.workplace_cell_no || employerInfo?.phone || undefined,
+      business_address_auto: payload?.business_address_auto || employerInfo?.formatted_address || undefined,
+      employer_suburb: payload?.employer_suburb || employerInfo?.suburb || undefined,
+      employer_city: payload?.employer_city || employerInfo?.city || undefined,
+      employer_postal_code: payload?.employer_postal_code || employerInfo?.postal_code || undefined,
+    };
+    win.name = HANDOFF_PREFIX + JSON.stringify(enriched);
+    win.location.href = chosenLink.url;
   };
 
   return (
@@ -177,6 +240,41 @@ export function PushToSignioButton({ application }: { application: any }) {
               <ul className="list-disc pl-4 space-y-0.5">
                 {checks.map((c, i) => <li key={i}>{c}</li>)}
               </ul>
+            </div>
+          )}
+
+          {/* Employer number + address, Google-resolved when Lumina had none. */}
+          {application?.employer_name && employerLookupState !== 'idle' && (
+            <div className="rounded-md border border-border bg-card px-2.5 py-2 text-xs text-muted-foreground flex items-start gap-1.5">
+              <Phone className="h-3.5 w-3.5 mt-0.5 shrink-0 text-emerald-400" />
+              {employerLookupState === 'loading' && <span>Looking up “{application.employer_name}” on Google…</span>}
+              {employerLookupState === 'none' && <span>No listing found for “{application.employer_name}” — the work number stays blank; fill it on the form.</span>}
+              {employerLookupState === 'done' && employerInfo && (
+                <span>
+                  Employer: <strong className="text-foreground">{employerInfo.match_name || application.employer_name}</strong>
+                  {employerInfo.phone ? <> · ☎ <strong className="text-foreground">{employerInfo.phone}</strong></> : ' · no phone listed'}
+                  {employerInfo.formatted_address ? <> · {employerInfo.formatted_address}</> : null}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Portal choice — only shown when Settings has more than one link. Gated on
+              isFetched so the built-in fallback list is never offered as pickable
+              portals while the real config is still loading. */}
+          {isFetched && links.length > 1 && (
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Portal</Label>
+              <Select value={chosenLink?.id} onValueChange={setPortalId}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {links.map((l) => (
+                    <SelectItem key={l.id} value={l.id}>
+                      {l.label}{l.id === defaultLink?.id ? ' (default)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 

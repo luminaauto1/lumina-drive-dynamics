@@ -1,4 +1,6 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ExternalLink } from 'lucide-react';
 import type { FinanceApplication } from '@/hooks/useFinanceApplications';
 import { STATUS_STYLES, ADMIN_STATUS_LABELS, statusBadgeClass } from '@/lib/statusConfig';
 import { useDeskTheme } from '@/hooks/useDeskTheme';
@@ -50,6 +52,25 @@ export function ApplicationTable({
   const allIds = applications.map((a) => a.id);
   const allSelected = selectable && allIds.length > 0 && allIds.every((id) => selectedIds?.has(id));
 
+  // WINDOWED RENDERING — the "All applications" tab holds 750+ rows and rendering
+  // them all at once froze the browser. Render the first chunk and grow as the
+  // sentinel row scrolls into view; selection/keyboard behaviour is unchanged
+  // (select-all still selects every FILTERED row via allIds, not just rendered ones).
+  const CHUNK = 150;
+  const [renderCount, setRenderCount] = useState(CHUNK);
+  useEffect(() => { setRenderCount(CHUNK); }, [applications.length, config.visible.join('|')]);
+  const sentinelRef = useRef<HTMLTableRowElement>(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || renderCount >= applications.length) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) setRenderCount((c) => Math.min(c + CHUNK, applications.length));
+    }, { rootMargin: '600px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [renderCount, applications.length]);
+  const rendered = applications.slice(0, renderCount);
+
   // Keyboard navigation: rows are focusable; ↑/↓ move focus, Enter opens. We drive
   // focus off the DOM (rows carry data-row-index) so no extra render state is needed.
   const tbodyRef = useRef<HTMLTableSectionElement>(null);
@@ -82,10 +103,11 @@ export function ApplicationTable({
                 {col.label}
               </th>
             ))}
+            <th className="w-9 px-2 py-2" title="Open the full application (Deal Room)" />
           </tr>
         </thead>
         <tbody ref={tbodyRef} className="divide-y divide-border">
-          {applications.map((a, idx) => {
+          {rendered.map((a, idx) => {
             const isSelected = selectedIds?.has(a.id);
             const busy = busyByApp?.get(a.id);
             return (
@@ -106,12 +128,29 @@ export function ApplicationTable({
                     })}
                   </td>
                 ))}
+                {/* Always-available jump into the full application detail (Deal Room). */}
+                <td className="px-2 py-2 align-top" onClick={(e) => e.stopPropagation()}>
+                  <Link
+                    to={`/admin/finance/${a.id}`}
+                    title="Open full application (Deal Room)"
+                    className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </Link>
+                </td>
               </tr>
             );
           })}
+          {renderCount < applications.length && (
+            <tr ref={sentinelRef}>
+              <td colSpan={visible.length + (selectable ? 1 : 0) + 1} className="py-3 text-center text-xs text-muted-foreground">
+                Showing {renderCount} of {applications.length} — scroll for more…
+              </td>
+            </tr>
+          )}
           {applications.length === 0 && (
             <tr>
-              <td colSpan={visible.length + (selectable ? 1 : 0)} className="py-10 text-center text-sm text-muted-foreground">
+              <td colSpan={visible.length + (selectable ? 1 : 0) + 1} className="py-10 text-center text-sm text-muted-foreground">
                 No applications match the current filters.
               </td>
             </tr>
