@@ -28,6 +28,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import AdminLayout from '@/components/admin/AdminLayout';
+import AddManualEntryModal from '@/components/admin/AddManualEntryModal';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import { supabase } from '@/integrations/supabase/client';
 import { logActivity } from '@/lib/activityLog';
@@ -49,6 +50,7 @@ const AdminCreateApplication = () => {
   
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [manualEntryOpen, setManualEntryOpen] = useState(false);
 
   // Existing client lookup
   type ClientOption = {
@@ -459,9 +461,19 @@ const AdminCreateApplication = () => {
           <Button variant="ghost" onClick={() => navigate('/admin/finance')} className="mb-4">
             <ArrowLeft className="w-4 h-4 mr-2" /> Back
           </Button>
-          <h1 className="text-3xl font-semibold">Create Application</h1>
-          <p className="text-muted-foreground">Submit a finance application on behalf of a client</p>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-semibold">Create Application</h1>
+              <p className="text-muted-foreground">Submit a finance application on behalf of a client</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setManualEntryOpen(true)} className="shrink-0">
+              <UserPlus className="w-4 h-4 mr-2" />
+              Add Manual Entry
+            </Button>
+          </div>
         </motion.div>
+
+        <AddManualEntryModal open={manualEntryOpen} onOpenChange={setManualEntryOpen} />
 
         <Alert className="mb-6 border-amber-500/50 bg-amber-500/10">
           <UserPlus className="w-4 h-4" />

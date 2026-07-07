@@ -10,6 +10,7 @@ import { Helmet } from 'react-helmet-async';
 import { isToday } from 'date-fns';
 import { Search, MessageCircle, ExternalLink, Trash2, Archive, UserPlus, User, Copy, Link, ClipboardList, Banknote, Calculator, MailWarning, MessageSquare, Globe, FileText, Mail, FileX, BarChart3 } from 'lucide-react';
 import WhatsAppParserModal from '@/components/admin/WhatsAppParserModal';
+import AddManualEntryModal from '@/components/admin/AddManualEntryModal';
 import BankReferenceModal from '@/components/admin/BankReferenceModal';
 import BankReferenceBadge from '@/components/admin/BankReferenceBadge';
 import CreditCheckReportModal from '@/components/admin/CreditCheckReportModal';
@@ -98,6 +99,7 @@ const AdminFinance = () => {
   const [cashDealModalOpen, setCashDealModalOpen] = useState(false);
   const [waModalOpen, setWaModalOpen] = useState(false);
   const [creditReportOpen, setCreditReportOpen] = useState(false);
+  const [manualEntryOpen, setManualEntryOpen] = useState(false);
   const [creditCheckOpen, setCreditCheckOpen] = useState(false);
   const [creditCheckApp, setCreditCheckApp] = useState<FinanceApplication | null>(null);
   const [creditCheckOutcome, setCreditCheckOutcome] = useState<CreditCheckOutcome>('passed');
@@ -627,6 +629,10 @@ const AdminFinance = () => {
               <Calculator className="w-4 h-4 mr-2" />
               Quote Generator
             </Button>
+            <Button variant="outline" size="sm" onClick={() => setManualEntryOpen(true)} className="w-fit">
+              <UserPlus className="w-4 h-4 mr-2" />
+              Add Manual Entry
+            </Button>
             <Button size="sm" onClick={() => navigate(ADMIN_ROUTES.financeCreate)} className="w-fit">
               <UserPlus className="w-4 h-4 mr-2" />
               Create Application
@@ -1092,7 +1098,7 @@ const AdminFinance = () => {
                             )}
                             <span>{app.first_name} {app.last_name}</span>
                           </p>
-                          <p className="text-xs text-muted-foreground truncate max-w-[15rem]">{app.email}</p>
+                          <p className="text-xs text-muted-foreground truncate max-w-[15rem]">{app.email || '—'}</p>
                           {(() => {
                             const creator = (app as any).creator;
                             if (!creator?.full_name && !creator?.email) return null;
@@ -1853,6 +1859,7 @@ const AdminFinance = () => {
         clientPhone={selectedPhone}
       />
       <WhatsAppParserModal open={waModalOpen} onOpenChange={setWaModalOpen} />
+      <AddManualEntryModal open={manualEntryOpen} onOpenChange={setManualEntryOpen} />
 
       <BankReferenceModal
         open={editBankRefOpen}
