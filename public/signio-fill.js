@@ -82,6 +82,35 @@
   const realisticLiving = (net) => { const n = Math.max(0, +net || 0); return Math.min(Math.max(Math.round(n * 0.4 / 100) * 100, 3000), 14000); };
   const firstSegment = (addr) => (addr ? String(addr).split(/[,\n]/)[0].trim() : '');
 
+  // Employment tenure: applicants enter EITHER a duration ("4 years 2 months") OR
+  // the YEAR they started ("2019", "since 2019", "03/2019"). A start year is
+  // translated into elapsed time so the forms always receive a real tenure.
+  function parseEmploymentPeriod(raw) {
+    const s = norm(String(raw == null ? '' : raw));
+    if (!s) return null;
+    const now = new Date();
+    const hasDurationWord = /year|yr\b|month|jaar|maand/.test(s);
+    const ym = s.match(/\b(19[6-9]\d|20[0-4]\d)\b/);
+    if (ym && !hasDurationWord) {
+      const y = parseInt(ym[1], 10);
+      if (y <= now.getFullYear()) {
+        // optional month in "03/2019" or "2019/03" style
+        const mA = s.match(/\b(0?[1-9]|1[0-2])\s*[\/\-]\s*(19[6-9]\d|20[0-4]\d)\b/);
+        const mB = s.match(/\b(19[6-9]\d|20[0-4]\d)\s*[\/\-]\s*(0?[1-9]|1[0-2])\b/);
+        const startMonth = mA ? parseInt(mA[1], 10) - 1 : mB ? parseInt(mB[2], 10) - 1 : 0;
+        let months = (now.getFullYear() - y) * 12 + (now.getMonth() - startMonth);
+        months = Math.max(0, Math.min(months, 50 * 12));
+        return { years: Math.floor(months / 12), months: months % 12, fromYear: y };
+      }
+    }
+    const py = s.match(/(\d+)\s*(?:year|yr|jaar)/);
+    const pm = s.match(/(\d+)\s*(?:month|maand)/);
+    if (py || pm) return { years: py ? +py[1] : 0, months: pm ? +pm[1] : 0, fromYear: null };
+    const bare = s.match(/^\s*(\d{1,2})\s*$/);
+    if (bare && +bare[1] <= 50) return { years: +bare[1], months: 0, fromYear: null };
+    return null;
+  }
+
   /* ══════════════════════════ LIGHTSTONE (single-page) mode ══════════════════════════ */
 
   const byName = (n) => document.querySelector('[name="' + n + '"]');
@@ -300,10 +329,10 @@
       suburb: d.employer_suburb, city: d.employer_city, postal: d.employer_postal_code,
     });
     setN('employerAddressLine1', firstSegment(empFull).slice(0, 60));
-    const py = String(d.employment_period || '').match(/(\d+)\s*year/i);
-    const pmo = String(d.employment_period || '').match(/(\d+)\s*month/i);
-    setN('customerPeriodAtCurrentEmployerYears', py ? py[1] : 1);
-    setN('customerPeriodAtCurrentEmployerMonths', pmo ? pmo[1] : 0);
+    const tenure = parseEmploymentPeriod(d.employment_period);
+    if (tenure && tenure.fromYear) flag('Employment "' + d.employment_period + '" read as started ' + tenure.fromYear + ' → filled as ' + tenure.years + 'y ' + tenure.months + 'm.');
+    setN('customerPeriodAtCurrentEmployerYears', tenure ? tenure.years : 1);
+    setN('customerPeriodAtCurrentEmployerMonths', tenure ? tenure.months : 0);
 
     // Income
     if (+d.gross_salary && +d.net_salary && +d.net_salary > +d.gross_salary) flag('Net (' + d.net_salary + ') > Gross (' + d.gross_salary + ') — likely swapped; verify.');
@@ -679,10 +708,10 @@
     const bc = branchCodeFor(d.bank_name);
     if (bc) setText(/branch code/i, bc); else flag('No branch code for bank "' + (d.bank_name || '') + '".');
     setText(/branch name/i, bank || d.bank_name || '');
-    const py = String(d.employment_period || '').match(/(\d+)\s*year/i);
-    const pmo = String(d.employment_period || '').match(/(\d+)\s*month/i);
-    setText(/^years$/i, py ? py[1] : '1');
-    setText(/^months$/i, pmo ? pmo[1] : '0');
+    const tenure = parseEmploymentPeriod(d.employment_period);
+    if (tenure && tenure.fromYear) flag('Employment "' + d.employment_period + '" read as started ' + tenure.fromYear + ' → filled as ' + tenure.years + 'y ' + tenure.months + 'm.');
+    setText(/^years$/i, String(tenure ? tenure.years : 1));
+    setText(/^months$/i, String(tenure ? tenure.months : 0));
   }
 
   // ---- wizard expense intelligence (fills by field LABEL on the Income step) ----
@@ -1231,10 +1260,10 @@
       const eOk = await boardAddressLookup('employerAddressLookup', d.employer_suburb, empPostal);
       if (!eOk) flag('Employer suburb lookup failed — resolve it via the employer suburb button (' + (d.employer_suburb || empPostal || 'no suburb on file') + ').');
     }
-    const py = String(d.employment_period || '').match(/(\d+)\s*year/i);
-    const pmo = String(d.employment_period || '').match(/(\d+)\s*month/i);
-    setN('customerPeriodAtCurrentEmployerYears', py ? py[1] : (emp.kind === 'pensioner' ? 5 : 1));
-    setN('customerPeriodAtCurrentEmployerMonths', pmo ? pmo[1] : 0);
+    const tenure = parseEmploymentPeriod(d.employment_period);
+    if (tenure && tenure.fromYear) flag('Employment "' + d.employment_period + '" read as started ' + tenure.fromYear + ' → filled as ' + tenure.years + 'y ' + tenure.months + 'm.');
+    setN('customerPeriodAtCurrentEmployerYears', tenure ? tenure.years : (emp.kind === 'pensioner' ? 5 : 1));
+    setN('customerPeriodAtCurrentEmployerMonths', tenure ? tenure.months : 0);
 
     // Income + the realistic expense split.
     if (+d.gross_salary && +d.net_salary && +d.net_salary > +d.gross_salary) flag('Net (' + d.net_salary + ') > Gross (' + d.gross_salary + ') — likely swapped; verify.');

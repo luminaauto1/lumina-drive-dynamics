@@ -35,6 +35,18 @@ function localParts(tz: string) {
   return { date: `${p.year}-${p.month}-${p.day}`, hour: Number(p.hour) % 24, weekday: p.weekday };
 }
 
+// UTC instant range covering the user's LOCAL calendar day (for "is anything
+// explicitly scheduled today?" checks — due_at is stored in UTC).
+function localDayUtcRange(dateStr: string, tz: string): { start: string; end: string } {
+  const probe = new Date(`${dateStr}T12:00:00Z`);
+  const name = new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "shortOffset" })
+    .formatToParts(probe).find((p) => p.type === "timeZoneName")?.value ?? "GMT+0";
+  const m = name.match(/GMT([+-]\d+)(?::(\d+))?/);
+  const offMin = m ? parseInt(m[1], 10) * 60 + (m[2] ? Math.sign(parseInt(m[1], 10)) * parseInt(m[2], 10) : 0) : 0;
+  const startMs = new Date(`${dateStr}T00:00:00Z`).getTime() - offMin * 60000;
+  return { start: new Date(startMs).toISOString(), end: new Date(startMs + 86_400_000 - 1).toISOString() };
+}
+
 Deno.serve(async (req) => {
   const cors = buildCorsHeaders(req.headers.get("origin"));
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -66,6 +78,16 @@ Deno.serve(async (req) => {
       const { date, hour, weekday } = localParts(tz);
       const hitHour = force || hour === (s.briefing_hour ?? 7);
       if (!hitHour) continue;
+      // Owner's rule: weekends are QUIET. No Saturday/Sunday briefing unless the
+      // user has something explicitly scheduled (due) on that local day.
+      if (!force && (weekday === "Sat" || weekday === "Sun")) {
+        const { start, end } = localDayUtcRange(date, tz);
+        const { count } = await svc.from("taskos_tasks")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", s.user_id).not("status", "in", "(done,cancelled)")
+          .gte("due_at", start).lte("due_at", end);
+        if (!count) continue;
+      }
 
       // ----- DAILY -----
       const { error: claimErr } = await svc.from("taskos_briefings")

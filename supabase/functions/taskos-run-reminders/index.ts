@@ -102,10 +102,25 @@ Deno.serve(async (req) => {
     for (const x of new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date())) p[x.type] = x.value;
     return (Number(p.hour) % 24) * 60 + Number(p.minute);
   }
-  async function sendAllowed(userId: string): Promise<boolean> {
+  // Local calendar date + weekday for an instant, in the user's timezone.
+  function localDay(tz: string, d = new Date()): { date: string; weekday: string } {
+    const p: Record<string, string> = {};
+    for (const x of new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", weekday: "short" }).formatToParts(d)) p[x.type] = x.value;
+    return { date: `${p.year}-${p.month}-${p.day}`, weekday: p.weekday };
+  }
+  async function sendAllowed(userId: string, dueAt?: string | null): Promise<boolean> {
     const w = await windowFor(userId);
     const m = localMinutes(w.tz);
-    return m >= w.startMin && m < w.endMin;
+    if (m < w.startMin || m >= w.endMin) return false;
+    // Owner's rule: weekends are QUIET — only items EXPLICITLY scheduled (due) on
+    // this Saturday/Sunday may nudge; everything else waits for Monday. Skipping
+    // never marks the row, so it simply resurfaces on the next weekday run.
+    const today = localDay(w.tz);
+    if (today.weekday === "Sat" || today.weekday === "Sun") {
+      if (!dueAt) return false;
+      return localDay(w.tz, new Date(dueAt)).date === today.date;
+    }
+    return true;
   }
 
   try {
@@ -116,7 +131,7 @@ Deno.serve(async (req) => {
       .not("status", "in", "(done,cancelled)").limit(100);
     for (const t of dueTasks ?? []) {
       if (sent >= MAX_SENDS) break;
-      if (!(await sendAllowed(t.user_id))) continue; // outside 07:00–17:30 → defer, don't mark
+      if (!(await sendAllowed(t.user_id, t.due_at))) continue; // quiet hours / weekend → defer, don't mark
       const chat = await chatFor(t.user_id);
       if (!chat) { await svc.from("taskos_tasks").update({ notified_at: nowISO(), escalation_level: 1 }).eq("id", t.id); continue; }
       const due = t.due_at ? ` (due ${fmtDue(t.due_at, await tzFor(t.user_id))})` : "";
@@ -130,7 +145,7 @@ Deno.serve(async (req) => {
       .lte("remind_at", nowISO()).is("notified_at", null).limit(100);
     for (const e of dueEnts ?? []) {
       if (sent >= MAX_SENDS) break;
-      if (!(await sendAllowed(e.user_id))) continue; // outside 07:00–17:30 → defer, don't mark
+      if (!(await sendAllowed(e.user_id, e.due_at))) continue; // quiet hours / weekend → defer, don't mark
       const chat = await chatFor(e.user_id);
       if (!chat) { await svc.from("taskos_entities").update({ notified_at: nowISO(), escalation_level: 1 }).eq("id", e.id); continue; }
       const due = e.due_at ? ` (${fmtDue(e.due_at, await tzFor(e.user_id))})` : "";
@@ -149,7 +164,7 @@ Deno.serve(async (req) => {
       // "Not yet" — don't re-escalate until the snooze elapses (this is what stopped
       // the constant ~5-min overdue re-nudge after a snooze).
       if (t.remind_at && new Date(t.remind_at).getTime() > now.getTime()) continue;
-      if (!(await sendAllowed(t.user_id))) continue; // outside 07:00–17:30 → defer, don't mark
+      if (!(await sendAllowed(t.user_id, t.due_at))) continue; // quiet hours / weekend → defer, don't mark
       const hrs = (now.getTime() - new Date(t.due_at).getTime()) / 3_600_000;
       const want = desiredLevel(hrs);
       if (want <= (t.escalation_level ?? 0)) continue;

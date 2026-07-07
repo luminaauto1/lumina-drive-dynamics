@@ -13,11 +13,11 @@ import { editTelegramText, sendTelegram } from "../_shared/taskos/telegram.ts";
 
 function localParts(tz: string) {
   const f = new Intl.DateTimeFormat("en-CA", {
-    timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false,
+    timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false, weekday: "short",
   });
   const p: Record<string, string> = {};
   for (const part of f.formatToParts(new Date())) p[part.type] = part.value;
-  return { date: `${p.year}-${p.month}-${p.day}`, hour: Number(p.hour) % 24, minute: Number(p.minute) };
+  return { date: `${p.year}-${p.month}-${p.day}`, hour: Number(p.hour) % 24, minute: Number(p.minute), weekday: p.weekday };
 }
 
 // A pre-approved deal still needs a doc-chase if it was never contacted, or the
@@ -70,9 +70,10 @@ Deno.serve(async (req) => {
       const preHour = Number(s?.settings?.preapproval_hour ?? 9);       // first ask of the day
       const endHour = Number(s?.settings?.preapproval_end_hour ?? 17);  // stop re-asking at endHour:endMin
       const endMin = Number(s?.settings?.preapproval_end_minute ?? 30); // default 17:30 (owner's rule)
-      const { hour, minute } = localParts(tz);
+      const { hour, minute, weekday } = localParts(tz);
       const afterEnd = hour > endHour || (hour === endHour && minute >= endMin);
       if (!force && (hour < preHour || afterEnd)) continue;             // only ask within the working window (≤17:30)
+      if (!force && (weekday === "Sat" || weekday === "Sun")) continue; // owner's rule: doc-chasing is weekday business
 
       // Pre-approved deals dealership-wide that still need documents requested.
       const { data: apps } = await svc.from("finance_applications")

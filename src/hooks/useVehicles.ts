@@ -24,13 +24,17 @@ export const useVehicles = () => {
 };
 
 // Fetch public vehicles (includes available, sourcing, incoming - excludes hidden and sold)
+// Narrowed to the columns the public surfaces actually render (VehicleCard,
+// Inventory filters/sort, Compare/CompareTray, Wishlist, Sourcing, Index
+// featured grid, VehicleDetail "similar" strip). The detail page itself uses
+// useVehicle (by id, '*') below, so long-form fields stay off this list.
 export const usePublicVehicles = () => {
   return useQuery({
     queryKey: ['publicVehicles'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('public_vehicles' as any)
-        .select('*')
+        .select('id, make, model, variant, year, price, mileage, transmission, fuel_type, body_type, color, images, status, finance_available, is_generic_listing, is_featured, created_at')
         .in('status', ['available', 'sourcing', 'incoming'])
         .order('created_at', { ascending: false });
       
