@@ -15,6 +15,7 @@ export const ADMIN_ROUTES = {
 
   // Docs & Sales
   quotes: "/admin/quotes",
+  quoteBuilder: "/admin/quote",
   otp: "/admin/otp",
   documents: "/admin/documents",
   juristic: "/admin/juristic",
@@ -86,6 +87,10 @@ export const ADMIN_NAV_ENTRIES: AdminNavEntry[] = [
   { key: 'referrals', path: ADMIN_ROUTES.referrals, label: 'Referrals', section: 'Network' },
   { key: 'settings', path: ADMIN_ROUTES.settings, label: 'Settings', section: 'System' },
 ];
+
+/** Quote builder, optionally prefilled from a finance application: `/admin/quote?app=<id>`. */
+export const quoteBuilderPath = (applicationId?: string) =>
+  applicationId ? `${ADMIN_ROUTES.quoteBuilder}?app=${applicationId}` : ADMIN_ROUTES.quoteBuilder;
 
 /** Deal Room for a single finance application: `/admin/finance/:id`. */
 export const dealRoomPath = (applicationId: string) => `/admin/finance/${applicationId}`;

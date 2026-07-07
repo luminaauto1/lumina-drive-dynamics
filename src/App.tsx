@@ -51,6 +51,7 @@ const AdminAftersales = lazy(() => import("./pages/admin/AdminAftersales"));
 const AdminCreateApplication = lazy(() => import("./pages/admin/AdminCreateApplication"));
 const AdminQuoteGenerator = lazy(() => import("./pages/admin/AdminQuoteGenerator"));
 const AdminOTP = lazy(() => import("./pages/admin/AdminOTP"));
+const AdminQuote = lazy(() => import("./pages/admin/AdminQuote"));
 const AdminReports = lazy(() => import("./pages/admin/AdminReports"));
 const AdminLeadAnalytics = lazy(() => import("./pages/admin/AdminLeadAnalytics"));
 const AdminLeadsCycle = lazy(() => import("./pages/admin/AdminLeadsCycle"));
@@ -138,6 +139,7 @@ const AppLayout = () => {
             <Route path="/admin/pipeline-v2" element={<ProtectedRoute section="pipeline_v2"><AdminPipelineV2 /></ProtectedRoute>} />
             <Route path="/admin/quotes" element={<ProtectedRoute section="quotes"><AdminQuoteGenerator /></ProtectedRoute>} />
             <Route path="/admin/otp" element={<ProtectedRoute section="finance"><AdminOTP /></ProtectedRoute>} />
+            <Route path="/admin/quote" element={<ProtectedRoute section="finance"><AdminQuote /></ProtectedRoute>} />
             {/* Deal Ledger folded into Deal Desk — redirect old URL. Gated for
                 either legacy deal_ledger holders or deal_desk holders so neither
                 gets bounced before the redirect to /admin/deal-desk fires. */}
