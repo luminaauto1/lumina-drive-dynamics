@@ -183,7 +183,32 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
     } else if (clientPhone) {
       financeQuery = financeQuery.eq('phone', clientPhone);
     }
-    const { data: fData } = await financeQuery;
+
+    let leadQuery = supabase.from('leads').select('*');
+    if (clientEmail && clientPhone) {
+      leadQuery = leadQuery.or(`client_email.eq.${clientEmail},client_phone.eq.${clientPhone}`);
+    } else if (clientEmail) {
+      leadQuery = leadQuery.eq('client_email', clientEmail);
+    } else if (clientPhone) {
+      leadQuery = leadQuery.eq('client_phone', clientPhone);
+    }
+
+    let logQuery = supabase.from('client_audit_logs').select('*').order('created_at', { ascending: false }).limit(200);
+    if (clientEmail && clientPhone) {
+      logQuery = logQuery.or(`client_email.eq.${clientEmail},client_phone.eq.${clientPhone}`);
+    } else if (clientEmail) {
+      logQuery = logQuery.eq('client_email', clientEmail);
+    } else if (clientPhone) {
+      logQuery = logQuery.eq('client_phone', clientPhone);
+    }
+
+    // The three lookups are independent — fire them together.
+    const [{ data: fData }, { data: lData }, { data: logData }] = await Promise.all([
+      financeQuery,
+      leadQuery,
+      logQuery,
+    ]);
+
     if (fData) {
       setPastDeals(fData.filter(app => {
         const s = app.status?.toLowerCase()?.trim() || '';
@@ -199,26 +224,8 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
       setActiveApps([]);
     }
 
-    let leadQuery = supabase.from('leads').select('*');
-    if (clientEmail && clientPhone) {
-      leadQuery = leadQuery.or(`client_email.eq.${clientEmail},client_phone.eq.${clientPhone}`);
-    } else if (clientEmail) {
-      leadQuery = leadQuery.eq('client_email', clientEmail);
-    } else if (clientPhone) {
-      leadQuery = leadQuery.eq('client_phone', clientPhone);
-    }
-    const { data: lData } = await leadQuery;
     setLeads(lData || []);
 
-    let logQuery = supabase.from('client_audit_logs').select('*').order('created_at', { ascending: false });
-    if (clientEmail && clientPhone) {
-      logQuery = logQuery.or(`client_email.eq.${clientEmail},client_phone.eq.${clientPhone}`);
-    } else if (clientEmail) {
-      logQuery = logQuery.eq('client_email', clientEmail);
-    } else if (clientPhone) {
-      logQuery = logQuery.eq('client_phone', clientPhone);
-    }
-    const { data: logData } = await logQuery;
     const rawLogs = (logData || []) as any[];
     const authorIds = Array.from(new Set(rawLogs.map(l => l.author_id).filter(Boolean) as string[]));
     if (authorIds.length) {

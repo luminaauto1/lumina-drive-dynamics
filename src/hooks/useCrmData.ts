@@ -33,6 +33,25 @@ export interface CrmAccount {
 
 const digits = (p?: string | null) => (p || '').replace(/\D/g, '');
 
+const PAGE_SIZE = 1000;
+
+/**
+ * PostgREST hard-caps a single response at 1000 rows, so a plain .limit(20000)
+ * silently truncates larger tables. Page with .range() until a short page
+ * comes back. Supabase builders are single-use — the factory must create a
+ * fresh query per page.
+ */
+const fetchAllRows = async (builderFactory: () => any): Promise<any[]> => {
+  const rows: any[] = [];
+  for (let offset = 0; ; offset += PAGE_SIZE) {
+    const { data } = await builderFactory().range(offset, offset + PAGE_SIZE - 1);
+    if (!data || data.length === 0) break;
+    rows.push(...data);
+    if (data.length < PAGE_SIZE) break;
+  }
+  return rows;
+};
+
 /**
  * Unified CRM data layer. Replicates the original board's leads ⇆ finance_applications
  * merge (email/phone matching, virtual leads from orphan apps) so both the Board and
@@ -50,12 +69,15 @@ export const useCrmData = () => {
   const fetchAll = useCallback(async () => {
     setLoading(true);
 
-    const [{ data: leadData }, { data: apps }, { data: profiles }] = await Promise.all([
-      supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(20000),
-      supabase.from('finance_applications')
+    const [leadData, apps, profiles] = await Promise.all([
+      fetchAllRows(() => supabase.from('leads').select('*').order('created_at', { ascending: false })),
+      // Deterministic order is required for stable .range() pagination
+      // (unordered pages can overlap/skip rows); newest-first so a lead with
+      // multiple matching apps links to its most recent application.
+      fetchAllRows(() => supabase.from('finance_applications')
         .select('id, user_id, status, created_at, full_name, email, phone, assigned_f_and_i, selected_vehicle_id, vehicles:vehicles!finance_applications_selected_vehicle_id_fkey(make, model, year)')
-        .limit(20000),
-      supabase.from('profiles').select('*').order('created_at', { ascending: false }).limit(20000),
+        .order('created_at', { ascending: false })),
+      fetchAllRows(() => supabase.from('profiles').select('*').order('created_at', { ascending: false })),
     ]);
 
     let combined: CrmRecord[] = (leadData || []).map((l: any) => ({
@@ -63,13 +85,24 @@ export const useCrmData = () => {
       displayStage: normalizeStage(l.pipeline_stage || 'new'),
     }));
 
+    // Lookup indexes (replace the old O(n²) scans). Keys are lowercased emails
+    // and phone digits; only truthy raw values are indexed, mirroring the
+    // original predicates exactly (including the digits('N/A') === '' case).
+    const leadEmails = new Set<string>();
+    const leadPhones = new Set<string>();
+    combined.forEach((l) => {
+      if (l.client_email) leadEmails.add(l.client_email.toLowerCase());
+      if (l.client_phone) leadPhones.add(digits(l.client_phone));
+    });
+    // Snapshot of REAL leads only (pre-virtual) for the accounts pass below.
+    const realLeadEmails = new Set(leadEmails);
+
     // Orphan finance apps → virtual leads.
     apps?.forEach((app: any) => {
       if (!app.email && !app.phone) return;
-      const exists = combined.find((l) =>
-        (l.client_email && app.email && l.client_email.toLowerCase() === app.email.toLowerCase()) ||
-        (l.client_phone && app.phone && digits(l.client_phone) === digits(app.phone))
-      );
+      const exists =
+        (app.email && leadEmails.has(app.email.toLowerCase())) ||
+        (app.phone && leadPhones.has(digits(app.phone)));
       if (!exists) {
         combined.push({
           id: `virtual-${app.id}`,
@@ -87,6 +120,25 @@ export const useCrmData = () => {
           displayStage: normalizeStage(app.status),
           appDetails: app,
         });
+        // Later apps with the same identity must see this virtual lead.
+        if (app.email) leadEmails.add(app.email.toLowerCase());
+        if (app.phone) leadPhones.add(digits(app.phone));
+      }
+    });
+
+    // First matching app per email / phone digits — preserves the original
+    // "first match wins" precedence: whichever app appears earliest in the
+    // fetched list claims the lead, whether it matched by email or phone.
+    const appByEmail = new Map<string, { app: any; idx: number }>();
+    const appByPhone = new Map<string, { app: any; idx: number }>();
+    (apps || []).forEach((a: any, idx: number) => {
+      if (a.email) {
+        const key = a.email.toLowerCase();
+        if (!appByEmail.has(key)) appByEmail.set(key, { app: a, idx });
+      }
+      if (a.phone) {
+        const key = digits(a.phone);
+        if (!appByPhone.has(key)) appByPhone.set(key, { app: a, idx });
       }
     });
 
@@ -94,10 +146,10 @@ export const useCrmData = () => {
     const mapped = combined.map((lead) => {
       let rawStatus = lead.pipeline_stage;
       if (!lead.isVirtual && !lead.appDetails) {
-        const app = apps?.find((a: any) =>
-          (lead.client_email && a.email && lead.client_email.toLowerCase() === a.email.toLowerCase()) ||
-          (lead.client_phone && a.phone && digits(lead.client_phone) === digits(a.phone))
-        );
+        const byEmail = lead.client_email ? appByEmail.get(lead.client_email.toLowerCase()) : undefined;
+        const byPhone = lead.client_phone ? appByPhone.get(digits(lead.client_phone)) : undefined;
+        const hit = byEmail && byPhone ? (byEmail.idx <= byPhone.idx ? byEmail : byPhone) : (byEmail || byPhone);
+        const app = hit?.app;
         if (app) {
           lead.appDetails = app;
           if (app.status && normalizeStage(app.status) !== 'new') rawStatus = app.status;
@@ -114,9 +166,13 @@ export const useCrmData = () => {
     setRecords(mapped);
 
     // Registered accounts with no app and no lead.
+    const appUserIds = new Set((apps || []).map((a: any) => a.user_id));
+    const appEmails = new Set<string>();
+    (apps || []).forEach((a: any) => { if (a.email) appEmails.add(a.email.toLowerCase()); });
     const accountsWithout = (profiles || []).filter((profile: any) => {
-      const hasApp = apps?.some((a: any) => a.user_id === profile.user_id || (a.email && profile.email && a.email.toLowerCase() === profile.email.toLowerCase()));
-      const hasLead = (leadData || []).some((l: any) => l.client_email && profile.email && l.client_email.toLowerCase() === profile.email.toLowerCase());
+      const email = profile.email ? profile.email.toLowerCase() : null;
+      const hasApp = appUserIds.has(profile.user_id) || (email !== null && appEmails.has(email));
+      const hasLead = email !== null && realLeadEmails.has(email);
       return !hasApp && !hasLead;
     });
     setAccounts(accountsWithout as CrmAccount[]);

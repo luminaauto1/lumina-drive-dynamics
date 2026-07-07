@@ -41,13 +41,15 @@ export async function answerCallback(token: string, callbackQueryId: string, tex
   } catch (e) { console.error("[taskos] answerCallback failed", e instanceof Error ? e.message : e); }
 }
 
-// Replace a message's text and REMOVE its buttons (so a tapped action can't be re-tapped).
-export async function editTelegramText(token: string, chatId: number, messageId: number, text: string): Promise<void> {
+// Replace a message's text and its buttons. By default the buttons are REMOVED
+// (so a tapped action can't be re-tapped); pass `replyMarkup` to swap in a NEW
+// keyboard instead (e.g. the snooze/reschedule picker).
+export async function editTelegramText(token: string, chatId: number, messageId: number, text: string, replyMarkup?: unknown): Promise<void> {
   try {
     await fetch(`https://api.telegram.org/bot${token}/editMessageText`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, message_id: messageId, text, reply_markup: { inline_keyboard: [] } }),
+      body: JSON.stringify({ chat_id: chatId, message_id: messageId, text, reply_markup: replyMarkup ?? { inline_keyboard: [] } }),
     });
   } catch (e) { console.error("[taskos] editTelegramText failed", e instanceof Error ? e.message : e); }
 }

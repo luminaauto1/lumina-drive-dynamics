@@ -36,7 +36,12 @@ export const useTaskOSInbox = () =>
       if (error) throw error;
       return data ?? [];
     },
-    refetchInterval: 8000, // surface AI results as they land
+    // Surface AI results as they land — but only poll while something is
+    // actually being processed; go quiet once the inbox settles.
+    refetchInterval: (query) =>
+      (query.state.data ?? []).some((i: any) => i.status === 'pending' || i.status === 'processing')
+        ? 8000
+        : false,
   });
 
 export const useCaptureInbox = () => {
@@ -239,7 +244,9 @@ export const useTelegramStatus = () =>
       if (error) throw error;
       return data as { linked: boolean; link: { telegram_username: string | null; linked_at: string } | null };
     },
-    refetchInterval: 5000, // flip to "connected" live after the user taps the link
+    // Flip to "connected" live after the user taps the link — poll fast only
+    // while unlinked (the pending-link window); stop entirely once linked.
+    refetchInterval: (query) => (query.state.data?.linked ? false : 5000),
   });
 
 export const useGenerateTelegramCode = () =>

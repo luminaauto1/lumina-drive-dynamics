@@ -281,53 +281,54 @@ const AdminDashboard = () => {
       setLoading(true);
       const now = new Date();
 
-      const { data: settings } = await supabase
-        .from("site_settings")
-        .select("*")
-        .single();
-      setTarget((settings as any)?.monthly_sales_target || 10);
-
-      // Deal records — keep the full finalized set; bucket per selected period below.
-      const { data: dealRows } = await supabase
-        .from("deal_records")
-        .select("*")
-        .limit(20000);
-      setDeals(dealRows || []);
-
-      // Finance applications — used for approvals / pending counts per period.
-      const { data: appRows } = await supabase
-        .from("finance_applications")
-        .select("id, status, created_at, status_updated_at")
-        .limit(20000);
-      setApps(appRows || []);
-
-      // Valuations done = sell-car (trade-in valuation) requests, bucketed by date.
-      const { data: valRows } = await supabase
-        .from("sell_car_requests")
-        .select("created_at")
-        .limit(20000);
-      setValuationDates((valRows || []).map((r: any) => r.created_at));
-
-      // "New apps today" — always today's finance applications, period-independent.
+      // "New apps today" window — always today, period-independent.
       const startOfDayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const endOfDayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
       const dayStart = startOfDayLocal.toISOString();
       const dayEnd = endOfDayLocal.toISOString();
 
-      const { count: appsTodayCount } = await supabase
-        .from("finance_applications")
-        .select("id", { count: "exact", head: true })
-        .gte("created_at", dayStart)
-        .lte("created_at", dayEnd);
-      setNewAppsToday(appsTodayCount ?? 0);
-
-      // Today's top-of-funnel volume (unchanged behaviour).
-      const [{ count: leadsToday }, { count: draftsToday }] = await Promise.all([
+      // All queries are independent — fire them in one parallel burst.
+      const [
+        { data: settings },
+        { data: dealRows },
+        { data: appRows },
+        { data: valRows },
+        { count: appsTodayCount },
+        { count: leadsToday },
+        { count: draftsToday },
+      ] = await Promise.all([
+        supabase.from("site_settings").select("monthly_sales_target").single(),
+        // Deal records — keep the full finalized set; bucket per selected period
+        // below. Only the columns the KPI maths actually reads.
+        supabase
+          .from("deal_records")
+          .select("gross_profit, sold_price, client_deposit, is_closed, sale_date, created_at")
+          .limit(20000),
+        // Finance applications — used for approvals / pending counts per period.
+        supabase
+          .from("finance_applications")
+          .select("id, status, created_at, status_updated_at")
+          .limit(20000),
+        // Valuations done = sell-car (trade-in valuation) requests, bucketed by date.
+        supabase
+          .from("sell_car_requests")
+          .select("created_at")
+          .limit(20000),
+        // "New apps today" — always today's finance applications.
+        supabase.from("finance_applications").select("id", { count: "exact", head: true })
+          .gte("created_at", dayStart).lte("created_at", dayEnd),
+        // Today's top-of-funnel volume (unchanged behaviour).
         supabase.from("leads").select("id", { count: "exact", head: true })
           .gte("created_at", dayStart).lte("created_at", dayEnd),
         supabase.from("application_drafts").select("id", { count: "exact", head: true })
           .gte("updated_at", dayStart).lte("updated_at", dayEnd),
       ]);
+
+      setTarget((settings as any)?.monthly_sales_target || 10);
+      setDeals(dealRows || []);
+      setApps(appRows || []);
+      setValuationDates((valRows || []).map((r: any) => r.created_at));
+      setNewAppsToday(appsTodayCount ?? 0);
       setActivityToday({
         totalVolume: (leadsToday ?? 0) + (draftsToday ?? 0),
         leads: leadsToday ?? 0,

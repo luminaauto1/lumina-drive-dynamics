@@ -121,12 +121,19 @@ Deno.serve(async (req) => {
       return json(200, { ok: true, skipped: "notify_owned", status: newStatus });
     }
 
-    // 1. Per-status config (template key + body sources + internal flag).
-    const { data: ov } = await svc
-      .from("status_overrides")
-      .select("whatsapp_template_key, wa_body1_source, wa_body2_source, wa_body3_source, is_internal")
-      .eq("slug", newStatus)
-      .maybeSingle();
+    // 1. Per-status config (template key + body sources + internal flag) and the
+    //    application row (3.) are independent lookups — fetch them in ONE round trip.
+    //    Only the template row (2.) depends on the config, so it waits.
+    const [{ data: ov }, { data: app }] = await Promise.all([
+      svc.from("status_overrides")
+        .select("whatsapp_template_key, wa_body1_source, wa_body2_source, wa_body3_source, is_internal")
+        .eq("slug", newStatus)
+        .maybeSingle(),
+      svc.from("finance_applications")
+        .select("first_name, last_name, full_name, email, phone, bank_name, vehicle_id, selected_vehicle_id")
+        .eq("id", applicationId)
+        .maybeSingle(),
+    ]);
     const o: any = ov ?? {};
 
     if (o.is_internal === true) {
@@ -157,12 +164,7 @@ Deno.serve(async (req) => {
       return json(200, { ok: true, skipped: "template_inactive", status: newStatus, template_key: templateKey });
     }
 
-    // 3. Application row for body-var sourcing + destination phone.
-    const { data: app } = await svc
-      .from("finance_applications")
-      .select("first_name, last_name, full_name, email, phone, bank_name, vehicle_id, selected_vehicle_id")
-      .eq("id", applicationId)
-      .maybeSingle();
+    // 3. Application row (already fetched above in parallel with the status config).
     if (!app) return json(200, { ok: false, error: "application_not_found", application_id: applicationId });
     const a: any = app;
 
