@@ -27,28 +27,36 @@ const AddManualEntryModal = ({ open, onOpenChange }: AddManualEntryModalProps) =
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<{ first?: string; last?: string; phone?: string }>({});
 
   const resetForm = () => {
     setFirstName('');
     setLastName('');
     setPhone('');
+    setErrors({});
+  };
+
+  // Never dismiss (ESC / overlay click) while the insert is in flight — a
+  // mid-flight close hides the outcome and invites a duplicate resubmit.
+  const guardedOpenChange = (o: boolean) => {
+    if (isSubmitting && !o) return;
+    onOpenChange(o);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const first = firstName.trim();
     const last = lastName.trim();
-    // Same normalisation as the full wizard's phone input: digits only.
+    // Stored digits-only (the wizard validates digits but stores the raw
+    // trimmed value; digits-only matches how CRM/WA matching normalises).
     const phoneDigits = phone.replace(/\D/g, '');
 
-    if (!first || !last) {
-      toast.error('First name and surname are required');
-      return;
-    }
-    if (phoneDigits.length < 9 || phoneDigits.length > 15) {
-      toast.error('Cell number must be 9-15 digits');
-      return;
-    }
+    const nextErrors: typeof errors = {};
+    if (!first) nextErrors.first = 'First name is required';
+    if (!last) nextErrors.last = 'Surname is required';
+    if (phoneDigits.length < 9 || phoneDigits.length > 15) nextErrors.phone = 'Enter a valid cell number (9–15 digits)';
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
 
     setIsSubmitting(true);
     try {
@@ -65,7 +73,8 @@ const AddManualEntryModal = ({ open, onOpenChange }: AddManualEntryModalProps) =
           full_name: `${first} ${last}`,
           first_name: first,
           last_name: last,
-          // email is NOT NULL in the schema; empty string renders as '—'.
+          // email is NOT NULL in the schema; stored empty until filled in
+          // later (list/drawer cells fall back to an em-dash when blank).
           email: '',
           phone: phoneDigits,
           notes: 'Manual quick entry (name + cell only)',
@@ -101,7 +110,7 @@ const AddManualEntryModal = ({ open, onOpenChange }: AddManualEntryModalProps) =
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={guardedOpenChange}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Add Manual Entry</DialogTitle>
@@ -116,19 +125,25 @@ const AddManualEntryModal = ({ open, onOpenChange }: AddManualEntryModalProps) =
               <Input
                 id="manual_first_name"
                 value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
+                onChange={(e) => { setFirstName(e.target.value); if (errors.first) setErrors((p) => ({ ...p, first: undefined })); }}
                 placeholder="e.g. Thabo"
                 autoFocus
+                aria-invalid={!!errors.first}
+                className={errors.first ? 'border-destructive' : undefined}
               />
+              {errors.first && <p className="text-xs text-destructive">{errors.first}</p>}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="manual_last_name">Surname *</Label>
               <Input
                 id="manual_last_name"
                 value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
+                onChange={(e) => { setLastName(e.target.value); if (errors.last) setErrors((p) => ({ ...p, last: undefined })); }}
                 placeholder="e.g. Mokoena"
+                aria-invalid={!!errors.last}
+                className={errors.last ? 'border-destructive' : undefined}
               />
+              {errors.last && <p className="text-xs text-destructive">{errors.last}</p>}
             </div>
           </div>
           <div className="space-y-1.5">
@@ -138,12 +153,15 @@ const AddManualEntryModal = ({ open, onOpenChange }: AddManualEntryModalProps) =
               type="tel"
               inputMode="numeric"
               value={phone}
-              onChange={(e) => setPhone(e.target.value.replace(/[^\d\s+()-]/g, ''))}
+              onChange={(e) => { setPhone(e.target.value.replace(/[^\d\s+()-]/g, '')); if (errors.phone) setErrors((p) => ({ ...p, phone: undefined })); }}
               placeholder="0721234567"
+              aria-invalid={!!errors.phone}
+              className={errors.phone ? 'border-destructive' : undefined}
             />
+            {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
           </div>
           <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+            <Button type="button" variant="ghost" onClick={() => guardedOpenChange(false)} disabled={isSubmitting}>
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>

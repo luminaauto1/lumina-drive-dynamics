@@ -1098,7 +1098,7 @@ const AdminFinance = () => {
                             )}
                             <span>{app.first_name} {app.last_name}</span>
                           </p>
-                          <p className="text-xs text-muted-foreground truncate max-w-[15rem]">{app.email}</p>
+                          <p className="text-xs text-muted-foreground truncate max-w-[15rem]">{app.email || '—'}</p>
                           {(() => {
                             const creator = (app as any).creator;
                             if (!creator?.full_name && !creator?.email) return null;
