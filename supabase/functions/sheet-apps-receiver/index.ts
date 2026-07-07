@@ -87,6 +87,11 @@ interface SheetRow {
   kinNumber?: unknown; company?: unknown; jobTitle?: unknown; duration?: unknown;
   workAddress?: unknown; gross?: unknown; net?: unknown; expenses?: unknown;
   bank?: unknown; accountNumber?: unknown; accountType?: unknown;
+  // Not in the sheet yet — the WhatsApp bot ASKS these but the EasySocial sheet
+  // export doesn't carry them. Mapped here so they flow through the moment the
+  // sheet gains the columns (the Apps Script forwards known extra headers).
+  gender?: unknown; maritalStatus?: unknown; driversLicense?: unknown;
+  creditStatus?: unknown; nationality?: unknown;
 }
 
 // Columns eligible for fill-the-blanks on an existing application.
@@ -95,7 +100,93 @@ const FILLABLE = [
   "street_address", "area_code", "kin_name", "kin_contact", "employer_name",
   "job_title", "employment_period", "employer_address", "gross_salary",
   "net_salary", "expenses_summary", "bank_name", "account_type", "account_number",
+  "gender", "marital_status", "has_drivers_license", "credit_score_status", "nationality",
 ] as const;
+
+// ---- Canonicalisers: align sheet free-text with the website form's tokens ----
+// (website stores 'male'/'tymebank'/'savings' etc.; sheet rows arrive as
+// "Male", "Tyme bank ", "Savinhs" — canonical values keep the CRM detail view,
+// exports and the Signio autofill engine working identically for both sources.)
+
+const BANK_CANON: Array<[RegExp, string]> = [
+  [/capitec/i, "capitec"],
+  [/fnb|first\s*national/i, "fnb"],
+  [/absa/i, "absa"],
+  [/nedbank/i, "nedbank"],
+  [/standard|stand\s*bank|standerd/i, "standard_bank"],
+  [/african\s*bank/i, "african_bank"],
+  [/discov/i, "discovery_bank"],   // Discovery / "Discover"
+  [/tyme|thyme|time\s*bank/i, "tymebank"], // TymeBank incl. the common "Thymebank" spelling
+  [/investec/i, "investec"],
+  [/bidvest/i, "bidvest_bank"],
+  [/wesbank/i, "wesbank"],
+  [/sasfin/i, "sasfin"],
+  [/grindrod/i, "grindrod_bank"],
+];
+const normBank = (raw: unknown): string | null => {
+  const v = text(raw, 120);
+  if (!v) return null;
+  for (const [re, canon] of BANK_CANON) if (re.test(v)) return canon;
+  return v; // unknown bank: keep verbatim rather than guess
+};
+
+// "Savings"/"Servings"/"Savinhs" → savings; "Cheque"/"Cheaque"/"Current"/
+// "Transactional Cheque" → cheque (SA cheque == current). Unknowns verbatim.
+const normAccountType = (raw: unknown): string | null => {
+  const v = text(raw, 60);
+  if (!v) return null;
+  if (/s[ae]v|saving|saying/i.test(v)) return "savings";
+  if (/che|cur|transact/i.test(v)) return "cheque";
+  return v;
+};
+
+// ---- Facts encoded in a valid SA ID number (never guessed) ----
+// YYMMDD SSSS C A Z — SSSS 0000-4999 female / 5000-9999 male; C: 0 = SA citizen.
+const deriveFromSaId = (idNumber: string | null): { gender: string | null; nationality: string | null } => {
+  if (!idNumber || !/^\d{13}$/.test(idNumber)) return { gender: null, nationality: null };
+  const seq = parseInt(idNumber.slice(6, 10), 10);
+  const gender = seq < 5000 ? "female" : "male";
+  const nationality = idNumber[10] === "0" ? "South African" : null; // 1 = permanent resident: don't guess
+  return { gender, nationality };
+};
+
+const normGender = (raw: unknown): string | null => {
+  const v = text(raw, 30)?.toLowerCase() ?? null;
+  if (!v) return null;
+  if (/^(m|male|man)$/i.test(v)) return "male";
+  if (/^(f|female|woman)$/i.test(v)) return "female";
+  return "other";
+};
+
+const normMarital = (raw: unknown): string | null => {
+  const v = text(raw, 60)?.toLowerCase() ?? null;
+  if (!v) return null;
+  if (/divorc/.test(v)) return "divorced";
+  if (/widow/.test(v)) return "widowed";
+  if (/married|community/.test(v)) return "married";
+  if (/single|unmarried/.test(v)) return "single";
+  return v;
+};
+
+const normYesNo = (raw: unknown): string | null => {
+  const v = text(raw, 30)?.toLowerCase() ?? null;
+  if (!v) return null;
+  if (/^(y|yes|ja|true|have)/.test(v)) return "yes";
+  if (/^(n|no|nee|false|none|dont|don't)/.test(v)) return "no";
+  return null;
+};
+
+const normCredit = (raw: unknown): string | null => {
+  const v = text(raw, 120)?.toLowerCase() ?? null;
+  if (!v) return null;
+  if (/blacklist/.test(v)) return "blacklisted";
+  if (/debt\s*review/.test(v)) return "debt_review";
+  if (/judge?ment/.test(v)) return "judgements";
+  if (/default|arrear|missed|bad/.test(v)) return "defaults_arrears";
+  if (/excellent|good|clean|clear|fine/.test(v)) return "excellent_good";
+  if (/not\s*sure|unsure|unknown|dont|don't/.test(v)) return "not_sure";
+  return v;
+};
 
 function mapRow(row: SheetRow) {
   const firstName = text(row.fullName, 120);
@@ -107,6 +198,10 @@ function mapRow(row: SheetRow) {
   const province = text(row.province, 120);
   const fullAddress = [street, city, province].filter(Boolean).join(", ") || null;
   const timeAtAddress = text(row.timeAtAddress, 120);
+
+  // Sheet-supplied values win; a valid SA ID fills gender/nationality when the
+  // sheet doesn't carry them (facts encoded in the ID, not guesses).
+  const derived = deriveFromSaId(idNumber);
 
   return {
     firstName,
@@ -130,9 +225,14 @@ function mapRow(row: SheetRow) {
       gross_salary: normMoney(row.gross),
       net_salary: normMoney(row.net),
       expenses_summary: text(row.expenses, 2000),
-      bank_name: text(row.bank, 120),
-      account_type: text(row.accountType, 60),
+      bank_name: normBank(row.bank),
+      account_type: normAccountType(row.accountType),
       account_number: normAccountNumber(row.accountNumber),
+      gender: normGender(row.gender) ?? derived.gender,
+      marital_status: normMarital(row.maritalStatus),
+      has_drivers_license: normYesNo(row.driversLicense),
+      credit_score_status: normCredit(row.creditStatus),
+      nationality: text(row.nationality, 120) ?? derived.nationality,
     },
     timeAtAddress,
   };

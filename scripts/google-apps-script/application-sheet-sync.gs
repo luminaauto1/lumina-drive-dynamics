@@ -41,6 +41,39 @@ var COLUMN_KEYS = [
   'net', 'expenses', 'bank', 'accountNumber', 'accountType',
 ];
 
+// The WhatsApp bot also asks these, but the EasySocial sheet export does not
+// (yet) write them to the sheet. If columns with matching headers ever appear
+// BEYOND column W, they're forwarded automatically — no script change needed.
+// Header matching is fuzzy (lowercased, non-letters stripped).
+var EXTRA_HEADER_KEYS = [
+  { key: 'gender', re: /gender|sex/ },
+  { key: 'maritalStatus', re: /marital/ },
+  { key: 'driversLicense', re: /driver|licen/ },
+  { key: 'creditStatus', re: /credit/ },
+  { key: 'nationality', re: /nationalit|citizen/ },
+];
+
+// Columns beyond W whose header matches a known extra key: [{key, col0 (0-based)}].
+function findExtraColumns_(source) {
+  var lastCol = source.getLastColumn();
+  if (lastCol <= COLUMN_KEYS.length) return [];
+  var headers = source
+    .getRange(1, COLUMN_KEYS.length + 1, 1, lastCol - COLUMN_KEYS.length)
+    .getDisplayValues()[0];
+  var extras = [];
+  for (var i = 0; i < headers.length; i++) {
+    var h = String(headers[i] || '').toLowerCase().replace(/[^a-z]/g, '');
+    if (!h) continue;
+    for (var k = 0; k < EXTRA_HEADER_KEYS.length; k++) {
+      if (EXTRA_HEADER_KEYS[k].re.test(h)) {
+        extras.push({ key: EXTRA_HEADER_KEYS[k].key, col0: COLUMN_KEYS.length + i });
+        break;
+      }
+    }
+  }
+  return extras;
+}
+
 function setupTriggers() {
   // Clear previous copies of our triggers so re-running is safe.
   ScriptApp.getProjectTriggers().forEach(function (t) {
@@ -83,10 +116,14 @@ function syncNewApplications() {
     if (lastRow < START_ROW) return; // nothing at or below the sync boundary
 
     // Display values: keeps ID numbers / account numbers exactly as shown,
-    // no scientific notation or float mangling.
+    // no scientific notation or float mangling. Read width covers the fixed
+    // A..W block plus any recognised extra columns beyond it.
+    var extras = findExtraColumns_(source);
+    var readWidth = COLUMN_KEYS.length;
+    for (var e = 0; e < extras.length; e++) readWidth = Math.max(readWidth, extras[e].col0 + 1);
     var numRows = Math.min(lastRow - START_ROW + 1, MAX_ROWS_PER_RUN);
     var values = source
-      .getRange(START_ROW, 1, numRows, COLUMN_KEYS.length)
+      .getRange(START_ROW, 1, numRows, readWidth)
       .getDisplayValues();
 
     var dest = ensureDestSheet_(ss, source);
@@ -102,6 +139,7 @@ function syncNewApplications() {
         if (isRowEmpty_(v)) continue;
         var obj = {};
         for (var c = 0; c < COLUMN_KEYS.length; c++) obj[COLUMN_KEYS[c]] = v[c];
+        for (var x = 0; x < extras.length; x++) obj[extras[x].key] = v[extras[x].col0];
         rows.push(obj);
         sheetRowIndexes.push(START_ROW + start + i);
       }
