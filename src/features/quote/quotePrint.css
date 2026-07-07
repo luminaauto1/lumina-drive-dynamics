@@ -1,0 +1,15 @@
+/* Print isolation: when printing, hide the app chrome and show only the Quote
+   document at full A4 scale (the on-screen preview is scaled down via a wrapper
+   transform, e.g. .quote-preview-wrap). Mirrors src/features/otp/otpPrint.css. */
+@media print {
+  html, body { background: #fff !important; }
+  body * { visibility: hidden !important; }
+  .quote-print-root, .quote-print-root * { visibility: visible !important; }
+  .quote-print-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 210mm;
+    transform: none !important; /* cancel the preview scale for print */
+  }
+}
