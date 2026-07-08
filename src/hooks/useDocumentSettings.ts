@@ -170,16 +170,19 @@ export const useUpdateDocumentSettings = () => {
 export const formatInvoiceNumber = (settings: Pick<DocumentSettings, 'invoicePrefix' | 'invoiceNextNumber'>): string =>
   `${settings.invoicePrefix || 'INV-'}${String(settings.invoiceNextNumber || 1001).padStart(5, '0')}`;
 
-/** Returns the formatted invoice number to use now, and bumps the stored counter. */
+/** Returns the formatted invoice number to use now, and bumps the stored counter.
+ *  The counter is read from the FRESHLY-fetched row (not the react-query cache),
+ *  so back-to-back generates in one session never reuse a number. */
 export const consumeInvoiceNumber = async (current: DocumentSettings): Promise<string> => {
-  const num = current.invoiceNextNumber || 1001;
   const { data: row } = await (supabase as any)
     .from('site_settings').select('id, document_settings').limit(1).maybeSingle();
+  const stored = (row?.document_settings || {}) as Partial<DocumentSettings>;
+  const num = stored.invoiceNextNumber || current.invoiceNextNumber || 1001;
   if (row?.id) {
-    const merged = { ...DEFAULT_DOCUMENT_SETTINGS, ...(row.document_settings || {}), invoiceNextNumber: num + 1 };
+    const merged = { ...DEFAULT_DOCUMENT_SETTINGS, ...stored, invoiceNextNumber: num + 1 };
     await (supabase as any).from('site_settings').update({ document_settings: merged }).eq('id', row.id);
   }
-  return `${current.invoicePrefix || 'INV-'}${String(num).padStart(5, '0')}`;
+  return `${stored.invoicePrefix || current.invoicePrefix || 'INV-'}${String(num).padStart(5, '0')}`;
 };
 
 /** Returns the OTP reference to use now (e.g. OTP-2026-0001) and bumps the stored counter. */

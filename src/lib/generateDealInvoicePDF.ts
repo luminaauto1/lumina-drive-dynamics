@@ -57,6 +57,38 @@ const GOLD: [number, number, number] = [212, 175, 55];
 const fmt = (n: number): string =>
   `R ${n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+/** VAT portion of a VAT-inclusive amount at the given rate. */
+export const vatOfIncl = (incl: number, rate: number): number =>
+  rate > 0 ? incl * (rate / (100 + rate)) : 0;
+
+export interface InvoiceTotals {
+  vehVat: number; vehExcl: number;
+  miscIncl: number; miscVat: number; miscExcl: number;
+  grandIncl: number; totalVat: number; subtotalExcl: number;
+  principal: number;
+}
+
+/** Single source of truth for the motor-trade invoice math — used by the PDF
+ *  renderer, the creator's live totals panel, and the saved grand_total. */
+export const computeInvoiceTotals = (
+  data: Pick<DealInvoiceData, 'soldForIncl' | 'miscItems' | 'depositPaid' | 'tradeInDeposit'>,
+  vatRate: number,
+): InvoiceTotals => {
+  const soldIncl = data.soldForIncl ?? 0;
+  const vehVat = data.soldForIncl != null ? vatOfIncl(soldIncl, vatRate) : 0;
+  const misc = data.miscItems || [];
+  const miscIncl = misc.reduce((s, m) => s + (m.amountIncl || 0), 0);
+  const miscVat = misc.reduce((s, m) => s + (m.vatExempt ? 0 : vatOfIncl(m.amountIncl || 0, vatRate)), 0);
+  const grandIncl = soldIncl + miscIncl;
+  const totalVat = vehVat + miscVat;
+  return {
+    vehVat, vehExcl: soldIncl - vehVat,
+    miscIncl, miscVat, miscExcl: miscIncl - miscVat,
+    grandIncl, totalVat, subtotalExcl: grandIncl - totalVat,
+    principal: grandIncl - (data.depositPaid || 0) - (data.tradeInDeposit || 0),
+  };
+};
+
 export const generateDealInvoicePDF = (invoice: DealInvoiceData, settings: DocumentSettings) => {
   // A TAX INVOICE is issued when the caller forces it (e.g. the bill-to vendor is VAT
   // registered) or our own company is VAT registered. Falls back to the legacy
@@ -129,12 +161,12 @@ export const generateDealInvoicePDF = (invoice: DealInvoiceData, settings: Docum
   doc.line(margin, y, pageW - margin, y);
   y += 11;
 
-  // Motor-trade layout kicks in when the caller supplies a vehicle sold-for
-  // price and/or per-line-VAT misc items; otherwise the legacy simple layout
-  // renders byte-for-byte as before.
-  const motor = invoice.soldForIncl != null || (invoice.miscItems && invoice.miscItems.length > 0);
-  // VAT-inclusive amount → its VAT portion at the invoice rate.
-  const vatOf = (incl: number) => (vatRate > 0 ? incl * (vatRate / (100 + vatRate)) : 0);
+  // Motor-trade layout kicks in when the caller supplies ANY motor-trade field
+  // (a vehicle sold-for price, per-line-VAT misc items, or a vehicle detail
+  // grid); otherwise the legacy simple layout renders byte-for-byte as before.
+  const motor = invoice.soldForIncl != null
+    || (invoice.miscItems && invoice.miscItems.length > 0)
+    || (invoice.vehicleDetails && invoice.vehicleDetails.length > 0);
 
   const partyLines = (p: DealInvoiceParty): string[] => [
     p.name,
@@ -185,40 +217,29 @@ export const generateDealInvoicePDF = (invoice: DealInvoiceData, settings: Docum
     // ── SOLD FOR + MISCELLANEOUS ITEMS (Incl | VAT | Excl per line) ──
     const misc = invoice.miscItems || [];
     const soldIncl = invoice.soldForIncl ?? null;
-    const vehVat = soldIncl != null ? vatOf(soldIncl) : 0;
-    const vehExcl = soldIncl != null ? soldIncl - vehVat : 0;
-    const miscCalc = misc.map((m) => {
-      const vat = m.vatExempt ? 0 : vatOf(m.amountIncl || 0);
-      return { ...m, vat, excl: (m.amountIncl || 0) - vat };
-    });
-    const miscIncl = miscCalc.reduce((s, m) => s + (m.amountIncl || 0), 0);
-    const miscVat = miscCalc.reduce((s, m) => s + m.vat, 0);
-    const miscExcl = miscIncl - miscVat;
-    const grandIncl = (soldIncl || 0) + miscIncl;
-    const totalVat = vehVat + miscVat;
-    const subtotalExcl = grandIncl - totalVat;
-    const deposit = invoice.depositPaid || 0;
-    const tradeIn = invoice.tradeInDeposit || 0;
-    const principal = grandIncl - deposit - tradeIn;
+    const t = computeInvoiceTotals(invoice, vatRate);
     const vehLabel = (invoice.vehicleLabel || 'Vehicle').toUpperCase();
 
     const bold = (content: string) => ({ content, styles: { fontStyle: 'bold' as const } });
     const body: any[][] = [];
     if (soldIncl != null) {
       const soldDesc = invoice.soldForLabel || `${invoice.vehicleLabel || 'Vehicle'} — SOLD FOR`;
-      body.push([bold(soldDesc), bold(fmt(soldIncl)), bold(fmt(vehVat)), bold(fmt(vehExcl))]);
+      body.push([bold(soldDesc), bold(fmt(soldIncl)), bold(fmt(t.vehVat)), bold(fmt(t.vehExcl))]);
     }
-    for (const m of miscCalc) body.push([m.description, fmt(m.amountIncl || 0), fmt(m.vat), fmt(m.excl)]);
+    for (const m of misc) {
+      const vat = m.vatExempt ? 0 : vatOfIncl(m.amountIncl || 0, vatRate);
+      body.push([m.description, fmt(m.amountIncl || 0), fmt(vat), fmt((m.amountIncl || 0) - vat)]);
+    }
 
     const foot: any[][] = [
-      ['MISCELLANEOUS ITEMS TOTAL (excl)', '', '', fmt(miscExcl)],
-      ...(soldIncl != null ? [[`1 X ${vehLabel} (excl)`, '', '', fmt(vehExcl)]] : []),
-      ['SUBTOTAL (excl)', '', '', fmt(subtotalExcl)],
-      [`VAT @ ${vatRate}%`, '', '', fmt(totalVat)],
-      [bold('GRAND TOTAL'), '', '', bold(fmt(grandIncl))],
-      ['DEPOSIT PAID', '', '', fmt(deposit)],
-      ['TRADE-IN DEPOSIT', '', '', fmt(tradeIn)],
-      [bold('PRINCIPAL DEBT'), '', '', bold(fmt(principal))],
+      ['MISCELLANEOUS ITEMS TOTAL (excl)', '', '', fmt(t.miscExcl)],
+      ...(soldIncl != null ? [[`1 X ${vehLabel} (excl)`, '', '', fmt(t.vehExcl)]] : []),
+      ['SUBTOTAL (excl)', '', '', fmt(t.subtotalExcl)],
+      [`VAT @ ${vatRate}%`, '', '', fmt(t.totalVat)],
+      [bold('GRAND TOTAL'), '', '', bold(fmt(t.grandIncl))],
+      ['DEPOSIT PAID', '', '', fmt(invoice.depositPaid || 0)],
+      ['TRADE-IN DEPOSIT', '', '', fmt(invoice.tradeInDeposit || 0)],
+      [bold('PRINCIPAL DEBT'), '', '', bold(fmt(t.principal))],
     ];
 
     autoTable(doc, {
@@ -315,8 +336,8 @@ export const generateDealInvoicePDF = (invoice: DealInvoiceData, settings: Docum
   }
 
   // ── Banking details ──
-  if (y > pageH - 55) { doc.addPage(); y = 20; }
   if (settings.bankName || settings.bankAccountNumber) {
+    if (y > pageH - 55) { doc.addPage(); y = 20; }
     sectionLabel('BANKING DETAILS', margin, y);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(45);
     const bankLines = [

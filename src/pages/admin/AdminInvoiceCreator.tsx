@@ -23,12 +23,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useVendors } from '@/hooks/useVendors';
-import { useVehicles } from '@/hooks/useVehicles';
 import { useInvoices, useInsertInvoice, InvoiceRow } from '@/hooks/useInvoices';
 import { useDocumentSettings, consumeInvoiceNumber, formatInvoiceNumber, DocumentSettings } from '@/hooks/useDocumentSettings';
-import { generateDealInvoicePDF, DealInvoiceData } from '@/lib/generateDealInvoicePDF';
+import { generateDealInvoicePDF, computeInvoiceTotals, DealInvoiceData } from '@/lib/generateDealInvoicePDF';
 
 const fmtR = (n: number) => `R ${Number(n || 0).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -54,6 +54,8 @@ interface LineItem { description: string; amount: number }
 
 /** Full form state — persisted verbatim as invoices.payload for re-download / duplicate. */
 export interface InvoicePayload {
+  /** Payload schema version — bump on breaking form-shape changes so old rows can be migrated or refused. */
+  v?: number;
   mode: 'vehicle' | 'general';
   invoiceNumber: string;
   paymentReference: string;
@@ -78,6 +80,32 @@ const MISC_PRESETS: { label: string; vatExempt: boolean }[] = [
   { label: 'VAP', vatExempt: false },
 ];
 
+/** Map a picked client onto a party block — single mapping for Invoiced-To AND Delivered-To. */
+const clientToParty = (c: ClientPick): PartyState => ({
+  ...EMPTY_PARTY,
+  name: c.name,
+  regOrId: c.idNumber ? `ID: ${c.idNumber}` : '',
+  address: c.address,
+  postalCode: c.postalCode,
+  email: c.email,
+  phone: c.phone,
+});
+
+/** Lightweight stock list for the prefill dropdown — only the columns it needs
+ *  (useVehicles selects * incl. image arrays / cost internals; too heavy here). */
+const useVehiclesLite = () =>
+  useQuery({
+    queryKey: ['invoice-vehicles-lite'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('vehicles')
+        .select('id, stock_number, year, make, model, variant, color, mileage, vin, engine_code, registration_number, price')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
 /** Build the PDF data from a payload — used by Generate, Re-download and nothing else. */
 const buildPdfData = (p: InvoicePayload, settings: DocumentSettings): DealInvoiceData => {
   const party = (s: PartyState) => ({
@@ -90,12 +118,15 @@ const buildPdfData = (p: InvoicePayload, settings: DocumentSettings): DealInvoic
     phone: s.phone.trim() || undefined,
     phoneWork: s.phoneWork.trim() || undefined,
   });
+  // Guard against a cleared date input / legacy payloads — never let an
+  // Invalid Date crash the render; fall back to today.
+  const parsedDate = new Date(`${p.dateStr}T00:00:00`);
   const base: DealInvoiceData = {
     invoiceNumber: p.invoiceNumber,
     paymentReference: p.paymentReference.trim() || undefined,
     taxInvoice: p.taxInvoice,
     vatRate: settings.vatRegistered ? (settings.vatPercent || 0) : 0, // zero-rated while not registered
-    date: format(new Date(`${p.dateStr}T00:00:00`), 'dd MMM yyyy'),
+    date: format(isNaN(parsedDate.getTime()) ? new Date() : parsedDate, 'dd MMM yyyy'),
     billTo: party(p.billTo),
     notes: p.notes.trim() || undefined,
   };
@@ -136,17 +167,13 @@ const buildPdfData = (p: InvoicePayload, settings: DocumentSettings): DealInvoic
   };
 };
 
-const grandTotalOf = (p: InvoicePayload): number =>
-  p.mode === 'general'
-    ? p.generalItems.reduce((s, l) => s + (Number(l.amount) || 0), 0)
-    : (Number(p.soldForIncl) || 0) + p.miscItems.reduce((s, m) => s + (Number(m.amountIncl) || 0), 0);
-
 const AdminInvoiceCreator = () => {
   const { data: vendors = [] } = useVendors();
-  const { data: vehicles = [] } = useVehicles();
+  const { data: vehicles = [] } = useVehiclesLite();
   const { data: docSettings } = useDocumentSettings();
   const { data: history = [] } = useInvoices();
   const insertInvoice = useInsertInvoice();
+  const queryClient = useQueryClient();
 
   const [mode, setMode] = useState<'vehicle' | 'general'>('vehicle');
   const [billTo, setBillTo] = useState<PartyState>({ ...EMPTY_PARTY });
@@ -179,27 +206,27 @@ const AdminInvoiceCreator = () => {
   }, [docSettings]);
 
   const vatRate = docSettings?.vatRegistered ? (docSettings.vatPercent || 0) : 0;
-  const vatOf = (incl: number) => (vatRate > 0 ? incl * (vatRate / (100 + vatRate)) : 0);
 
-  // Live totals — same math as the PDF.
+  // Live totals — computed by the SAME helper the PDF renderer uses, so the
+  // screen, the saved grand_total and the printed document can never diverge.
   const totals = useMemo(() => {
     if (mode === 'general') {
-      const total = generalItems.reduce((s, l) => s + (Number(l.amount) || 0), 0);
-      const vat = vatOf(total);
-      return { grand: total, vat, excl: total - vat, principal: total, misc: 0, vehExcl: 0 };
+      const t = computeInvoiceTotals(
+        { soldForIncl: undefined, miscItems: generalItems.map((l) => ({ description: l.description, amountIncl: Number(l.amount) || 0 })) },
+        vatRate,
+      );
+      return { grand: t.grandIncl, vat: t.totalVat, excl: t.subtotalExcl, principal: t.grandIncl, misc: 0, vehExcl: 0 };
     }
-    const sold = Number(soldForIncl) || 0;
-    const vehVat = vatOf(sold);
-    const miscIncl = miscItems.reduce((s, m) => s + (Number(m.amountIncl) || 0), 0);
-    const miscVat = miscItems.reduce((s, m) => s + (m.vatExempt ? 0 : vatOf(Number(m.amountIncl) || 0)), 0);
-    const grand = sold + miscIncl;
-    const vat = vehVat + miscVat;
-    return {
-      grand, vat, excl: grand - vat,
-      misc: miscIncl - miscVat, vehExcl: sold - vehVat,
-      principal: grand - (Number(depositPaid) || 0) - (Number(tradeInDeposit) || 0),
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const t = computeInvoiceTotals(
+      {
+        soldForIncl: Number(soldForIncl) || 0,
+        miscItems: miscItems.map((m) => ({ description: m.description, amountIncl: Number(m.amountIncl) || 0, vatExempt: m.vatExempt })),
+        depositPaid: Number(depositPaid) || 0,
+        tradeInDeposit: Number(tradeInDeposit) || 0,
+      },
+      vatRate,
+    );
+    return { grand: t.grandIncl, vat: t.totalVat, excl: t.subtotalExcl, misc: t.miscExcl, vehExcl: t.vehExcl, principal: t.principal };
   }, [mode, generalItems, soldForIncl, miscItems, depositPaid, tradeInDeposit, vatRate]);
 
   const prefillFromVendor = (vendorId: string) => {
@@ -237,6 +264,7 @@ const AdminInvoiceCreator = () => {
   };
 
   const currentPayload = (): InvoicePayload => ({
+    v: 1,
     mode, invoiceNumber, paymentReference, dateStr, taxInvoice,
     billTo, deliveredToEnabled, deliveredTo, vehicle,
     soldForIncl: Number(soldForIncl) || 0,
@@ -275,23 +303,32 @@ const AdminInvoiceCreator = () => {
       return;
     }
     setBusy(true);
+    let finalNumber = invoiceNumber.trim();
     try {
       // Untouched auto number → consume (and bump) the shared counter now.
-      let finalNumber = invoiceNumber.trim();
-      if (!finalNumber || finalNumber === autoNumber) finalNumber = await consumeInvoiceNumber(docSettings);
+      if (!finalNumber || finalNumber === autoNumber) {
+        finalNumber = await consumeInvoiceNumber(docSettings);
+        // The counter moved in the DB — refresh the cached settings so the next
+        // auto number previews (and consumes) correctly without a page reload.
+        queryClient.invalidateQueries({ queryKey: ['document-settings'] });
+      }
       const payload = { ...currentPayload(), invoiceNumber: finalNumber };
-      generateDealInvoicePDF(buildPdfData(payload, docSettings), docSettings);
+      // Save FIRST, then hand over the PDF — if the save fails the operator is
+      // told before a numbered document leaves the building.
       await insertInvoice.mutateAsync({
         invoice_number: finalNumber,
         invoice_date: dateStr,
         kind: mode,
         bill_to_name: billTo.name.trim(),
-        grand_total: grandTotalOf(payload),
+        grand_total: totals.grand,
         payload: payload as any,
       });
+      generateDealInvoicePDF(buildPdfData(payload, docSettings), docSettings);
       setInvoiceNumber(''); // re-defaults to the (now bumped) next number
       toast.success(`Invoice ${finalNumber} generated & saved`);
     } catch (e: any) {
+      // Pin the already-consumed number in the field so a retry reuses it (no gaps).
+      if (finalNumber) setInvoiceNumber(finalNumber);
       toast.error(`Failed: ${e?.message || e}`);
     } finally {
       setBusy(false);
@@ -363,11 +400,7 @@ const AdminInvoiceCreator = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <ClientSearch label="…or prefill from a client" onPick={(c) => setBillTo({
-                ...EMPTY_PARTY,
-                name: c.name, regOrId: c.idNumber ? `ID: ${c.idNumber}` : '',
-                address: c.address, postalCode: c.postalCode, email: c.email, phone: c.phone,
-              })} />
+              <ClientSearch label="…or prefill from a client" onPick={(c) => setBillTo(clientToParty(c))} />
             </div>
             <PartyFields party={billTo} onChange={setBillTo} required showVat />
           </CardContent>
@@ -385,11 +418,7 @@ const AdminInvoiceCreator = () => {
             </CardHeader>
             {deliveredToEnabled && (
               <CardContent className="space-y-4">
-                <ClientSearch label="Prefill from a client" onPick={(c) => setDeliveredTo({
-                  ...EMPTY_PARTY,
-                  name: c.name, regOrId: c.idNumber ? `ID: ${c.idNumber}` : '',
-                  address: c.address, postalCode: c.postalCode, email: c.email, phone: c.phone,
-                })} />
+                <ClientSearch label="Prefill from a client" onPick={(c) => setDeliveredTo(clientToParty(c))} />
                 <PartyFields party={deliveredTo} onChange={setDeliveredTo} showWorkPhone />
               </CardContent>
             )}
@@ -667,19 +696,24 @@ const ClientSearch = ({ label, onPick }: { label: string; onPick: (c: ClientPick
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
+    let stale = false;
     const t = setTimeout(async () => {
-      const term = q.trim();
+      // PostgREST's .or() treats , ( ) as filter syntax — strip them so a
+      // search like "Smith, John" or "ABC (Pty)" can't break the query.
+      const term = q.trim().replace(/[,()]/g, ' ').replace(/\s+/g, ' ').trim();
       if (term.length < 3) { setResults([]); setOpen(false); return; }
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('finance_applications')
         .select('id, full_name, first_name, last_name, id_number, phone, email, street_address, area_code')
         .or(`full_name.ilike.%${term}%,phone.ilike.%${term}%,last_name.ilike.%${term}%`)
         .order('created_at', { ascending: false })
         .limit(8);
+      if (stale) return; // a newer keystroke superseded this request
+      if (error) { console.error('[invoice client search]', error.message); setResults([]); setOpen(false); return; }
       setResults(data || []);
       setOpen((data || []).length > 0);
     }, 300);
-    return () => clearTimeout(t);
+    return () => { stale = true; clearTimeout(t); };
   }, [q]);
 
   return (

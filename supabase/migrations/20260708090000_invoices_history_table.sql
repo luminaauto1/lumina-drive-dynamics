@@ -16,6 +16,12 @@ CREATE TABLE IF NOT EXISTS public.invoices (
 
 CREATE INDEX IF NOT EXISTS idx_invoices_created_at ON public.invoices (created_at DESC);
 
+-- Backstop against duplicate tax-invoice numbers (SARS compliance): the app
+-- consumes an incrementing counter, but a stale cache or two operators could
+-- otherwise produce the same number — the DB rejects it outright.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_invoice_number_unique
+  ON public.invoices (invoice_number);
+
 ALTER TABLE public.invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.invoices FORCE ROW LEVEL SECURITY;
 

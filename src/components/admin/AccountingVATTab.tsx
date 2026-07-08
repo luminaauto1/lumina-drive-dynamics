@@ -295,7 +295,10 @@ const AccountingVATTab = () => {
         ? `${vehLabel} — deal proceeds (selling less purchase)`
         : undefined,
       miscItems: miscLines.map((l) => ({ description: l.description, amountIncl: l.amount })),
-      depositPaid: num(d.client_deposit),
+      // Deposit only reduces the payable on DIRECT client invoices. A finance
+      // house owes the dealer the full billed amount — the client's deposit is
+      // settled on the bank's side, so it must not shrink PRINCIPAL DEBT here.
+      depositPaid: isFinance ? undefined : num(d.client_deposit),
     };
     generateDealInvoicePDF(data, docSettings);
   };
