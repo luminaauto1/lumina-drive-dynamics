@@ -1,0 +1,17 @@
+/* Print isolation: when printing, hide the app chrome and show only the Invoice
+   document at full A4 scale (the on-screen preview is scaled down via a wrapper
+   transform). Mirrors src/features/quote/quotePrint.css — the two coexist: each
+   @media print block hides body* and re-shows only its own root, so whichever
+   document root is mounted is the one that prints. */
+@media print {
+  html, body { background: #fff !important; }
+  body * { visibility: hidden !important; }
+  .invoice-print-root, .invoice-print-root * { visibility: visible !important; }
+  .invoice-print-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 210mm;
+    transform: none !important; /* cancel the preview scale for print */
+  }
+}

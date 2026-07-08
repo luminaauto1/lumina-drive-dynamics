@@ -27,51 +27,24 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useVendors } from '@/hooks/useVendors';
 import { useInvoices, useInsertInvoice, InvoiceRow } from '@/hooks/useInvoices';
-import { useDocumentSettings, consumeInvoiceNumber, formatInvoiceNumber, DocumentSettings } from '@/hooks/useDocumentSettings';
-import { generateDealInvoicePDF, computeInvoiceTotals, DealInvoiceData } from '@/lib/generateDealInvoicePDF';
+import { useDocumentSettings, consumeInvoiceNumber, formatInvoiceNumber } from '@/hooks/useDocumentSettings';
+import { computeInvoiceTotals } from '@/lib/generateDealInvoicePDF';
+import { InvoicePrintPreview } from '@/features/invoice/InvoicePrintPreview';
+import {
+  InvoicePayload, EMPTY_PARTY,
+  InvoiceParty as PartyState,
+  InvoiceVehicle as VehicleState,
+  InvoiceMisc as MiscItem,
+  InvoiceGeneralLine as LineItem,
+} from '@/features/invoice/types';
 
 const fmtR = (n: number) => `R ${Number(n || 0).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-interface PartyState {
-  name: string; regOrId: string; vatNumber: string; address: string;
-  postalCode: string; email: string; phone: string; phoneWork: string;
-}
-const EMPTY_PARTY: PartyState = { name: '', regOrId: '', vatNumber: '', address: '', postalCode: '', email: '', phone: '', phoneWork: '' };
-
-interface VehicleState {
-  make: string; model: string; variant: string; year: string; yearFirstReg: string;
-  colour: string; km: string; mmCode: string; vin: string; engineNo: string;
-  regNo: string; stockNo: string; features: string; dateSold: string; salesperson: string;
-}
 const emptyVehicle = (): VehicleState => ({
   make: '', model: '', variant: '', year: '', yearFirstReg: '', colour: '', km: '',
   mmCode: '', vin: '', engineNo: '', regNo: '', stockNo: '', features: '',
   dateSold: format(new Date(), 'yyyy-MM-dd'), salesperson: '',
 });
-
-interface MiscItem { description: string; amountIncl: number; vatExempt: boolean }
-interface LineItem { description: string; amount: number }
-
-/** Full form state — persisted verbatim as invoices.payload for re-download / duplicate. */
-export interface InvoicePayload {
-  /** Payload schema version — bump on breaking form-shape changes so old rows can be migrated or refused. */
-  v?: number;
-  mode: 'vehicle' | 'general';
-  invoiceNumber: string;
-  paymentReference: string;
-  dateStr: string;
-  taxInvoice: boolean;
-  billTo: PartyState;
-  deliveredToEnabled: boolean;
-  deliveredTo: PartyState;
-  vehicle: VehicleState;
-  soldForIncl: number;
-  miscItems: MiscItem[];
-  depositPaid: number;
-  tradeInDeposit: number;
-  generalItems: LineItem[];
-  notes: string;
-}
 
 const MISC_PRESETS: { label: string; vatExempt: boolean }[] = [
   { label: 'Licence & Registration', vatExempt: true },
@@ -106,67 +79,6 @@ const useVehiclesLite = () =>
     },
   });
 
-/** Build the PDF data from a payload — used by Generate, Re-download and nothing else. */
-const buildPdfData = (p: InvoicePayload, settings: DocumentSettings): DealInvoiceData => {
-  const party = (s: PartyState) => ({
-    name: s.name.trim(),
-    regOrId: s.regOrId.trim() || undefined,
-    vatNumber: s.vatNumber.trim() || undefined,
-    address: s.address.trim() || undefined,
-    postalCode: s.postalCode.trim() || undefined,
-    email: s.email.trim() || undefined,
-    phone: s.phone.trim() || undefined,
-    phoneWork: s.phoneWork.trim() || undefined,
-  });
-  // Guard against a cleared date input / legacy payloads — never let an
-  // Invalid Date crash the render; fall back to today.
-  const parsedDate = new Date(`${p.dateStr}T00:00:00`);
-  const base: DealInvoiceData = {
-    invoiceNumber: p.invoiceNumber,
-    paymentReference: p.paymentReference.trim() || undefined,
-    taxInvoice: p.taxInvoice,
-    vatRate: settings.vatRegistered ? (settings.vatPercent || 0) : 0, // zero-rated while not registered
-    date: format(isNaN(parsedDate.getTime()) ? new Date() : parsedDate, 'dd MMM yyyy'),
-    billTo: party(p.billTo),
-    notes: p.notes.trim() || undefined,
-  };
-  if (p.mode === 'general') {
-    return {
-      ...base,
-      lineItems: p.generalItems
-        .filter((l) => l.description.trim() || Number(l.amount))
-        .map((l) => ({ description: l.description.trim() || 'Item', amount: Number(l.amount) || 0 })),
-    };
-  }
-  const v = p.vehicle;
-  const yearLabel = v.yearFirstReg && v.yearFirstReg !== v.year ? `${v.year} (1st reg ${v.yearFirstReg})` : v.year;
-  const vehicleDetails = ([
-    ['Stock No', v.stockNo], ['Reg No', v.regNo],
-    ['M&M Code', v.mmCode], ['KM', v.km ? Number(v.km).toLocaleString('en-ZA') : ''],
-    ['Make', v.make], ['Model', [v.model, v.variant].filter(Boolean).join(' ')],
-    ['Yr of 1st Reg', v.yearFirstReg || v.year], ['Colour', v.colour],
-    ['VIN / Chassis No', v.vin], ['Engine No', v.engineNo],
-    ['Date Sold', v.dateSold ? format(new Date(`${v.dateSold}T00:00:00`), 'dd MMM yyyy') : ''],
-    ['Sales Person', v.salesperson],
-    ['Features', v.features],
-  ] as [string, string][])
-    .filter(([, val]) => String(val || '').trim() !== '')
-    .map(([label, value]) => ({ label, value: String(value) }));
-  return {
-    ...base,
-    deliveredTo: p.deliveredToEnabled && p.deliveredTo.name.trim() ? party(p.deliveredTo) : undefined,
-    vehicleDetails,
-    vehicleLabel: [yearLabel, v.make, v.model, v.variant].filter(Boolean).join(' ').trim() || 'Vehicle',
-    // Omit the SOLD FOR row entirely when no vehicle price is billed (misc-only invoice).
-    soldForIncl: (Number(p.soldForIncl) || 0) > 0 ? Number(p.soldForIncl) : undefined,
-    miscItems: p.miscItems
-      .filter((m) => m.description.trim() || Number(m.amountIncl))
-      .map((m) => ({ description: m.description.trim() || 'Item', amountIncl: Number(m.amountIncl) || 0, vatExempt: !!m.vatExempt })),
-    depositPaid: Number(p.depositPaid) || 0,
-    tradeInDeposit: Number(p.tradeInDeposit) || 0,
-  };
-};
-
 const AdminInvoiceCreator = () => {
   const { data: vendors = [] } = useVendors();
   const { data: vehicles = [] } = useVehiclesLite();
@@ -191,6 +103,9 @@ const AdminInvoiceCreator = () => {
   const [dateStr, setDateStr] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [taxInvoice, setTaxInvoice] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Full-screen document preview (obsidian A4, same family as Quote/OTP) —
+  // "Download PDF" inside it prints the isolated document.
+  const [preview, setPreview] = useState<InvoicePayload | null>(null);
 
   // Auto number preview — regenerating with this untouched consumes the counter.
   const autoNumber = docSettings ? formatInvoiceNumber(docSettings) : '';
@@ -313,7 +228,7 @@ const AdminInvoiceCreator = () => {
         queryClient.invalidateQueries({ queryKey: ['document-settings'] });
       }
       const payload = { ...currentPayload(), invoiceNumber: finalNumber };
-      // Save FIRST, then hand over the PDF — if the save fails the operator is
+      // Save FIRST, then open the document — if the save fails the operator is
       // told before a numbered document leaves the building.
       await insertInvoice.mutateAsync({
         invoice_number: finalNumber,
@@ -323,9 +238,9 @@ const AdminInvoiceCreator = () => {
         grand_total: totals.grand,
         payload: payload as any,
       });
-      generateDealInvoicePDF(buildPdfData(payload, docSettings), docSettings);
+      setPreview(payload); // full-screen A4 preview → Download PDF prints it
       setInvoiceNumber(''); // re-defaults to the (now bumped) next number
-      toast.success(`Invoice ${finalNumber} generated & saved`);
+      toast.success(`Invoice ${finalNumber} saved`);
     } catch (e: any) {
       // Pin the already-consumed number in the field so a retry reuses it (no gaps).
       if (finalNumber) setInvoiceNumber(finalNumber);
@@ -337,11 +252,7 @@ const AdminInvoiceCreator = () => {
 
   const redownload = (row: InvoiceRow) => {
     if (!docSettings) { toast.error('Document settings not loaded yet'); return; }
-    try {
-      generateDealInvoicePDF(buildPdfData(row.payload as InvoicePayload, docSettings), docSettings);
-    } catch (e: any) {
-      toast.error(`Failed: ${e?.message || e}`);
-    }
+    setPreview(row.payload as InvoicePayload);
   };
 
   const setMisc = (i: number, patch: Partial<MiscItem>) =>
@@ -620,7 +531,7 @@ const AdminInvoiceCreator = () => {
 
         <div className="flex justify-end">
           <Button onClick={generate} size="lg" disabled={busy}>
-            <Download className="w-4 h-4 mr-2" /> {busy ? 'Generating…' : 'Generate & Save Invoice'}
+            <Download className="w-4 h-4 mr-2" /> {busy ? 'Saving…' : 'Save & Open Invoice'}
           </Button>
         </div>
 
@@ -654,6 +565,10 @@ const AdminInvoiceCreator = () => {
           </CardContent>
         </Card>
       </div>
+
+      {preview && docSettings && (
+        <InvoicePrintPreview payload={preview} settings={docSettings} onClose={() => setPreview(null)} />
+      )}
     </AdminLayout>
   );
 };
