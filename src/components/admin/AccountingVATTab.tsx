@@ -13,8 +13,9 @@ import { dealNetProfit, isFinalizedDeal } from '@/lib/dealMetrics';
 import { useVendors, Vendor } from '@/hooks/useVendors';
 import { useVehicleExpenses, EXPENSE_CATEGORIES } from '@/hooks/useVehicleExpenses';
 import { useDocumentSettings } from '@/hooks/useDocumentSettings';
-import { generateDealInvoicePDF, DealInvoiceData } from '@/lib/generateDealInvoicePDF';
 import { generateVehicleSpecPDF, loadVehicleImage, SpecSection } from '@/lib/generateVehicleSpecPDF';
+import { InvoicePrintPreview } from '@/features/invoice/InvoicePrintPreview';
+import { InvoicePayload, EMPTY_PARTY } from '@/features/invoice/types';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 
 // To the cent — this is the accountant's view.
@@ -159,6 +160,8 @@ const AccountingVATTab = () => {
   const [view, setView] = useState<'pending' | 'all'>('pending');
   const [activeDeal, setActiveDeal] = useState<AccountingDeal | null>(null);
   const [specBusy, setSpecBusy] = useState(false);
+  // Full-screen invoice document preview (obsidian A4, shared with /admin/invoices).
+  const [invoicePreview, setInvoicePreview] = useState<InvoicePayload | null>(null);
 
   // Per-vehicle expense ledger (the individual recon/expense line items).
   const { data: vehicleExpenses = [] } = useVehicleExpenses(activeDeal?.vehicle_id || undefined);
@@ -245,16 +248,15 @@ const AccountingVATTab = () => {
     const financeVendor = d.finance_house_vendor_id ? vendorMap.get(d.finance_house_vendor_id) : undefined;
     if (isFinance && !financeVendor) { toast.error('Finance deal but no finance house set — open the deal and pick one first.'); return; }
     const taxInvoice = isTaxInvoiceForDeal(d);
-    const invVatRate = docSettings.vatRegistered ? (docSettings.vatPercent || 0) : 0; // zero-rated while we're not registered
     const billTo = isFinance && financeVendor
       ? { name: financeVendor.name, regOrId: financeVendor.registration_number ? `Reg: ${financeVendor.registration_number}` : undefined, vatNumber: financeVendor.vat_number || undefined, address: financeVendor.address || undefined, email: financeVendor.email || undefined, phone: financeVendor.phone || undefined }
       : { name: clientName, regOrId: app?.id_number ? `ID: ${app.id_number}` : undefined, email: app?.email || undefined, phone: app?.phone || undefined };
     const cfg = d.invoice_config || {};
     const invoiceNumber = (cfg.invoice_number && String(cfg.invoice_number).trim())
       || `${docSettings.invoicePrefix || 'INV-'}${d.id.slice(0, 8).toUpperCase()}`;
-    // Motor-trade layout: vehicle SOLD FOR row + remaining ticked lines as misc
-    // items. Same numbers as the ticked lines total — only the presentation
-    // carries the full vehicle grid + Incl/VAT/Excl columns + principal debt.
+    // Motor-trade document: vehicle SOLD FOR row + remaining ticked lines as
+    // misc items. Same numbers as the ticked lines total — rendered by the
+    // shared InvoiceDocument (obsidian A4, same family as Quote/OTP).
     const lines = buildInvoiceLines(d);
     const includeVehicle = cfg.selling_price !== false;
     const useMargin = isFinance && cfg.finance_basis === 'margin';
@@ -263,44 +265,54 @@ const AccountingVATTab = () => {
     const miscLines = includeVehicle ? lines.slice(1) : lines;
     const vehLabel = v ? [v.year, v.make, v.model, v.variant].filter(Boolean).join(' ').trim() : 'Vehicle';
 
-    const data: DealInvoiceData = {
+    const payload: InvoicePayload = {
+      v: 1,
+      mode: 'vehicle',
       invoiceNumber,
-      paymentReference: (cfg.payment_reference && String(cfg.payment_reference).trim()) || undefined,
+      paymentReference: (cfg.payment_reference && String(cfg.payment_reference).trim()) || '',
+      dateStr: String(d.sale_date || d.created_at).slice(0, 10),
       taxInvoice,
-      vatRate: invVatRate,
-      date: d.sale_date ? format(new Date(d.sale_date), 'dd MMM yyyy') : format(new Date(d.created_at), 'dd MMM yyyy'),
-      billTo,
-      deliveredTo: isFinance
-        ? {
-            name: clientName,
-            regOrId: app?.id_number ? `ID: ${app.id_number}` : undefined,
-            email: app?.email || undefined,
-            phone: app?.phone || undefined,
-          }
-        : undefined,
-      vehicleDetails: ([
-        ['Stock No', v?.stock_number], ['Reg No', v?.registration_number],
-        ['Make', v?.make], ['Model', [v?.model, v?.variant].filter(Boolean).join(' ')],
-        ['Year', v?.year], ['Colour', v?.color],
-        ['KM', v?.mileage != null ? Number(v.mileage).toLocaleString('en-ZA') : ''],
-        ['Transmission', v?.transmission], ['Fuel', v?.fuel_type],
-        ['VIN / Chassis No', v?.vin], ['Engine No', v?.engine_code],
-        ['Date Sold', d.sale_date ? format(new Date(d.sale_date), 'dd MMM yyyy') : ''],
-      ] as [string, any][])
-        .filter(([, val]) => val != null && String(val).trim() !== '')
-        .map(([label, val]) => ({ label, value: String(val) })),
-      vehicleLabel: vehLabel,
-      soldForIncl: includeVehicle ? vehicleAmount : undefined,
+      billTo: {
+        ...EMPTY_PARTY,
+        name: billTo.name || '',
+        regOrId: billTo.regOrId || '',
+        vatNumber: (billTo as any).vatNumber || '',
+        address: (billTo as any).address || '',
+        email: billTo.email || '',
+        phone: billTo.phone || '',
+      },
+      deliveredToEnabled: isFinance,
+      deliveredTo: {
+        ...EMPTY_PARTY,
+        name: isFinance ? clientName : '',
+        regOrId: isFinance && app?.id_number ? `ID: ${app.id_number}` : '',
+        email: (isFinance && app?.email) || '',
+        phone: (isFinance && app?.phone) || '',
+      },
+      vehicle: {
+        make: v?.make || '', model: v?.model || '', variant: v?.variant || '',
+        year: v?.year != null ? String(v.year) : '', yearFirstReg: '',
+        colour: v?.color || '', km: v?.mileage != null ? String(v.mileage) : '',
+        mmCode: '', vin: v?.vin || '', engineNo: v?.engine_code || '',
+        regNo: v?.registration_number || '', stockNo: v?.stock_number || '',
+        features: [v?.transmission, v?.fuel_type].filter(Boolean).join(', '),
+        dateSold: String(d.sale_date || d.created_at).slice(0, 10),
+        salesperson: '',
+      },
+      soldForIncl: includeVehicle ? vehicleAmount : 0,
       soldForLabel: includeVehicle && useMargin
         ? `${vehLabel} — deal proceeds (selling less purchase)`
         : undefined,
-      miscItems: miscLines.map((l) => ({ description: l.description, amountIncl: l.amount })),
+      miscItems: miscLines.map((l) => ({ description: l.description, amountIncl: l.amount, vatExempt: false })),
       // Deposit only reduces the payable on DIRECT client invoices. A finance
       // house owes the dealer the full billed amount — the client's deposit is
       // settled on the bank's side, so it must not shrink PRINCIPAL DEBT here.
-      depositPaid: isFinance ? undefined : num(d.client_deposit),
+      depositPaid: isFinance ? 0 : num(d.client_deposit),
+      tradeInDeposit: 0,
+      generalItems: [],
+      notes: '',
     };
-    generateDealInvoicePDF(data, docSettings);
+    setInvoicePreview(payload);
   };
 
   // Full spec sheet + sale breakdown for the open (sold) deal.
@@ -657,6 +669,10 @@ const AccountingVATTab = () => {
           )}
         </SheetContent>
       </Sheet>
+
+      {invoicePreview && docSettings && (
+        <InvoicePrintPreview payload={invoicePreview} settings={docSettings} onClose={() => setInvoicePreview(null)} />
+      )}
     </div>
   );
 };
