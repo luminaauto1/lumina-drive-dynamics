@@ -34,6 +34,7 @@ interface AccountingDeal {
   recon_cost: number | null;
   dic_amount: number | null;
   discount_amount: number | null;
+  client_deposit: number | null;
   dealer_deposit_contribution: number | null;
   external_admin_fee: number | null;
   bank_initiation_fee: number | null;
@@ -88,7 +89,7 @@ const useAccountingDeals = () => {
         .from('deal_records')
         .select(`
           id, application_id, vehicle_id, sale_date, created_at, sold_price, gross_profit, cost_price, recon_cost,
-          dic_amount, discount_amount, dealer_deposit_contribution, external_admin_fee, bank_initiation_fee,
+          dic_amount, discount_amount, client_deposit, dealer_deposit_contribution, external_admin_fee, bank_initiation_fee,
           partner_profit_amount, partner_capital_contribution,
           sales_rep_commission, referral_commission_amount, referral_income_amount,
           addons_data, aftersales_expenses, is_closed,
@@ -251,28 +252,53 @@ const AccountingVATTab = () => {
     const cfg = d.invoice_config || {};
     const invoiceNumber = (cfg.invoice_number && String(cfg.invoice_number).trim())
       || `${docSettings.invoicePrefix || 'INV-'}${d.id.slice(0, 8).toUpperCase()}`;
+    // Motor-trade layout: vehicle SOLD FOR row + remaining ticked lines as misc
+    // items. Same numbers as the ticked lines total — only the presentation
+    // carries the full vehicle grid + Incl/VAT/Excl columns + principal debt.
+    const lines = buildInvoiceLines(d);
+    const includeVehicle = cfg.selling_price !== false;
+    const useMargin = isFinance && cfg.finance_basis === 'margin';
+    const vehicleAmount = useMargin ? (num(d.sold_price) - num(d.cost_price)) : num(d.sold_price);
+    // The vehicle line is always FIRST when included — the rest become misc items.
+    const miscLines = includeVehicle ? lines.slice(1) : lines;
+    const vehLabel = v ? [v.year, v.make, v.model, v.variant].filter(Boolean).join(' ').trim() : 'Vehicle';
+
     const data: DealInvoiceData = {
       invoiceNumber,
       paymentReference: (cfg.payment_reference && String(cfg.payment_reference).trim()) || undefined,
       taxInvoice,
       vatRate: invVatRate,
       date: d.sale_date ? format(new Date(d.sale_date), 'dd MMM yyyy') : format(new Date(d.created_at), 'dd MMM yyyy'),
-      billTo, onBehalfOf: isFinance ? clientName : undefined,
-      vehicleLines: [
-        `Make: ${v?.make || '—'}`,
-        `Model: ${v?.model || '—'}`,
-        v?.variant ? `Variant: ${v.variant}` : '',
-        `Year: ${v?.year || '—'}`,
-        v?.color ? `Colour: ${v.color}` : '',
-        v?.mileage != null ? `Mileage: ${Number(v.mileage).toLocaleString('en-ZA')} km` : '',
-        v?.transmission ? `Transmission: ${v.transmission}` : '',
-        v?.fuel_type ? `Fuel: ${v.fuel_type}` : '',
-        v?.vin ? `VIN: ${v.vin}` : '',
-        v?.engine_code ? `Engine No: ${v.engine_code}` : '',
-        v?.registration_number ? `Reg: ${v.registration_number}` : '',
-        v?.stock_number ? `Stock No: ${v.stock_number}` : '',
-      ].filter(Boolean) as string[],
-      lineItems: buildInvoiceLines(d),
+      billTo,
+      deliveredTo: isFinance
+        ? {
+            name: clientName,
+            regOrId: app?.id_number ? `ID: ${app.id_number}` : undefined,
+            email: app?.email || undefined,
+            phone: app?.phone || undefined,
+          }
+        : undefined,
+      vehicleDetails: ([
+        ['Stock No', v?.stock_number], ['Reg No', v?.registration_number],
+        ['Make', v?.make], ['Model', [v?.model, v?.variant].filter(Boolean).join(' ')],
+        ['Year', v?.year], ['Colour', v?.color],
+        ['KM', v?.mileage != null ? Number(v.mileage).toLocaleString('en-ZA') : ''],
+        ['Transmission', v?.transmission], ['Fuel', v?.fuel_type],
+        ['VIN / Chassis No', v?.vin], ['Engine No', v?.engine_code],
+        ['Date Sold', d.sale_date ? format(new Date(d.sale_date), 'dd MMM yyyy') : ''],
+      ] as [string, any][])
+        .filter(([, val]) => val != null && String(val).trim() !== '')
+        .map(([label, val]) => ({ label, value: String(val) })),
+      vehicleLabel: vehLabel,
+      soldForIncl: includeVehicle ? vehicleAmount : undefined,
+      soldForLabel: includeVehicle && useMargin
+        ? `${vehLabel} — deal proceeds (selling less purchase)`
+        : undefined,
+      miscItems: miscLines.map((l) => ({ description: l.description, amountIncl: l.amount })),
+      // Deposit only reduces the payable on DIRECT client invoices. A finance
+      // house owes the dealer the full billed amount — the client's deposit is
+      // settled on the bank's side, so it must not shrink PRINCIPAL DEBT here.
+      depositPaid: isFinance ? undefined : num(d.client_deposit),
     };
     generateDealInvoicePDF(data, docSettings);
   };

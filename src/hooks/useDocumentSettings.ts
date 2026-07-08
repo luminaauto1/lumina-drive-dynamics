@@ -26,6 +26,8 @@ export interface DocumentSettings {
   invoicePrefix: string;
   invoiceNextNumber: number;
   invoiceTerms: string;
+  /** Conditions of Sale paragraph printed on motor-trade vehicle invoices. */
+  invoiceConditions: string;
   vatPercent: number;
   vatRegistered: boolean; // true = issue Tax Invoices with a VAT line (even at 0%); false = plain Invoice, no VAT
   defaultAdminFee: number;
@@ -112,6 +114,10 @@ export const DEFAULT_DOCUMENT_SETTINGS: DocumentSettings = {
   invoicePrefix: 'INV-',
   invoiceNextNumber: 1001,
   invoiceTerms: 'Payment due on delivery. The vehicle remains the property of the seller until paid in full.',
+  invoiceConditions:
+    'It is an express condition of this sale that ownership in the goods hereby sold shall remain vested in the seller ' +
+    'until such time as any cheque, promissory note, bill of exchange, or other negotiable instrument tendered in payment ' +
+    'has been honoured and the full purchase price of the said goods has been paid to the seller.',
   vatPercent: 15,
   vatRegistered: false,
   defaultAdminFee: 2500,
@@ -169,16 +175,23 @@ export const useUpdateDocumentSettings = () => {
   });
 };
 
-/** Returns the formatted invoice number to use now, and bumps the stored counter. */
+/** Zero-padded invoice number display, e.g. INV-01001. */
+export const formatInvoiceNumber = (settings: Pick<DocumentSettings, 'invoicePrefix' | 'invoiceNextNumber'>): string =>
+  `${settings.invoicePrefix || 'INV-'}${String(settings.invoiceNextNumber || 1001).padStart(5, '0')}`;
+
+/** Returns the formatted invoice number to use now, and bumps the stored counter.
+ *  The counter is read from the FRESHLY-fetched row (not the react-query cache),
+ *  so back-to-back generates in one session never reuse a number. */
 export const consumeInvoiceNumber = async (current: DocumentSettings): Promise<string> => {
-  const num = current.invoiceNextNumber || 1001;
   const { data: row } = await (supabase as any)
     .from('site_settings').select('id, document_settings').limit(1).maybeSingle();
+  const stored = (row?.document_settings || {}) as Partial<DocumentSettings>;
+  const num = stored.invoiceNextNumber || current.invoiceNextNumber || 1001;
   if (row?.id) {
-    const merged = { ...DEFAULT_DOCUMENT_SETTINGS, ...(row.document_settings || {}), invoiceNextNumber: num + 1 };
+    const merged = { ...DEFAULT_DOCUMENT_SETTINGS, ...stored, invoiceNextNumber: num + 1 };
     await (supabase as any).from('site_settings').update({ document_settings: merged }).eq('id', row.id);
   }
-  return `${current.invoicePrefix || 'INV-'}${num}`;
+  return `${stored.invoicePrefix || current.invoicePrefix || 'INV-'}${String(num).padStart(5, '0')}`;
 };
 
 /** Returns the OTP reference to use now (e.g. OTP-2026-0001) and bumps the stored counter. */
