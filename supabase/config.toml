@@ -139,3 +139,20 @@ verify_jwt = false
 [functions.migrate-export]
 verify_jwt = false
 
+
+# Lumina chat auto-responder (see lumina-chat/FOR-CLAUDE-CODE.md).
+# chat-respond is called by EasySocial's chatbot API node (cannot send JWTs);
+# it holds no secrets and only returns reply text. The admin endpoints do their
+# own auth in-code (staff JWT role check or the internal key).
+[functions.chat-respond]
+verify_jwt = false
+[functions.chat-run-batch]
+verify_jwt = false
+[functions.chat-stats]
+verify_jwt = false
+[functions.chat-refresh-stats]
+verify_jwt = false
+[functions.chat-escalations]
+verify_jwt = false
+[functions.chat-answer]
+verify_jwt = false

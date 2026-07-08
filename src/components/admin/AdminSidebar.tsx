@@ -3,6 +3,7 @@ import {
   Calculator, FileSignature, FolderOpen, Building2, ShoppingCart,
   Receipt, Coins, Truck, FileBarChart, BarChart3, LineChart, Download,
   Briefcase, Gift, Contact, Settings, ChevronLeft, ChevronRight, Home, Users,
+  MessageCircle,
 } from 'lucide-react';
 import { NavLink, useLocation, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
@@ -76,6 +77,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { title: 'Trade Network', icon: Briefcase, path: '/admin/network' },
       { title: 'Referrals', icon: Gift, path: '/admin/referrals' },
       { title: 'Contacts', icon: Contact, path: '/admin/contacts' },
+      { title: 'Chat Control', icon: MessageCircle, path: '/admin/chat-control' },
     ],
   },
   {
