@@ -109,6 +109,11 @@ const DocumentSettingsTab = () => {
           </span>
         </label>
         <AreaField label="Invoice terms / footer note" value={form.invoiceTerms} onChange={(v) => set('invoiceTerms', v)} />
+        <AreaField
+          label="Conditions of sale (printed on motor-trade vehicle invoices)"
+          value={form.invoiceConditions}
+          onChange={(v) => set('invoiceConditions', v)}
+        />
       </section>
 
       {/* OTP */}
