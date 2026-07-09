@@ -10,7 +10,7 @@ import { compressImage } from '@/lib/imageCompression';
 import { useUpdateFinanceApplication } from '@/hooks/useFinanceApplications';
 import { logActivity } from '@/lib/activityLog';
 import { toast } from 'sonner';
-import { ImageIcon, Upload, X } from 'lucide-react';
+import { FileText, ImageIcon, Upload, X } from 'lucide-react';
 
 export type CreditCheckOutcome = 'passed' | 'failed';
 
@@ -23,13 +23,16 @@ interface Props {
   onSaved?: (updated: { credit_check_status: CreditCheckOutcome; status: string; status_screenshot_url: string | null }) => void;
 }
 
+// A PASSED credit check moves the app forward in the pipeline — the outcome
+// statuses are the pre-bank ones (slugs from statusConfig.ts), not decline states.
 const PASS_OPTIONS = [
-  { value: 'declined', label: 'Declined' },
-  { value: 'declined_conditional', label: 'Conditionally Declined' },
-  { value: 'pre_approved', label: 'Pre-Approved' },
+  { value: 'ready_to_submit', label: 'Ready to Submit' },
+  { value: 'sent_to_banks', label: 'Sent to Banks' },
+  { value: 'application_submitted', label: 'App Submitted' },
 ];
 const FAIL_OPTIONS = [
   { value: 'declined', label: 'Declined' },
+  { value: 'declined_conditional', label: 'Conditionally Declined' },
   { value: 'blacklisted', label: 'Blacklisted' },
 ];
 
@@ -62,10 +65,10 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
       const items = e.clipboardData?.items;
       if (!items) return;
       for (const item of Array.from(items)) {
-        if (item.type.startsWith('image/')) {
+        if (item.type.startsWith('image/') || item.type === 'application/pdf') {
           const blob = item.getAsFile();
           if (blob) {
-            const ext = (blob.type.split('/')[1] || 'png').toLowerCase();
+            const ext = (blob.type.split('/')[1] || 'png').toLowerCase().replace('pdf', 'pdf');
             const named = new File([blob], `pasted-${Date.now()}.${ext}`, { type: blob.type });
             acceptFile(named);
             e.preventDefault();
@@ -78,13 +81,21 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
     return () => window.removeEventListener('paste', onPaste);
   }, [open]);
 
+  // Images preview inline; documents (PDF/Word) show as a named chip instead.
+  const DOC_TYPES = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ];
   const acceptFile = (f: File) => {
-    if (!f.type.startsWith('image/')) {
-      toast.error('Only image files are allowed');
+    const isImage = f.type.startsWith('image/');
+    const isDoc = DOC_TYPES.includes(f.type) || /\.(pdf|docx?)$/i.test(f.name);
+    if (!isImage && !isDoc) {
+      toast.error('Only images or documents (PDF/Word) are allowed');
       return;
     }
     setFile(f);
-    setPreviewUrl(URL.createObjectURL(f));
+    setPreviewUrl(isImage ? URL.createObjectURL(f) : null);
   };
 
   const onSave = async () => {
@@ -100,12 +111,14 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
     try {
       let path: string | null = null;
       if (file) {
-        const compressed = await compressImage(file);
-        const ext = (compressed.name.split('.').pop() || 'png').toLowerCase();
+        // Images get compressed; documents (PDF/Word) upload as-is.
+        const isImage = file.type.startsWith('image/');
+        const toUpload = isImage ? await compressImage(file) : file;
+        const ext = (toUpload.name.split('.').pop() || (isImage ? 'png' : 'pdf')).toLowerCase();
         path = `${applicationId}/${outcome}-${Date.now()}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from('credit-check-screenshots')
-          .upload(path, compressed, { contentType: compressed.type, upsert: false });
+          .upload(path, toUpload, { contentType: toUpload.type || 'application/octet-stream', upsert: false });
         if (upErr) throw upErr;
       }
 
@@ -237,7 +250,7 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
 
           <div className="space-y-2">
             <Label className="text-muted-foreground text-xs uppercase tracking-wider">
-              Screenshot (optional) — paste (Ctrl/Cmd+V) or upload
+              Screenshot or document (optional) — paste (Ctrl/Cmd+V) or upload
             </Label>
             <div
               ref={dropRef}
@@ -261,16 +274,32 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
                     <X className="w-3 h-3 text-foreground/80" />
                   </button>
                 </div>
+              ) : file ? (
+                <div className="flex items-center gap-3 w-full px-3 py-4 rounded border border-border bg-background/60">
+                  <FileText className="w-6 h-6 text-foreground/70 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-foreground truncate">{file.name}</p>
+                    <p className="text-[11px] text-muted-foreground">{(file.size / 1024).toFixed(0)} KB — will upload on save</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setFile(null); setPreviewUrl(null); }}
+                    className="p-1 rounded bg-background/70 border border-border hover:bg-background shrink-0"
+                    aria-label="Remove document"
+                  >
+                    <X className="w-3 h-3 text-foreground/80" />
+                  </button>
+                </div>
               ) : (
                 <label className="flex flex-col items-center gap-2 text-muted-foreground cursor-pointer text-sm">
                   <ImageIcon className="w-6 h-6" />
-                  <span>Paste with Ctrl/Cmd+V, drop a file, or</span>
+                  <span>Paste with Ctrl/Cmd+V, drop a file (image or PDF/Word), or</span>
                   <span className="inline-flex items-center gap-1.5 text-foreground/80 underline underline-offset-2">
                     <Upload className="w-3 h-3" /> choose a file
                   </span>
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/*,.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                     className="hidden"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
