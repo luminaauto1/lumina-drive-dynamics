@@ -19,7 +19,7 @@ const appName = (a: FinanceApplication) =>
 export function ApplicationTable({
   applications, config, onSelect, onChangeStatus,
   selectable, selectedIds, onToggleSelect, onToggleSelectAll, busyByApp,
-  statusLabels, statusStyles,
+  statusLabels, statusStyles, windowKey,
 }: {
   applications: FinanceApplication[];
   config: TableConfig;
@@ -35,6 +35,8 @@ export function ApplicationTable({
   /** Optional admin-configured overrides (from status_overrides); fall back to statusConfig. */
   statusLabels?: Record<string, string>;
   statusStyles?: Record<string, string>;
+  /** Changes whenever the parent's tab / search / filters change — resets the render window. */
+  windowKey?: string;
 }) {
   const { theme } = useDeskTheme();
   // Client-status track (DB-driven, customizable). Only the label/colour maps are
@@ -56,9 +58,12 @@ export function ApplicationTable({
   // them all at once froze the browser. Render the first chunk and grow as the
   // sentinel row scrolls into view; selection/keyboard behaviour is unchanged
   // (select-all still selects every FILTERED row via allIds, not just rendered ones).
-  const CHUNK = 150;
+  // The window resets whenever the parent's tab/search/filters change (windowKey);
+  // row-count alone is a weak proxy (two lanes can share a count) and is kept only
+  // as a fallback for callers that don't pass a key.
+  const CHUNK = 50;
   const [renderCount, setRenderCount] = useState(CHUNK);
-  useEffect(() => { setRenderCount(CHUNK); }, [applications.length, config.visible.join('|')]);
+  useEffect(() => { setRenderCount(CHUNK); }, [windowKey ?? applications.length, config.visible.join('|')]);
   const sentinelRef = useRef<HTMLTableRowElement>(null);
   useEffect(() => {
     const el = sentinelRef.current;

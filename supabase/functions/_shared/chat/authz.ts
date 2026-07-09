@@ -9,11 +9,20 @@ import { svc } from "./kb.ts";
 
 const ALLOWED_ROLES = new Set(["admin", "f_and_i", "senior_f_and_i"]);
 
-export function corsHeaders(origin: string | null): Record<string, string> {
+export function corsHeaders(origin: string | null, requestedHeaders?: string | null): Record<string, string> {
+  // BULLETPROOF PREFLIGHT (same pattern as _shared/publicGuard.ts): echo back
+  // exactly the headers the browser says it will send. This survives any
+  // supabase-js version (or app client) adding a new custom header — the
+  // recurring cause of "Failed to send a request to the Edge Function".
+  const allowHeaders = requestedHeaders && requestedHeaders.trim().length > 0
+    ? requestedHeaders
+    : "authorization, x-client-info, apikey, content-type, x-lumina-key, x-supabase-api-version, x-region, x-application-name";
   return {
     "Access-Control-Allow-Origin": origin || "*",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-lumina-key, x-supabase-api-version, x-region",
+    "Access-Control-Allow-Headers": allowHeaders,
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Max-Age": "86400",
+    "Vary": "Origin, Access-Control-Request-Headers",
   };
 }
 

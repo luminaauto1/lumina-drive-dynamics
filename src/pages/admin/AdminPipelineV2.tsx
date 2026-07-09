@@ -273,6 +273,7 @@ const AdminPipelineV2 = () => {
             busyByApp={busyByApp}
             statusLabels={statusLabels}
             statusStyles={statusStyles}
+            windowKey={`${activeTab}|${searchScope}|${fniFilter}|${search.trim().toLowerCase()}`}
           />
         )}
       </div>

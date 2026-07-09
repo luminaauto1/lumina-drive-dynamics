@@ -1,4 +1,4 @@
-// chat-refresh-stats — recompute dashboard numbers from EasySocial and store a
+// chat-refresh-stats â€” recompute dashboard numbers from EasySocial and store a
 // snapshot (port of lumina-chat/api/refresh-stats.js). Auth: staff or internal.
 // deno-lint-ignore-file no-explicit-any
 
@@ -9,7 +9,7 @@ import { requireStaff, corsHeaders } from "../_shared/chat/authz.ts";
 const inc = (o: any, k: any) => { k = (k == null || k === "") ? "(none)" : String(k).trim(); o[k] = (o[k] || 0) + 1; };
 
 Deno.serve(async (req) => {
-  const cors = corsHeaders(req.headers.get("origin"));
+  const cors = corsHeaders(req.headers.get("origin"), req.headers.get("access-control-request-headers"));
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   const guard = await requireStaff(req, cors);
   if (guard) return guard;

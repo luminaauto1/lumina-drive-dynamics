@@ -29,6 +29,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useFinanceApplications, useUpdateFinanceApplication, useDeleteFinanceApplication, FinanceApplication } from '@/hooks/useFinanceApplications';
 import { formatPrice } from '@/hooks/useVehicles';
 import { STATUS_OPTIONS, ADMIN_STATUS_LABELS, STATUS_STEP_ORDER, getWhatsAppMessage, canShowDealActions, statusBadgeClass } from '@/lib/statusConfig';
+import { generateOutstandingFeedbackPDF, OUTSTANDING_FEEDBACK_STATUSES } from '@/lib/generateOutstandingFeedbackPDF';
 import { useStatusConfig } from '@/hooks/useZtcSettings';
 import { useDeskTheme } from '@/hooks/useDeskTheme';
 import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
@@ -84,7 +85,7 @@ const AdminFinance = () => {
   const { toast } = useToast();
   const { isSuperAdmin, isSeniorFAndI, isFAndI, role, user } = useAuth();
   const { theme } = useDeskTheme();
-  const { whatsappMessageFor, commentRequiredFor, commentPromptFor } = useStatusConfig();
+  const { labelFor, whatsappMessageFor, commentRequiredFor, commentPromptFor } = useStatusConfig();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   // F&I owner filter. Everyone can change it.
@@ -200,6 +201,29 @@ const AdminFinance = () => {
         variant: "destructive",
       });
     }
+  };
+
+  // "Outstanding bank feedback" one-pager — every app still awaiting bank
+  // feedback (ready_to_submit / submitted_to_banks / sent_to_banks), grouped by
+  // status, for the owner to WhatsApp to the F&I as a paper tick-list. The
+  // hook already holds the FULL application list in memory, so filtering it
+  // covers every matching app — not just the scroll-loaded window.
+  const downloadOutstandingFeedbackPDF = () => {
+    const outstanding = applications.filter(a =>
+      (OUTSTANDING_FEEDBACK_STATUSES as readonly string[]).includes((a.status || '').toLowerCase().trim())
+    );
+    if (outstanding.length === 0) {
+      toast({
+        title: "Nothing outstanding",
+        description: "No applications are currently awaiting bank feedback.",
+      });
+      return;
+    }
+    generateOutstandingFeedbackPDF(outstanding, labelFor);
+    toast({
+      title: "Feedback PDF downloaded",
+      description: `${outstanding.length} application${outstanding.length === 1 ? '' : 's'} awaiting bank feedback.`,
+    });
   };
 
   const copyUploadLink = async (accessToken: string) => {
@@ -624,6 +648,10 @@ const AdminFinance = () => {
             <Button variant="outline" size="sm" onClick={() => setWaModalOpen(true)} className="w-fit">
               <MessageSquare className="w-4 h-4 mr-2 text-emerald-500" />
               WhatsApp to PDF
+            </Button>
+            <Button variant="outline" size="sm" onClick={downloadOutstandingFeedbackPDF} className="w-fit">
+              <ClipboardList className="w-4 h-4 mr-2 text-sky-400" />
+              Feedback PDF
             </Button>
             <Button variant="outline" size="sm" onClick={() => navigate(ADMIN_ROUTES.quotes)} className="w-fit">
               <Calculator className="w-4 h-4 mr-2" />
