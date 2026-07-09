@@ -62,21 +62,51 @@ export async function getAllMessages(cfg: ChatConfig, leadId: string | number, m
   return all;
 }
 
-// --- WRITES (guarded — dry-run unless config says otherwise) ------------------
+// --- WRITES ---------------------------------------------------------------------
+// VERIFIED 2026-07-09 against EasySocial's public docs (easysocial.io/docs):
+// there is NO server-side session-message send API. The panel composer delivers
+// over a private websocket; the only documented outbound APIs are template
+// sends. Free-form replies therefore reach customers one of two ways:
+//   1. A human pastes the approved text into the EasySocial chat (Outbox flow).
+//   2. EasySocial's own chatbot API node calls chat-respond in realtime and
+//      EasySocial delivers the returned body_text itself.
 
 export function liveSendsEnabled(cfg: ChatConfig): boolean {
   return cfg.dry_run === false;
 }
 
-// VERIFY: confirm the exact send path/shape in EasySocial before enabling live.
-export async function sendMessage(cfg: ChatConfig, leadId: string | number, text: string) {
-  if (!liveSendsEnabled(cfg)) return { dryRun: true, leadId, text };
-  return http(cfg, "POST", `/api/v1/messages/${leadId}`, { type: "text", message: text });
+/**
+ * Session (free-form) message "send". EasySocial exposes no API for this, so
+ * this NEVER sends — it always returns { dryRun: true } and callers queue the
+ * text for human delivery (Outbox / Needs-you paste-assist in the panel).
+ * The original Co-Work endpoint (POST /api/v1/messages/{id}) 404s in production.
+ */
+export async function sendMessage(_cfg: ChatConfig, leadId: string | number, text: string) {
+  return { dryRun: true, pendingHumanDelivery: true, leadId, text };
 }
 
-export async function sendTemplate(cfg: ChatConfig, leadId: string | number, templateId: any, variables: any = {}) {
-  if (!liveSendsEnabled(cfg)) return { dryRun: true, leadId, templateId, variables };
-  return http(cfg, "POST", `/api/v1/messages/${leadId}/template`, { template_id: templateId, variables });
+/**
+ * Template send — the PROVEN production pattern this project already uses in
+ * send-whatsapp / make-receiver: GET wa-templates/send with the stable
+ * EASYSOCIAL_API_KEY secret, addressed by PHONE (not lead id). body1 fills the
+ * first template variable ({{name}} in the re-engagement templates).
+ */
+export async function sendTemplate(cfg: ChatConfig, phone: string | number, templateId: any, variables: any = {}) {
+  if (!liveSendsEnabled(cfg)) return { dryRun: true, phone, templateId, variables };
+  const apiKey = Deno.env.get("EASYSOCIAL_API_KEY") || cfg.es_token || "";
+  if (!apiKey || !templateId || !phone) return { dryRun: true, phone, templateId, skipped: "missing key/template/phone" };
+  let clean = String(phone).replace(/\D/g, "");
+  if (clean.startsWith("0")) clean = "27" + clean.slice(1);
+  const body1 = encodeURIComponent(String(variables.name || ""));
+  const url = `${cfg.es_api_base || "https://api.easysocial.in"}/api/v1/wa-templates/send/${apiKey}/${templateId}/${cfg.es_business_id || "4026"}/API/${clean}?body1=${body1}`;
+  const res = await fetch(url, { method: "GET", headers: { Accept: "application/json" } });
+  const text = await res.text();
+  if (!res.ok) {
+    const err: any = new Error(`EasySocial template send -> ${res.status}`);
+    err.status = res.status; err.body = text.slice(0, 300);
+    throw err;
+  }
+  return { sent: true, phone: clean, templateId, response: text.slice(0, 300) };
 }
 
 // --- helpers ------------------------------------------------------------------

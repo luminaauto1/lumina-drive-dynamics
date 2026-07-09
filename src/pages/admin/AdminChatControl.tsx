@@ -1,14 +1,17 @@
 // Chat Control Panel — runs the EasySocial WhatsApp auto-responder from the
 // site (per lumina-chat/docs/DASHBOARD-SPEC.md): stats grid, the "Answer all
-// waiting chats" button with dry-run toggle, the "needs you" escalation queue
-// (type an answer → sent + remembered), the learned-answers panel, and the
-// responder settings (EasySocial token, active flag, live-sends switch).
+// waiting chats" button (scans chats and fills the Outbox — EasySocial has no
+// send API, so nothing goes out without a human), the Outbox approval queue
+// (review/edit → copy into EasySocial → mark sent, or discard), the "needs
+// you" escalation queue (type an answer → copy into EasySocial → learn &
+// close), the learned-answers panel, and the responder settings (EasySocial
+// token, active flag, live-sends switch — templates only).
 // All heavy lifting happens in the chat-* edge functions; no secrets here.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import {
-  Activity, AlertTriangle, Bot, CheckCircle2, ExternalLink, Loader2, MessageSquareText,
-  Play, RefreshCw, Send, Settings2, Sparkles,
+  Activity, AlertTriangle, Bot, CheckCircle2, Copy, ExternalLink, Inbox, Loader2, MessageSquareText,
+  Play, RefreshCw, Settings2, Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import AdminLayout from '@/components/admin/AdminLayout';
@@ -40,6 +43,11 @@ interface LearnedItem {
   id: number; match_key: string; sample_inbound: string | null; message: string;
   hits: number; active: boolean; created_at: string;
 }
+interface OutboxItem {
+  id: number; lead_id: number | null; phone: string | null; name: string | null;
+  inbound_text: string | null; outbound_text: string; action: string | null;
+  reply_ref: string | null; created_at: string; chat_url: string | null;
+}
 
 const AdminChatControl = () => {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -50,6 +58,10 @@ const AdminChatControl = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [batchDryRun, setBatchDryRun] = useState(true);
   const [drafts, setDrafts] = useState<Record<number, { text: string; learn: boolean; sending?: boolean }>>({});
+  // outbox (bot-proposed replies awaiting approval)
+  const [outbox, setOutbox] = useState<OutboxItem[]>([]);
+  const [outboxEdits, setOutboxEdits] = useState<Record<number, string>>({});
+  const [outboxBusy, setOutboxBusy] = useState<Record<number, boolean>>({});
   // settings
   const [cfg, setCfg] = useState<any>(null);
   const [savingCfg, setSavingCfg] = useState(false);
@@ -71,6 +83,11 @@ const AdminChatControl = () => {
     catch (e: any) { toast.error(`Queue: ${e.message}`); }
   }, [invoke]);
 
+  const loadOutbox = useCallback(async () => {
+    try { const d = await invoke('chat-escalations?view=outbox'); setOutbox(d.items || []); }
+    catch (e: any) { toast.error(`Outbox: ${e.message}`); }
+  }, [invoke]);
+
   const loadLearned = useCallback(async () => {
     try { const d = await invoke('chat-escalations?view=learned'); setLearned(d.items || []); }
     catch { /* panel is optional */ }
@@ -84,24 +101,24 @@ const AdminChatControl = () => {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      await Promise.all([loadStats(), loadQueue(), loadLearned(), loadCfg()]);
+      await Promise.all([loadStats(), loadOutbox(), loadQueue(), loadLearned(), loadCfg()]);
       setLoading(false);
     })();
-  }, [loadStats, loadQueue, loadLearned, loadCfg]);
+  }, [loadStats, loadOutbox, loadQueue, loadLearned, loadCfg]);
 
-  // poll the queue every 30s per the spec
+  // poll the outbox + queue every 30s per the spec
   useEffect(() => {
-    const t = setInterval(() => { loadQueue(); }, 30000);
+    const t = setInterval(() => { loadOutbox(); loadQueue(); }, 30000);
     return () => clearInterval(t);
-  }, [loadQueue]);
+  }, [loadOutbox, loadQueue]);
 
   const runBatch = async () => {
     setRunning(true);
     try {
       const d = await invoke('chat-run-batch', { body: { dryRun: batchDryRun } });
       const s = d.summary || {};
-      toast.success(`Replied ${s.replied ?? 0} · escalated ${s.escalated ?? 0} · skipped ${s.skipped ?? 0}${s.dry_run ? ' (dry run)' : ''}`);
-      await Promise.all([loadStats(), loadQueue()]);
+      toast.success(`${s.replied ?? 0} replies drafted to Outbox · ${s.escalated ?? 0} to Needs you · ${s.skipped ?? 0} skipped${s.dry_run ? ' (dry run)' : ''}`);
+      await Promise.all([loadStats(), loadOutbox(), loadQueue()]);
     } catch (e: any) { toast.error(`Batch: ${e.message}`); }
     finally { setRunning(false); }
   };
@@ -116,7 +133,43 @@ const AdminChatControl = () => {
     finally { setRefreshing(false); }
   };
 
-  const sendAnswer = async (item: EscalationItem) => {
+  // EasySocial has no send API — replies are copied into its chat UI by a human.
+  const copyAndOpenChat = async (text: string, chatUrl: string | null, successMsg: string) => {
+    if (!text) { toast.error('Nothing to copy — type or edit the reply first'); return; }
+    try { await navigator.clipboard.writeText(text); toast.success(successMsg); }
+    catch { toast.error('Copy failed — select the text and copy it manually'); }
+    if (chatUrl) window.open(chatUrl, '_blank');
+  };
+
+  const outboxText = (item: OutboxItem) => (outboxEdits[item.id] ?? item.outbound_text ?? '').trim();
+
+  const markOutboxSent = async (item: OutboxItem) => {
+    const text = outboxText(item);
+    if (!text) { toast.error('Reply text is empty'); return; }
+    setOutboxBusy((p) => ({ ...p, [item.id]: true }));
+    try {
+      await invoke('chat-answer', { body: { approveReplyLogId: item.id, message: text } });
+      setOutbox((p) => p.filter((x) => x.id !== item.id));
+      setOutboxEdits((p) => { const n = { ...p }; delete n[item.id]; return n; });
+      toast.success('Marked sent ✓');
+    } catch (e: any) { toast.error(`Mark sent: ${e.message}`); }
+    finally { setOutboxBusy((p) => { const n = { ...p }; delete n[item.id]; return n; }); }
+  };
+
+  const discardOutbox = async (item: OutboxItem) => {
+    setOutboxBusy((p) => ({ ...p, [item.id]: true }));
+    try {
+      await invoke('chat-answer', { body: { discardReplyLogId: item.id } });
+      setOutbox((p) => p.filter((x) => x.id !== item.id));
+      setOutboxEdits((p) => { const n = { ...p }; delete n[item.id]; return n; });
+      toast.success('Reply discarded');
+    } catch (e: any) { toast.error(`Discard: ${e.message}`); }
+    finally { setOutboxBusy((p) => { const n = { ...p }; delete n[item.id]; return n; }); }
+  };
+
+  // "Needs you" close: records the answer, optionally learns it, closes the
+  // escalation — it does NOT send (the human pastes the copy into EasySocial).
+  const doneLearnClose = async (item: EscalationItem) => {
     const d = drafts[item.id];
     if (!d || !d.text.trim()) { toast.error('Type an answer first'); return; }
     setDrafts((p) => ({ ...p, [item.id]: { ...d, sending: true } }));
@@ -127,12 +180,12 @@ const AdminChatControl = () => {
           message: d.text.trim(), escalationId: item.id, learn: d.learn,
         },
       });
-      toast.success(`Sent ✓${r.learned ? ' (remembered)' : ''}${r.dryRun ? ' (dry run)' : ''}`);
+      toast.success(`Closed ✓${r.learned ? ' · remembered' : ''}`);
       setQueue((p) => p.filter((x) => x.id !== item.id));
       setDrafts((p) => { const n = { ...p }; delete n[item.id]; return n; });
       loadLearned();
     } catch (e: any) {
-      toast.error(`Send: ${e.message}`);
+      toast.error(`Close: ${e.message}`);
       setDrafts((p) => ({ ...p, [item.id]: { ...d, sending: false } }));
     }
   };
@@ -147,8 +200,9 @@ const AdminChatControl = () => {
   const saveCfg = async (patch: any, confirmLive = false) => {
     if (confirmLive && patch.dry_run === false) {
       const sure = window.confirm(
-        'Turn LIVE SENDS ON?\n\nThe responder will actually send WhatsApp messages to clients through EasySocial. ' +
-        'Make sure the send endpoint has been verified (see lumina-chat/docs/RUNBOOK.md §6).',
+        'Turn LIVE SENDS ON?\n\nThis only affects TEMPLATE messages (outside the 24h window). ' +
+        'Chat replies still wait in the Outbox for your approval. ' +
+        'Make sure the template endpoint has been verified (see lumina-chat/docs/RUNBOOK.md §6).',
       );
       if (!sure) return;
     }
@@ -190,14 +244,17 @@ const AdminChatControl = () => {
               {stats?.responderActive === false && <Badge variant="destructive" className="ml-1">PAUSED</Badge>}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              The WhatsApp auto-responder answers new chats like a human would — anything it isn’t sure about lands in the “Needs you” queue below.
+              The bot drafts a reply for every new chat — nothing reaches a customer until you approve it in the <strong>Outbox</strong> below. Questions it won’t guess wait in the “Needs you” queue.
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
               <Switch checked={batchDryRun} onCheckedChange={setBatchDryRun} /> Dry-run
             </label>
-            <Button onClick={runBatch} disabled={running || stats?.esTokenConfigured === false}>
+            <Button
+              onClick={runBatch} disabled={running || stats?.esTokenConfigured === false}
+              title="Scans waiting chats and drafts replies into the Outbox for your approval — it does not message anyone directly."
+            >
               {running ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
               Answer all waiting chats
             </Button>
@@ -259,6 +316,64 @@ const AdminChatControl = () => {
           </Card>
         </div>
 
+        {/* Outbox — approval queue (EasySocial has no send API; a human delivers) */}
+        <Card id="outbox">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Inbox className="w-4 h-4" /> Outbox — approve before it reaches the customer
+              <Badge variant="secondary" className="ml-1">{outbox.length}</Badge>
+            </CardTitle>
+            <CardDescription>Replies the bot drafted. Edit if needed, copy into EasySocial and paste it to the client, then mark it sent — or discard it.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
+            {!loading && outbox.length === 0 && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Nothing waiting for approval — run “Answer all waiting chats” to fill the outbox.
+              </div>
+            )}
+            {outbox.map((item) => {
+              const text = outboxEdits[item.id] ?? item.outbound_text ?? '';
+              const busy = !!outboxBusy[item.id];
+              return (
+                <div key={item.id} className="rounded-lg border border-border p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div className="min-w-0">
+                      <div className="font-medium">{item.name || 'Unknown'} <span className="text-muted-foreground font-normal">{item.phone || ''}</span></div>
+                      <div className="text-sm mt-1 break-words text-muted-foreground">“{item.inbound_text || '(no text)'}”</div>
+                      <div className="text-[11px] text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
+                        {item.reply_ref && <Badge variant="outline" className="text-[10px] px-1.5 py-0">{item.reply_ref}</Badge>}
+                        {item.action && <span>{item.action}</span>}
+                        <span>{format(new Date(item.created_at), 'dd MMM HH:mm')}</span>
+                      </div>
+                    </div>
+                    {item.chat_url && (
+                      <a href={item.chat_url} target="_blank" rel="noreferrer" className="text-xs text-primary inline-flex items-center gap-1 shrink-0">
+                        Open in EasySocial <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+                  <Textarea
+                    rows={2} className="w-full" value={text}
+                    onChange={(e) => setOutboxEdits((p) => ({ ...p, [item.id]: e.target.value }))}
+                  />
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Button size="sm" disabled={busy || !text.trim()} onClick={() => copyAndOpenChat(text.trim(), item.chat_url, 'Reply copied — paste it in EasySocial')}>
+                      <Copy className="w-4 h-4 mr-1" /> Copy & open chat
+                    </Button>
+                    <Button size="sm" variant="outline" disabled={busy || !text.trim()} onClick={() => markOutboxSent(item)}>
+                      {busy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-1" />} Mark sent
+                    </Button>
+                    <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" disabled={busy} onClick={() => discardOutbox(item)}>
+                      Discard
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+
         {/* Needs-you queue */}
         <Card id="needs-you">
           <CardHeader>
@@ -266,7 +381,7 @@ const AdminChatControl = () => {
               <MessageSquareText className="w-4 h-4" /> Needs you
               <Badge variant="secondary" className="ml-1">{queue.length}</Badge>
             </CardTitle>
-            <CardDescription>Chats the bot wasn’t sure about. Type an answer — it’s sent to the client and remembered so the bot handles it next time.</CardDescription>
+            <CardDescription>Questions the bot won’t guess. Type an answer, copy it into EasySocial, then close it here — tick “Remember” and the bot handles it next time.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
@@ -300,8 +415,11 @@ const AdminChatControl = () => {
                       onChange={(e) => setDrafts((p) => ({ ...p, [item.id]: { ...d, text: e.target.value } }))}
                     />
                     <div className="flex flex-col gap-2 items-end shrink-0">
-                      <Button size="sm" onClick={() => sendAnswer(item)} disabled={d.sending}>
-                        {d.sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 mr-1" />} Send
+                      <Button size="sm" disabled={d.sending || !d.text.trim()} onClick={() => copyAndOpenChat(d.text.trim(), item.chat_url, 'Answer copied — paste it in EasySocial')}>
+                        <Copy className="w-4 h-4 mr-1" /> Copy & open chat
+                      </Button>
+                      <Button size="sm" variant="outline" disabled={d.sending || !d.text.trim()} onClick={() => doneLearnClose(item)}>
+                        {d.sending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-1" />} Done — learn & close
                       </Button>
                       <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer whitespace-nowrap">
                         <Checkbox checked={d.learn} onCheckedChange={(v) => setDrafts((p) => ({ ...p, [item.id]: { ...d, learn: v === true } }))} />
@@ -343,7 +461,7 @@ const AdminChatControl = () => {
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2"><Settings2 className="w-4 h-4" /> Responder settings</CardTitle>
             <CardDescription>
-              EasySocial connection + safety switches. Sends stay <strong>simulated (dry run)</strong> until you explicitly turn live sends on.
+              EasySocial connection + safety switches. Chat replies always go through your <strong>Outbox approval</strong> — the live-sends switch only affects template messages.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -382,6 +500,9 @@ const AdminChatControl = () => {
                     {savingCfg ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null} Save connection
                   </Button>
                 </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Live sends only apply to <strong>template messages</strong> (outside the 24h window). Chat replies always go through your approval in the Outbox until the EasySocial chatbot connection is published.
+                </p>
                 <p className="text-[11px] text-muted-foreground">
                   Pre-approved / validation clients (tags: Approved - Need Docs, Validations Pending, Vals Done) are never auto-answered — those stay yours.
                 </p>

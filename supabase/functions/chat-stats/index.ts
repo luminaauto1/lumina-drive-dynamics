@@ -1,4 +1,4 @@
-// chat-stats — dashboard numbers (port of lumina-chat/api/stats.js).
+// chat-stats â€” dashboard numbers (port of lumina-chat/api/stats.js).
 // Fast read of the latest stats_snapshot + live open-escalation count +
 // responder run/reply counters. Auth: staff JWT or internal key.
 // deno-lint-ignore-file no-explicit-any
@@ -7,7 +7,7 @@ import { svc, getChatConfig } from "../_shared/chat/kb.ts";
 import { requireStaff, corsHeaders } from "../_shared/chat/authz.ts";
 
 Deno.serve(async (req) => {
-  const cors = corsHeaders(req.headers.get("origin"));
+  const cors = corsHeaders(req.headers.get("origin"), req.headers.get("access-control-request-headers"));
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   const guard = await requireStaff(req, cors);
   if (guard) return guard;

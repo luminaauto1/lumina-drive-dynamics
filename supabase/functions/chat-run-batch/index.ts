@@ -1,7 +1,7 @@
-// chat-run-batch — the "answer all waiting chats" sweep (port of
+// chat-run-batch â€” the "answer all waiting chats" sweep (port of
 // lumina-chat/engine/batch-worker.js + api/run-batch.js, upgraded to
 // decideSmart). Auth: staff JWT or the internal key. Sends respect the
-// dry-run flag in integration_settings ('chat_responder') — simulated until
+// dry-run flag in integration_settings ('chat_responder') â€” simulated until
 // the owner explicitly flips it in the Control Panel.
 // deno-lint-ignore-file no-explicit-any
 
@@ -22,7 +22,7 @@ function textOf(m: any): string {
 }
 
 Deno.serve(async (req) => {
-  const cors = corsHeaders(req.headers.get("origin"));
+  const cors = corsHeaders(req.headers.get("origin"), req.headers.get("access-control-request-headers"));
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   const guard = await requireStaff(req, cors);
   if (guard) return guard;
@@ -81,12 +81,17 @@ Deno.serve(async (req) => {
 
           let sendResult: any;
           const effectiveCfg = { ...cfg, dry_run: dryRun ? true : cfg.dry_run };
-          if (decision.action === "sequence" && Array.isArray(decision.messages)) {
+          if (decision.action === "template" || decision.needs_template) {
+            // Templates are the ONLY server-sendable channel (proven wa-templates
+            // GET, addressed by PHONE). Gated by Live sends / dryRun as before.
+            sendResult = await es.sendTemplate(effectiveCfg, lead.contact_number, decision.reply_ref, { name: lead.name });
+          } else if (decision.action === "sequence" && Array.isArray(decision.messages)) {
+            // Free-form session replies can't be sent server-side (no ES API) â€”
+            // sendMessage always returns dryRun:true; the reply lands in the
+            // panel Outbox for human approval + paste-delivery.
             for (const msg of decision.messages) {
               sendResult = await es.sendMessage(effectiveCfg, lead.id, (msg || "").replace(/\{\{\s*name\s*\}\}/gi, lead.name || "").trim());
             }
-          } else if (decision.action === "template" || decision.needs_template) {
-            sendResult = await es.sendTemplate(effectiveCfg, lead.id, decision.reply_ref, { name: lead.name, phone: lead.contact_number });
           } else {
             const out = (decision.outbound_text || "").replace(/\{\{\s*name\s*\}\}/gi, lead.name || "").trim();
             sendResult = await es.sendMessage(effectiveCfg, lead.id, out);
