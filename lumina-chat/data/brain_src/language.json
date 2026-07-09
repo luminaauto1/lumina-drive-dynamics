@@ -1,0 +1,127 @@
+{
+  "utterances": [],
+  "lexicon": [
+    { "canonical": "tomorrow", "variants": ["tmrw", "tmr", "2moro", "2morrow", "tomoro", "tomorow", "tommorow", "tommorrow", "môre"] },
+    { "canonical": "today", "variants": ["2day", "tday", "todai", "vandag", "namhlanje", "kajeno"] },
+    { "canonical": "later", "variants": ["l8r", "l8er", "l8ter", "lata", "latr"] },
+    { "canonical": "weekend", "variants": ["wknd", "naweek", "week end"] },
+    { "canonical": "interest", "variants": ["intrest", "intress", "intrist", "interes", "intersst", "rente", "rentekoers"] },
+    { "canonical": "contract", "variants": ["contrct", "contarct", "conract", "contrak", "kontrak", "kontract", "contractt"] },
+    { "canonical": "insurance", "variants": ["insurence", "insurans", "inshurance", "ensurance", "insurace", "insurnce", "inssurance", "versekering"] },
+    { "canonical": "warranty", "variants": ["warrenty", "waranty", "warantee", "warrantee", "warrunty", "waarborg", "garantie"] },
+    { "canonical": "payment", "variants": ["paymnt", "payement", "paymet", "pyment", "paymant", "betaling"] },
+    { "canonical": "month", "variants": ["monthy", "montly", "monthley", "mothly", "monthlly", "maandeliks", "per maand"] },
+    { "canonical": "approved", "variants": ["aprove", "aproove", "approove", "aprroved", "approvel", "aproval", "goedkeuring"] },
+    { "canonical": "qualify", "variants": ["qualafy", "kwalify", "qualifys", "qualyfy", "quallify", "qualifiy"] },
+    { "canonical": "whatsapp", "variants": ["watsapp", "whatsap", "watsap", "whatapp", "whattsapp", "whtsapp", "wasap", "whatsaap", "whats app"] },
+    { "canonical": "register", "variants": ["regester", "registar", "regista", "registere", "registrasie", "registeration"] },
+    { "canonical": "documents", "variants": ["papiere", "paperz", "papres", "pepars", "paper work"] },
+    { "canonical": "car", "variants": ["imoto", "koloi"] },
+    { "canonical": "money", "variants": ["imali", "mali", "chelete", "tjhelete", "zaka", "mula"] },
+    { "canonical": "want", "variants": ["ngifuna", "ndifuna", "funa", "batla", "ke batla"] },
+    { "canonical": "help", "variants": ["nceda", "siza", "ngisize", "thusa", "nthuse", "hlp"] },
+    { "canonical": "how much", "variants": ["malini", "yimalini", "bokae", "ke bokae", "hoeveel", "how mach", "how mutch"] },
+    { "canonical": "yes", "variants": ["yebo", "ja", "jah", "yess", "yebo yes"] },
+    { "canonical": "no", "variants": ["hayi", "aikona", "aikhona", "nee"] },
+    { "canonical": "friend", "variants": ["bru", "boet", "bhuti", "chommie", "chomi", "my bru"] },
+    { "canonical": "please", "variants": ["asseblief", "asb", "plies", "pliz", "plizz", "ngicela", "ndicela"] },
+    { "canonical": "thanks", "variants": ["dankie", "danki", "ngiyabonga", "enkosi", "kealeboha", "ke a leboga", "thanx", "tanx"] },
+    { "canonical": "afford", "variants": ["aford", "affort", "affordible", "afforable", "bekostig"] },
+    { "canonical": "urgent", "variants": ["urgant", "ugent", "urjent", "dringend"] },
+    { "canonical": "balloon", "variants": ["baloon", "ballon", "baloon payment"] },
+    { "canonical": "repossessed", "variants": ["reposessed", "repossesed", "reposesed", "repossed", "teruggevat"] },
+    { "canonical": "refund", "variants": ["refnd", "money back", "terugbetaling"] },
+    { "canonical": "proof of address", "variants": ["proof of adress", "prove of address", "proof of residence", "proof of residense", "proof of res", "bewys van adres"] },
+    { "canonical": "address", "variants": ["adress", "adres", "addres", "adderss"] },
+    { "canonical": "test drive", "variants": ["testdrive", "test driv", "tes drive", "toets ry", "toetsry"] },
+    { "canonical": "price", "variants": ["prys", "pryse", "praice", "pricee"] },
+    { "canonical": "message", "variants": ["mesage", "messege", "msge", "boodskap", "umlayezo"] },
+    { "canonical": "greetings", "variants": ["heita", "eita", "aweh", "sawubona", "molo", "molweni", "dumela", "dumelang"] },
+    { "canonical": "have", "variants": ["hv", "hav", "hve"] },
+    { "canonical": "with", "variants": ["wit", "wid"] },
+    { "canonical": "when", "variants": ["wen", "whn"] },
+    { "canonical": "from", "variants": ["frm", "frum"] },
+    { "canonical": "before", "variants": ["b4", "befor"] },
+    { "canonical": "look", "variants": ["luk"] },
+    { "canonical": "there", "variants": ["der", "ther"] },
+    { "canonical": "else", "variants": ["els"] },
+    { "canonical": "still", "variants": ["stil", "stll"] },
+    { "canonical": "every", "variants": ["evry", "evrey"] },
+    { "canonical": "whats", "variants": ["wats"] },
+    { "canonical": "true", "variants": ["tru"] },
+    { "canonical": "some", "variants": ["sum"] },
+    { "canonical": "now", "variants": ["nw"] },
+    { "canonical": "paid", "variants": ["payed", "payd", "betaal"] },
+    { "canonical": "sell", "variants": ["verkoop", "thengisa", "sellin"] },
+    { "canonical": "employed", "variants": ["umsebenzi", "mosebetsi", "piece job", "piecejob"] },
+    { "canonical": "grant", "variants": ["sassa", "sassa grant", "social grant"] }
+  ],
+  "phrase_variants": [
+    {
+      "slot": "ack",
+      "variants": [
+        "Love that question! 🙌",
+        "Great question — let me explain 😊",
+        "Absolutely, here's how it works 👇",
+        "Glad you asked! 🙌",
+        "No problem at all, here's the info you need 👇",
+        "Awesome, let me break it down for you 😊",
+        "You're asking exactly the right questions! 🙌",
+        "Happy to explain! 😊"
+      ]
+    },
+    {
+      "slot": "connector",
+      "variants": [
+        "And then on your other question 👇",
+        "Now for the second part —",
+        "As for the rest of your question:",
+        "Coming to your next question 👇",
+        "And here's the other thing you asked about:",
+        "Then also —",
+        "And on the other point you raised 👇"
+      ]
+    },
+    {
+      "slot": "closer",
+      "variants": [
+        "Hope that helps! Anything else, just shout 🙌",
+        "If anything is unclear, just ask — happy to explain! 😊",
+        "Any more questions? I'm right here! 😊",
+        "Feel free to ask me anything else! 🤝",
+        "Let me know if you'd like me to explain anything further!",
+        "Anything else I can help you with today? 🚗",
+        "If you're ready for the next step, just say the word! 🙌",
+        "Shout if anything else comes to mind! 😊",
+        "",
+        ""
+      ]
+    },
+    {
+      "slot": "holding",
+      "variants": [
+        "Thanks so much for that! Let me confirm on my side and I'll get back to you 🙏",
+        "Got it, thank you! I'm going to check with the team and come back to you 🙌",
+        "Perfect, thanks! Let me look into this properly and I'll be in touch 🤝",
+        "Thank you! I want to give you the *correct* answer, so let me double-check and get back to you 🙏",
+        "Received, thanks! I'll find out for you and get back to you as soon as I can 😊",
+        "Thanks for that! Let me get the right info for you — I'll come back to you just now 🙌",
+        "Great, thank you! I'm checking on this for you and will be back with you shortly 🙏",
+        "Noted! Let me chat to the team quickly and I'll get back to you 🤝"
+      ]
+    },
+    {
+      "slot": "greet_name",
+      "variants": [
+        "Hi {{name}}! Great to hear from you 😊",
+        "Hey {{name}}! 🙌",
+        "Hello {{name}}, hope you're doing well! 😊",
+        "Hi there {{name}}! 👋",
+        "Hey {{name}}, good to hear from you! 🤝",
+        "Hi {{name}}! 😊 Thanks for reaching out!",
+        "Hello {{name}}! Welcome 🚗"
+      ]
+    }
+  ],
+  "gauntlet": []
+}

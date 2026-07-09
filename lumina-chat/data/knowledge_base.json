@@ -1,0 +1,1046 @@
+{
+  "meta": {
+    "business": "Lumina Auto",
+    "business_id": 4026,
+    "agent": "Albert",
+    "source": "1,430 already-read EasySocial conversations (read-only analysis)",
+    "channel": "WhatsApp via EasySocial (app.easysocial.io / api.easysocial.in)",
+    "generated_by": "standalone analysis - no third-party tools"
+  },
+  "business_rules": {
+    "min_income_employed_net_pm": 8500,
+    "min_income_self_employed_pm": 20000,
+    "licence_required": true,
+    "learners_accepted": false,
+    "nominated_driver_allowed": true,
+    "deposit_required": false,
+    "deposit_effect_per_10000_rands": 200,
+    "based_in": "Pretoria",
+    "delivery": "Nationwide, free of charge",
+    "referral_fee_rands": 5000,
+    "docs_required": [
+      "ID",
+      "Driver's License",
+      "Latest 3 payslips",
+      "3 months bank statements"
+    ],
+    "installment_range_pm": "R3800 - R5000",
+    "clearscore_target": 610,
+    "banks_total": 5,
+    "banks_requiring_account_number": 3,
+    "email": "finance@luminaauto.co.za",
+    "website": "luminaauto.co.za",
+    "inventory_url": "https://luminaauto.co.za/inventory",
+    "referral_button": "Money Maker",
+    "office_days": "Weekdays only",
+    "feedback_timing": "Apps submitted same day; bank feedback typically next afternoon",
+    "vehicle_types": [
+      "new",
+      "used",
+      "demo"
+    ],
+    "brands": "All brands (VW, Suzuki, Renault, Hyundai, BMW, Ford, etc.)",
+    "agent_persona": "Albert from Lumina Auto",
+    "hands_off_tags": [
+      "Approved - Need Docs",
+      "Validations Pending",
+      "Vals Done"
+    ]
+  },
+  "window_policy": {
+    "free_form_hours": 24,
+    "beyond_24h_action": "TEMPLATE_ONLY",
+    "note": "WhatsApp only allows approved template messages after 24h of no inbound user message. EasySocial shows '24 Hour Window Elapsed - Send Template'. The engine must, for stale chats, send a re-engagement TEMPLATE (e.g. no_reply_reminder / excited_qualify_5min) instead of a free-form quick reply.",
+    "reengage_templates": [
+      30748,
+      30743,
+      30745
+    ]
+  },
+  "quick_replies": [
+    {
+      "keyword": "accountnumber",
+      "message": "We ask for your bank account number because 3 of the 5 major banks we work with require it to process an application.\n\n*You do not have to provide it:* However, leaving it out means we can only submit your application to 2 banks, which greatly lowers your chances of success.\n\nProviding your details allows us to approach all the banks on your behalf to give you the best possible result. 📈"
+    },
+    {
+      "keyword": "Nolicencerespond",
+      "message": "Here are ways to buy a car without a licence, unfortunately a Learner's Licence won't work 🚗\n\n🔸When buying cash you don't need a licence\n🔸Nominated driver, Has to be a parent has to live in same household and have same proof of address\n🔸If you have a medical disability and then a nominated river (Need a Medical Certificate)\n🔸Your Partner Licence and have to be married in Community of Property\n\nVideo on this:\nhttps://www.tiktok.com/@zinantalksvw/video/7214415606978710790\n\nWhat will be the best way for you ?"
+    },
+    {
+      "keyword": "Nominated driver check",
+      "message": "Ok great! but *VERY IMPORTANT*\n\n➡️Is the person your *biological mother / father?*\n\n➡️Or if it is your spouse, *are you married in community of property* and do they have a licence?\n\n➡️Do you and your nominated driver have the same proof of address"
+    },
+    {
+      "keyword": "questions morning",
+      "message": "Good morning! Thanks for reaching out. How can I assist you today?"
+    },
+    {
+      "keyword": "nominated driver",
+      "message": "Here are the things that need to be in place with a nominated driver\n\n➡️Is the person your *biological mother / father?*\n\n➡️Or if it is your spouse, *are you married in community of property* and do they have a licence?\n\n➡️Do you and your nominated driver have the same proof of address"
+    },
+    {
+      "keyword": "decline",
+      "message": "Hey! I received the bank's response. While we can't get an approval today, the good news is that we should get it approved in the next 2-3 months! With a little work on your credit score, you'll be ready in a few short months.\n\nHere is exactly what you need to do (and avoid) to get approved next time:\nTo-Do List:\n🔹 Settle any accounts in arrears.\n🔹 Build a new, consistent paying profile over the next 3-6 months. (Keep in mind: cell contracts, Wi-Fi, and memberships don't count towards building credit). 📱\n\nWhat to Avoid:\n❌ No new personal loans.\n❌ No micro loans or payday loans.\n❌ Do not apply for vehicle finance anywhere else for now.\n\nSign up for ClearScore online. It’s 100% free and it will send you a monthly report to show how your score is improving! 📈\n\nI’m definitely keeping your number saved. Please save mine, trust the process, and ask me any questions you might have along the way! 🤝\n\n📌I also offer R5000 for every person you refer to me who buys a vehicle! 💰"
+    },
+    {
+      "keyword": "referral",
+      "message": "Thank you for your interest in our referral program! 🤝\n\nWe offer a *R5000* cash reward to YOU for every successful referral you send our way.\n\n*How it works:*\n- Visit our website: 🌐 *luminaauto.co.za*\n- Click on the *Money Maker* button.\n- Submit the contact details of the person looking to buy a vehicle.\n- Once your referral successfully purchases and takes delivery of a car from us, we pay you R5000! 💰\n\nThere is no limit to how many people you can refer. Let me know if you have someone in mind!"
+    },
+    {
+      "keyword": "installments",
+      "message": "Installments vary from client to client as each person is scored differently by the bank according to their own personal profile.\n\nInstallments could be lower or higher but you are looking between R3800pm- R5000pm"
+    },
+    {
+      "keyword": "badcredit",
+      "message": "Here is some general advice that I hope will help you get back on track! :)\n\nUnfortunately, banks cannot approve vehicle finance while your credit profile shows missed payments or accounts in arrears. ⛔\n\nPlease Note: Banks need to see a consistent track record of on-time payments before approving a loan. Every missed payment lowers your score, and applying for new credit right now will hurt your profile further.\n\nThe good news is that this is completely fixable! Once you bring your accounts up to date, we can start working towards your new vehicle. Here is how you can rebuild:\n\n✅ First step: Catch up on all missed payments and bring your accounts completely up to date.\n\n✅ You will need to maintain a clean, on-time payment record for 3 to 6 months before applying.\n\n✅ A 610 credit score (www.clearscore.co.za) is favorable for vehicle finance, although banks look at other factors too.\n\n✅ Use less than 50% of your available credit. For example, if you have a credit limit of R10k on a store account, only use up to R5k.\n\n✅ Always pay more than the minimum. If your monthly premium is R200, pay R250.\n\n✅ Cellphone, gym, internet contracts, and life policies do not build credibility for vehicle finance.\n\n❌ IMPORTANT: Do not make any new credit applications, as this will drop your score further.\n\nIn the meantime, I am saving your number! I always post helpful advice and great vehicle specials on my Status. 🙏\n\nPlease save mine to view them, and remember: I offer a R5000 referral fee directly to YOU for each successful referral you send our way! 🤝"
+    },
+    {
+      "keyword": "blacklisted",
+      "message": "Here is some general advice that I hope will help you on your journey! :)\n\nUnfortunately, banks cannot legally approve any new vehicle finance while a profile is actively under debt review. ⛔\n\nPlease Note: Nobody can remove debt review from your profile unless all accounts are fully settled. Stay away from scams, and please do not apply for any new credit right now, as it will hurt your profile further.\n\nThe good news is that once you complete the process and receive your Clearance Certificate, we can apply for your vehicle! Here is how you can prepare for that day:\n\n✅ Once accounts and arrears are settled, you are basically starting your credit record fresh again.\n\n✅ You will need to build a new paying credit profile from 3 to 6 months.\n\n✅ A 610 credit score (www.clearscore.co.za) is favorable for vehicle finance, although banks look at other factors too.\n\n✅ Use less than 50% of your available credit. For example, if you have a credit limit of R10k on a store account, only use up to R5k.\n\n✅ Always pay more than the minimum. If your monthly premium is R200, pay R250.\n\n✅ Cellphone, gym, internet contracts, and life policies do not build credibility for vehicle finance.\n\n❌ IMPORTANT: Do not make any credit applications, as this may negatively affect you.\n\nIn the meantime, I am saving your number! I always post helpful advice and great vehicle specials on my Status. 🙏\n\nPlease save mine to view them, and remember: I offer a R5000 referral fee directly to YOU for each successful referral you send our way! 🤝"
+    },
+    {
+      "keyword": "6month",
+      "message": "Do you have 6 months of bank statements that consistently reflects that income?"
+    },
+    {
+      "keyword": "docs",
+      "message": "Thank you for taking my call!😁\n\nThe banks need the following documents:\n\n🔅ID\n🔅License\n🔅Latest 3 payslips\n🔅3 month bankstatements\n\nYou can email us or Whatsapp me *CLEAR* pictures\n( finance@luminaauto.co.za )"
+    },
+    {
+      "keyword": "nocredit",
+      "message": "Because you currently have no active credit facilities (such as a credit card or retail account), banks cannot generate a credit score or assess your repayment history. Consequently, they will not approve vehicle finance at this stage.\n\nRequired Next Steps:\n1️⃣Open a minor credit facility to establish a profile.\n2️⃣Maintain a perfect payment record for 3 to 6 months.\n3️⃣Contact us once your credit score is active.\n\n🔴*Note:* Cellphone & network accounts does not affect credit score.\n\nWe look forward to assisting you with your vehicle purchase once your credit profile is established."
+    },
+    {
+      "keyword": "debtreview",
+      "message": "Unfortunately, banks cannot legally approve any new vehicle finance while a profile is actively under debt review. ⛔\n\n*Next Steps*\n* You will need to successfully complete your debt review process.\n* Once completed, you will be issued a *Clearance Certificate*.\n* As soon as you have that certificate, we can apply for vehicle finance!\n\n*Save my number* for when you are ready, or if you need any advice in the future. 🤝\n\n*Remember:* We offer *R5000* referral to *YOU* for every successful referral you send us!\n\nPLEASE NOTE: *NOBODY can remove debt review from your profile unless all accounts has been settled FULLY. And NO official finance/loans can be given to you while under debt review! Stay away from scams and do not continue applying, because it hurts your credit profile even more!!*"
+    },
+    {
+      "keyword": "deposit",
+      "message": "*We don't and never will ask any money upfront*, we are very open and we always work around a deposit to avoid it with the bank 🏦\n\n➡️ BUT if you want you can add a deposit to make your installment less. This can be done anytime during your finance of the car and doesn't have to be done before buying a car.\n\nEvery *R10000* makes your monthly installment less by *R200pm*"
+    },
+    {
+      "keyword": "spouse",
+      "message": "Banks need the following info please:\n\n* Spouse Name and Surname\n* Spouse ID number\n* Spouse contact number\n* Date Married"
+    },
+    {
+      "keyword": "winning",
+      "message": "Hi there! Are you *winning* with the *information?* 🙌🏽 Let me know if you need any assistance."
+    },
+    {
+      "keyword": "arrears",
+      "message": "Do you have accounts in arrears or are you under debt review?"
+    },
+    {
+      "keyword": "whyscore",
+      "message": "Why is your credit score low?"
+    },
+    {
+      "keyword": "catalog",
+      "message": "We work with all types of vehicles *new, used, and demos!* 🏎️\n\nWhen it comes to vehicle finance, the banks look at a lot of different factors. They score cars differently, and they also score each person uniquely based on their personal credit profile.\n\n*Here is what makes us different:* We fight for you with the banks! 🥊 We guide you through the whole process and explore every option to see which car gets you the best approval. Once we have that sorted, we present you with a variety of new, used, or demo options to make sure we find the absolute perfect match for you. ✨\n\nYou can check out some of our current stock here:\n🚗 https://luminaauto.co.za/inventory\n\nBut remember, if you don't see what you want, we can source it for you. Let me know what you have in mind and we can get started! 🤝"
+    },
+    {
+      "keyword": "future",
+      "message": "I’ve got your number saved! ✅ Save mine as well so we stay in touch. Don't stress at all, we will get you into a car, *let’s just check back in 2-3 months. ⏳🚙*\n\nFor now, please avoid putting in any more applications anywhere else. Just trust the process! When you check in with us later, *we will just refresh your profile to see the new updates.* We are fully committed to helping you! 🥳🙌"
+    },
+    {
+      "keyword": "low income",
+      "message": "To qualify for vehicle finance, you do need *a minimum net take-home pay of R8500 p/m, or R20000 if you are self-employed.* I know you'll reach those goals soon, and I'll be right here ready to help you get your dream car when you do! 🚘✨\n\n📢📢 I'm saving your details on my side. Definitely If you know anyone looking for a car, *I offer a R1000 - R10,000 spotter’s fee for every successful referral!* 💸🔥"
+    },
+    {
+      "keyword": "no licence",
+      "message": "That is 100% okay! *Focus on getting that license, and I will be waiting to hand over the keys to your new car when you're ready!* 🥳🔑\n\nI've got your number saved for when the time comes. Feel free to message me anytime if you have any questions! 📱\n\nMake sure to save my number as well to see my newest stock and specials on my WhatsApp statuses. 🤩\n\n‼️ Also, don't forget! I give a R1000 - R5000 cash bonus for every person you refer who purchases a vehicle from me! 💰🔥"
+    },
+    {
+      "keyword": "Based",
+      "message": "We are based in Pretoria and *we deliver nationwide free of charge!* 🌎\n\nWhere ever you are we are 🚗"
+    },
+    {
+      "keyword": "options",
+      "message": "We work on new, used and demo 🏎. When we do vehicle finance there is a lot of factors to take in mind with the bank and how they score cars, they also score each person differently based on their personal profile.\n\nWhat makes us different is we fight with the bank, we help and guide our clients and work through all the different options to see which car they qualify for the best with the bank. After that, we present all the different options for you based on new, used and demos and make sure we get the perfect one for you"
+    },
+    {
+      "keyword": "creditscore",
+      "message": "When purchasing a car via finance it is not so much about the credit score but more based on your personal profile ✅\n\nStuff that also boosts chances of approval is stuff like your education history, workplace, work position, current time at employer age, etc. Banks are also eager to help first-time car buyers and if they have had a car in the past.\n\nAnother example is if you are behind on any payments, what is your credit history, how long have you been paying credit, how much percentage of your credit do you use, etc\n\nSo as you can see your credit score doesn't really have such an impact on your car finance, that is where we go the extra mile and build you a strong profile, all of our clients have a fair chance of approval!\n\nWith us, you don't just apply we also walk the road with you to make sure you do get approved! That is what makes us the best in the industry ❤"
+    },
+    {
+      "keyword": "trade in",
+      "message": "How a trade in works\n\n- we need to see what your settlement amount is (what you owe the bank now) vs what your car is worth\n\n- if your settlement is higher than the car is worth you will have a shortfall, the shortfall you either need to settle it cash or we need if possible to load ontop of the new deal. Every R10k we load will make the instalment go up by R200\n\n- if your car is worth more than your settlement you can either take the extra capital as a refund or you can put it down as a deposit on the new deal\n\n•••••••••••••••••••••••••••••\n\nPlease send me the below details of your trade in\n\n🚗 amount you owe\n🏦 with who did you finace\n🏎 make\n🏎 model\n🏎 year\n🏎 engine (1.4 etc)\n🏎 transmission (man or auto)\n🏎 kms\nAny extras we should know of like sunroof etc"
+    },
+    {
+      "keyword": "preapprove1",
+      "message": "Hi👋\n\nI am following-up regarding your vehicle application.\n\nWe are ready to move forward to the next steps, but we just need your supporting documents to finalize the bank's validation process. 📄\n\nPlease let me know if you need any assistance gathering them, or when we can expect to receive them."
+    },
+    {
+      "keyword": "preapprove2",
+      "message": "Hi👋\n\nI have been trying to reach you via WhatsApp and phone calls to finalize your vehicle application, but I haven't been able to get through. 📱\n\nThe bank requires your supporting documents to keep your file active and proceed with the validation.\n\nIs there an alternative number where I can reach you, or a better time to call? Please let me know how you would like to proceed so we can avoid any delays on your profile. ⏳"
+    },
+    {
+      "keyword": "preapprove3",
+      "message": "Hi ! I trust you are doing well\n\nI have been trying to get hold of you on whatsapp and through calls but haven't been getting through to you?\n\nIs there something we did wrong or you would like us to approve? What do you want me to do for you to take the next steps 🫶🏽\n\n*I don't want your credit profile to be affected in a negative way because of the pending application which is reflecting on your name which can result in a negative way on any future enquires even blocking you ❌*\n\nPlease respond to this message for us to assist you and also to help us prevent any negative affect to your profile 🫶"
+    },
+    {
+      "keyword": "preapprove4",
+      "message": "VERY IMPORTANT UPDATED REGARDING YOUR CREDIT PROFILE\nHey {{1}} 🙋🏾‍♂️ the status of your profile is getting very serous and stands a risk ‼️\n\n⚠️ I have been trying to get hold of you on WhatsApp and through calls but haven't been getting through to you and we must update the bank on the status of your profile to prevent it from being handed over\n\nIs there something we did wrong or you would like us to approve? Rather discuss with me, then I can assist not responding is only making it worse\n\nI don't want your credit profile to be affected in a negative way because of the pending application which is reflecting on your name which can result in a negative way on any future enquires even blocking you ❌"
+    },
+    {
+      "keyword": "badcredit1",
+      "message": "Hi👋\n\nI am following-up regarding your vehicle application.\n\nWe are ready to move forward to the next steps, but we just need your supporting documents to finalize the bank's validation process. 📄\n\nPlease let me know if you need any assistance gathering them, or when we can expect to receive them."
+    },
+    {
+      "keyword": "badcredit2",
+      "message": "Hi👋\n\nI have been trying to reach you via WhatsApp and phone calls to finalize your vehicle application, but I haven't been able to get through. 📱\n\nThe bank requires your supporting documents to keep your file active and proceed with the validation.\n\nIs there an alternative number where I can reach you, or a better time to call? Please let me know how you would like to proceed so we can avoid any delays on your profile. ⏳"
+    }
+  ],
+  "templates": [
+    {
+      "id": 30732,
+      "name": "tiktok_intro",
+      "category": "opener",
+      "usage": 636,
+      "buttons": [
+        "Let's get the ball rolling!"
+      ],
+      "body": "Hey {{name}}! 😁\n\nI'm *Albert from Lumina Auto* 🏎️\n\n*I saw you just filled out a form on TikTok and I wanted to reach out personally to assist you* 🕺\n\nWhether you’re looking for a *brand-new ride or a quality demo/used car,* I’m here to handle the heavy lifting, especially when it comes to securing the best financing for you! 💳\n\nYou can just respond to this message then we can check exactly what we can get for you 🚗"
+    },
+    {
+      "id": 30743,
+      "name": "excited_qualify_5min",
+      "category": "opener",
+      "usage": 580,
+      "buttons": [
+        "Let's make it happen!",
+        "Not interested"
+      ],
+      "body": "Hey {{name}}! 🤩🚗\n\nI am very excited to get you the deal of a lifetime on your new dream car! 🎉\n\n*Would you like to see how you qualify, it only takes 5minutes*. ✅\n\n*NO DOCUMENTS NEEDED*"
+    },
+    {
+      "id": 30748,
+      "name": "no_reply_reminder",
+      "category": "reminder",
+      "usage": 462,
+      "buttons": [
+        "Sorry I just got busy",
+        "Give me the best deal eva!!",
+        "I won't qualify for car finance",
+        "Not interested"
+      ],
+      "body": "Hey {{name}} I see you haven't gotten back to me 💔 I offer the best deals in SA and go out of my way for my customers! 🇿🇦\n\nI strive to bring excellent service to my clients 🎉\n\nWith that being said please keep in mind we are on of the biggest motor groups in South-Africa! *Which mean we sell all brands 🚗\nAnything from VW, Suzuki, Renault, Hyundai, BMW, Ford and the list goes on* 💥\n\nIs there anything unclear or uncertain in which I communicated with you ?"
+    },
+    {
+      "id": 30733,
+      "name": "sorry_couldnt_assist_referral",
+      "category": "closer",
+      "usage": 290,
+      "buttons": [],
+      "body": "Sorry I couldn't assist to make your dream come true 💔\n\nIm saving your number, save mine to see updates on specials, tips and the latest releases on my status\n\n*I offer R5000 per Client that you refer to me that successfully buys a vehicle* 💰💰💰\n\nImagine giving me 2-4 clients a month 😊"
+    },
+    {
+      "id": 30749,
+      "name": "application_submitted",
+      "category": "status",
+      "usage": 134,
+      "buttons": [],
+      "body": "Hi {{name}}! This whatsapp is to confirm that your application has been submitted to the banks.\nWe are currently awaiting their response and will provide you with an update as soon as it becomes available.\n\nYou can also send the following to speed up the process🏁\n\n🔅ID\n🔅License\n🔅3 Months Bankstatements\n🔅Latest Payslip\n\n*If already sent, please ignore*"
+    },
+    {
+      "id": 30746,
+      "name": "declined_advice",
+      "category": "status",
+      "usage": 45,
+      "buttons": [],
+      "body": "Hey {{name}}! I received the bank's response. While we can't get an approval today, the good news is that we should get it approved in the next 2-3 months! With a little work on your credit score, you'll be ready in a few short months.\n\nHere is exactly what you need to do (and avoid) to get approved next time:\nTo-Do List:\n🔹 Settle any accounts in arrears.\n🔹 Build a new, consistent paying profile over the next 3-6 months. (Keep in mind: cell contracts, Wi-Fi, and memberships don't count towards building credit). 📱\n\nWhat to Avoid:\n❌ No new personal loans.\n❌ No micro loans or payday loans.\n❌ Do not apply for vehicle finance anywhere else for now.\n\nSign up for ClearScore online. It’s 100% free and it will send you a monthly report to show how your score is improving! 📈\n\nI’m definitely keeping your number saved. Please save mine, trust the process, and ask me any questions you might have along the way! 🤝\n\n📌I also offer R5000 for every person you refer to me who buys a vehicle! 💰"
+    },
+    {
+      "id": 30745,
+      "name": "press_hi_button",
+      "category": "reengage",
+      "usage": 10,
+      "buttons": [],
+      "body": "Hey {{name}}! Please respond or press the \"Hi\" button to this message to allow me to send you further information 👇"
+    },
+    {
+      "id": 30883,
+      "name": "finance_preapproved",
+      "category": "status",
+      "usage": 8,
+      "buttons": [],
+      "body": "🔴FINANCE UPDATE: PRE-APPROVED🔴\n\n👤 Client Details:\n\n{{name}}\n\n{{phone}}\n\nContact to finalize!"
+    },
+    {
+      "id": 30738,
+      "name": "debt_review_advice_tmpl",
+      "category": "advice",
+      "usage": 7,
+      "buttons": [],
+      "body": "Unfortunately, banks cannot legally approve new vehicle finance while under debt review. ⛔\n\nNobody can remove debt review unless all accounts are fully settled. Avoid scams, and do not apply for new credit, as it damages your profile.\n\nOnce you receive your Clearance Certificate, we can apply! How to prepare:\n✅ Settle accounts to start your credit fresh.\n✅ Build a paying credit profile for 3 to 6 months.\n✅ Aim for a 610 credit score (ClearScore).\n✅ Keep credit utilization under 50% (e.g., R5k on a R10k limit).\n✅ Always pay more than the minimum installment.\n✅ Cellphone and gym contracts do not build vehicle credibility.\n❌ IMPORTANT: Do not make any credit applications.\n\nI am saving your number to share helpful advice and vehicle specials on my Status. 🙏\n\nPlease save mine. Remember: Lumina Auto offers a R5000 referral fee directly to YOU for each successful referral! 🤝"
+    },
+    {
+      "id": 31765,
+      "name": "looking_to_finance",
+      "category": "opener",
+      "usage": 14,
+      "buttons": [],
+      "body": "Hey Are you looking to finance a car?, Albert from Lumina Auto 💪"
+    },
+    {
+      "id": 31766,
+      "name": "good_morning_assist",
+      "category": "opener",
+      "usage": 3,
+      "buttons": [],
+      "body": "Good morning! Thanks for reaching out. How can I assist you today?"
+    },
+    {
+      "id": 31211,
+      "name": "based_delivery",
+      "category": "info",
+      "usage": 1,
+      "buttons": [],
+      "body": "We are based in Pretoria and *we deliver nationwide free of charge!* 🌎\n\nWherever you are, we are 🚗"
+    },
+    {
+      "id": 31199,
+      "name": "system_offline",
+      "category": "ops",
+      "usage": 1,
+      "buttons": [],
+      "body": "Hi {{name}}! 👋\n\nAlbert here from Lumina Auto.\n\nI am reaching out with a quick update regarding your vehicle finance application. Our system connection to the banking portals is currently offline🏦, meaning we are temporarily unable to submit new applications or receive feedback on pending ones.❌\n\nThe system will be fully back online next week Wednesday.🗓️\n\nIf you are happy to wait, we will prioritize your application the moment connectivity is restored. However, if you prefer to look at alternative options in the meantime, please let me know.📲\n\nThank you for your patience and understanding.\n\nRegards,\nAlbert\nLumina Auto"
+    },
+    {
+      "id": 31320,
+      "name": "system_back_online",
+      "category": "ops",
+      "usage": 1,
+      "buttons": [
+        "Let's Submit!",
+        "Applied Elsewhere",
+        "Cancel"
+      ],
+      "body": "Hey {{name}}! 👋\n\nAlbert here from Lumina Auto.\n\n*Good news!* Our system link to the banks should officially be *back online* today! 🏦✨\n\nBefore we push forward, I just wanted to check if you’ve already applied anywhere else while we were offline, or if *you'd like us to go ahead and submit your application here?* Alternatively, let me know if you'd prefer to cancel it for now. 📲\n\nLooking forward to your update so we can *get things moving for you.*\n\nBest regards,\nAlbert\n\n*Lumina Auto*"
+    },
+    {
+      "id": 30789,
+      "name": "pausing_file",
+      "category": "closer",
+      "usage": 1,
+      "buttons": [],
+      "body": "Hey {{name}}! Albert here from Lumina Auto! 👋\n\nI am currently updating my records and will be pausing your vehicle file for now. We understand that plans change and timing isn't always perfect, that is completely okay! Sorry I couldn't make your dream come true now, but we will be doing it in the near future 🎉\n\nWhenever you are ready to get your dream vehicle, simply reach out and we will pick up right where we left off we sell all brands, new used and demo 🚘\n\n❗ A quick tip: Keep your credit profile healthy by avoiding any unnecessary credit applications in the meantime. 📈\n\nRemember: We offer a R5000 referral to YOU for every successful referral you send us! 🤑"
+    },
+    {
+      "id": 30832,
+      "name": "referral_intro",
+      "category": "opener",
+      "usage": 1,
+      "buttons": [],
+      "body": "Hi {{name}}! 👋\n\nI’m Albert from Lumina Auto.\n\nI was recently given your details by a mutual contact who mentioned you might be looking for a new vehicle. I help my clients source, finance, and deliver quality cars that perfectly match their needs and budget. 🚗\n\nI would love to see if I can assist you in finding your next car."
+    },
+    {
+      "id": 30735,
+      "name": "finance_preapproved_2",
+      "category": "status",
+      "usage": 2,
+      "buttons": [],
+      "body": "FINANCE UPDATE: PRE-APPROVED\n\n👤 Client Details:\n\n{{name}}\n\n{{phone}}\n\nContact to finalize!"
+    }
+  ],
+  "funnel": [
+    {
+      "code": "start",
+      "question": "How can I assist you today 😊\n\nYou can select any of the options below 👇",
+      "options": [
+        {
+          "title": "I want my dream car now!",
+          "next": "licence"
+        },
+        {
+          "title": "Check If I Qualify",
+          "next": "licence"
+        },
+        {
+          "title": "I've Got Questions",
+          "next": "qr:questions morning"
+        }
+      ]
+    },
+    {
+      "code": "licence",
+      "question": "Great! Here are 3 quick Questions so we can see how you qaulify 🏎\n\nDo you have a drivers Licence ?",
+      "options": [
+        {
+          "title": "Yes I Do",
+          "next": "credit",
+          "set": {
+            "licence": "yes"
+          }
+        },
+        {
+          "title": "No Licence Yet",
+          "next": "qr:no licence",
+          "set": {
+            "licence": "no"
+          }
+        },
+        {
+          "title": "I Only Have Learners",
+          "next": "learners_reply",
+          "set": {
+            "licence": "learners"
+          }
+        }
+      ]
+    },
+    {
+      "code": "credit",
+      "question": "Thanks {{name}}! Things are looking good!\n\nWe fight for every client, no matter your credit profile. We’ll help you understand the process and what’s needed and make your dream a reality! 🏎✅\n\nHow's your credit profile looking?",
+      "options": [
+        {
+          "title": "Good Credit Record",
+          "next": "timeline",
+          "set": {
+            "credit": "good"
+          }
+        },
+        {
+          "title": "Its looking better",
+          "next": "timeline",
+          "set": {
+            "credit": "improving"
+          }
+        },
+        {
+          "title": "Im not sure",
+          "next": "qr:arrears",
+          "set": {
+            "credit": "unsure"
+          }
+        },
+        {
+          "title": "Blacklisted/Debt Review",
+          "next": "qr:debtreview",
+          "set": {
+            "credit": "debt_review"
+          }
+        },
+        {
+          "title": "Missed Many Payments",
+          "next": "missed_payments",
+          "set": {
+            "credit": "missed"
+          }
+        },
+        {
+          "title": "No Credit Record",
+          "next": "qr:nocredit",
+          "set": {
+            "credit": "none"
+          }
+        }
+      ]
+    },
+    {
+      "code": "timeline",
+      "question": "To get you the best deal ever we just need to answer a few quick questions 🤝\n\n🟢 If you are happy and all is good WHEN are you looking to buy then?",
+      "options": [
+        {
+          "title": "As Soon As Possible",
+          "next": "income",
+          "set": {
+            "timeline": "asap"
+          }
+        },
+        {
+          "title": "Within A Month",
+          "next": "income",
+          "set": {
+            "timeline": "month"
+          }
+        },
+        {
+          "title": "Need to sort stuff",
+          "next": "need_sort",
+          "set": {
+            "timeline": "later"
+          }
+        }
+      ]
+    },
+    {
+      "code": "income",
+      "question": "Let's GOOO! 🔥\n\nAre you permanently employed and earn a net salary on your payslip of R8500 or more per month?\n\n(Self Employed must earn a minimum per month)",
+      "options": [
+        {
+          "title": "Yes sir!",
+          "next": "qr:docs",
+          "set": {
+            "income": "yes"
+          }
+        },
+        {
+          "title": "Not yet",
+          "next": "qr:low income",
+          "set": {
+            "income": "no"
+          }
+        },
+        {
+          "title": "It's Complicated",
+          "next": "ESCALATE",
+          "set": {
+            "income": "complicated"
+          }
+        }
+      ]
+    },
+    {
+      "code": "missed_payments",
+      "question": "Thats not bad news at all! As long as you are not behind on any payments or missed payments we will be able to assist!\n\nThats what makes us different! We fight for each one of our clients!\n\nWhich of the options fits you best??",
+      "options": [
+        {
+          "title": "Let's do it!",
+          "next": "timeline"
+        },
+        {
+          "title": "Let me explain first",
+          "next": "ESCALATE"
+        },
+        {
+          "title": "3+ Missed Payemnts",
+          "next": "qr:badcredit"
+        }
+      ]
+    },
+    {
+      "code": "learners_reply",
+      "question": "Thanks {{name}} Here are ways to buy a car, unfortunately a Learner's Licence won't work 🚗",
+      "options": [
+        {
+          "title": "Nominated Driver",
+          "next": "nominated_driver"
+        },
+        {
+          "title": "Medical Reason",
+          "next": "ESCALATE"
+        },
+        {
+          "title": "Will Get Licence",
+          "next": "qr:no licence"
+        }
+      ]
+    },
+    {
+      "code": "nominated_driver",
+      "question": "Ok great! but *VERY IMPORTANT*\n\n➡️Is the person your biological parent, or your spouse (married in community of property) with a licence, and do you share the same proof of address?",
+      "options": [
+        {
+          "title": "Yes - My Parents",
+          "next": "credit"
+        },
+        {
+          "title": "Yes - My Partner",
+          "next": "credit"
+        },
+        {
+          "title": "None of these",
+          "next": "qr:Nolicencerespond"
+        }
+      ]
+    },
+    {
+      "code": "need_sort",
+      "question": "{{name}}, we provide solutions for each person needs. Your 1st instalment will not be now. Car prices only go up never down.",
+      "options": [
+        {
+          "title": "Im happy with that!",
+          "next": "income"
+        },
+        {
+          "title": "Does not help me",
+          "next": "ESCALATE"
+        },
+        {
+          "title": "Let me explain first",
+          "next": "ESCALATE"
+        }
+      ]
+    }
+  ],
+  "intents": [
+    {
+      "name": "location",
+      "priority": 20,
+      "action": "qr",
+      "target": "Based",
+      "patterns": [
+        "where.{0,15}(you|u|your office|guys).{0,15}(base|located|situated|office)",
+        "\\bwhere are (you|u|your)\\b",
+        "\\bwhere.{0,10}(based|located)\\b",
+        "\\blocation\\b",
+        "which (city|town|area)",
+        "branch in",
+        "do you deliver",
+        "nationwide",
+        "\\bdelivery\\b",
+        "come to (you|your office)"
+      ]
+    },
+    {
+      "name": "deposit_or_upfront",
+      "priority": 25,
+      "action": "qr",
+      "target": "deposit",
+      "patterns": [
+        "\\bdeposit\\b",
+        "up\\s?front",
+        "money (first|before)",
+        "pay.{0,10}before",
+        "(afraid|scared|worried|nervous).{0,15}scam",
+        "scam.{0,15}(afraid|scared|money)",
+        "money you need to qualify",
+        "afraid.*money",
+        "\\bballoon\\b",
+        "\\b(mony|money|cash)\\s?down\\b"
+      ]
+    },
+    {
+      "name": "installments_price",
+      "priority": 30,
+      "action": "qr",
+      "target": "installments",
+      "patterns": [
+        "install?ments?",
+        "how much.{0,20}(pay|month|car|cost|instal|deal|finance)",
+        "\\bprice\\b",
+        "repayment",
+        "per month",
+        "monthly (install?ment|payment|repay|premium|instal|amount)",
+        "instal?ment.{0,10}(not more|less than|under|around|about)",
+        "what.{0,15}instal"
+      ]
+    },
+    {
+      "name": "documents",
+      "priority": 35,
+      "action": "qr",
+      "target": "docs",
+      "patterns": [
+        "\\bdocuments?\\b",
+        "what.{0,15}(need|require).{0,15}(qualify|apply|buy|vehicle|car)",
+        "requirements?",
+        "\\bpapers\\b",
+        "\\bpaper ?work\\b",
+        "what do i need",
+        "what is needed",
+        "what.{0,10}(bye|buy).{0,10}(a )?(car|vehicle)",
+        "\\bdokument"
+      ]
+    },
+    {
+      "name": "catalog_stock",
+      "priority": 40,
+      "action": "qr",
+      "target": "catalog",
+      "patterns": [
+        "which cars?",
+        "what cars?",
+        "\\bstock\\b",
+        "inventory",
+        "list (of|off) cars?",
+        "show me.{0,15}cars?",
+        "cars? (do you|available)",
+        "varieties",
+        "7\\s?seater",
+        "panel van",
+        "\\bbakkies?\\b",
+        "automatic cars?",
+        "do you (have|sell|stock|do).{0,25}(car|bakkie|van|suv|sedan|hatch|automatic|manual|vw|toyota|ford|renault|hyundai|suzuki|bmw|polo|triber|ecosport|golf|tigo|cherry|rav4)",
+        "(triber|ecosport|polo|golf|tigo|rav4|cherry).{0,10}(available|in stock)",
+        "which (cars?|vehicles?).{0,10}(qualify|get)",
+        "\\bused car\\b",
+        "i like (this|that) car",
+        "interested in (this|the|a) (car|vehicle)",
+        "what (are you|do you) (offer|have)",
+        "give me more info",
+        "more info on this",
+        "e.?hailing"
+      ]
+    },
+    {
+      "name": "credit_score_info",
+      "priority": 45,
+      "action": "qr",
+      "target": "creditscore",
+      "patterns": [
+        "how much credit score",
+        "what.{0,15}credit score.{0,15}(need|looking|require)",
+        "minimum credit score",
+        "what.{0,10}score.{0,10}(need|require|looking)"
+      ]
+    },
+    {
+      "name": "debt_review",
+      "priority": 50,
+      "action": "qr",
+      "target": "debtreview",
+      "patterns": [
+        "debt\\s*review",
+        "under review",
+        "debt counsel",
+        "de[bpt]t?\\s+r[ei]v[ei]+w",
+        "debt\\s*coun"
+      ]
+    },
+    {
+      "name": "blacklisted",
+      "priority": 55,
+      "action": "qr",
+      "target": "blacklisted",
+      "patterns": [
+        "black\\s?list",
+        "\\bitc\\b",
+        "judg? e?ment",
+        "handed over",
+        "\\bred flag\\b"
+      ]
+    },
+    {
+      "name": "bad_credit_arrears",
+      "priority": 60,
+      "action": "qr",
+      "target": "badcredit",
+      "patterns": [
+        "arrears",
+        "missed.{0,10}payment",
+        "behind.{0,12}(payment|on|with)",
+        "bad credit",
+        "(low|bad|poor|not good|not that good|not great|bit damage|damaged|messed).{0,12}credit",
+        "credit.{0,14}(is )?(bad|low|poor|not good|isn.?t good|not that good|not great|damage|messed|ruined|bit damage|not so)",
+        "defaulted?",
+        "(score|credit).{0,12}(is )?[3-6]\\d\\d\\b",
+        "[3-6]\\d\\d\\b.{0,12}(score|credit)"
+      ]
+    },
+    {
+      "name": "no_credit",
+      "priority": 65,
+      "action": "qr",
+      "target": "nocredit",
+      "patterns": [
+        "no credit (record|history|profile|score)",
+        "never (had|took|used).{0,10}credit",
+        "don'?t have (any )?credit",
+        "no active credit"
+      ]
+    },
+    {
+      "name": "nominated_driver",
+      "priority": 71,
+      "action": "qr",
+      "target": "nominated driver",
+      "patterns": [
+        "nominated driver",
+        "nominee",
+        "someone else.{0,12}(licen|drive)",
+        "my (mother|father|parent|mom|dad|husband|wife|partner|spouse|brother|sister|son|daughter|cousin|uncle|aunt|in.?law|family).{0,20}(licen|drive)"
+      ]
+    },
+    {
+      "name": "no_licence",
+      "priority": 72,
+      "action": "qr",
+      "target": "no licence",
+      "patterns": [
+        "(\\bno\\b|don'?t have|do not have|without|haven'?t got|no valid|dont have).{0,15}(licen|license)",
+        "(licen|license).{0,12}(no|not yet|expired|dont|don'?t have)",
+        "don'?t.{0,6}(have a )?licen"
+      ]
+    },
+    {
+      "name": "licence_question",
+      "priority": 73,
+      "action": "qr",
+      "target": "Nolicencerespond",
+      "patterns": [
+        "(must|need|require|necessary|have to|is it a must|do i need).{0,20}(licen|license)",
+        "(licen|license).{0,15}(must|required|necessary|need)",
+        "(licen|lisen|license)[a-z]*.{0,15}compuls"
+      ]
+    },
+    {
+      "name": "learners_only",
+      "priority": 74,
+      "action": "qr",
+      "target": "Nolicencerespond",
+      "patterns": [
+        "learner'?s?( licence| license| licens)?",
+        "only.{0,10}learner",
+        "busy.{0,10}(with )?(my )?learner"
+      ]
+    },
+    {
+      "name": "spouse_info",
+      "priority": 76,
+      "action": "qr",
+      "target": "spouse",
+      "patterns": [
+        "married in com",
+        "community of property",
+        "\\bspouse\\b",
+        "my (husband|wife).{0,12}licen"
+      ]
+    },
+    {
+      "name": "low_income",
+      "priority": 78,
+      "action": "qr",
+      "target": "low income",
+      "patterns": [
+        "earn.{0,10}[rR]?\\s?[1-7][ ,.]?\\d{3}\\b",
+        "salary.{0,12}(of )?[rR]?\\s?[1-7][ ,.]?\\d{3}\\b",
+        "[1-7][ ,.]?\\d{3}\\b.{0,15}(salary|earn|month|pm|net|take.?home|per month)",
+        "salary.{0,10}(is )?(low|too low|small)",
+        "don'?t (earn|make) enough",
+        "below.{0,10}(8500|8 500)",
+        "less than.{0,10}8500",
+        "(monthly )?salary of [1-7]",
+        "(salery|sallary|salory).{0,12}(is )?[rR]?\\s?[1-7][ ,.]?\\d{3}\\b"
+      ]
+    },
+    {
+      "name": "referral",
+      "priority": 80,
+      "action": "qr",
+      "target": "referral",
+      "patterns": [
+        "refer(r?al)?",
+        "money maker",
+        "spotter",
+        "commission.{0,10}refer",
+        "how does the refer",
+        "(bring|send)\\s+(u|you)\\b.{0,25}(sum ?1|some ?1|someone|client|customer|buyer|buys)"
+      ]
+    },
+    {
+      "name": "trade_in",
+      "priority": 82,
+      "action": "qr",
+      "target": "trade in",
+      "patterns": [
+        "trade.?in",
+        "trade my",
+        "settlement",
+        "my (current )?car.{0,15}(swap|trade|exchange)",
+        "exchange my car"
+      ]
+    },
+    {
+      "name": "self_employed",
+      "priority": 84,
+      "action": "qr",
+      "target": "6month",
+      "patterns": [
+        "self.?employ",
+        "own business",
+        "no payslip",
+        "don'?t have.{0,10}payslip",
+        "i'?m a business",
+        "business owner",
+        "we don'?t get payslip"
+      ]
+    },
+    {
+      "name": "account_number",
+      "priority": 86,
+      "action": "qr",
+      "target": "accountnumber",
+      "patterns": [
+        "why.{0,15}(bank )?account number",
+        "account number.{0,12}(why|need|safe|for)"
+      ]
+    },
+    {
+      "name": "interested_finance",
+      "priority": 90,
+      "action": "funnel",
+      "target": "start",
+      "patterns": [
+        "(want|need|looking for|interested|get).{0,15}(car|vehicle|bakkie|finance)",
+        "do you (do|offer|have).{0,10}finance",
+        "finance a (car|vehicle)",
+        "i (want|need) a car",
+        "check if i qualify",
+        "am i qualif",
+        "do i qualif",
+        "can i (get|qualify).{0,10}(a )?(car|finance)",
+        "want to check if i",
+        "i want car",
+        "i just need a car",
+        "bu[sy]{2,3} a car",
+        "wanna (buy|busy|get) a car",
+        "looking for a car",
+        "(want|need|get|buy).{0,15}\\bkar\\b"
+      ]
+    },
+    {
+      "name": "greeting",
+      "priority": 100,
+      "action": "qr",
+      "target": "questions morning",
+      "patterns": [
+        "^\\s*(hi|hey|hello|good\\s*(morning|afternoon|evening)|molo|sawubona|dumela|goeie|hallo|greetings)\\b",
+        "^\\s*hie\\b"
+      ],
+      "note": "Evaluated last: any specific intent outranks a plain greeting."
+    }
+  ],
+  "escalation": [
+    {
+      "name": "rent_to_own",
+      "reason": "No standard policy captured for rent-to-own; answered case-by-case.",
+      "patterns": [
+        "rent.?to.?own",
+        "rent to buy",
+        "rent.?2.?own"
+      ]
+    },
+    {
+      "name": "application_status",
+      "reason": "Live bank feedback required - must be checked by a human/agent.",
+      "patterns": [
+        "(feedback|update|news|response|word).{0,15}(bank|application|app|finance)",
+        "status of my (app|application)",
+        "did (you|it) (submit|go through)",
+        "has.{0,10}been (approved|submitted)",
+        "\\bany (feedback|news|update|word)\\b",
+        "submitted.{0,15}application",
+        "how far.{0,20}(my )?(app\\b|application|finance)"
+      ]
+    },
+    {
+      "name": "specific_vehicle_availability",
+      "reason": "Live stock/price check needed for a specific listed vehicle.",
+      "patterns": [
+        "still available",
+        "is the .{0,30}(available|in stock)",
+        "price of the \\w+",
+        "\\br ?\\d{4,}\\b.{0,20}(available|this car|that car|the car)",
+        "interested in (the|this) \\d{4}"
+      ]
+    },
+    {
+      "name": "talk_to_human",
+      "reason": "Explicit request for a person / phone call.",
+      "patterns": [
+        "(talk|speak|chat).{0,15}(human|person|someone|agent|consultant|manager|you guys)",
+        "can i (call|phone)",
+        "call me",
+        "phone me",
+        "\\byour number\\b",
+        "come in contact",
+        "get in touch",
+        "how (can|do) i (reach|contact)",
+        "contact you"
+      ]
+    },
+    {
+      "name": "legal_or_complaint",
+      "hard": true,
+      "reason": "Legal threat / complaint - must be handled by a human.",
+      "patterns": [
+        "lawyer",
+        "legal action",
+        "ombud",
+        "popia",
+        "report you",
+        "take you to",
+        "consumer (council|protection)",
+        "\\brefund\\b"
+      ]
+    },
+    {
+      "name": "abuse",
+      "hard": true,
+      "reason": "Abusive/hostile - de-escalate with a human.",
+      "patterns": [
+        "\\b(fuck|thief|thieves|fraudster|liar|useless|idiot|nonsense|bullshit)\\b",
+        "you.{0,15}(are|guys are|re).{0,10}scam",
+        "this is.{0,10}scam",
+        "\\bscammers\\b",
+        "\\bfrauds?\\b"
+      ]
+    }
+  ],
+  "tags": [
+    {
+      "name": "New Lead",
+      "meaning": "Fresh lead, not yet qualified",
+      "count": 579
+    },
+    {
+      "name": "TikTok Ads Lead",
+      "meaning": "Came from a TikTok lead form",
+      "count": 240
+    },
+    {
+      "name": "Blacklisted",
+      "meaning": "Under debt review / blacklisted / ITC",
+      "count": 184
+    },
+    {
+      "name": "Bad Credit",
+      "meaning": "Missed payments / arrears / low score",
+      "count": 136
+    },
+    {
+      "name": "No Licence",
+      "meaning": "No valid driver's licence",
+      "count": 85
+    },
+    {
+      "name": "App Submitted",
+      "meaning": "Application submitted to banks",
+      "count": 76
+    },
+    {
+      "name": "Application Received",
+      "meaning": "Docs/application received from client",
+      "count": 63
+    },
+    {
+      "name": "Application Declined",
+      "meaning": "Bank declined",
+      "count": 47
+    },
+    {
+      "name": "Low Income",
+      "meaning": "Below income threshold",
+      "count": 11
+    },
+    {
+      "name": "Approved - Need Docs",
+      "meaning": "Approved, awaiting documents",
+      "count": 1
+    },
+    {
+      "name": "Validations Pending",
+      "meaning": "Bank validations pending",
+      "count": 2
+    }
+  ],
+  "hands_off_tags": [
+    "Approved - Need Docs",
+    "Validations Pending",
+    "Vals Done"
+  ],
+  "learned_replies": [],
+  "sequences": [
+    {
+      "name": "credit_diagnostic",
+      "steps": [
+        "whyscore",
+        "arrears"
+      ],
+      "trigger": "vague bad/low credit with no specifics and unknown profile",
+      "note": "Mirrors the human takeover: ask 'Why is your credit score low?' then '/arrears' before giving advice. Once the client answers (arrears/missed -> badcredit; debt review/blacklisted -> debtreview; no credit -> nocredit), the next turn sends the right advice."
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "name": "lumina-auto-chat-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Standalone deterministic WhatsApp auto-responder for Lumina Auto (EasySocial + Supabase + Vercel). No AI, no third-party automation tools.",
+  "type": "commonjs",
+  "scripts": {
+    "test": "node engine/test-engine.js",
+    "sync-kb": "cd data && python3 build_kb.py",
+    "batch:dry": "node -e \"require('./engine/batch-worker.js').runBatch({dryRun:true}).then(s=>console.log(JSON.stringify(s,null,2)))\""
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

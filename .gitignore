@@ -38,3 +38,6 @@ backup/
 .env.local
 .env.*.local
 .claude/
+
+# chat brain test-harness build output
+lumina-chat/engine/.test-build/

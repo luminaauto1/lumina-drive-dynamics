@@ -1,0 +1,49 @@
+{
+  "generated": "2026-07-08",
+  "source": "Full read-only sweep of ALL leads in EasySocial business 4026 (labels/profiles for all; transcripts sampled for reply patterns).",
+  "note": "This is a point-in-time snapshot for reference/seed. The live dashboard should compute these numbers fresh from the EasySocial API (see api/stats.js).",
+  "totals": {
+    "total_leads": 6702,
+    "read": 6436,
+    "unread": 266,
+    "profile_captured": 3708
+  },
+  "tags": {
+    "New Lead": 2864,
+    "Blacklisted": 1261,
+    "TikTok Ads Lead": 716,
+    "Bad Credit": 671,
+    "Application Declined": 454,
+    "No Licence": 306,
+    "Low Income": 124,
+    "App Submitted": 105,
+    "Application Received": 74,
+    "Operational": 58,
+    "Vals Done": 5,
+    "Validations Pending": 3,
+    "Approved - Need Docs": 2,
+    "After Sales": 2,
+    "Spotter": 1
+  },
+  "journey": { "active": 1714, "resolved_or_dead": 1261, "none": 3727 },
+  "credit_profile": {
+    "Blacklisted/Debt Review": 905,
+    "Im Not Sure": 802,
+    "Missed Many Payments": 445,
+    "Its Looking Better": 324,
+    "Good Credit Record": 182,
+    "No Credit Record": 32
+  },
+  "licence": { "Yes I Do": 3167, "No Licence Yet": 389, "I Only Have Learners": 151 },
+  "income": { "Yes (R8500+)": 3162, "Not Yet": 86, "It's Complicated": 66 },
+  "marital": { "Single": 461, "Married": 183, "Divorced": 61 },
+  "bank_top": { "Capitec": 339, "FNB": 119, "Standard Bank": 53, "Nedbank": 49, "Absa": 43, "TymeBank": 8, "Discovery": 6 },
+  "typical_client": "TikTok lead, permanently employed (R8,500+ net), has a valid licence, banks with Capitec, but has a credit problem (blacklisted/debt review, or missed payments, or unsure). This is why the credit-advice replies (blacklisted / badcredit / debtreview / nocredit) are the highest-value automations, and why ~454 applications end declined.",
+  "operational_insight": "Human agents' manual time goes mostly to (1) application-status updates ('still waiting for feedback', 'we received your documents') and (2) credit diagnostics ('why is your score 580?', 'when was the last missed payment?'). Per business decision these pipeline/pre-approved/validated chats are handled by a human, so the bot escalates them rather than answering.",
+  "hands_off_tags": ["Approved - Need Docs", "Validations Pending", "Vals Done"],
+  "data_quality_notes": [
+    "Bank field is free-text with case/spelling variants (Capitec/Capitac, FNB/Fnb) and a few numbers leaked in — normalize in the dashboard.",
+    "Credit value 'Blacklisted' (14) folded into 'Blacklisted/Debt Review'.",
+    "Self-employed minimum income differs across templates (R14k/R15k/R20k/R25k) — confirm the correct figure."
+  ]
+}
