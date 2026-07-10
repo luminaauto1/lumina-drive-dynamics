@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { compressImage } from '@/lib/imageCompression';
+import { compressPdf } from '@/lib/pdfCompression';
 import { useUpdateFinanceApplication } from '@/hooks/useFinanceApplications';
 import { logActivity } from '@/lib/activityLog';
 import { toast } from 'sonner';
@@ -111,9 +112,10 @@ const CreditCheckResultModal = ({ open, onOpenChange, outcome, applicationId, on
     try {
       let path: string | null = null;
       if (file) {
-        // Images get compressed; documents (PDF/Word) upload as-is.
+        // Images get compressed; PDFs get rasterised down (best-effort); Word docs upload as-is.
         const isImage = file.type.startsWith('image/');
-        const toUpload = isImage ? await compressImage(file) : file;
+        const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+        const toUpload = isImage ? await compressImage(file) : isPdf ? await compressPdf(file) : file;
         const ext = (toUpload.name.split('.').pop() || (isImage ? 'png' : 'pdf')).toLowerCase();
         path = `${applicationId}/${outcome}-${Date.now()}.${ext}`;
         const { error: upErr } = await supabase.storage
