@@ -12,7 +12,13 @@ export interface PipelineTabDef {
 export const PIPELINE_TABS: PipelineTabDef[] = [
   { key: 'all',        label: 'All',         statuses: [], accent: 'text-foreground' },
   { key: 'intake',     label: 'New Applications', statuses: ['pending', 'draft', 'needs_revision', 'revision_submitted'], accent: 'text-gray-300' },
-  { key: 'submitted',  label: 'Submitted',   statuses: ['application_submitted', 'ready_to_submit', 'sent_to_banks'], accent: 'text-blue-400' },
+  // Credit check PASSED and the F&I outcome was set to "Ready to Load" (the
+  // application_submitted slug, relabelled). Its own lane between New Applications
+  // and Submitted so these leads don't sit in the bank-submission column.
+  // application_submitted lives ONLY here now (removed from 'submitted') so
+  // statusToTab routes it to this lane, not the later 'submitted' one.
+  { key: 'credit_passed', label: 'Credit Check Passed', statuses: ['application_submitted'], accent: 'text-emerald-400' },
+  { key: 'submitted',  label: 'Submitted',   statuses: ['ready_to_submit', 'sent_to_banks'], accent: 'text-blue-400' },
   { key: 'approved',   label: 'Approved',    statuses: ['pre_approved', 'documents_received', 'approved', 'vehicle_selected'], accent: 'text-yellow-400' },
   // Contract lane removed: contract-signed deals stay grouped under Validations
   // ("Vals Done") rather than splitting into their own column. contract_sent /
