@@ -39,7 +39,14 @@ export interface OutstandingFeedbackApp {
   created_at?: string | null;
 }
 
-const GOLD: [number, number, number] = [212, 175, 55];
+// Obsidian black & white theme — matches the Lumina Quote/OTP/Invoice documents
+// (owner explicitly wants NO white-and-gold PDFs). Black page, white type,
+// gray supporting text, monochrome accents.
+const PAGE_BG: [number, number, number] = [10, 10, 10];
+const WHITE: [number, number, number] = [245, 245, 245];
+const GRAY: [number, number, number] = [150, 150, 150];
+const DIM: [number, number, number] = [105, 105, 105];
+const BAR_BG: [number, number, number] = [28, 28, 28];
 
 // Column/type-size ladder for the one-page guarantee — the first rung whose
 // simulated flow fits wins. ID numbers print ONLY on the roomy 2-column rung.
@@ -109,35 +116,39 @@ export const generateOutstandingFeedbackPDF = (
   const margin = 10;
   const frame = { left: margin, right: pageW - margin, top: 28, bottom: pageH - 11 };
 
+  // ── Obsidian canvas: paint the whole page black before anything else ──
+  doc.setFillColor(...PAGE_BG);
+  doc.rect(0, 0, pageW, pageH, 'F');
+
   // ── Header: title + generated date + total & per-status counts ──
   const now = new Date();
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(15);
-  doc.setTextColor(...GOLD);
+  doc.setTextColor(...WHITE);
   doc.text('OUTSTANDING BANK FEEDBACK', margin, 16);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  doc.setTextColor(90);
+  doc.setTextColor(...GRAY);
   doc.text(`Generated ${pad2(now.getDate())}/${pad2(now.getMonth() + 1)}/${now.getFullYear()}`, pageW - margin, 16, { align: 'right' });
 
   const countsLine = OUTSTANDING_FEEDBACK_STATUSES
     .map((slug) => `${resolveLabel(slug)}: ${countsBySlug[slug]}`)
     .join('   •   ');
   doc.setFontSize(8.5);
-  doc.setTextColor(60);
+  doc.setTextColor(...GRAY);
   doc.text(`${total} application${total === 1 ? '' : 's'} awaiting bank feedback   •   ${countsLine}`, margin, 21.5);
 
-  doc.setDrawColor(...GOLD);
+  doc.setDrawColor(...WHITE);
   doc.setLineWidth(0.6);
   doc.line(margin, 24.5, pageW - margin, 24.5);
 
   // ── Footer (drawn up-front so it exists even on a worst-case truncated flow) ──
-  doc.setDrawColor(225);
+  doc.setDrawColor(...DIM);
   doc.setLineWidth(0.3);
   doc.line(margin, pageH - 9.5, pageW - margin, pageH - 9.5);
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(7.5);
-  doc.setTextColor(150);
+  doc.setTextColor(...DIM);
   doc.text("Lumina Auto  •  Tick each client once the bank's feedback has been captured", pageW / 2, pageH - 6, { align: 'center' });
 
   // Ellipsis-truncate to a max width at the CURRENT doc font/size.
@@ -171,13 +182,13 @@ export const generateOutstandingFeedbackPDF = (
       if (y + headH + 1 + lh > frame.bottom && !nextCol()) return false;
       if (draw) {
         const x = frame.left + col * (colW + gap);
-        doc.setFillColor(240, 240, 240);
+        doc.setFillColor(...BAR_BG);
         doc.rect(x, y, colW, headH, 'F');
-        doc.setFillColor(...GOLD);
+        doc.setFillColor(...WHITE);
         doc.rect(x, y, 1.4, headH, 'F');
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(font + 1);
-        doc.setTextColor(33);
+        doc.setTextColor(...WHITE);
         doc.text(`${g.label.toUpperCase()} (${g.entries.length})`, x + 3.4, y + headH * 0.72);
       }
       y += headH + 1;
@@ -186,28 +197,28 @@ export const generateOutstandingFeedbackPDF = (
         if (draw) {
           const x = frame.left + col * (colW + gap);
           const baseline = y + lh * 0.78;
-          doc.setDrawColor(130);
+          doc.setDrawColor(...GRAY);
           doc.setLineWidth(0.25);
           doc.rect(x, y + (lh - box) / 2, box, box);
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(dateFont);
           const dateW = e.date ? doc.getTextWidth(e.date) : 0;
           if (e.date) {
-            doc.setTextColor(120);
+            doc.setTextColor(...GRAY);
             doc.text(e.date, x + colW, baseline, { align: 'right' });
           }
           const textX = x + box + 1.8;
           const textMax = colW - box - 1.8 - dateW - 2;
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(font);
-          doc.setTextColor(33);
+          doc.setTextColor(...WHITE);
           if (includeId && e.idNumber) {
             const name = truncate(e.name, textMax * 0.62);
             doc.text(name, textX, baseline);
             const nameW = doc.getTextWidth(name);
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(dateFont);
-            doc.setTextColor(120);
+            doc.setTextColor(...GRAY);
             doc.text(truncate(e.idNumber, textMax - nameW - 2), textX + nameW + 2, baseline);
           } else {
             doc.text(truncate(e.name, textMax), textX, baseline);
