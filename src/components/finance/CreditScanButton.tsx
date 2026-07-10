@@ -23,6 +23,7 @@
 import { ScanSearch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { useUpdateFinanceApplication } from '@/hooks/useFinanceApplications';
 
 const KREDO_URL = 'https://clientzone.kredo.co.za/applicant-list/2bcd4553-b85d-4967-9a4b-0ab8fc2d367c';
 const KREDO_ORIGIN = 'https://clientzone.kredo.co.za';
@@ -68,6 +69,7 @@ function ensureRelay() {
 
 export function CreditScanButton({ application }: { application: any }) {
   const { toast } = useToast();
+  const updateApplication = useUpdateFinanceApplication();
 
   const openKredo = () => {
     ensureRelay();
@@ -94,6 +96,14 @@ export function CreditScanButton({ application }: { application: any }) {
       win.location.href = KREDO_URL;
     }
     win.focus();
+
+    // A scan is now underway → the row's credit check leaves "Not Run" and shows
+    // PENDING until the human records the outcome. An already-recorded
+    // Passed/Failed is never downgraded by re-running a scan.
+    const cc = application?.credit_check_status;
+    if (!cc && application?.id) {
+      updateApplication.mutateAsync({ id: application.id, updates: { credit_check_status: 'pending' } as any }).catch(() => {});
+    }
 
     toast({
       title: fresh ? 'CarTrust opened' : 'CarTrust tab focused',

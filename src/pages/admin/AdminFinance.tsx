@@ -1314,17 +1314,25 @@ const AdminFinance = () => {
                      <TableCell className="align-top" onClick={(e) => e.stopPropagation()}>
                        <div className="flex items-center gap-1.5">
                          {(() => {
-                           const cc = (app as any).credit_check_status as 'passed' | 'failed' | null | undefined;
+                           const cc = (app as any).credit_check_status as 'passed' | 'failed' | 'pending' | null | undefined;
                            const ccStyle =
                              cc === 'passed'
                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
                                : cc === 'failed'
                                  ? 'bg-red-500/10 text-red-400 border-red-500/30'
-                                 : 'bg-muted/40 text-muted-foreground border-border';
+                                 : cc === 'pending'
+                                   ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                                   : 'bg-muted/40 text-muted-foreground border-border';
                            return (
                              <Select
                                value={cc || ''}
-                               onValueChange={(v) => {
+                               onValueChange={async (v) => {
+                                 if (v === 'pending') {
+                                   try {
+                                     await updateApplication.mutateAsync({ id: app.id, updates: { credit_check_status: 'pending' } as any });
+                                   } catch { /* hook toasts */ }
+                                   return;
+                                 }
                                  setCreditCheckApp(app);
                                  setCreditCheckOutcome(v as CreditCheckOutcome);
                                  setCreditCheckOpen(true);
@@ -1334,6 +1342,7 @@ const AdminFinance = () => {
                                  <SelectValue placeholder="Not Run" />
                                </SelectTrigger>
                                <SelectContent>
+                                 <SelectItem value="pending" className="text-xs">Pending</SelectItem>
                                  <SelectItem value="passed" className="text-xs">Passed</SelectItem>
                                  <SelectItem value="failed" className="text-xs">Failed</SelectItem>
                                </SelectContent>
