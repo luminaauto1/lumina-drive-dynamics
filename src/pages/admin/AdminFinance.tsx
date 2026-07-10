@@ -35,6 +35,7 @@ import { useDeskTheme } from '@/hooks/useDeskTheme';
 import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
 import { INTERNAL_STATUSES, type InternalStatus, normalizeInternalStatus } from '@/lib/internalStatusConfig';
 import { CommentGateModal } from '@/components/admin/CommentGateModal';
+import { CreditScanButton } from '@/components/finance/CreditScanButton';
 import { addPipelineNote } from '@/lib/pipelinev2/notes';
 
 import { supabase } from '@/integrations/supabase/client';
@@ -1311,33 +1312,36 @@ const AdminFinance = () => {
                       </Select>
                      </TableCell>
                      <TableCell className="align-top" onClick={(e) => e.stopPropagation()}>
-                       {(() => {
-                         const cc = (app as any).credit_check_status as 'passed' | 'failed' | null | undefined;
-                         const ccStyle =
-                           cc === 'passed'
-                             ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                             : cc === 'failed'
-                               ? 'bg-red-500/10 text-red-400 border-red-500/30'
-                               : 'bg-muted/40 text-muted-foreground border-border';
-                         return (
-                           <Select
-                             value={cc || ''}
-                             onValueChange={(v) => {
-                               setCreditCheckApp(app);
-                               setCreditCheckOutcome(v as CreditCheckOutcome);
-                               setCreditCheckOpen(true);
-                             }}
-                           >
-                             <SelectTrigger className={`w-[130px] h-7 text-xs uppercase tracking-wider border ${ccStyle}`}>
-                               <SelectValue placeholder="Not Run" />
-                             </SelectTrigger>
-                             <SelectContent>
-                               <SelectItem value="passed" className="text-xs">Passed</SelectItem>
-                               <SelectItem value="failed" className="text-xs">Failed</SelectItem>
-                             </SelectContent>
-                           </Select>
-                         );
-                       })()}
+                       <div className="flex items-center gap-1.5">
+                         {(() => {
+                           const cc = (app as any).credit_check_status as 'passed' | 'failed' | null | undefined;
+                           const ccStyle =
+                             cc === 'passed'
+                               ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                               : cc === 'failed'
+                                 ? 'bg-red-500/10 text-red-400 border-red-500/30'
+                                 : 'bg-muted/40 text-muted-foreground border-border';
+                           return (
+                             <Select
+                               value={cc || ''}
+                               onValueChange={(v) => {
+                                 setCreditCheckApp(app);
+                                 setCreditCheckOutcome(v as CreditCheckOutcome);
+                                 setCreditCheckOpen(true);
+                               }}
+                             >
+                               <SelectTrigger className={`w-[130px] h-7 text-xs uppercase tracking-wider border ${ccStyle}`}>
+                                 <SelectValue placeholder="Not Run" />
+                               </SelectTrigger>
+                               <SelectContent>
+                                 <SelectItem value="passed" className="text-xs">Passed</SelectItem>
+                                 <SelectItem value="failed" className="text-xs">Failed</SelectItem>
+                               </SelectContent>
+                             </Select>
+                           );
+                         })()}
+                         <CreditScanButton application={app} />
+                       </div>
                      </TableCell>
                      <TableCell className="align-top" onClick={(e) => e.stopPropagation()}>
                        {(() => {

@@ -1343,9 +1343,81 @@
     pickPerson('rPFAndI', /siobhan/i) || flag('Advising F&I "Siobhan" not found — pick manually.');
   }
 
+  /* ══════════════════ KREDO / CarTrust — Credit Report Scan ══════════════════ */
+  // clientzone.kredo.co.za (Angular). The "Credit Report Scan" sidebar item opens a
+  // small modal with stable ids: #id_number #first_name #last_name #cell_number
+  // #email_address #gross_income #household_expenses + #credit_report_consent,
+  // submit = the "Generate Report" button. Unlike the Signio flows (human submits),
+  // the owner asked for ONE-CLICK submission here — once every required field is
+  // filled the engine clicks Generate Report itself and waits for CarTrust's
+  // "Credit Report created Successfully." confirmation.
+
+  const visEl = (el) => !!(el && (el.offsetWidth || el.offsetHeight));
+
+  async function runKredo() {
+    flags = [];
+    const d = fetchData();
+    if (!d) { alert('No Lumina applicant data found.\n\nIn Lumina, click the credit-scan button on the Finance summary row — it opens this tab pre-loaded — then click this bookmark here.'); return; }
+
+    // Open the Credit Scan modal if it isn't showing yet (works from any page).
+    let idEl = document.getElementById('id_number');
+    if (!visEl(idEl)) {
+      const nav = [...document.querySelectorAll('a, li, span, p, [role="button"]')]
+        .find((el) => /credit report scan/i.test(el.textContent || '') && visEl(el) && el.children.length <= 2);
+      if (nav) nav.click();
+      idEl = await waitFor(() => { const e = document.getElementById('id_number'); return visEl(e) ? e : null; }, { timeout: 10000 });
+    }
+    if (!visEl(idEl)) { alert('Could not open the Credit Report Scan form — open it from the CarTrust sidebar, then click the bookmark again.'); return; }
+
+    const setById = (id, v) => { const e = document.getElementById(id); return e && v != null && String(v).trim() !== '' ? setVal(e, String(v).trim()) : false; };
+    const nameTokens = String(d.full_name || '').trim().split(/\s+/).filter(Boolean);
+    let cell = String(d.phone || '').replace(/\D/g, '');
+    if (cell.length === 11 && cell.startsWith('27')) cell = '0' + cell.slice(2); // 2783… → 083…
+
+    setById('id_number', d.id_number) || flag('No ID number on file.');
+    setById('first_name', d.first_name || nameTokens[0]) || flag('No first name on file.');
+    setById('last_name', d.last_name || nameTokens.slice(1).join(' ')) || flag('No last name on file.');
+    setById('cell_number', cell) || flag('No cell number on file.');
+    setById('email_address', d.email) || flag('No email on file.');
+    const gross = Math.round(parseAmt(d.gross_salary));
+    if (gross > 0) setById('gross_income', gross); else flag('No gross income on file.');
+    // Household Expenses = ONE total, derived with the SAME normalisation the Signio
+    // wizard uses (itemised parse + realistic floor + disposable-income cap) so the
+    // figure is believable — never the raw, sometimes-inflated summary text.
+    const ex = computeExpensesWiz(d);
+    if (ex.total > 0) setById('household_expenses', ex.total); else flag('No expenses derivable — fill Household Expenses by hand.');
+
+    const consent = document.getElementById('credit_report_consent');
+    if (consent && !consent.checked) consent.click();
+
+    const missing = ['id_number', 'first_name', 'last_name', 'cell_number', 'email_address', 'gross_income', 'household_expenses']
+      .filter((id) => !String((document.getElementById(id) || {}).value || '').trim());
+    const submitBtn = [...document.querySelectorAll('button')].find((b) => /generate report/i.test(b.textContent || '') && visEl(b));
+    const body = flags.length ? '\n\n• ' + flags.join('\n• ') : '';
+    if (missing.length || !submitBtn || d.kredo_no_submit) {
+      const gaps = missing.length ? '\n\nStill needed:\n• ' + missing.join('\n• ') : '';
+      alert('Lumina filled the credit scan for ' + (d.full_name || 'the applicant') + '.' + body + gaps +
+        (missing.length ? '\n\nComplete those, then click Generate Report.' : '\n\nReview and click Generate Report.'));
+      return;
+    }
+    submitBtn.click();
+    // innerText is visibility-aware, so the pre-mounted hidden success dialog in the
+    // DOM can't false-positive this — only the dialog actually shown counts.
+    const done = await waitFor(() => /credit report created successfully/i.test(document.body.innerText || ''), { timeout: 45000, interval: 400 });
+    if (done) {
+      const okay = [...document.querySelectorAll('button')].find((b) => /^\s*okay\s*$/i.test(b.textContent || '') && visEl(b));
+      if (okay) okay.click();
+      alert('✅ Credit report submitted for ' + (d.full_name || 'the applicant') + '.' + body + '\n\nIt will appear in the CarTrust applicant list (allow a moment, then Force Refresh).');
+    } else {
+      alert('Report was submitted but no confirmation appeared within 45s.' + body + '\n\nCheck the applicant list BEFORE re-running — every scan is billed.');
+    }
+  }
+
   /* ══════════════════════════ mode detection + run ══════════════════════════ */
 
   async function run() {
+    // CarTrust / Kredo tab? → the credit-scan flow, never a Signio form.
+    if (/(^|\.)kredo\.co\.za$/i.test(location.hostname)) { await runKredo(); return; }
     flags = [];
     const d = fetchData();
     if (!d) { alert('No Lumina application data found.\n\nIn Lumina click "Push to Signio" → "Open Signio form", then click this bookmark on that tab.'); return; }
@@ -1401,9 +1473,14 @@
     alert('Lumina auto-fill done (LIGHTSTONE).' + body + '\n\nVehicle set to the standard quote car (Suzuki Swift 1.2 GL). Now: review any highlighted/empty required fields, tick the declaration, clear the reCAPTCHA, then Submit.');
   }
 
-  const HANDOFF_PREFIX = 'LUMINA_SIGNIO:';
+  // Two handoff namespaces share the same window.name channel: Push-to-Signio and
+  // the Finance-summary credit-scan button (Kredo/CarTrust).
+  const HANDOFF_PREFIXES = ['LUMINA_SIGNIO:', 'LUMINA_KREDO:'];
   function fetchData() {
-    if ((window.name || '').startsWith(HANDOFF_PREFIX)) { try { return JSON.parse(window.name.slice(HANDOFF_PREFIX.length)); } catch (e) { flag('Could not read Lumina payload.'); } }
+    const wn = window.name || '';
+    for (const p of HANDOFF_PREFIXES) {
+      if (wn.startsWith(p)) { try { return JSON.parse(wn.slice(p.length)); } catch (e) { flag('Could not read Lumina payload.'); } }
+    }
     return window.__LUMINA_APP__ || null;
   }
   run();
