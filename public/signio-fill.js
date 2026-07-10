@@ -1407,8 +1407,14 @@
         .filter((b) => /^\s*(okay|close)\s*$/i.test(b.textContent || '') && visEl(b))
         .slice(0, 3)
         .forEach((b) => b.click());
-      const nav = [...document.querySelectorAll('a, li, span, p, [role="button"]')]
-        .find((el) => /credit report scan/i.test(el.textContent || '') && visEl(el) && el.children.length <= 2);
+      // The sidebar item is a Bootstrap modal trigger — the delegated handler only
+      // fires for clicks ON/INSIDE the <a data-bs-target>, so target it directly
+      // (clicking the parent <li> silently does nothing).
+      const nav = document.querySelector('[data-bs-target="#creditReportModal"]') || (() => {
+        const el = [...document.querySelectorAll('a, li, span, p, [role="button"]')]
+          .find((x) => /credit report scan/i.test(x.textContent || '') && visEl(x) && x.children.length <= 2);
+        return el ? (el.closest('a') || el.querySelector('a') || el) : null;
+      })();
       if (nav) nav.click();
       idEl = await waitFor(() => { const e = document.getElementById('id_number'); return visEl(e) ? e : null; }, { timeout: 10000 });
     }
