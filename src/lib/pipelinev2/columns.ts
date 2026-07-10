@@ -43,6 +43,8 @@ const GLOBAL_DEFAULT_VISIBLE = TABLE_COLUMNS.filter((c) => c.defaultVisible).map
 const LANE_DEFAULT_VISIBLE: Record<string, string[]> = {
   // Fresh leads: who/what + latest note + how to reach them + where they came from.
   intake:      ['applicant', 'status', 'internal', 'phone', 'vehicle', 'source', 'created'],
+  // Credit check passed / ready to load: who + how to reach them + F&I owner.
+  credit_passed: ['applicant', 'status', 'internal', 'phone', 'vehicle', 'fni', 'source', 'created'],
   // Submitted to banks: add the bank in play.
   submitted:   ['applicant', 'status', 'internal', 'phone', 'vehicle', 'bank', 'fni', 'source', 'created'],
   // Approved/working: bank + F&I owner matter most.
