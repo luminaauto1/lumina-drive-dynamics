@@ -274,6 +274,7 @@ const AdminPipelineV2 = () => {
             statusLabels={statusLabels}
             statusStyles={statusStyles}
             windowKey={`${activeTab}|${searchScope}|${fniFilter}|${search.trim().toLowerCase()}`}
+            showCreditScan={activeTab === 'intake'}
           />
         )}
       </div>

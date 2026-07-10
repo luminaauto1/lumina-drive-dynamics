@@ -7,6 +7,7 @@ import { useDeskTheme } from '@/hooks/useDeskTheme';
 import { useStatusConfig } from '@/hooks/useZtcSettings';
 import { INTERNAL_STATUSES, normalizeInternalStatus, type InternalStatus } from '@/lib/internalStatusConfig';
 import { formatCurrencyR, formatDate, formatTime, formatPhone, relativeTime } from '@/lib/pipelinev2/format';
+import { CreditScanButton } from '@/components/finance/CreditScanButton';
 import { TABLE_COLUMNS, columnClass, type TableConfig } from '@/lib/pipelinev2/columns';
 import { sourceLabel } from '@/lib/pipelinev2/source';
 import { latestPipelineNote, noteCategory } from '@/lib/pipelinev2/notes';
@@ -19,7 +20,7 @@ const appName = (a: FinanceApplication) =>
 export function ApplicationTable({
   applications, config, onSelect, onChangeStatus,
   selectable, selectedIds, onToggleSelect, onToggleSelectAll, busyByApp,
-  statusLabels, statusStyles, windowKey,
+  statusLabels, statusStyles, windowKey, showCreditScan,
 }: {
   applications: FinanceApplication[];
   config: TableConfig;
@@ -37,6 +38,8 @@ export function ApplicationTable({
   statusStyles?: Record<string, string>;
   /** Changes whenever the parent's tab / search / filters change — resets the render window. */
   windowKey?: string;
+  /** Per-row CarTrust Credit Report Scan button (New Applications lane only). */
+  showCreditScan?: boolean;
 }) {
   const { theme } = useDeskTheme();
   // Client-status track (DB-driven, customizable). Only the label/colour maps are
@@ -108,6 +111,7 @@ export function ApplicationTable({
                 {col.label}
               </th>
             ))}
+            {showCreditScan && <th className="w-14 px-2 py-2 text-left font-medium" title="CarTrust Credit Report Scan">Scan</th>}
             <th className="w-9 px-2 py-2" title="Open the full application (Deal Room)" />
           </tr>
         </thead>
@@ -133,6 +137,19 @@ export function ApplicationTable({
                     })}
                   </td>
                 ))}
+                {showCreditScan && (
+                  <td className="px-2 py-2 align-top" onClick={(e) => e.stopPropagation()}>
+                    <CreditScanButton application={a} />
+                    {(a as any).credit_check_status && (
+                      <div className={'mt-0.5 text-[9px] font-semibold uppercase tracking-wide ' + (
+                        (a as any).credit_check_status === 'passed' ? 'text-emerald-400'
+                          : (a as any).credit_check_status === 'failed' ? 'text-red-400'
+                            : 'text-amber-400')}>
+                        {(a as any).credit_check_status}
+                      </div>
+                    )}
+                  </td>
+                )}
                 {/* Always-available jump into the full application detail (Deal Room). */}
                 <td className="px-2 py-2 align-top" onClick={(e) => e.stopPropagation()}>
                   <Link
@@ -148,14 +165,14 @@ export function ApplicationTable({
           })}
           {renderCount < applications.length && (
             <tr ref={sentinelRef}>
-              <td colSpan={visible.length + (selectable ? 1 : 0) + 1} className="py-3 text-center text-xs text-muted-foreground">
+              <td colSpan={visible.length + (selectable ? 1 : 0) + (showCreditScan ? 1 : 0) + 1} className="py-3 text-center text-xs text-muted-foreground">
                 Showing {renderCount} of {applications.length} — scroll for more…
               </td>
             </tr>
           )}
           {applications.length === 0 && (
             <tr>
-              <td colSpan={visible.length + (selectable ? 1 : 0) + 1} className="py-10 text-center text-sm text-muted-foreground">
+              <td colSpan={visible.length + (selectable ? 1 : 0) + (showCreditScan ? 1 : 0) + 1} className="py-10 text-center text-sm text-muted-foreground">
                 No applications match the current filters.
               </td>
             </tr>

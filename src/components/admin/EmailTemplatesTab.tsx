@@ -32,7 +32,7 @@ const STATUS_LABELS: Record<string, string> = {
   contract_sent: 'Contract Sent',
   contract_signed: 'Contract Signed',
   documents_received: 'Documents Received',
-  application_submitted: 'Application Submitted',
+  application_submitted: 'Ready To Load',
 };
 
 /** Email automation templates — self-saving (one Save per template), so it lives

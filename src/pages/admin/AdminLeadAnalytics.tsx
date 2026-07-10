@@ -766,9 +766,9 @@ const AdminLeadAnalytics = () => {
   // This approximates per-stage dwell time without a full status_history table.
   const statusTransitionStats = useMemo(() => {
     const targets: { key: string; label: string; statuses: string[] }[] = [
-      { key: 'submitted', label: 'Pending → App Submitted', statuses: ['application_submitted'] },
-      { key: 'pre_approved', label: 'App Submitted → Pre-Approved', statuses: ['pre_approved', 'approved'] },
-      { key: 'declined', label: 'App Submitted → Declined / Blacklisted', statuses: ['declined', 'declined_conditional', 'blacklisted'] },
+      { key: 'submitted', label: 'Pending → Ready To Load', statuses: ['application_submitted'] },
+      { key: 'pre_approved', label: 'Ready To Load → Pre-Approved', statuses: ['pre_approved', 'approved'] },
+      { key: 'declined', label: 'Ready To Load → Declined / Blacklisted', statuses: ['declined', 'declined_conditional', 'blacklisted'] },
       { key: 'docs', label: 'Pre-Approved → Docs Received', statuses: ['documents_received'] },
       { key: 'vals_submitted', label: 'Docs Received → Vals Submitted', statuses: ['validations_pending'] },
       { key: 'vals_complete', label: 'Vals Submitted → Vals Complete', statuses: ['validations_complete'] },

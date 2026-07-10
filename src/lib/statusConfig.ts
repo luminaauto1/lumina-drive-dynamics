@@ -3,7 +3,7 @@
 
 export const STATUS_OPTIONS = [
   { value: 'pending', label: 'Pending' },
-  { value: 'application_submitted', label: 'Application Submitted' },
+  { value: 'application_submitted', label: 'Ready To Load' },
   { value: 'ready_to_submit', label: 'Ready to Submit' },
   { value: 'sent_to_banks', label: 'Sent to banks' },
   { value: 'pre_approved', label: 'Pre-Approved (Docs Req)' },
@@ -139,7 +139,7 @@ export const statusBadgeClass = (status: string, theme: 'light' | 'dark' = 'dark
 // Admin labels (internal view)
 export const ADMIN_STATUS_LABELS: Record<string, string> = {
   pending: 'Pending',
-  application_submitted: 'App Submitted',
+  application_submitted: 'Ready To Load',
   ready_to_submit: 'Ready to Submit',
   sent_to_banks: 'Sent to banks',
   pre_approved: 'Pre-Approved - Docs Required',
