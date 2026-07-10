@@ -47,20 +47,22 @@ function buildKredoPayload(app: any) {
   };
 }
 
-// Module-level so the relay + tab handle survive re-renders and route changes
-// within one Lumina page load. The engine's postMessage request always gets the
-// LAST clicked applicant — a reused tab can never fill a previous person.
-let latestPayload: any = null;
+// Window-level (not module-level) so the relay survives Vite HMR without
+// duplicate listeners answering with a stale closure, and every listener reads
+// the CURRENT payload — the engine's postMessage request always gets the LAST
+// clicked applicant, so a reused tab can never fill a previous person. The
+// engine also refuses payloads older than 10 minutes (scans are billed).
 let kredoWin: Window | null = null;
-let relayInstalled = false;
 
 function ensureRelay() {
-  if (relayInstalled) return;
-  relayInstalled = true;
+  const w = window as any;
+  if (w.__luminaKredoRelay) return;
+  w.__luminaKredoRelay = true;
   window.addEventListener('message', (e: MessageEvent) => {
     if (e.origin !== KREDO_ORIGIN) return;
-    if (e?.data?.type !== 'LUMINA_KREDO_REQ' || !latestPayload || !e.source) return;
-    (e.source as Window).postMessage({ type: 'LUMINA_KREDO_PAYLOAD', payload: latestPayload }, KREDO_ORIGIN);
+    const payload = (window as any).__luminaKredoPayload;
+    if (e?.data?.type !== 'LUMINA_KREDO_REQ' || !payload || !e.source) return;
+    (e.source as Window).postMessage({ type: 'LUMINA_KREDO_PAYLOAD', payload }, KREDO_ORIGIN);
   });
 }
 
@@ -69,7 +71,8 @@ export function CreditScanButton({ application }: { application: any }) {
 
   const openKredo = () => {
     ensureRelay();
-    latestPayload = buildKredoPayload(application);
+    const payload = buildKredoPayload(application);
+    (window as any).__luminaKredoPayload = payload;
 
     // Reuse the dedicated CarTrust tab: live JS ref first, then the named
     // window (finds it even after a Lumina reload, once the engine has
@@ -82,12 +85,12 @@ export function CreditScanButton({ application }: { application: any }) {
     kredoWin = win;
 
     // Cross-origin access throws → the tab is already on CarTrust (logged in or
-    // on its login page) → leave it be. Same-origin about:blank → fresh tab →
-    // hand off via window.name and navigate.
+    // on its login page) → leave it be. Same-origin (fresh about:blank, or a tab
+    // that wandered back to a Lumina URL) → hand off via window.name + navigate.
     let fresh = false;
-    try { fresh = win.location.href === 'about:blank'; } catch { /* already on CarTrust */ }
+    try { fresh = typeof win.location.href === 'string'; } catch { /* already on CarTrust */ }
     if (fresh) {
-      win.name = HANDOFF_PREFIX + JSON.stringify(latestPayload);
+      win.name = HANDOFF_PREFIX + JSON.stringify(payload);
       win.location.href = KREDO_URL;
     }
     win.focus();

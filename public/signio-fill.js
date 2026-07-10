@@ -1368,24 +1368,35 @@
     return new Promise((resolve) => {
       let opener = null;
       try { opener = window.opener; } catch (_e) { /* noop */ }
-      const fallback = () => {
-        const d = fetchData();
-        // A window.name payload can be from a much earlier open (tab sat unused,
-        // Lumina since closed). Still fill it, but never auto-submit stale data.
-        if (d && d.kredo && d.ts && Date.now() - d.ts > 10 * 60 * 1000) {
-          d.kredo_no_submit = true;
-          flag('This applicant was pushed over 10 minutes ago — auto-submit disabled; verify it is the right person, then click Generate Report yourself.');
+      // Auto-submit is billed, so it needs POSITIVE confirmation the payload is the
+      // user's latest intent. window.name only ever holds this tab's FIRST-open
+      // payload — the user may have pushed a different applicant since (reused tab,
+      // Lumina reloaded) — so that channel NEVER auto-submits regardless of age.
+      // A live relay reply is authoritative, but still expires after 10 minutes
+      // (a forgotten bookmark click hours later must not fire a billed scan).
+      const guard = (d, viaName) => {
+        if (d && d.kredo && !d.kredo_no_submit) {
+          if (viaName) {
+            d.kredo_no_submit = true;
+            flag('Could not confirm this is still the right applicant (Lumina not reachable) — auto-submit disabled; check the details, then click Generate Report yourself.');
+          } else if (!d.ts || Date.now() - d.ts > 10 * 60 * 1000) {
+            d.kredo_no_submit = true;
+            flag('This applicant was pushed over 10 minutes ago — auto-submit disabled; verify it is the right person, then click Generate Report yourself.');
+          }
         }
-        resolve(d);
+        return d;
       };
+      const fallback = () => resolve(guard(fetchData(), true));
       if (!opener) return fallback();
       const timer = setTimeout(() => { window.removeEventListener('message', onMsg); fallback(); }, 2500);
       function onMsg(e) {
         const m = e && e.data;
-        if (m && m.type === 'LUMINA_KREDO_PAYLOAD' && m.payload) {
+        // Only the window we asked may answer — a reply forged from elsewhere
+        // (rogue iframe, page the opener tab wandered to) is ignored.
+        if (e.source === opener && m && m.type === 'LUMINA_KREDO_PAYLOAD' && m.payload) {
           clearTimeout(timer);
           window.removeEventListener('message', onMsg);
-          resolve(m.payload);
+          resolve(guard(m.payload, false));
         }
       }
       window.addEventListener('message', onMsg);
