@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ExternalLink } from 'lucide-react';
-import type { FinanceApplication } from '@/hooks/useFinanceApplications';
+import { useUpdateFinanceApplication, type FinanceApplication } from '@/hooks/useFinanceApplications';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { STATUS_STYLES, ADMIN_STATUS_LABELS, statusBadgeClass } from '@/lib/statusConfig';
 import { useDeskTheme } from '@/hooks/useDeskTheme';
 import { useStatusConfig } from '@/hooks/useZtcSettings';
@@ -20,7 +21,7 @@ const appName = (a: FinanceApplication) =>
 export function ApplicationTable({
   applications, config, onSelect, onChangeStatus,
   selectable, selectedIds, onToggleSelect, onToggleSelectAll, busyByApp,
-  statusLabels, statusStyles, windowKey, showCreditScan,
+  statusLabels, statusStyles, windowKey, showCreditScan, onCreditCheckOutcome,
 }: {
   applications: FinanceApplication[];
   config: TableConfig;
@@ -38,10 +39,13 @@ export function ApplicationTable({
   statusStyles?: Record<string, string>;
   /** Changes whenever the parent's tab / search / filters change — resets the render window. */
   windowKey?: string;
-  /** Per-row CarTrust Credit Report Scan button (New Applications lane only). */
+  /** Per-row credit check (dropdown + CarTrust scan button) — New Applications lane only. */
   showCreditScan?: boolean;
+  /** Opens the Credit Check result modal (screenshot/doc + status pick) for Passed/Failed. */
+  onCreditCheckOutcome?: (app: FinanceApplication, outcome: 'passed' | 'failed') => void;
 }) {
   const { theme } = useDeskTheme();
+  const updateApplication = useUpdateFinanceApplication();
   // Client-status track (DB-driven, customizable). Only the label/colour maps are
   // needed now: the cell renders a badge button and the actual write happens in the
   // Change-status modal (Client tab), so no mutation is wired here anymore.
@@ -111,7 +115,7 @@ export function ApplicationTable({
                 {col.label}
               </th>
             ))}
-            {showCreditScan && <th className="w-14 px-2 py-2 text-left font-medium" title="CarTrust Credit Report Scan">Scan</th>}
+            {showCreditScan && <th className="px-2 py-2 text-left font-medium" title="Credit check status + CarTrust Credit Report Scan">Credit Check</th>}
             <th className="w-9 px-2 py-2" title="Open the full application (Deal Room)" />
           </tr>
         </thead>
@@ -137,17 +141,47 @@ export function ApplicationTable({
                     })}
                   </td>
                 ))}
+                {/* Mirrors the Finance summary's credit-check cell exactly:
+                    status dropdown + CarTrust scan button side by side. */}
                 {showCreditScan && (
                   <td className="px-2 py-2 align-top" onClick={(e) => e.stopPropagation()}>
-                    <CreditScanButton application={a} />
-                    {(a as any).credit_check_status && (
-                      <div className={'mt-0.5 text-[9px] font-semibold uppercase tracking-wide ' + (
-                        (a as any).credit_check_status === 'passed' ? 'text-emerald-400'
-                          : (a as any).credit_check_status === 'failed' ? 'text-red-400'
-                            : 'text-amber-400')}>
-                        {(a as any).credit_check_status}
-                      </div>
-                    )}
+                    <div className="flex items-center gap-1.5">
+                      {(() => {
+                        const cc = (a as any).credit_check_status as 'passed' | 'failed' | 'pending' | null | undefined;
+                        const ccStyle =
+                          cc === 'passed'
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                            : cc === 'failed'
+                              ? 'bg-red-500/10 text-red-400 border-red-500/30'
+                              : cc === 'pending'
+                                ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                                : 'bg-muted/40 text-muted-foreground border-border';
+                        return (
+                          <Select
+                            value={cc || ''}
+                            onValueChange={async (v) => {
+                              if (v === 'pending') {
+                                try {
+                                  await updateApplication.mutateAsync({ id: a.id, updates: { credit_check_status: 'pending' } as any });
+                                } catch { /* hook toasts */ }
+                                return;
+                              }
+                              onCreditCheckOutcome?.(a, v as 'passed' | 'failed');
+                            }}
+                          >
+                            <SelectTrigger className={`w-[130px] h-7 text-xs uppercase tracking-wider border ${ccStyle}`}>
+                              <SelectValue placeholder="Not Run" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pending" className="text-xs">Pending</SelectItem>
+                              <SelectItem value="passed" className="text-xs">Passed</SelectItem>
+                              <SelectItem value="failed" className="text-xs">Failed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        );
+                      })()}
+                      <CreditScanButton application={a} />
+                    </div>
                   </td>
                 )}
                 {/* Always-available jump into the full application detail (Deal Room). */}

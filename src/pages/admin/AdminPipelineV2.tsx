@@ -18,6 +18,7 @@ import { ColumnsPicker } from '@/components/admin/pipelinev2/ColumnsPicker';
 import { ApplicationDrawer } from '@/components/admin/pipelinev2/ApplicationDrawer';
 import { StatusChangeModal } from '@/components/admin/pipelinev2/StatusChangeModal';
 import { BulkStatusModal } from '@/components/admin/pipelinev2/BulkStatusModal';
+import CreditCheckResultModal, { type CreditCheckOutcome } from '@/components/admin/CreditCheckResultModal';
 import { SavedViewsBar } from '@/components/admin/SavedViewsBar';
 import { useSavedViews } from '@/hooks/useSavedViews';
 
@@ -60,6 +61,10 @@ const AdminPipelineV2 = () => {
     setStatusChangeApp({ app, track });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulk, setShowBulk] = useState(false);
+  // Credit-check result modal (Passed/Failed from the intake lane's Credit Check cell).
+  const [ccApp, setCcApp] = useState<FinanceApplication | null>(null);
+  const [ccOutcome, setCcOutcome] = useState<CreditCheckOutcome>('passed');
+  const [ccOpen, setCcOpen] = useState(false);
   const [tableConfig, setTableConfig] = useState<TableConfig>(() => loadConfig('all'));
   const [busyByApp, setBusyByApp] = useState<Map<string, Busy>>(new Map());
 
@@ -275,6 +280,7 @@ const AdminPipelineV2 = () => {
             statusStyles={statusStyles}
             windowKey={`${activeTab}|${searchScope}|${fniFilter}|${search.trim().toLowerCase()}`}
             showCreditScan={activeTab === 'intake'}
+            onCreditCheckOutcome={(app, outcome) => { setCcApp(app); setCcOutcome(outcome); setCcOpen(true); }}
           />
         )}
       </div>
@@ -303,6 +309,15 @@ const AdminPipelineV2 = () => {
           onDone={clearSelection}
           role={role}
           labelOverrides={statusLabels}
+        />
+      )}
+
+      {ccApp && (
+        <CreditCheckResultModal
+          open={ccOpen}
+          onOpenChange={(o) => { setCcOpen(o); if (!o) setCcApp(null); }}
+          outcome={ccOutcome}
+          applicationId={ccApp.id}
         />
       )}
     </AdminLayout>
