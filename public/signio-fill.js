@@ -1354,16 +1354,78 @@
 
   const visEl = (el) => !!(el && (el.offsetWidth || el.offsetHeight));
 
+  // CarTrust logins live in sessionStorage (PER-TAB), so Lumina REUSES one named
+  // tab ('luminaKredoScan') — log in once, scan all day. A reused cross-origin
+  // tab's window.name can't be refreshed from Lumina, so the FRESH payload comes
+  // from the opener over postMessage; window.name (set on first open, survives
+  // the login redirect) is the fallback. After reading, the tab's name is
+  // restored to 'luminaKredoScan' so Lumina keeps finding this tab after reloads.
+  const KREDO_TAB_NAME = 'luminaKredoScan';
+  function kredoRestoreName() {
+    try { if ((window.name || '').indexOf('LUMINA_KREDO:') === 0 || !window.name) window.name = KREDO_TAB_NAME; } catch (_e) { /* noop */ }
+  }
+  function kredoPayload() {
+    return new Promise((resolve) => {
+      let opener = null;
+      try { opener = window.opener; } catch (_e) { /* noop */ }
+      // Auto-submit is billed, so it needs POSITIVE confirmation the payload is the
+      // user's latest intent. window.name only ever holds this tab's FIRST-open
+      // payload — the user may have pushed a different applicant since (reused tab,
+      // Lumina reloaded) — so that channel NEVER auto-submits regardless of age.
+      // A live relay reply is authoritative, but still expires after 10 minutes
+      // (a forgotten bookmark click hours later must not fire a billed scan).
+      const guard = (d, viaName) => {
+        if (d && d.kredo && !d.kredo_no_submit) {
+          if (viaName) {
+            d.kredo_no_submit = true;
+            flag('Could not confirm this is still the right applicant (Lumina not reachable) — auto-submit disabled; check the details, then click Generate Report yourself.');
+          } else if (!d.ts || Date.now() - d.ts > 10 * 60 * 1000) {
+            d.kredo_no_submit = true;
+            flag('This applicant was pushed over 10 minutes ago — auto-submit disabled; verify it is the right person, then click Generate Report yourself.');
+          }
+        }
+        return d;
+      };
+      const fallback = () => resolve(guard(fetchData(), true));
+      if (!opener) return fallback();
+      const timer = setTimeout(() => { window.removeEventListener('message', onMsg); fallback(); }, 2500);
+      function onMsg(e) {
+        const m = e && e.data;
+        // Only the window we asked may answer — a reply forged from elsewhere
+        // (rogue iframe, page the opener tab wandered to) is ignored.
+        if (e.source === opener && m && m.type === 'LUMINA_KREDO_PAYLOAD' && m.payload) {
+          clearTimeout(timer);
+          window.removeEventListener('message', onMsg);
+          resolve(guard(m.payload, false));
+        }
+      }
+      window.addEventListener('message', onMsg);
+      try { opener.postMessage({ type: 'LUMINA_KREDO_REQ' }, '*'); } catch (_e) { clearTimeout(timer); window.removeEventListener('message', onMsg); fallback(); }
+    });
+  }
+
   async function runKredo() {
     flags = [];
-    const d = fetchData();
-    if (!d) { alert('No Lumina applicant data found.\n\nIn Lumina, click the credit-scan button on the Finance summary row — it opens this tab pre-loaded — then click this bookmark here.'); return; }
+    const d = await kredoPayload();
+    kredoRestoreName();
+    if (!d) { alert('No Lumina applicant data found.\n\nIn Lumina, click the credit-scan button on the Finance summary row — it preps this tab — then click this bookmark here.'); return; }
 
     // Open the Credit Scan modal if it isn't showing yet (works from any page).
     let idEl = document.getElementById('id_number');
     if (!visEl(idEl)) {
-      const nav = [...document.querySelectorAll('a, li, span, p, [role="button"]')]
-        .find((el) => /credit report scan/i.test(el.textContent || '') && visEl(el) && el.children.length <= 2);
+      // Clear leftovers from a previous scan (success/info dialogs cover the sidebar).
+      [...document.querySelectorAll('button')]
+        .filter((b) => /^\s*(okay|close)\s*$/i.test(b.textContent || '') && visEl(b))
+        .slice(0, 3)
+        .forEach((b) => b.click());
+      // The sidebar item is a Bootstrap modal trigger — the delegated handler only
+      // fires for clicks ON/INSIDE the <a data-bs-target>, so target it directly
+      // (clicking the parent <li> silently does nothing).
+      const nav = document.querySelector('[data-bs-target="#creditReportModal"]') || (() => {
+        const el = [...document.querySelectorAll('a, li, span, p, [role="button"]')]
+          .find((x) => /credit report scan/i.test(x.textContent || '') && visEl(x) && x.children.length <= 2);
+        return el ? (el.closest('a') || el.querySelector('a') || el) : null;
+      })();
       if (nav) nav.click();
       idEl = await waitFor(() => { const e = document.getElementById('id_number'); return visEl(e) ? e : null; }, { timeout: 10000 });
     }
