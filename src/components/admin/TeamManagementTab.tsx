@@ -341,12 +341,12 @@ const TeamManagementTab = () => {
             <SelectContent>
               <SelectItem value="sales_agent">Salesperson</SelectItem>
               <SelectItem value="f_and_i">F&I (Finance & Insurance)</SelectItem>
-              <SelectItem value="senior_f_and_i">Senior F&I (can move to App Submitted)</SelectItem>
+              <SelectItem value="senior_f_and_i">Senior F&I (can move to Ready To Load)</SelectItem>
               <SelectItem value="accountant">Accountant (Senior F&I + Accounting ledger)</SelectItem>
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            F&I users can only move applications between Pre-Approved → Contract Signed. Senior F&I additionally can flag applications as "App Submitted". Accountants inherit Senior F&I permissions and additionally see the Accounting & VAT ledger.
+            F&I users can only move applications between Pre-Approved → Contract Signed. Senior F&I additionally can flag applications as "Ready To Load". Accountants inherit Senior F&I permissions and additionally see the Accounting & VAT ledger.
           </p>
 
         </div>

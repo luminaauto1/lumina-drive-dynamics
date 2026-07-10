@@ -29,7 +29,7 @@ interface Props {
 const PASS_OPTIONS = [
   { value: 'ready_to_submit', label: 'Ready to Submit' },
   { value: 'sent_to_banks', label: 'Sent to Banks' },
-  { value: 'application_submitted', label: 'App Submitted' },
+  { value: 'application_submitted', label: 'Ready To Load' },
 ];
 const FAIL_OPTIONS = [
   { value: 'declined', label: 'Declined' },
