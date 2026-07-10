@@ -68,7 +68,7 @@ const CrmBoard = ({ records, onMove, onOpen, selectedIds, onToggleSelect, canSel
                                 ref={prov.innerRef}
                                 {...prov.draggableProps}
                                 onClick={() => onOpen(rec)}
-                                className={`p-3 relative group transition-all cursor-pointer border-l-4 ${stage.color.replace('border-', 'border-l-')} bg-card hover:bg-accent/50 ${snap.isDragging ? 'shadow-lg ring-2 ring-primary/30' : ''}`}
+                                className={`p-3 relative group transition-all cursor-pointer border-l-4 ${stage.color.replace('border-', 'border-l-')} bg-card hover:bg-muted/50 ${snap.isDragging ? 'shadow-lg ring-2 ring-primary/30' : ''}`}
                               >
                                 <div {...prov.dragHandleProps} className="absolute top-2 left-1 opacity-0 group-hover:opacity-50 transition-opacity">
                                   <GripVertical className="w-3.5 h-3.5 text-muted-foreground" />
