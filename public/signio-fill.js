@@ -1354,14 +1354,59 @@
 
   const visEl = (el) => !!(el && (el.offsetWidth || el.offsetHeight));
 
+  // CarTrust logins live in sessionStorage (PER-TAB), so Lumina REUSES one named
+  // tab ('luminaKredoScan') — log in once, scan all day. A reused cross-origin
+  // tab's window.name can't be refreshed from Lumina, so the FRESH payload comes
+  // from the opener over postMessage; window.name (set on first open, survives
+  // the login redirect) is the fallback. After reading, the tab's name is
+  // restored to 'luminaKredoScan' so Lumina keeps finding this tab after reloads.
+  const KREDO_TAB_NAME = 'luminaKredoScan';
+  function kredoRestoreName() {
+    try { if ((window.name || '').indexOf('LUMINA_KREDO:') === 0 || !window.name) window.name = KREDO_TAB_NAME; } catch (_e) { /* noop */ }
+  }
+  function kredoPayload() {
+    return new Promise((resolve) => {
+      let opener = null;
+      try { opener = window.opener; } catch (_e) { /* noop */ }
+      const fallback = () => {
+        const d = fetchData();
+        // A window.name payload can be from a much earlier open (tab sat unused,
+        // Lumina since closed). Still fill it, but never auto-submit stale data.
+        if (d && d.kredo && d.ts && Date.now() - d.ts > 10 * 60 * 1000) {
+          d.kredo_no_submit = true;
+          flag('This applicant was pushed over 10 minutes ago — auto-submit disabled; verify it is the right person, then click Generate Report yourself.');
+        }
+        resolve(d);
+      };
+      if (!opener) return fallback();
+      const timer = setTimeout(() => { window.removeEventListener('message', onMsg); fallback(); }, 2500);
+      function onMsg(e) {
+        const m = e && e.data;
+        if (m && m.type === 'LUMINA_KREDO_PAYLOAD' && m.payload) {
+          clearTimeout(timer);
+          window.removeEventListener('message', onMsg);
+          resolve(m.payload);
+        }
+      }
+      window.addEventListener('message', onMsg);
+      try { opener.postMessage({ type: 'LUMINA_KREDO_REQ' }, '*'); } catch (_e) { clearTimeout(timer); window.removeEventListener('message', onMsg); fallback(); }
+    });
+  }
+
   async function runKredo() {
     flags = [];
-    const d = fetchData();
-    if (!d) { alert('No Lumina applicant data found.\n\nIn Lumina, click the credit-scan button on the Finance summary row — it opens this tab pre-loaded — then click this bookmark here.'); return; }
+    const d = await kredoPayload();
+    kredoRestoreName();
+    if (!d) { alert('No Lumina applicant data found.\n\nIn Lumina, click the credit-scan button on the Finance summary row — it preps this tab — then click this bookmark here.'); return; }
 
     // Open the Credit Scan modal if it isn't showing yet (works from any page).
     let idEl = document.getElementById('id_number');
     if (!visEl(idEl)) {
+      // Clear leftovers from a previous scan (success/info dialogs cover the sidebar).
+      [...document.querySelectorAll('button')]
+        .filter((b) => /^\s*(okay|close)\s*$/i.test(b.textContent || '') && visEl(b))
+        .slice(0, 3)
+        .forEach((b) => b.click());
       const nav = [...document.querySelectorAll('a, li, span, p, [role="button"]')]
         .find((el) => /credit report scan/i.test(el.textContent || '') && visEl(el) && el.children.length <= 2);
       if (nav) nav.click();
