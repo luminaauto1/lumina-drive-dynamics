@@ -89,6 +89,9 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     id: 'finance-range',
     title: 'Finance Date Range',
     category: 'Finance',
+    // Pinned: it's the only control for the shared finance range, so hiding it
+    // would strand every finance widget on the default range. Always visible.
+    pinned: true,
     defaultLayout: { w: 12, h: 2, minW: 4, minH: 2 },
     Component: FinanceRangeWidget,
   },

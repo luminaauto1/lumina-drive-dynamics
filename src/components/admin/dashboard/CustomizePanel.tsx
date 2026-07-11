@@ -91,21 +91,34 @@ export function CustomizePanel({ api }: CustomizePanelProps) {
             {groups.map(([category, defs]) => (
               <div key={category} className="space-y-1">
                 <p className="px-1 text-xs font-semibold text-muted-foreground">{category}</p>
-                {defs.map((def) => (
-                  <label
-                    key={def.id}
-                    htmlFor={`widget-${def.id}`}
-                    className="flex cursor-pointer items-center justify-between rounded-lg px-2 py-2 text-sm hover:bg-muted"
-                  >
-                    <span className="truncate pr-3 text-foreground">{def.title}</span>
-                    <Switch
-                      id={`widget-${def.id}`}
-                      checked={visibleSet.has(def.id)}
-                      onCheckedChange={() => toggleVisible(def.id)}
-                      aria-label={`Toggle ${def.title}`}
-                    />
-                  </label>
-                ))}
+                {defs.map((def) =>
+                  def.pinned ? (
+                    // Pinned widgets can't be hidden — omit the toggle, show a hint.
+                    <div
+                      key={def.id}
+                      className="flex items-center justify-between rounded-lg px-2 py-2 text-sm"
+                    >
+                      <span className="truncate pr-3 text-foreground">{def.title}</span>
+                      <span className="shrink-0 whitespace-nowrap text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                        Always shown
+                      </span>
+                    </div>
+                  ) : (
+                    <label
+                      key={def.id}
+                      htmlFor={`widget-${def.id}`}
+                      className="flex cursor-pointer items-center justify-between rounded-lg px-2 py-2 text-sm hover:bg-muted"
+                    >
+                      <span className="truncate pr-3 text-foreground">{def.title}</span>
+                      <Switch
+                        id={`widget-${def.id}`}
+                        checked={visibleSet.has(def.id)}
+                        onCheckedChange={() => toggleVisible(def.id)}
+                        aria-label={`Toggle ${def.title}`}
+                      />
+                    </label>
+                  ),
+                )}
               </div>
             ))}
           </div>

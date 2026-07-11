@@ -53,6 +53,11 @@ function defaultVisibleIds(): string[] {
   return WIDGET_REGISTRY.map((w) => w.id);
 }
 
+/** Ids of widgets that can never be hidden (WidgetDef.pinned). */
+function pinnedIds(): Set<string> {
+  return new Set(WIDGET_REGISTRY.filter((w) => w.pinned).map((w) => w.id));
+}
+
 /** Merge a persisted layout with the current registry. */
 function mergeLayout(saved: Layout[] | undefined): Layout[] {
   const defaults = buildDefaultLayout(WIDGET_REGISTRY);
@@ -84,6 +89,8 @@ function mergeVisible(savedVisible: string[] | undefined, savedLayout: Layout[] 
   for (const id of registryIds) {
     if (!knownAtSave.has(id)) visibleSet.add(id);
   }
+  // Pinned widgets are always visible, even if an older persisted state hid them.
+  for (const id of pinnedIds()) visibleSet.add(id);
   return registryIds.filter((id) => visibleSet.has(id));
 }
 
@@ -150,6 +157,8 @@ export function useDashboardLayout(): DashboardLayoutApi {
   }, []);
 
   const toggleVisible = useCallback((id: string) => {
+    // Pinned widgets can never be toggled off.
+    if (pinnedIds().has(id)) return;
     setVisibleIds((prev) => {
       const registryIds = WIDGET_REGISTRY.map((w) => w.id);
       const set = new Set(prev);

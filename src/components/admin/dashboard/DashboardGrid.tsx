@@ -52,7 +52,15 @@ export function DashboardGrid({ layout, visibleIds, editMode, onLayoutChange }: 
       isResizable={editMode}
       // Only drag from the header handle so text/controls inside widgets stay usable.
       draggableHandle=".widget-drag-handle"
-      onLayoutChange={(current) => onLayoutChange(current)}
+      // Persist ONLY while the user is actively editing. RGL also fires this on
+      // mount, window resize, and responsive breakpoint reflows — persisting those
+      // would let a narrow-screen reflow clobber the saved `lg` geometry. When we
+      // do persist, take `allLayouts.lg` (never the current breakpoint's reflow),
+      // since every breakpoint is fed the same `lg` layout.
+      onLayoutChange={(current, allLayouts) => {
+        if (!editMode) return;
+        onLayoutChange(allLayouts.lg ?? current);
+      }}
       measureBeforeMount={false}
       useCSSTransforms
     >

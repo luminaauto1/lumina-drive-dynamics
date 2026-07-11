@@ -23,6 +23,12 @@ export interface WidgetDef {
   category?: string;
   /** Default tile size + resize clamps on the 12-col grid. */
   defaultLayout: WidgetLayout;
+  /**
+   * When true, the widget is ALWAYS visible: it can't be toggled off in the
+   * Customize panel and is force-included in the default/merged visible set.
+   * Used for controls other widgets depend on (e.g. the shared finance range).
+   */
+  pinned?: boolean;
   /** The widget body. Rendered inside a themed card container by DashboardGrid. */
   Component: ComponentType;
 }

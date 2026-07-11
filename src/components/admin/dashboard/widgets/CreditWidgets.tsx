@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { sourceLabel } from '@/lib/pipelinev2/source';
-import { PIPELINE_TABS, statusToTab } from '@/lib/pipelinev2/tabs';
+import { PIPELINE_TABS, resolveStatusTab } from '@/lib/pipelinev2/tabs';
+import { useStatusConfig } from '@/hooks/useZtcSettings';
 import {
   WidgetShell,
   WidgetHeading,
@@ -170,10 +171,14 @@ export function SourceBreakdownWidget() {
 // ── Pipeline v2 lane counts ─────────────────────────────────────────────────────
 export function LaneCountsWidget() {
   const { data, isLoading, isError } = useAppFields();
+  // Bucket with the SAME editable per-slug lane routing the Pipeline v2 page uses
+  // (status_overrides.lane via useStatusConfig), so lane counts here match the
+  // live pipeline column counts instead of the hardcoded statusToTab default.
+  const { financeLaneOverrides } = useStatusConfig();
   const rows = useMemo(() => {
     const tally = new Map<string, number>();
     for (const r of data ?? []) {
-      const tab = statusToTab(r.status);
+      const tab = resolveStatusTab(r.status, financeLaneOverrides);
       tally.set(tab, (tally.get(tab) ?? 0) + 1);
     }
     // Registry order (excluding the 'all' pseudo-tab), only lanes with content.
@@ -183,7 +188,7 @@ export function LaneCountsWidget() {
       accent: t.accent,
       count: tally.get(t.key) ?? 0,
     }));
-  }, [data]);
+  }, [data, financeLaneOverrides]);
 
   if (isLoading) return <WidgetLoading />;
   if (isError) return <WidgetError />;
