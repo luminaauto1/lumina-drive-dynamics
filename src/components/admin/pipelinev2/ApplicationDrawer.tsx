@@ -15,6 +15,7 @@ import { useUpdateApplicationSource } from '@/hooks/useFinanceApplications';
 import { SOURCE_OPTIONS, sourceLabel } from '@/lib/pipelinev2/source';
 import { NotesFeed } from './NotesFeed';
 import { HistoryFeed } from './HistoryFeed';
+import { CreditCheckAttachment } from './CreditCheckAttachment';
 
 const appName = (a: FinanceApplication) =>
   (a as any).full_name || [(a as any).first_name, (a as any).last_name].filter(Boolean).join(' ') || 'Applicant';
@@ -134,6 +135,8 @@ export function ApplicationDrawer({
           <Field label="F&I" value={app.fni_owner?.full_name || app.fni_owner?.email || '—'} />
           <Field label="Rep" value={app.creator?.full_name || app.creator?.email || '—'} />
         </div>
+
+        <CreditCheckAttachment app={any} />
 
         <Separator className="my-4" />
 

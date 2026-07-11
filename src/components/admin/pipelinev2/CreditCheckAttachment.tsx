@@ -1,0 +1,155 @@
+import { useState, useEffect } from 'react';
+import { Loader2, Download, ExternalLink, FileText } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+export function CreditCheckAttachment({ app }: { app: any }) {
+  const path: string | undefined | null = app?.status_screenshot_url;
+
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [errored, setErrored] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!path) return;
+    let cancelled = false;
+    setSignedUrl(null);
+    setErrored(false);
+    setLoading(true);
+    supabase.storage
+      .from('credit-check-screenshots')
+      .createSignedUrl(path, 3600)
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        setLoading(false);
+        if (error || !data?.signedUrl) {
+          setErrored(true);
+          return;
+        }
+        setSignedUrl(data.signedUrl);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [path]);
+
+  if (!path) return null;
+
+  const ext = (path.split('.').pop() || '').toLowerCase();
+  const isPdf = ext === 'pdf';
+  const isImage = /^(png|jpe?g|gif|webp)$/.test(ext);
+
+  const clientName =
+    `${app.first_name || ''} ${app.last_name || ''}`.trim() || app.full_name || 'Applicant';
+  const score =
+    app.credit_score !== null &&
+    app.credit_score !== undefined &&
+    String(app.credit_score).trim() !== ''
+      ? String(app.credit_score)
+      : 'No Score';
+  const idn = app.id_number || 'No ID';
+
+  const filename =
+    `${clientName} - ${score} - ${idn}`
+      .replace(/[\\/:*?"<>|\n\r]+/g, '')
+      .replace(/\s+/g, ' ')
+      .trim() +
+    '.' +
+    (ext || 'pdf');
+
+  const handleDownload = async () => {
+    if (!signedUrl) return;
+    try {
+      const res = await fetch(signedUrl);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success('Downloaded');
+    } catch {
+      toast.error('Could not download the credit-check document.');
+    }
+  };
+
+  const status: string | null | undefined = app.credit_check_status;
+
+  return (
+    <>
+      <Separator className="my-4" />
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            Credit Check Report
+          </span>
+          {status ? (
+            <span
+              className={
+                'rounded border px-1.5 py-0.5 text-[10px] font-semibold ' +
+                (status === 'passed'
+                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-500'
+                  : 'border-red-500/40 bg-red-500/10 text-red-500')
+              }
+            >
+              {status === 'passed' ? 'Passed' : 'Failed'}
+            </span>
+          ) : null}
+          {score !== 'No Score' ? (
+            <span className="text-[11px] text-muted-foreground">· Score {score}</span>
+          ) : null}
+        </div>
+
+        {loading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Loading…
+          </div>
+        ) : errored ? (
+          <div className="text-sm text-muted-foreground">
+            Couldn't load the credit-check document.
+          </div>
+        ) : signedUrl ? (
+          <div className="space-y-2">
+            {isPdf ? (
+              <iframe
+                src={signedUrl}
+                title="Credit check"
+                className="w-full h-64 rounded border border-border bg-muted/30"
+              />
+            ) : isImage ? (
+              <img
+                src={signedUrl}
+                alt="Credit check"
+                className="max-h-64 w-auto rounded border border-border object-contain"
+              />
+            ) : (
+              <div className="flex items-center gap-2 rounded border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+                <FileText className="w-4 h-4 shrink-0" />
+                <span className="truncate">{filename}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={handleDownload}>
+                <Download className="w-3.5 h-3.5" /> Download
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                onClick={() => window.open(signedUrl, '_blank')}
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> Open
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </>
+  );
+}
