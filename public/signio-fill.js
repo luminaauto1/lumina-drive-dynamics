@@ -1375,11 +1375,14 @@
       // A live relay reply is authoritative, but still expires after 10 minutes
       // (a forgotten bookmark click hours later must not fire a billed scan).
       const guard = (d, viaName) => {
-        if (d && d.kredo && !d.kredo_no_submit) {
+        if (d && d.kredo) {
           if (viaName) {
-            d.kredo_no_submit = true;
-            flag('Could not confirm this is still the right applicant (Lumina not reachable) — auto-submit disabled; check the details, then click Generate Report yourself.');
-          } else if (!d.ts || Date.now() - d.ts > 10 * 60 * 1000) {
+            // Can't confirm this tab is on the CURRENT applicant (Lumina not reachable over
+            // postMessage). window.name only holds this tab's FIRST-open applicant, which may
+            // be a PREVIOUS client — so NEVER fill it. Signal runKredo to stop and ask the
+            // user to re-trigger from Lumina.
+            d.kredo_unconfirmed = true;
+          } else if (!d.kredo_no_submit && (!d.ts || Date.now() - d.ts > 10 * 60 * 1000)) {
             d.kredo_no_submit = true;
             flag('This applicant was pushed over 10 minutes ago — auto-submit disabled; verify it is the right person, then click Generate Report yourself.');
           }
@@ -1409,6 +1412,13 @@
     const d = await kredoPayload();
     kredoRestoreName();
     if (!d) { alert('No Lumina applicant data found.\n\nIn Lumina, click the credit-scan button on the Finance summary row — it preps this tab — then click this bookmark here.'); return; }
+
+    // Wrong-client guard: if Lumina could not confirm the CURRENT applicant (the tab lost
+    // its live link to Lumina), refuse to fill — window.name may hold a PREVIOUS client.
+    if (d.kredo_unconfirmed) {
+      alert('Lumina could not confirm the current applicant for this tab.\n\nThis happens when the Lumina tab was closed or reloaded. To avoid loading a PREVIOUS client, go to Lumina and click the credit-scan button on the correct row again — keep this CarTrust tab open — then click this bookmark.');
+      return;
+    }
 
     // Open the Credit Scan modal if it isn't showing yet (works from any page).
     let idEl = document.getElementById('id_number');
@@ -1456,7 +1466,10 @@
       .filter((id) => !String((document.getElementById(id) || {}).value || '').trim());
     const submitBtn = [...document.querySelectorAll('button')].find((b) => /generate report/i.test(b.textContent || '') && visEl(b));
     const body = flags.length ? '\n\n• ' + flags.join('\n• ') : '';
-    if (missing.length || !submitBtn || d.kredo_no_submit) {
+    // Auto-submit is OFF unless Lumina's "Auto-submit credit scans" setting is on
+    // (d.kredo_auto_submit). Default = fill + tick consent, then STOP so the human
+    // reviews and clicks Generate Report — nothing is billed until they do.
+    if (missing.length || !submitBtn || d.kredo_no_submit || !d.kredo_auto_submit) {
       const gaps = missing.length ? '\n\nStill needed:\n• ' + missing.join('\n• ') : '';
       alert('Lumina filled the credit scan for ' + (d.full_name || 'the applicant') + '.' + body + gaps +
         (missing.length ? '\n\nComplete those, then click Generate Report.' : '\n\nReview and click Generate Report.'));

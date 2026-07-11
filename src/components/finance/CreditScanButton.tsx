@@ -24,6 +24,7 @@ import { ScanSearch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useUpdateFinanceApplication } from '@/hooks/useFinanceApplications';
+import { useDocumentSettings } from '@/hooks/useDocumentSettings';
 
 const KREDO_URL = 'https://clientzone.kredo.co.za/applicant-list/2bcd4553-b85d-4967-9a4b-0ab8fc2d367c';
 const KREDO_ORIGIN = 'https://clientzone.kredo.co.za';
@@ -32,7 +33,7 @@ const HANDOFF_PREFIX = 'LUMINA_KREDO:';
 
 // Raw fields only — the engine does all normalisation (phone 27→0, gross rounding,
 // expenses itemised-parse + realistic floor/cap collapsed to ONE total).
-function buildKredoPayload(app: any) {
+function buildKredoPayload(app: any, autoSubmit?: boolean) {
   return {
     kredo: true,
     ts: Date.now(),
@@ -45,6 +46,7 @@ function buildKredoPayload(app: any) {
     gross_salary: app.gross_salary,
     net_salary: app.net_salary,
     total_expenses: app.expenses_summary,
+    kredo_auto_submit: !!autoSubmit,
   };
 }
 
@@ -70,10 +72,11 @@ function ensureRelay() {
 export function CreditScanButton({ application }: { application: any }) {
   const { toast } = useToast();
   const updateApplication = useUpdateFinanceApplication();
+  const { data: docSettings } = useDocumentSettings();
 
   const openKredo = () => {
     ensureRelay();
-    const payload = buildKredoPayload(application);
+    const payload = buildKredoPayload(application, !!docSettings?.creditScanAutoSubmit);
     (window as any).__luminaKredoPayload = payload;
 
     // Reuse the dedicated CarTrust tab: live JS ref first, then the named

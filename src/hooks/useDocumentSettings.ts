@@ -50,6 +50,9 @@ export interface DocumentSettings {
   // deal_records row so the deal appears in Deal Desk ready to be finalized.
   // DEFAULT false — OFF means zero behaviour change anywhere.
   autoCreateDealOnContractSigned: boolean;
+  // CarTrust credit-scan bookmark auto-clicks Generate Report when true.
+  // DEFAULT false = fill + stop for manual review.
+  creditScanAutoSubmit: boolean;
   // Bank branch codes — printed on the finance application PDF based on the client's bank.
   bankBranches: { bank: string; branchName: string; branchCode: string }[];
   // Sidebar appearance & navigation — admins can hide/show + reorder top-level
@@ -134,6 +137,7 @@ export const DEFAULT_DOCUMENT_SETTINGS: DocumentSettings = {
   quoteValidityDays: 7,
   quoteSalesExecutive: '',
   autoCreateDealOnContractSigned: false,
+  creditScanAutoSubmit: false,
   bankBranches: DEFAULT_BANK_BRANCHES,
   navConfig: {},
 };

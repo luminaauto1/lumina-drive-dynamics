@@ -170,6 +170,21 @@ const DocumentSettingsTab = () => {
             </span>
           </span>
         </label>
+        <label className="flex items-start gap-2 rounded-lg border border-border bg-muted/20 p-3 cursor-pointer">
+          <Checkbox
+            className="mt-0.5"
+            checked={!!form.creditScanAutoSubmit}
+            onCheckedChange={(c) => set('creditScanAutoSubmit', c === true)}
+          />
+          <span className="text-sm">
+            <span className="font-medium">Auto-submit credit scans (CarTrust)</span>
+            <span className="block text-xs text-muted-foreground mt-0.5">
+              When ON, the ⚡ credit-scan bookmark ticks consent and clicks Generate Report itself.
+              OFF (default) fills the form and stops so you review the details and submit yourself —
+              nothing is billed until you do.
+            </span>
+          </span>
+        </label>
       </section>
 
       <div className="flex justify-end">
