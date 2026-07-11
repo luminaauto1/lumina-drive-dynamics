@@ -212,7 +212,8 @@ export const useUpdateFinanceApplication = () => {
       // with `is_active=true`. No fallbacks, no fuzzy matches, no cross-firing.
       const EMAIL_ELIGIBLE_STATUSES = new Set<string>([
         'pending',
-        'application_submitted',
+        // 'application_submitted' intentionally REMOVED — "Ready To Load"
+        // (credit-check passed) is fully silent and fires no auto-email.
         'sent_to_banks',
         'pre_approved',
         'documents_received',
@@ -411,12 +412,14 @@ export const useUpdateFinanceApplication = () => {
       }
 
       // WhatsApp "Submitted to Bank" notification — fires when status moves
-      // into either `application_submitted` OR `ready_to_submit` for the first
-      // time. Deduplicated via status_history so toggling between the two
-      // submission-phase statuses never fires twice.
+      // into `ready_to_submit` for the first time. `application_submitted`
+      // ("Ready To Load", credit-check passed) is intentionally SILENT and no
+      // longer triggers this client WhatsApp. The dedup below still inspects
+      // BOTH submission-phase slugs in status_history so `ready_to_submit`
+      // behaves EXACTLY as before (never double-sends across the phase).
       if (
         statusActuallyChanged &&
-        (newStatus === 'application_submitted' || newStatus === 'ready_to_submit') &&
+        newStatus === 'ready_to_submit' &&
         currentApp?.phone
       ) {
         const priorHistory = Array.isArray((currentApp as any)?.status_history)

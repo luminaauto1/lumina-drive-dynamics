@@ -102,6 +102,8 @@ const planForStatus = (status: string): PlanStep => {
         remove: [PHASE.NEW_LEAD],
       };
     case 'application_submitted':
+      // "Ready To Load" (credit-check passed) — silent internal marker; no tag add/remove.
+      return { add: [], remove: [] };
     case 'ready_to_submit':
     case 'sent_to_banks':
     case 'revision_submitted':

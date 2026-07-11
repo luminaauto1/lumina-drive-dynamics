@@ -31,7 +31,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Loader2, Save, Trash2, Check, ChevronDown, ArrowRight, X } from 'lucide-react';
+import { Loader2, Save, Trash2, Check, ChevronDown, ArrowRight, X, Info } from 'lucide-react';
+import { getStatusDispatchInfo } from '@/lib/statusDispatchInfo';
 import {
   useStatusConfig,
   useStatusOverrides,
@@ -122,6 +123,17 @@ const slugifyClientLabel = (label: string): string =>
     .trim()
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
+
+// One labelled row in the read-only "Built-in behaviour" panel. A dash (—) reads
+// as "nothing fires" for that channel; a value is emphasised in the foreground.
+function DispatchRow({ label, value }: { label: string; value?: string }) {
+  return (
+    <div className="flex gap-2">
+      <dt className="w-36 shrink-0 text-muted-foreground">{label}</dt>
+      <dd className={value ? 'text-foreground' : 'text-muted-foreground/60'}>{value ?? '—'}</dd>
+    </div>
+  );
+}
 
 export function StatusEditModal({
   initialMode,
@@ -268,6 +280,27 @@ export function StatusEditModal({
   const previewClass = cls || FALLBACK_CLASS;
   const previewLabel = label || effectiveSlug || 'Preview';
   const builtInWaPreview = type === 'finance' && slug ? getWhatsAppMessage(slug, '{name}') : '';
+
+  // Read-only "what fires" descriptor for the edited FINANCE status (hand-maintained
+  // in statusDispatchInfo.ts, kept in sync with the real dispatch + planForStatus).
+  const dispatchInfo = type === 'finance' && slug ? getStatusDispatchInfo(slug) : null;
+  const esRemoveText = dispatchInfo
+    ? dispatchInfo.esRemove === 'MASTER_WIPE'
+      ? 'Wipes all pipeline tags'
+      : dispatchInfo.esRemove.length > 0
+        ? dispatchInfo.esRemove.join(', ')
+        : undefined
+    : undefined;
+  const esAddText =
+    dispatchInfo && dispatchInfo.esAdd.length > 0 ? dispatchInfo.esAdd.join(', ') : undefined;
+  // True when NOTHING built-in fires for this status (no WhatsApp, no email, no tags).
+  const firesNothing =
+    !!dispatchInfo &&
+    !dispatchInfo.clientWhatsapp &&
+    !dispatchInfo.staffWhatsapp &&
+    !dispatchInfo.email &&
+    !esAddText &&
+    !esRemoveText;
 
   // ZTC-parity: resolve a tag NAME → its EasySocial integer id (from the synced
   // cache) to show beside the name. '' when unknown/empty. Used for the add chips.
@@ -473,6 +506,43 @@ export function StatusEditModal({
               <>Client status — free-form. {slug ? <>Slug <code className="font-mono text-foreground/80">{slug}</code>.</> : 'A slug is generated from the label on save.'}</>
             )}
           </div>
+
+          {/* Built-in behaviour (READ-ONLY — FINANCE only). Shows precisely what
+              Lumina auto-fires when an application enters this status: dedicated
+              client/staff WhatsApp, the auto-email template, and the EasySocial
+              tag plan. Sourced from statusDispatchInfo.ts (hand-maintained in sync
+              with the dispatch hook + easysocial planForStatus). Not editable here. */}
+          {type === 'finance' && slug && (
+            <div className="space-y-2 rounded-md border border-border bg-muted/20 p-3">
+              <div className="flex items-center gap-1.5">
+                <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">Built-in behaviour (not editable here)</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                What Lumina automatically fires when an application enters this status. These are wired into the app and edge functions — they can't be changed from this editor.
+              </p>
+              {dispatchInfo ? (
+                <>
+                  <dl className="space-y-1.5 text-xs">
+                    <DispatchRow label="Client WhatsApp" value={dispatchInfo.clientWhatsapp} />
+                    <DispatchRow label="Staff WhatsApp" value={dispatchInfo.staffWhatsapp} />
+                    <DispatchRow label="Auto-email" value={dispatchInfo.email} />
+                    <DispatchRow label="EasySocial — tags added" value={esAddText} />
+                    <DispatchRow label="EasySocial — tags removed" value={esRemoveText} />
+                  </dl>
+                  {firesNothing && (
+                    <p className="text-[11px] font-medium text-foreground">
+                      {slug === 'application_submitted'
+                        ? 'This status fires nothing — "Ready To Load" (credit-check passed) is a silent internal marker: no client message, no email, no tag change.'
+                        : 'This status fires no built-in notifications.'}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-xs text-muted-foreground">No documented built-in dispatch for this status.</p>
+              )}
+            </div>
+          )}
 
           {/* Destination pipeline tab (EDITABLE — FINANCE only). Picks which
               Pipeline v2 lane an application is shown/counted in when it has this
@@ -807,8 +877,8 @@ export function StatusEditModal({
                 <div className="text-sm font-medium">WhatsApp auto-send (on apply)</div>
 
                 {isNotifyOwned ? (
-                  <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 text-[12px] text-amber-300">
-                    This status sends a built-in WhatsApp notification — per-status auto-send is disabled here to prevent double messaging.
+                  <div className="rounded-md border border-border bg-muted/20 p-2.5 text-[12px] text-muted-foreground">
+                    Per-status WhatsApp auto-send is disabled for this built-in status (to prevent double messaging). See <span className="font-medium text-foreground">Built-in behaviour</span> above for exactly what this status fires.
                   </div>
                 ) : (
                   <>
