@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
@@ -11,6 +11,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import AdminLayout from '@/components/admin/AdminLayout';
 import PageHeader from '@/components/admin/PageHeader';
 import { ADMIN_ROUTES, quoteBuilderPath } from '@/lib/adminRoutes';
+import { validateSaId, isSaIdInvalid } from '@/lib/saIdValidation';
 import FinancePodiumModal from '@/components/admin/FinancePodiumModal';
 import FinalizeDealModal from '@/components/admin/FinalizeDealModal';
 import { DealExpensesSection } from '@/components/admin/DealExpensesSection';
@@ -675,7 +676,8 @@ const AdminDealRoom = () => {
     copyable = false,
     field,
     inputType = 'text',
-    selectOptions = []
+    selectOptions = [],
+    badge
   }: {
     label: string;
     value: string | number | null | undefined;
@@ -683,6 +685,7 @@ const AdminDealRoom = () => {
     field?: string;
     inputType?: InputType;
     selectOptions?: SelectOption[];
+    badge?: ReactNode;
   }) => {
     const { isEditing, editedData, handleEditChange, copyToClipboard, copiedField } = editCtxRef.current;
     return (
@@ -739,6 +742,7 @@ const AdminDealRoom = () => {
               )}
             </button>
           )}
+          {badge}
         </div>
       )}
     </div>
@@ -798,6 +802,9 @@ const AdminDealRoom = () => {
       </AdminLayout>
     );
   }
+
+  const idResult = validateSaId(application.id_number);
+  const idInvalid = isSaIdInvalid(application.id_number);
 
   return (
     <AdminLayout>
@@ -1061,7 +1068,21 @@ const AdminDealRoom = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <DetailItem label="First Name" value={application.first_name} copyable field="first_name" />
                 <DetailItem label="Surname" value={application.last_name} copyable field="last_name" />
-                <DetailItem label="ID Number" value={application.id_number} copyable field="id_number" />
+                <DetailItem
+                  label="ID Number"
+                  value={application.id_number}
+                  copyable
+                  field="id_number"
+                  badge={idInvalid ? (
+                    <span
+                      title={`Invalid SA ID — ${idResult.reason.toLowerCase()}`}
+                      className="inline-flex items-center gap-1 rounded border border-destructive/40 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-destructive"
+                    >
+                      <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+                      Invalid ID
+                    </span>
+                  ) : null}
+                />
                 <DetailItem label="Gender" value={application.gender} field="gender" inputType="select" selectOptions={genderOptions} />
                 <DetailItem label="Marital Status" value={application.marital_status} field="marital_status" inputType="select" selectOptions={maritalStatusOptions} />
                 <DetailItem label="Qualification" value={application.qualification} field="qualification" />

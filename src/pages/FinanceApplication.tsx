@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { publicApiHeaders } from "@/lib/publicApi";
+import { validateSaId } from "@/lib/saIdValidation";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Helmet } from "react-helmet-async";
@@ -1400,6 +1401,16 @@ const FinanceApplication = () => {
                         className={getErrorClass("id_number")}
                       />
                       <FieldError field="id_number" />
+                      {/* Soft, non-blocking hint: only once a full 13-digit SA ID is entered
+                          but it still fails the date/checksum validation. Never blocks submit. */}
+                      {formData.id_type === "ID" && (() => {
+                        const r = validateSaId(formData.id_number);
+                        return r.length && !r.valid ? (
+                          <p className="text-xs text-amber-600 dark:text-amber-400">
+                            This ID number doesn't look valid — please double-check.
+                          </p>
+                        ) : null;
+                      })()}
                     </div>
                     {formData.id_type === "Passport" && (
                       <div className="space-y-2 md:col-span-2">
