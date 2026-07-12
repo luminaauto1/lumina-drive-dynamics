@@ -52,7 +52,7 @@ export function CustomizePanel({ api }: CustomizePanelProps) {
           Customize
         </Button>
       </SheetTrigger>
-      <SheetContent side="right" className="flex w-full flex-col gap-0 sm:max-w-sm">
+      <SheetContent side="right" className="flex w-full flex-col gap-0 sm:max-w-md">
         <SheetHeader className="space-y-1">
           <SheetTitle>Customize dashboard</SheetTitle>
           <SheetDescription>

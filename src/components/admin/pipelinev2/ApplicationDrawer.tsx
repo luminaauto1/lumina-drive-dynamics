@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { RefreshCw, ExternalLink, Copy } from 'lucide-react';
+import { RefreshCw, ExternalLink, Copy, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import type { FinanceApplication } from '@/hooks/useFinanceApplications';
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useStatusConfig } from '@/hooks/useZtcSettings';
 import { useUpdateApplicationSource } from '@/hooks/useFinanceApplications';
 import { SOURCE_OPTIONS, sourceLabel } from '@/lib/pipelinev2/source';
+import { validateSaId, isSaIdInvalid } from '@/lib/saIdValidation';
 import { NotesFeed } from './NotesFeed';
 import { HistoryFeed } from './HistoryFeed';
 import { CreditCheckAttachment } from './CreditCheckAttachment';
@@ -42,6 +43,8 @@ export function ApplicationDrawer({
   const navigate = useNavigate();
   if (!app) return null;
   const any = app as any;
+  const idResult = validateSaId(any.id_number);
+  const idInvalid = isSaIdInvalid(any.id_number);
   const phoneIntl = formatPhoneIntl(any.phone);
   const copyPhone = async () => {
     if (!any.phone) return;
@@ -108,7 +111,22 @@ export function ApplicationDrawer({
             ) : '—'
           } />
           <Field label="Email" value={any.email || '—'} />
-          <Field label="ID Number" value={any.id_number || '—'} />
+          <Field label="ID Number" value={
+            any.id_number ? (
+              <span className="inline-flex flex-wrap items-center gap-1.5">
+                <span className={idInvalid ? 'text-destructive' : undefined}>{any.id_number}</span>
+                {idInvalid && (
+                  <span
+                    title={`Invalid SA ID — ${idResult.reason.toLowerCase()}`}
+                    className="inline-flex items-center gap-1 rounded border border-destructive/40 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-destructive"
+                  >
+                    <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+                    Invalid ID
+                  </span>
+                )}
+              </span>
+            ) : '—'
+          } />
           <Field label="Deal Type" value={any.deal_type ? <span className="capitalize">{any.deal_type}</span> : '—'} />
           <Field label="Source" value={
             <Select
