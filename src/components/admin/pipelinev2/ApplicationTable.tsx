@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, ListFilter } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useUpdateFinanceApplication, type FinanceApplication } from '@/hooks/useFinanceApplications';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { isFilterable, type FacetOption } from '@/lib/pipelinev2/filters';
 import { STATUS_STYLES, ADMIN_STATUS_LABELS, statusBadgeClass } from '@/lib/statusConfig';
 import { useDeskTheme } from '@/hooks/useDeskTheme';
 import { useStatusConfig } from '@/hooks/useZtcSettings';
@@ -22,6 +26,7 @@ export function ApplicationTable({
   applications, config, onSelect, onChangeStatus,
   selectable, selectedIds, onToggleSelect, onToggleSelectAll, busyByApp,
   statusLabels, statusStyles, windowKey, showCreditScan, onCreditCheckOutcome,
+  facets, columnFilters, onColumnFilterChange,
 }: {
   applications: FinanceApplication[];
   config: TableConfig;
@@ -43,6 +48,14 @@ export function ApplicationTable({
   showCreditScan?: boolean;
   /** Opens the Credit Check result modal (screenshot/doc + status pick) for Passed/Failed. */
   onCreditCheckOutcome?: (app: FinanceApplication, outcome: 'passed' | 'failed') => void;
+  /** Faceted options per filterable column (derived by the parent from the rows in
+   *  view, before per-column filters). A header filter renders only when a visible
+   *  column is filterable AND has ≥1 option here. */
+  facets?: Record<string, FacetOption[]>;
+  /** Current selections per column key ([] / missing = no filter on that column). */
+  columnFilters?: Record<string, string[]>;
+  /** Replace the selection for one column (empty array clears it). */
+  onColumnFilterChange?: (key: string, values: string[]) => void;
 }) {
   const { theme } = useDeskTheme();
   const updateApplication = useUpdateFinanceApplication();
@@ -110,11 +123,25 @@ export function ApplicationTable({
                   onChange={(e) => onToggleSelectAll?.(allIds, e.target.checked)} title="Select all shown" />
               </th>
             )}
-            {visible.map((col) => (
-              <th key={col.key} className={'px-3 py-2 text-left font-medium ' + classFor(col.key) + (col.align === 'right' ? ' text-right' : '')}>
-                {col.label}
-              </th>
-            ))}
+            {visible.map((col) => {
+              const opts = facets?.[col.key];
+              const showFilter = isFilterable(col.key) && !!opts && opts.length > 0 && !!onColumnFilterChange;
+              return (
+                <th key={col.key} className={'px-3 py-2 text-left font-medium ' + classFor(col.key) + (col.align === 'right' ? ' text-right' : '')}>
+                  <div className={'flex items-center gap-1 ' + (col.align === 'right' ? 'justify-end' : '')}>
+                    <span>{col.label}</span>
+                    {showFilter && (
+                      <ColumnFilterButton
+                        label={col.label}
+                        options={opts!}
+                        selected={columnFilters?.[col.key] ?? []}
+                        onChange={(vals) => onColumnFilterChange!(col.key, vals)}
+                      />
+                    )}
+                  </div>
+                </th>
+              );
+            })}
             {showCreditScan && <th className="px-2 py-2 text-left font-medium" title="Credit check status + CarTrust Credit Report Scan">Credit Check</th>}
             <th className="w-9 px-2 py-2" title="Open the full application (Deal Room)" />
           </tr>
@@ -214,6 +241,93 @@ export function ApplicationTable({
         </tbody>
       </table>
     </div>
+  );
+}
+
+/**
+ * Subtle header filter control (shadcn faceted-filter pattern): a small muted
+ * ListFilter icon that opens a Popover with a scrollable, multi-select checkbox
+ * list of the column's DISTINCT values (with counts). A badge shows how many
+ * values are selected. stopPropagation keeps clicks off any header sort/handler.
+ */
+function ColumnFilterButton({
+  label, options, selected, onChange,
+}: {
+  label: string;
+  options: FacetOption[];
+  selected: string[];
+  onChange: (values: string[]) => void;
+}) {
+  const active = selected.length > 0;
+  const toggle = (value: string, on: boolean) =>
+    onChange(on ? [...selected, value] : selected.filter((v) => v !== value));
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          title={`Filter ${label}`}
+          aria-label={`Filter ${label}`}
+          className={cn(
+            'relative -my-1 inline-flex h-5 w-5 items-center justify-center rounded-sm transition',
+            active
+              ? 'text-foreground'
+              : 'text-muted-foreground/50 hover:bg-muted hover:text-foreground',
+          )}
+        >
+          <ListFilter className="h-3.5 w-3.5" />
+          {active && (
+            <span className="absolute -right-1 -top-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-semibold leading-none text-primary-foreground">
+              {selected.length}
+            </span>
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="w-56 p-2"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-1.5 flex items-center justify-between gap-2">
+          <span className="truncate text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            {label}
+          </span>
+          {active && (
+            <button
+              type="button"
+              className="shrink-0 text-[11px] text-muted-foreground hover:text-foreground"
+              onClick={() => onChange([])}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+        <div className="max-h-60 space-y-0.5 overflow-y-auto pr-0.5">
+          {options.map((opt) => {
+            const checked = selected.includes(opt.value);
+            return (
+              <label
+                key={opt.value}
+                className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-sm hover:bg-muted/50"
+              >
+                <Checkbox
+                  checked={checked}
+                  onCheckedChange={(v) => toggle(opt.value, v === true)}
+                  aria-label={opt.label}
+                />
+                <span className="flex-1 truncate normal-case">{opt.label}</span>
+                <span className="shrink-0 tabular-nums text-[11px] text-muted-foreground">{opt.count}</span>
+              </label>
+            );
+          })}
+          {options.length === 0 && (
+            <div className="px-1 py-2 text-xs text-muted-foreground">No values</div>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 

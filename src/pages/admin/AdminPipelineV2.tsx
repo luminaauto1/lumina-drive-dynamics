@@ -12,6 +12,10 @@ import { useStatusConfig } from '@/hooks/useZtcSettings';
 import { PIPELINE_TABS, inTab } from '@/lib/pipelinev2/tabs';
 import { colorForUser } from '@/lib/pipelinev2/presence';
 import { loadConfig, type TableConfig } from '@/lib/pipelinev2/columns';
+import {
+  FILTERABLE_KEYS, buildFacets, rowPassesColumnFilters, columnFiltersKey,
+  activeColumnFilterCount, type FilterLabelMaps,
+} from '@/lib/pipelinev2/filters';
 import { PipelineTabNav } from '@/components/admin/pipelinev2/PipelineTabNav';
 import { ApplicationTable } from '@/components/admin/pipelinev2/ApplicationTable';
 import { ColumnsPicker } from '@/components/admin/pipelinev2/ColumnsPicker';
@@ -46,9 +50,10 @@ const AdminPipelineV2 = () => {
   const { data: apps = [], isLoading } = useFinanceApplications();
   const { data: fniUsers = [] } = useFAndIUsers();
   const updateApplication = useUpdateFinanceApplication();
-  const { labels: statusLabels, styles: statusStyles, financeLaneOverrides } = useStatusConfig();
+  const { labels: statusLabels, styles: statusStyles, financeLaneOverrides, clientLabels } = useStatusConfig();
 
-  const [activeTab, setActiveTab] = useState('all');
+  // 'all' tab was removed — default to the first real lane (New Applications).
+  const [activeTab, setActiveTab] = useState('intake');
   const [search, setSearch] = useState('');
   const [searchScope, setSearchScope] = useState<SearchScope>('tab');
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
@@ -65,21 +70,36 @@ const AdminPipelineV2 = () => {
   const [ccApp, setCcApp] = useState<FinanceApplication | null>(null);
   const [ccOutcome, setCcOutcome] = useState<CreditCheckOutcome>('passed');
   const [ccOpen, setCcOpen] = useState(false);
-  const [tableConfig, setTableConfig] = useState<TableConfig>(() => loadConfig('all'));
+  const [tableConfig, setTableConfig] = useState<TableConfig>(() => loadConfig('intake'));
   const [busyByApp, setBusyByApp] = useState<Map<string, Busy>>(new Map());
+  // Per-column header filter selections (session state; keyed by column key).
+  // A missing/empty entry = that column imposes no filter. Cleared on tab change.
+  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  const setColumnFilter = (key: string, values: string[]) =>
+    setColumnFilters((prev) => {
+      const next = { ...prev };
+      if (values.length === 0) delete next[key];
+      else next[key] = values;
+      return next;
+    });
 
   // ---- Saved views (per-user filter presets) -------------------------------
   const { views, saveView, deleteView } = useSavedViews<PipelinePreset>('pipeline', user?.id);
   const [activeViewId, setActiveViewId] = useState<string | null>(null);
   const applyPreset = (p: PipelinePreset) => {
-    setActiveTab(p.activeTab);
+    // A saved view may still carry the removed 'all' lane — coerce any stale/invalid
+    // tab to the first real lane so the view is never empty.
+    const laneExists = PIPELINE_TABS.some((t) => t.key === p.activeTab);
+    setActiveTab(laneExists ? p.activeTab : 'intake');
     setSearchScope(p.searchScope);
     setSortDir(p.sortDir);
     if (showFniFilter) setFniFilter(p.fniFilter);
   };
 
-  // Re-load saved column config when switching tabs (per-tab presets).
-  useEffect(() => { setTableConfig(loadConfig(activeTab)); }, [activeTab]);
+  // Re-load saved column config when switching tabs (per-tab presets). Also clear
+  // per-column filters: columns differ per lane, so a filter carried into a lane
+  // where its column is hidden would silently hide rows.
+  useEffect(() => { setTableConfig(loadConfig(activeTab)); setColumnFilters({}); }, [activeTab]);
 
   // ---- Realtime presence: "who is viewing which profile" -------------------
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -161,16 +181,41 @@ const AdminPipelineV2 = () => {
   // When searching with scope = 'all', results span every lane (the active-tab
   // filter is bypassed); otherwise rows stay scoped to the active tab.
   const searchingAllTabs = searchScope === 'all' && search.trim().length > 0;
+
+  // Lane-scoped set = ownership + search + lane, BEFORE per-column filters. Faceted
+  // filter options are derived from this so the option lists stay stable regardless
+  // of what's currently selected.
+  const laneScoped = useMemo(
+    () =>
+      searchingAllTabs
+        ? baseFiltered
+        : baseFiltered.filter((a) => inTab(activeTab, (a as any).status, financeLaneOverrides)),
+    [baseFiltered, activeTab, searchingAllTabs, financeLaneOverrides],
+  );
+
+  const filterMaps: FilterLabelMaps = useMemo(
+    () => ({ statusLabels, clientLabels }),
+    [statusLabels, clientLabels],
+  );
+
+  // Faceted options (distinct values + counts) for each filterable column.
+  const facets = useMemo(
+    () => buildFacets(laneScoped, FILTERABLE_KEYS, filterMaps),
+    [laneScoped, filterMaps],
+  );
+
+  // Final rows: apply per-column filters AFTER lane+search, BEFORE sort/render.
   const rows = useMemo(() => {
-    const list = searchingAllTabs
-      ? baseFiltered
-      : baseFiltered.filter((a) => inTab(activeTab, (a as any).status, financeLaneOverrides));
+    const hasColumnFilter = activeColumnFilterCount(columnFilters) > 0;
+    const list = hasColumnFilter
+      ? laneScoped.filter((a) => rowPassesColumnFilters(a, columnFilters, filterMaps))
+      : laneScoped;
     return [...list].sort((x, y) => {
       const dx = new Date((x as any).created_at || 0).getTime();
       const dy = new Date((y as any).created_at || 0).getTime();
       return sortDir === 'desc' ? dy - dx : dx - dy;
     });
-  }, [baseFiltered, activeTab, sortDir, searchingAllTabs, financeLaneOverrides]);
+  }, [laneScoped, columnFilters, filterMaps, sortDir]);
 
   // ---- Selection -----------------------------------------------------------
   const toggleSelect = (id: string) => setSelectedIds((prev) => {
@@ -278,7 +323,10 @@ const AdminPipelineV2 = () => {
             busyByApp={busyByApp}
             statusLabels={statusLabels}
             statusStyles={statusStyles}
-            windowKey={`${activeTab}|${searchScope}|${fniFilter}|${search.trim().toLowerCase()}`}
+            facets={facets}
+            columnFilters={columnFilters}
+            onColumnFilterChange={setColumnFilter}
+            windowKey={`${activeTab}|${searchScope}|${fniFilter}|${search.trim().toLowerCase()}|${columnFiltersKey(columnFilters)}`}
             showCreditScan={activeTab === 'intake'}
             onCreditCheckOutcome={(app, outcome) => { setCcApp(app); setCcOutcome(outcome); setCcOpen(true); }}
           />

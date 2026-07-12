@@ -10,7 +10,11 @@ export interface PipelineTabDef {
 }
 
 export const PIPELINE_TABS: PipelineTabDef[] = [
-  { key: 'all',        label: 'All',         statuses: [], accent: 'text-foreground' },
+  // NOTE: the 'all' view-all pseudo-tab was removed (search finds anyone across
+  // lanes, so it wasn't needed). No DATA is hidden: statusToTab routes every
+  // application — including unknown statuses — to exactly one real lane ('intake'
+  // by default). statusToTab/resolveStatusTab/inTab still handle 'all' harmlessly
+  // (inTab's 'all' branch is simply unused now).
   { key: 'intake',     label: 'New Applications', statuses: ['pending', 'draft', 'needs_revision', 'revision_submitted'], accent: 'text-gray-300' },
   // Credit check PASSED and the F&I outcome was set to "Ready to Load" (the
   // application_submitted slug, relabelled). Its own lane between New Applications
