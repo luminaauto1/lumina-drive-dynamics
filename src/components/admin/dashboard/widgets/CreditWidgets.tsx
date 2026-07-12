@@ -5,6 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { sourceLabel } from '@/lib/pipelinev2/source';
 import { PIPELINE_TABS, resolveStatusTab } from '@/lib/pipelinev2/tabs';
 import { useStatusConfig } from '@/hooks/useZtcSettings';
+import { computeRange } from '@/hooks/useAnalyticsDashboard';
+import { useDashboardRange } from './DashboardContext';
 import {
   WidgetShell,
   WidgetHeading,
@@ -15,10 +17,14 @@ import {
 } from './shared';
 
 /**
- * All three new widgets (credit-check split, source breakdown, lane counts) read
- * the SAME three columns off finance_applications. We fetch them once, paginated
- * past PostgREST's 1000-row cap, and derive each widget client-side so the numbers
- * stay consistent and the DB is hit once (deduped by query key).
+ * The source-breakdown + lane-counts widgets read the SAME two columns off
+ * finance_applications. We fetch them once, paginated past PostgREST's 1000-row
+ * cap, and derive each widget client-side so the numbers stay consistent and the
+ * DB is hit once (deduped by query key).
+ *
+ * The credit-check widget is period-scoped (it filters by
+ * credit_check_first_checked_at against the shared dashboard range), so it runs
+ * its own cheap COUNT queries instead — see useCreditCounts below.
  */
 interface AppField {
   submission_source: string | null;
@@ -46,47 +52,100 @@ function useAppFields() {
   return useQuery({ queryKey: ['dashboard-app-fields'], queryFn: fetchAppFields, staleTime: 60_000 });
 }
 
-// ── Credit-check pass / fail / pending ──────────────────────────────────────────
+// ── Credit-check pass / fail (period-scoped) ────────────────────────────────────
+// Passed/Failed are counted by COMPLETION date (credit_check_first_checked_at) so
+// the widget answers "how many checks got an outcome in the selected period" — it
+// reads 0/0 on a day none happened. Pending / not-yet-run have no completion
+// timestamp (they're a live backlog), so they're shown as CURRENT totals, not
+// period-scoped.
 const CREDIT_COLORS = {
   passed: 'hsl(160 70% 45%)',
   failed: 'hsl(0 70% 55%)',
-  pending: 'hsl(38 92% 50%)',
 } as const;
 
+interface CreditCounts {
+  /** passed with a completion stamp inside [since, until) */
+  passed: number;
+  /** failed with a completion stamp inside [since, until) */
+  failed: number;
+  /** current backlog awaiting an outcome (all-time, not period-scoped) */
+  pendingNow: number;
+  /** current backlog never run (all-time, not period-scoped) */
+  notRunNow: number;
+}
+
+async function fetchCreditCounts(since: string, until: string): Promise<CreditCounts> {
+  const table = () => supabase.from('finance_applications');
+  // Cheap HEAD count queries (no rows returned) — sidesteps the 1000-row cap
+  // entirely. Passed/Failed are scoped to the completion window; the two backlog
+  // counts are intentionally unscoped current totals.
+  const [passed, failed, pendingNow, notRunNow] = await Promise.all([
+    table()
+      .select('*', { count: 'exact', head: true })
+      .eq('credit_check_status', 'passed')
+      .gte('credit_check_first_checked_at', since)
+      .lt('credit_check_first_checked_at', until),
+    table()
+      .select('*', { count: 'exact', head: true })
+      .eq('credit_check_status', 'failed')
+      .gte('credit_check_first_checked_at', since)
+      .lt('credit_check_first_checked_at', until),
+    table().select('*', { count: 'exact', head: true }).eq('credit_check_status', 'pending'),
+    table().select('*', { count: 'exact', head: true }).is('credit_check_status', null),
+  ]);
+  for (const r of [passed, failed, pendingNow, notRunNow]) {
+    if (r.error) throw r.error;
+  }
+  return {
+    passed: passed.count ?? 0,
+    failed: failed.count ?? 0,
+    pendingNow: pendingNow.count ?? 0,
+    notRunNow: notRunNow.count ?? 0,
+  };
+}
+
+function useCreditCounts() {
+  const { range } = useDashboardRange();
+  // Reuse the SAME range→timestamp helper the finance widgets use so the credit
+  // widget shares the exact date filter (SAST-aware [since, until) window).
+  const r = computeRange(range.key, range.from, range.to);
+  const since = r.since.toISOString();
+  const until = r.until.toISOString();
+  const query = useQuery({
+    // Key on the range so it refetches whenever the shared range changes.
+    queryKey: ['dashboard-credit-counts', range.key, range.from ?? '', range.to ?? ''],
+    queryFn: () => fetchCreditCounts(since, until),
+    staleTime: 60_000,
+  });
+  return { query, label: r.label };
+}
+
 export function CreditCheckPassFailWidget() {
-  const { data, isLoading, isError } = useAppFields();
-  const counts = useMemo(() => {
-    const c = { passed: 0, failed: 0, pending: 0, notRun: 0 };
-    for (const r of data ?? []) {
-      const s = r.credit_check_status;
-      if (s === 'passed') c.passed++;
-      else if (s === 'failed') c.failed++;
-      else if (s === 'pending') c.pending++;
-      else c.notRun++;
-    }
-    return c;
-  }, [data]);
+  const { query, label } = useCreditCounts();
+  const { data, isLoading, isError } = query;
 
   if (isLoading) return <WidgetLoading />;
   if (isError) return <WidgetError />;
 
-  const decided = counts.passed + counts.failed + counts.pending;
+  const passed = data?.passed ?? 0;
+  const failed = data?.failed ?? 0;
+  const pendingNow = data?.pendingNow ?? 0;
+  const notRunNow = data?.notRunNow ?? 0;
+  const completed = passed + failed;
   const pie = [
-    { name: 'Passed', value: counts.passed, fill: CREDIT_COLORS.passed },
-    { name: 'Failed', value: counts.failed, fill: CREDIT_COLORS.failed },
-    { name: 'Pending', value: counts.pending, fill: CREDIT_COLORS.pending },
+    { name: 'Passed', value: passed, fill: CREDIT_COLORS.passed },
+    { name: 'Failed', value: failed, fill: CREDIT_COLORS.failed },
   ].filter((d) => d.value > 0);
 
   return (
     <WidgetShell>
-      <WidgetHeading title="Credit checks" hint="Pass / fail / pending of applications run." />
-      <div className="grid grid-cols-3 gap-2 shrink-0">
-        <Stat label="Passed" value={counts.passed} color="text-emerald-400" />
-        <Stat label="Failed" value={counts.failed} color="text-red-400" />
-        <Stat label="Pending" value={counts.pending} color="text-amber-400" />
+      <WidgetHeading title="Credit checks" hint={`Completed in the selected period · ${label}`} />
+      <div className="grid grid-cols-2 gap-2 shrink-0">
+        <Stat label="Passed" value={passed} color="text-emerald-400" />
+        <Stat label="Failed" value={failed} color="text-red-400" />
       </div>
       <ChartArea>
-        {decided > 0 ? (
+        {completed > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -107,12 +166,14 @@ export function CreditCheckPassFailWidget() {
           </ResponsiveContainer>
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-            No credit checks run yet
+            No credit checks completed in this period
           </div>
         )}
       </ChartArea>
       <p className="mt-1 shrink-0 text-[11px] text-muted-foreground">
-        {counts.notRun.toLocaleString()} not yet checked
+        {pendingNow.toLocaleString()} awaiting outcome
+        {notRunNow > 0 && ` · ${notRunNow.toLocaleString()} not yet run`}
+        <span className="opacity-70"> (current total)</span>
       </p>
     </WidgetShell>
   );
