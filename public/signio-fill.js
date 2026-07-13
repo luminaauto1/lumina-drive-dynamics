@@ -1453,11 +1453,10 @@
     setById('email_address', d.email) || flag('No email on file.');
     const gross = Math.round(parseAmt(d.gross_salary));
     if (gross > 0) setById('gross_income', gross); else flag('No gross income on file.');
-    // Household Expenses = ONE total, derived with the SAME normalisation the Signio
-    // wizard uses (itemised parse + realistic floor + disposable-income cap) so the
-    // figure is believable — never the raw, sometimes-inflated summary text.
-    const ex = computeExpensesWiz(d);
-    if (ex.total > 0) setById('household_expenses', ex.total); else flag('No expenses derivable — fill Household Expenses by hand.');
+    // Household Expenses — OWNER RULE (2026-07-10): a flat 15% of GROSS income.
+    // (The Signio-style itemised normalisation put credit-scan expenses too high.)
+    if (gross > 0) setById('household_expenses', Math.round(gross * 0.15));
+    else flag('No gross income — fill Household Expenses by hand.');
 
     const consent = document.getElementById('credit_report_consent');
     if (consent && !consent.checked) consent.click();
