@@ -24,6 +24,7 @@ export const TABLE_COLUMNS: TableColumnDef[] = [
   { key: 'vehicle',        label: 'Vehicle',        defaultVisible: true,  defaultWidth: 'wide', wrap: true },
   { key: 'bank',           label: 'Bank',           defaultVisible: false, defaultWidth: 'normal' },
   { key: 'gross',          label: 'Gross',          defaultVisible: false, defaultWidth: 'narrow', align: 'right' },
+  { key: 'net',            label: 'Net Income',     defaultVisible: false, defaultWidth: 'narrow', align: 'right' },
   { key: 'deposit',        label: 'Deposit',        defaultVisible: false, defaultWidth: 'narrow', align: 'right' },
   { key: 'fni',            label: 'F&I',            defaultVisible: true,  defaultWidth: 'normal' },
   { key: 'rep',            label: 'Rep',            defaultVisible: false, defaultWidth: 'normal' },

@@ -422,6 +422,7 @@ function renderCell(
         : <span className="text-xs text-muted-foreground/50">{any.preferred_vehicle_text || '—'}</span>;
     case 'bank': return <span>{any.bank_name || '—'}</span>;
     case 'gross': return formatCurrencyR(any.gross_salary);
+    case 'net': return formatCurrencyR(any.net_salary);
     case 'deposit': return formatCurrencyR(any.deposit_amount);
     case 'fni': return <span className="text-xs">{a.fni_owner?.full_name || a.fni_owner?.email || '—'}</span>;
     case 'rep': return <span className="text-xs">{a.creator?.full_name || a.creator?.email || '—'}</span>;
