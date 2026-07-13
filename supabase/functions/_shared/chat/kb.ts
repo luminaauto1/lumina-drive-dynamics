@@ -1,8 +1,10 @@
-// kb.ts — knowledge-base + config loader for the chat edge functions.
+// kb.ts — knowledge-base loader for the chat-suggest edge function.
 // Port of lumina-chat/engine/kb.js extended with the smart tables
-// (intent_utterance / chat_lexicon / chat_phrase_variant) and the runtime
-// config stored in integration_settings key 'chat_responder' (ES token,
-// dry-run flag, active flag) — all editable from the admin Control Panel.
+// (intent_utterance / chat_lexicon / chat_phrase_variant).
+//
+// 2026-07-10: every EasySocial/WhatsApp config concern was REMOVED (the
+// auto-responder was retired after its sends kept getting the dealership's
+// WhatsApp banned). This module now only reads the Lumina knowledge base.
 // deno-lint-ignore-file no-explicit-any
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
@@ -21,48 +23,6 @@ export function svc(): SupabaseClient {
 let _kbCache: any = null;
 let _kbAt = 0;
 const TTL_MS = 5 * 60 * 1000;
-
-export interface ChatConfig {
-  active: boolean;
-  dry_run: boolean;          // sends stay simulated until the owner flips this in the UI
-  es_api_base: string;
-  es_business_id: string;
-  es_token: string;
-  es_device_id: string;
-  es_user_id: string;
-  max_leads_per_batch: number;
-}
-
-export const DEFAULT_CHAT_CONFIG: ChatConfig = {
-  active: true,
-  dry_run: true, // HARD RULE from the brief: sends OFF until explicitly enabled
-  es_api_base: "https://api.easysocial.in",
-  es_business_id: "4026",
-  es_token: "",
-  es_device_id: "",
-  es_user_id: "8403",
-  max_leads_per_batch: 200,
-};
-
-export async function getChatConfig(): Promise<ChatConfig> {
-  try {
-    const { data } = await svc()
-      .from("integration_settings")
-      .select("active, config")
-      .eq("key", "chat_responder")
-      .maybeSingle();
-    const c = (data?.config || {}) as Partial<ChatConfig>;
-    return {
-      ...DEFAULT_CHAT_CONFIG,
-      ...c,
-      active: data ? data.active !== false && c.active !== false : DEFAULT_CHAT_CONFIG.active,
-      // dry_run only goes false when the stored value is EXPLICITLY false.
-      dry_run: c.dry_run === false ? false : true,
-    };
-  } catch (_e) {
-    return { ...DEFAULT_CHAT_CONFIG };
-  }
-}
 
 export async function getKB({ force = false } = {}): Promise<any> {
   const fresh = _kbCache && Date.now() - _kbAt < TTL_MS;
