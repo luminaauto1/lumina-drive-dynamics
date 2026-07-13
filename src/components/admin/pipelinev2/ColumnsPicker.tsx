@@ -122,11 +122,12 @@ export function ColumnsPicker({
         {/* Save scope */}
         <div className="mb-3">
           <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">Save changes for</div>
-          <div className="inline-flex w-full rounded-md border border-border bg-background p-0.5 text-xs">
+          <div className="inline-flex w-full rounded-md bg-muted p-0.5 text-xs text-muted-foreground">
             {([['tab', 'This tab'], ['all', 'All tabs']] as const).map(([val, label]) => (
               <button key={val} type="button" onClick={() => setScope(val)}
-                className={'flex-1 rounded px-2 py-1 font-medium transition ' +
-                  (scope === val ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground')}>
+                aria-pressed={scope === val}
+                className={'flex-1 rounded-sm px-2 py-1 font-medium transition-all ' +
+                  (scope === val ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>
                 {label}
               </button>
             ))}
