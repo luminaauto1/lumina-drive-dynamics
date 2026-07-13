@@ -77,7 +77,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { title: 'Trade Network', icon: Briefcase, path: '/admin/network' },
       { title: 'Referrals', icon: Gift, path: '/admin/referrals' },
       { title: 'Contacts', icon: Contact, path: '/admin/contacts' },
-      { title: 'Chat Control', icon: MessageCircle, path: '/admin/chat-control' },
+      { title: 'Reply Suggester', icon: MessageCircle, path: '/admin/chat-control' },
     ],
   },
   {
