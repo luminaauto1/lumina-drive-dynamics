@@ -407,14 +407,12 @@ export function StatusEditModal({
         // equals the hardcoded default (empty override = exact current behaviour,
         // fully reversible). Client statuses never route lanes => always NULL.
         lane: type === 'finance' && lane && lane !== defaultLaneKey ? lane : null,
-        // ── ZTC-parity status-apply config (FINANCE only). Client statuses never
-        //    dispatch, so they always write the inert defaults. Empty => NULL /
-        //    'none' / [] so an unconfigured finance status behaves exactly as today. ──
-        easysocial_client_status:
-          type === 'finance' && esClientStatus.trim() ? esClientStatus.trim() : null,
-        tag_remove_mode: type === 'finance' ? tagRemoveMode : 'none',
-        easysocial_tags_to_remove:
-          type === 'finance' && tagRemoveMode !== 'none' ? tagsToRemove : [],
+        // ── ZTC-parity status-apply config — BOTH tracks since 2026-07-14:
+        //    client-status applies now run the tag sync too (config-driven).
+        //    Empty => NULL / 'none' / [] so an unconfigured status behaves as today. ──
+        easysocial_client_status: esClientStatus.trim() ? esClientStatus.trim() : null,
+        tag_remove_mode: tagRemoveMode,
+        easysocial_tags_to_remove: tagRemoveMode !== 'none' ? tagsToRemove : [],
         // Auto-send link is suppressed for notify-* owned slugs (no double-send).
         whatsapp_template_key:
           type === 'finance' && !isNotifyOwned && waTemplateKey ? waTemplateKey : null,
@@ -776,13 +774,14 @@ export function StatusEditModal({
             </p>
           </div>
 
-          {/* ════════════ ZTC-parity status-apply config (FINANCE only) ════════════
-              Client statuses never dispatch to EasySocial/WhatsApp, so these
-              sections are finance-only. Empty config => an unconfigured status
-              behaves byte-for-byte as today. */}
-          {type === 'finance' && slug && (
-            <>
-              {/* A. EasySocial CRM — client_status write + tag remove-mode */}
+          {/* ════════════ ZTC-parity status-apply config ════════════
+              A. EasySocial CRM (client_status + tag remove-mode) shows for BOTH
+              tracks — since 2026-07-14 client-status applies also run the tag
+              sync (config-driven; empty config = no-op).
+              B. WhatsApp auto-send stays FINANCE-only (client statuses never
+              message the client). */}
+          {/* A. EasySocial CRM — client_status write + tag remove-mode (both tracks) */}
+          {(slug || isClientCreate) && (
               <div className="space-y-3 rounded-md border border-border p-3">
                 <div className="text-sm font-medium">EasySocial CRM (on apply)</div>
 
@@ -871,8 +870,10 @@ export function StatusEditModal({
                   )}
                 </div>
               </div>
+          )}
 
-              {/* B. WhatsApp auto-send — curated template + body sources */}
+          {/* B. WhatsApp auto-send — FINANCE only (client statuses never message the client) */}
+          {type === 'finance' && slug && (
               <div className="space-y-3 rounded-md border border-border p-3">
                 <div className="text-sm font-medium">WhatsApp auto-send (on apply)</div>
 
@@ -949,7 +950,6 @@ export function StatusEditModal({
                   </>
                 )}
               </div>
-            </>
           )}
 
           {error && <p className="text-sm text-red-400">{error}</p>}

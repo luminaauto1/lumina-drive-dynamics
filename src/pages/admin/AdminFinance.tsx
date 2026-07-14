@@ -400,7 +400,11 @@ const AdminFinance = () => {
         attention_updated_at: new Date().toISOString(),
         notes: updatedNotes,
       };
-      if (role === 'f_and_i' && actingUser?.id) {
+      // F&I claims ownership only when the file is UNASSIGNED — an existing
+      // assignment is never overwritten by another F&I touching the file
+      // (owner rule 2026-07-14). Re-assignment happens only via the explicit
+      // Assign F&I picker.
+      if (role === 'f_and_i' && actingUser?.id && !(pendingApp as any)?.assigned_f_and_i) {
         updatePayload.assigned_f_and_i = actingUser.id;
         updatePayload.assigned_f_and_i_at = new Date().toISOString();
       }
@@ -507,7 +511,8 @@ const AdminFinance = () => {
             .from('finance_applications')
             .update({
               notes: merged,
-              ...(role === 'f_and_i' && actingUser?.id ? {
+              // Claim only when unassigned — never steal another F&I's file.
+              ...(role === 'f_and_i' && actingUser?.id && !(app as any).assigned_f_and_i ? {
                 assigned_f_and_i: actingUser.id,
                 assigned_f_and_i_at: new Date().toISOString(),
               } : {}),
@@ -1265,16 +1270,23 @@ const AdminFinance = () => {
                     </TableCell>
                     <TableCell className="align-top" onClick={(e) => e.stopPropagation()}>
                       {app.phone ? (
-                        <a
-                          href={`https://wa.me/${whatsAppPhone}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          type="button"
+                          onClick={() => {
+                            // EasySocial has no phone deep-link (chat URLs need their
+                            // internal lead id), so: copy the number + open the chat
+                            // panel in ONE reused tab — paste into its search to land
+                            // on the client's conversation.
+                            navigator.clipboard?.writeText(whatsAppPhone).catch(() => {});
+                            window.open('https://app.easysocial.io/engage/chat?tab=all', 'easysocialChat');
+                            toast({ title: 'Number copied', description: 'EasySocial opened — paste (Ctrl+V) into its chat search to jump to this client.' });
+                          }}
                           className="inline-flex items-center gap-1.5 text-sm text-green-500 hover:text-green-400 transition-colors tabular-nums whitespace-nowrap"
-                          title="Open WhatsApp"
+                          title="Open this client in EasySocial chat (copies the number)"
                         >
                           <MessageCircle className="w-4 h-4 fill-green-500/20 shrink-0" />
                           {app.phone}
-                        </a>
+                        </button>
                       ) : (
                         <span className="text-muted-foreground text-sm">N/A</span>
                       )}
@@ -1620,8 +1632,9 @@ const AdminFinance = () => {
             {(() => {
               const norm = normalizeInternalStatus((pendingApp as any)?.internal_status);
               if (norm !== 'note_to_admin' && norm !== 'note_to_f_and_i' && norm !== 'note_to_senior_f_and_i') return null;
-              // F&I claims ownership when they action a note (mirrors the existing behaviour).
-              const fniClaim = role === 'f_and_i' && user?.id
+              // F&I claims ownership when actioning a note — but only if the file
+              // is UNASSIGNED (an existing owner is never displaced by activity).
+              const fniClaim = role === 'f_and_i' && user?.id && !(pendingApp as any)?.assigned_f_and_i
                 ? { assigned_f_and_i: user.id, assigned_f_and_i_at: new Date().toISOString() }
                 : {};
               const closeModal = () => {
@@ -1704,7 +1717,8 @@ const AdminFinance = () => {
                       status: targetStatus,
                       internal_status: 'no_notes',
                       attention_updated_at: new Date().toISOString(),
-                      ...(role === 'f_and_i' && user?.id ? {
+                      // Claim only when unassigned — never steal another F&I's file.
+                      ...(role === 'f_and_i' && user?.id && !(pendingApp as any)?.assigned_f_and_i ? {
                         assigned_f_and_i: user.id,
                         assigned_f_and_i_at: new Date().toISOString(),
                       } : {}),
