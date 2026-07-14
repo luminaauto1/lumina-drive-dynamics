@@ -5,32 +5,24 @@
 //
 // Lists every ACTIVE application sitting in pre_approved / pre_approved_flexi,
 // least-recently-contacted first, with one-click actions per client:
-//   • WhatsApp — opens wa.me with the docs-request message PRE-FILLED and stamps
-//     "contacted" (who + when) automatically.
-//   • Called ✓ — stamps contacted without WhatsApp (for phone calls).
+//   • Called ✓ — stamps contacted (who + when); the actual contact happens
+//     however the operator chooses (owner removed the wa.me button 2026-07-15).
 //   • Docs in — moves the application to Docs Received via the normal status flow.
 // A "contacted" stamp expires after 20 hours (same rule the status modal already
 // uses), so yesterday's tick never hides today's chase.
 
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PhoneCall, MessageCircle, FileCheck2, ChevronDown, ChevronUp, ExternalLink, ClipboardList } from 'lucide-react';
+import { PhoneCall, FileCheck2, ChevronDown, ChevronUp, ExternalLink, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useUpdateFinanceApplication, type FinanceApplication } from '@/hooks/useFinanceApplications';
-import { getWhatsAppMessage } from '@/lib/statusConfig';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 const CONTACT_TTL_MS = 20 * 60 * 60 * 1000; // mirrors the existing 20h auto-reset
 
 const CHASE_STATUSES = new Set(['pre_approved', 'pre_approved_flexi']);
-
-const phone27 = (raw?: string | null) => {
-  let p = String(raw ?? '').replace(/\D/g, '');
-  if (p.startsWith('0')) p = '27' + p.slice(1);
-  return p;
-};
 
 const relTime = (iso?: string | null) => {
   if (!iso) return '';
@@ -72,7 +64,7 @@ export function DocsChasePanel({ applications }: { applications: FinanceApplicat
 
   const actorName = user?.email?.split('@')[0] || 'staff';
 
-  const stampContacted = async (app: any, via: 'whatsapp' | 'call') => {
+  const stampContacted = async (app: any, _via: 'call' = 'call') => {
     try {
       await supabase.from('finance_applications').update({
         docs_contacted: true,
@@ -82,7 +74,7 @@ export function DocsChasePanel({ applications }: { applications: FinanceApplicat
       await supabase.from('client_audit_logs').insert([{
         client_email: app.email || null,
         client_phone: app.phone || null,
-        note: `Docs chase — contacted via ${via === 'whatsapp' ? 'WhatsApp' : 'phone call'} by ${actorName}`,
+        note: `Docs chase — contacted by ${actorName}`,
         author_id: user?.id || null,
         author_name: actorName,
         action_type: 'Docs Chase Contact',
@@ -91,14 +83,6 @@ export function DocsChasePanel({ applications }: { applications: FinanceApplicat
     } catch (e) {
       console.error('[docs-chase] stamp failed', e);
     }
-  };
-
-  const openWhatsApp = (app: any) => {
-    const firstName = String(app.first_name || app.full_name || 'there').trim().split(/\s+/)[0];
-    const msg = getWhatsAppMessage(app.status === 'pre_approved_flexi' ? 'pre_approved_flexi' : 'pre_approved', firstName);
-    window.open(`https://wa.me/${phone27(app.phone)}?text=${encodeURIComponent(msg)}`, '_blank');
-    void stampContacted(app, 'whatsapp');
-    toast({ title: 'WhatsApp opened with the docs request pre-filled', description: `${app.full_name || firstName} marked as contacted.` });
   };
 
   const docsIn = async (app: any) => {
@@ -156,11 +140,8 @@ export function DocsChasePanel({ applications }: { applications: FinanceApplicat
                       : '⚠ never contacted'}
                 </span>
                 <div className="ml-auto flex items-center gap-1.5">
-                  <Button size="sm" className="h-7 gap-1 bg-emerald-600 hover:bg-emerald-500 text-white" onClick={() => openWhatsApp(a)} title="Open WhatsApp with the docs request pre-filled (marks contacted)">
-                    <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
-                  </Button>
-                  <Button size="sm" variant="outline" className="h-7 gap-1" onClick={() => { void stampContacted(a, 'call'); toast({ title: 'Marked as contacted (call)' }); }} title="Mark contacted after a phone call">
-                    <PhoneCall className="w-3.5 h-3.5" /> Called
+                  <Button size="sm" variant="outline" className="h-7 gap-1" onClick={() => { void stampContacted(a, 'call'); toast({ title: 'Marked as contacted' }); }} title="Mark contacted (call / WhatsApp — however you reached them)">
+                    <PhoneCall className="w-3.5 h-3.5" /> Contacted
                   </Button>
                   <Button size="sm" variant="outline" className="h-7 gap-1 border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/10" disabled={busyId === a.id} onClick={() => docsIn(a)} title="Documents received — move to Docs Received">
                     <FileCheck2 className="w-3.5 h-3.5" /> Docs in
