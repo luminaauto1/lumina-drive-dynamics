@@ -27,6 +27,7 @@ export function ApplicationTable({
   selectable, selectedIds, onToggleSelect, onToggleSelectAll, busyByApp,
   statusLabels, statusStyles, windowKey, showCreditScan, onCreditCheckOutcome,
   facets, columnFilters, onColumnFilterChange,
+  renderExtraCell, statusSelect, rowClassName, ensureVisibleId, onEnsuredVisible,
 }: {
   applications: FinanceApplication[];
   config: TableConfig;
@@ -56,6 +57,22 @@ export function ApplicationTable({
   columnFilters?: Record<string, string[]>;
   /** Replace the selection for one column (empty array clears it). */
   onColumnFilterChange?: (key: string, values: string[]) => void;
+  /** Page-supplied cell renderers (Finance preset). Consulted FIRST for every
+   *  visible column; return undefined to fall back to the built-in cell. */
+  renderExtraCell?: (key: string, app: FinanceApplication) => React.ReactNode | undefined;
+  /** Inline status dropdown (Finance style). When provided, the 'status' column
+   *  renders a Select wired to the page's interceptor chain instead of the
+   *  badge-button that opens the Change-status modal. */
+  statusSelect?: {
+    options: (app: FinanceApplication) => { value: string; label: string }[];
+    onChange: (app: FinanceApplication, status: string) => void;
+  };
+  /** Extra classes per row (highlight ring, pre-approved tint, ...). */
+  rowClassName?: (app: FinanceApplication) => string;
+  /** Grow the render window to include this app id and scroll its row into view
+   *  (Action-Feed jump). Cleared via onEnsuredVisible once the scroll fired. */
+  ensureVisibleId?: string | null;
+  onEnsuredVisible?: () => void;
 }) {
   const { theme } = useDeskTheme();
   const updateApplication = useUpdateFinanceApplication();
@@ -95,6 +112,23 @@ export function ApplicationTable({
     return () => io.disconnect();
   }, [renderCount, applications.length]);
   const rendered = applications.slice(0, renderCount);
+
+  // Action-Feed jump support: grow the window until the target row is mounted,
+  // then scroll it into view once and hand control back to the parent.
+  useEffect(() => {
+    if (!ensureVisibleId) return;
+    const idx = applications.findIndex((a) => a.id === ensureVisibleId);
+    if (idx >= 0 && idx >= renderCount) {
+      setRenderCount(Math.min(idx + 10, applications.length));
+      return; // re-runs after the window grows
+    }
+    const el = document.getElementById(`app-row-${ensureVisibleId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      onEnsuredVisible?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ensureVisibleId, renderCount, applications]);
 
   // Keyboard navigation: rows are focusable; ↑/↓ move focus, Enter opens. We drive
   // focus off the DOM (rows carry data-row-index) so no extra render state is needed.
@@ -151,9 +185,9 @@ export function ApplicationTable({
             const isSelected = selectedIds?.has(a.id);
             const busy = busyByApp?.get(a.id);
             return (
-              <tr key={a.id} data-row-index={idx} tabIndex={0} onClick={() => onSelect(a.id)}
+              <tr key={a.id} id={`app-row-${a.id}`} data-row-index={idx} tabIndex={0} onClick={() => onSelect(a.id)}
                 onKeyDown={(e) => onRowKeyDown(e, idx, a.id)}
-                className={'cursor-pointer transition hover:bg-muted/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/60 ' + (isSelected ? 'bg-primary/10' : '')}
+                className={'cursor-pointer transition hover:bg-muted/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/60 ' + (isSelected ? 'bg-primary/10' : '') + ' ' + (rowClassName?.(a) || '')}
                 style={busy ? { boxShadow: `inset 4px 0 0 0 ${busy.color}`, backgroundColor: isSelected ? undefined : `${busy.color}14` } : undefined}
                 title={busy ? `${busy.name} is viewing this profile` : undefined}>
                 {selectable && (
@@ -163,9 +197,12 @@ export function ApplicationTable({
                 )}
                 {visible.map((col) => (
                   <td key={col.key} className={'px-3 py-2 align-top ' + classFor(col.key) + (col.align === 'right' ? ' text-right tabular-nums' : '')}>
-                    {renderCell(col.key, a, busy, onChangeStatus, statusLabels, statusStyles, theme, {
-                      clientLabels, clientStyles,
-                    })}
+                    {renderExtraCell?.(col.key, a)
+                      ?? (col.key === 'status' && statusSelect
+                        ? <InlineStatusSelect app={a} statusSelect={statusSelect} theme={theme} />
+                        : renderCell(col.key, a, busy, onChangeStatus, statusLabels, statusStyles, theme, {
+                            clientLabels, clientStyles,
+                          }))}
                   </td>
                 ))}
                 {/* Mirrors the Finance summary's credit-check cell exactly:
@@ -328,6 +365,47 @@ function ColumnFilterButton({
         </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+/** Finance-style inline status dropdown (used when the parent passes `statusSelect`).
+ *  Byte-equal look to the old hand-rolled Finance table's status cell, wired to the
+ *  page's interceptor chain (bank-ref modal → comment gate → hook). */
+function InlineStatusSelect({
+  app, statusSelect, theme,
+}: {
+  app: FinanceApplication;
+  statusSelect: {
+    options: (app: FinanceApplication) => { value: string; label: string }[];
+    onChange: (app: FinanceApplication, status: string) => void;
+  };
+  theme: 'light' | 'dark';
+}) {
+  const any = app as any;
+  const stamp = any.status_updated_at || any.updated_at;
+  const tip = stamp
+    ? `Changed: ${new Date(stamp).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' })} at ${new Date(stamp).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })}`
+    : undefined;
+  return (
+    <div onClick={(e) => e.stopPropagation()}>
+      <Select value={any.status} onValueChange={(v) => statusSelect.onChange(app, v)}>
+        <SelectTrigger
+          title={tip}
+          className={`w-[180px] h-7 text-xs uppercase tracking-wider border whitespace-nowrap ${statusBadgeClass(any.status, theme) || statusBadgeClass('pending', theme)}`}
+        >
+          <SelectValue>
+            <span className="whitespace-nowrap">{ADMIN_STATUS_LABELS[any.status] || any.status}</span>
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {statusSelect.options(app).map((opt) => (
+            <SelectItem key={opt.value} value={opt.value} className="text-xs">
+              {ADMIN_STATUS_LABELS[opt.value] || opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
 
