@@ -645,13 +645,30 @@ export const useUpdateClientStatus = () => {
 
   return useMutation({
     mutationFn: async ({ id, client_status }: { id: string; client_status: string }) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('finance_applications')
         .update({ client_status } as any)
-        .eq('id', id);
+        .eq('id', id)
+        .select('phone')
+        .maybeSingle();
       if (error) throw error;
       // Lightweight audit trail only — never a status_change dispatch.
       void logActivity({ actionType: 'other', note: `Client status → ${client_status}`, applicationId: id });
+      // EasySocial tags for the CLIENT track (2026-07-14): the edge function reads
+      // this status's config (tags to add / remove-mode) server-side and NO-OPS
+      // when nothing is configured — so an unconfigured client status stays as
+      // silent as before. Fire-and-forget; still no notify-* / auto-mailer.
+      const phone = (data as any)?.phone;
+      if (phone) {
+        supabase.functions
+          .invoke('easysocial-tag-sync', { body: { phone_number: phone, new_status: client_status } })
+          .then(({ data: tagData, error: tagErr }) => {
+            if (tagErr || tagData?.ok === false) {
+              const detail = tagErr?.message || tagData?.error || tagData?.detail || 'unknown error';
+              toast.error(`EasySocial sync failed: ${detail}`);
+            }
+          }, () => {});
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['finance-applications'] });

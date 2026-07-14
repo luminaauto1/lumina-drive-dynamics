@@ -1265,16 +1265,23 @@ const AdminFinance = () => {
                     </TableCell>
                     <TableCell className="align-top" onClick={(e) => e.stopPropagation()}>
                       {app.phone ? (
-                        <a
-                          href={`https://wa.me/${whatsAppPhone}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          type="button"
+                          onClick={() => {
+                            // EasySocial has no phone deep-link (chat URLs need their
+                            // internal lead id), so: copy the number + open the chat
+                            // panel in ONE reused tab — paste into its search to land
+                            // on the client's conversation.
+                            navigator.clipboard?.writeText(whatsAppPhone).catch(() => {});
+                            window.open('https://app.easysocial.io/engage/chat?tab=all', 'easysocialChat');
+                            toast({ title: 'Number copied', description: 'EasySocial opened — paste (Ctrl+V) into its chat search to jump to this client.' });
+                          }}
                           className="inline-flex items-center gap-1.5 text-sm text-green-500 hover:text-green-400 transition-colors tabular-nums whitespace-nowrap"
-                          title="Open WhatsApp"
+                          title="Open this client in EasySocial chat (copies the number)"
                         >
                           <MessageCircle className="w-4 h-4 fill-green-500/20 shrink-0" />
                           {app.phone}
-                        </a>
+                        </button>
                       ) : (
                         <span className="text-muted-foreground text-sm">N/A</span>
                       )}
