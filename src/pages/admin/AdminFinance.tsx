@@ -17,7 +17,6 @@ import CreditCheckReportModal from '@/components/admin/CreditCheckReportModal';
 import CreditCheckResultModal, { type CreditCheckOutcome } from '@/components/admin/CreditCheckResultModal';
 import AdminLayout from '@/components/admin/AdminLayout';
 import PageHeader from '@/components/admin/PageHeader';
-import StatTile from '@/components/admin/StatTile';
 import { ADMIN_ROUTES } from '@/lib/adminRoutes';
 import { sourceLabel } from '@/lib/pipelinev2/source';
 import { Button } from '@/components/ui/button';
@@ -36,11 +35,15 @@ import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
 import { INTERNAL_STATUSES, type InternalStatus, normalizeInternalStatus } from '@/lib/internalStatusConfig';
 import { CommentGateModal } from '@/components/admin/CommentGateModal';
 import { CreditScanButton } from '@/components/finance/CreditScanButton';
-import { DocsChasePanel } from '@/components/admin/DocsChasePanel';
-import { FlexiDealsPanel } from '@/components/admin/FlexiDealsPanel';
 import { addPipelineNote } from '@/lib/pipelinev2/notes';
 import { HistoryFeed } from '@/components/admin/pipelinev2/HistoryFeed';
 import { CONTACT_TTL_MS, isArchivedApp } from '@/lib/finance/shared';
+import { bucketStatuses } from '@/lib/finance/buckets';
+import { isStalled } from '@/lib/finance/sla';
+import { KpiStrip } from '@/components/admin/finance/KpiStrip';
+import { QueuesSection } from '@/components/admin/finance/QueuesSection';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ChevronDown, Wrench } from 'lucide-react';
 
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -93,6 +96,10 @@ const AdminFinance = () => {
   const { labelFor, whatsappMessageFor, commentRequiredFor, commentPromptFor } = useStatusConfig();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  // KPI-strip bucket filter (redesign P2). A bucket groups 1-3 statuses; the
+  // special 'stalled' / 'declined' buckets define their own scope (stalled =
+  // active SLA breaches; declined = last 30 days regardless of archive).
+  const [bucketFilter, setBucketFilter] = useState<string | null>(null);
   // F&I owner filter. Everyone can change it.
   // Defaults: admin/senior → 'all'; normal F&I → 'self' (their own apps).
   // Values: 'all' | 'self' | 'unassigned' | <fni user uuid>
@@ -112,6 +119,8 @@ const AdminFinance = () => {
   // Role-restricted notification feed filter (super_admin + senior_f_and_i only).
   // 'auto' = role-default behavior. 'f_and_i' or 'admin' = forced view.
   const [notificationFilter, setNotificationFilter] = useState<'admin' | 'senior' | 'f_and_i'>('admin');
+  // Action Feed shows 5 rows by default; expand for the rest (layout cleanup P2).
+  const [feedExpanded, setFeedExpanded] = useState(false);
 
   // Universal Client Hub state
   const [hubOpen, setHubOpen] = useState(false);
@@ -282,6 +291,19 @@ const AdminFinance = () => {
     
     const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
 
+    // KPI-strip bucket filter. 'stalled' and 'declined' carry their own scope
+    // (see state comment); other buckets are plain status groupings.
+    let matchesBucket = true;
+    if (bucketFilter === 'stalled') {
+      matchesBucket = !isArchivedApp(app, role) && isStalled(app as any);
+    } else if (bucketFilter === 'declined') {
+      const t = (app as any).status_updated_at || app.updated_at;
+      matchesBucket = ['declined', 'declined_conditional', 'blacklisted'].includes(app.status || '')
+        && !!t && Date.now() - new Date(t).getTime() < 30 * 24 * 3600 * 1000;
+    } else if (bucketFilter) {
+      matchesBucket = bucketStatuses(bucketFilter).includes(app.status || '');
+    }
+
     // F&I ownership filter. Apps assigned to a NORMAL f&i are private to that
     // user (and admin/senior). Unassigned apps and apps "assigned" to a senior
     // f&i (whose name only reflects that they captured the app) remain visible
@@ -307,10 +329,13 @@ const AdminFinance = () => {
     // Filter by active/archived — ONE shared rule (lib/finance/shared). For F&I,
     // terminal success statuses, 'archived' and cancelled/ghosted go to the Archive
     // tab while Declined/Blacklisted stay in Active; other roles use the legacy
-    // is_archived-or-terminal behaviour.
-    const matchesViewMode = viewMode === 'archived' ? isArchivedApp(app, role) : !isArchivedApp(app, role);
+    // is_archived-or-terminal behaviour. The stalled/declined buckets override the
+    // tab split — their definitions already pin the scope.
+    const matchesViewMode = (bucketFilter === 'stalled' || bucketFilter === 'declined')
+      ? true
+      : viewMode === 'archived' ? isArchivedApp(app, role) : !isArchivedApp(app, role);
 
-    return matchesSearch && matchesStatus && matchesFni && matchesViewMode;
+    return matchesSearch && matchesStatus && matchesBucket && matchesFni && matchesViewMode;
   });
 
   // Only the first `visibleCount` rows are rendered to the DOM; the rest mount as
@@ -321,7 +346,7 @@ const AdminFinance = () => {
   // Reset the window whenever the filtered set changes (search/filter/tab switch).
   useEffect(() => {
     setVisibleCount(40);
-  }, [searchQuery, statusFilter, fniFilter, viewMode]);
+  }, [searchQuery, statusFilter, bucketFilter, fniFilter, viewMode]);
 
   // Grow the window as the sentinel nears the viewport (load-more-on-scroll).
   useEffect(() => {
@@ -649,36 +674,41 @@ const AdminFinance = () => {
         subtitle="Manage and process finance applications"
         actions={
           <>
-            <Button variant="outline" size="sm" onClick={copyInfoRequestTemplate} className="w-fit">
-              <Copy className="w-4 h-4 mr-2" />
-              Copy Info Request
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setCreditReportOpen(true)} className="w-fit">
-              <BarChart3 className="w-4 h-4 mr-2 text-amber-400" />
-              Credit Report
-            </Button>
-            {(isSuperAdmin || isSeniorFAndI) && (
-              <Button variant="outline" size="sm" onClick={() => setCashDealModalOpen(true)} className="w-fit">
-                <Banknote className="w-4 h-4 mr-2" />
-                Cash Deal
-              </Button>
-            )}
-            <Button variant="outline" size="sm" onClick={() => setWaModalOpen(true)} className="w-fit">
-              <MessageSquare className="w-4 h-4 mr-2 text-emerald-500" />
-              WhatsApp to PDF
-            </Button>
-            <Button variant="outline" size="sm" onClick={downloadOutstandingFeedbackPDF} className="w-fit">
-              <ClipboardList className="w-4 h-4 mr-2 text-sky-400" />
-              Feedback PDF
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate(ADMIN_ROUTES.quotes)} className="w-fit">
-              <Calculator className="w-4 h-4 mr-2" />
-              Quote Generator
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setManualEntryOpen(true)} className="w-fit">
-              <UserPlus className="w-4 h-4 mr-2" />
-              Add Manual Entry
-            </Button>
+            {/* Tools ▾ — absorbs the 7 secondary header buttons (layout cleanup P2) */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="w-fit">
+                  <Wrench className="w-4 h-4 mr-2" />
+                  Tools
+                  <ChevronDown className="w-3.5 h-3.5 ml-1.5 opacity-60" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={() => setManualEntryOpen(true)}>
+                  <UserPlus className="w-4 h-4 mr-2" /> Add Manual Entry
+                </DropdownMenuItem>
+                {(isSuperAdmin || isSeniorFAndI) && (
+                  <DropdownMenuItem onClick={() => setCashDealModalOpen(true)}>
+                    <Banknote className="w-4 h-4 mr-2" /> Cash Deal
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={() => navigate(ADMIN_ROUTES.quotes)}>
+                  <Calculator className="w-4 h-4 mr-2" /> Quote Generator
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setCreditReportOpen(true)}>
+                  <BarChart3 className="w-4 h-4 mr-2 text-amber-400" /> Credit Report
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={downloadOutstandingFeedbackPDF}>
+                  <ClipboardList className="w-4 h-4 mr-2 text-sky-400" /> Feedback PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setWaModalOpen(true)}>
+                  <MessageSquare className="w-4 h-4 mr-2 text-emerald-500" /> WhatsApp to PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={copyInfoRequestTemplate}>
+                  <Copy className="w-4 h-4 mr-2" /> Copy Info Request
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button size="sm" onClick={() => navigate(ADMIN_ROUTES.financeCreate)} className="w-fit">
               <UserPlus className="w-4 h-4 mr-2" />
               Create Application
@@ -689,89 +719,19 @@ const AdminFinance = () => {
 
       <div className="p-6">
 
-        {/* Status Counter Strip — F&I sees finance pipeline; Admin/Sales see internal-note overview */}
-        {(() => {
-          // Admins see the full F&I pipeline view as well (parity — admin has access to all features).
-          const isFAndIRole = (role === 'f_and_i' || role === 'senior_f_and_i' || role === 'super_admin');
+        {/* ONE clickable KPI strip — replaces the old FNI_PIPELINE strip + 9
+            StatTiles (two counting systems that couldn't be clicked). Click a
+            tile to filter the table to that bucket; click again to clear. */}
+        <KpiStrip
+          applications={applications}
+          activeApps={activeApps}
+          activeBucket={bucketFilter}
+          onBucketClick={(key) => {
+            setBucketFilter((prev) => (prev === key ? null : key));
+            setStatusFilter('all'); // bucket and the status dropdown never fight
+          }}
+        />
 
-          // F&I-relevant pipeline statuses (workflow stages F&I owns)
-          const FNI_PIPELINE: { key: string; label: string; color: string }[] = [
-            { key: 'application_submitted', label: 'Ready To Load', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
-            { key: 'ready_to_submit', label: 'Ready to Submit', color: 'bg-emerald-900/30 text-emerald-300 border-emerald-400/50' },
-            { key: 'sent_to_banks', label: 'Sent to Banks', color: 'bg-sky-500/10 text-sky-400 border-sky-500/20' },
-            { key: 'pre_approved', label: 'Pre-Approved', color: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' },
-            { key: 'pre_approved_flexi', label: 'Pre-Appr. Flexi', color: 'bg-teal-500/10 text-teal-400 border-teal-500/20' },
-            { key: 'validations_pending', label: 'Validations Pending', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
-            { key: 'validations_complete', label: 'Validations Complete', color: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' },
-            { key: 'validated_flexi', label: 'Validated Flexi', color: 'bg-lime-500/10 text-lime-400 border-lime-500/20' },
-            { key: 'contract_sent', label: 'Contract Sent', color: 'bg-violet-500/10 text-violet-400 border-violet-500/20' },
-            { key: 'contract_signed', label: 'Contract Signed', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
-            { key: 'declined_conditional', label: 'Declined (Cond.)', color: 'bg-orange-500/10 text-orange-400 border-orange-500/20' },
-            { key: 'declined', label: 'Declined', color: 'bg-red-500/10 text-red-400 border-red-500/20' },
-            { key: 'blacklisted', label: 'Blacklisted', color: 'bg-rose-500/10 text-rose-400 border-rose-500/20' },
-          ];
-
-          let total = 0;
-          const counts: Record<string, number> = {};
-          if (isFAndIRole) {
-            FNI_PIPELINE.forEach(s => { counts[s.key] = 0; });
-            for (const a of applications as any[]) {
-              if (a.is_archived) continue;
-              total += 1;
-              if (counts[a.status] !== undefined) counts[a.status] += 1;
-            }
-          } else {
-            ['no_notes','note_to_admin','note_to_f_and_i','note_to_senior_f_and_i'].forEach(k => { counts[k] = 0; });
-            for (const a of applications as any[]) {
-              if (a.is_archived) continue;
-              const norm = normalizeInternalStatus(a.internal_status) || 'no_notes';
-              if (counts[norm] !== undefined) counts[norm] += 1;
-              total += 1;
-            }
-          }
-
-          const internalOrder: InternalStatus[] = ['note_to_admin', 'note_to_f_and_i', 'note_to_senior_f_and_i', 'no_notes'];
-          const headerLabel = isFAndIRole ? 'F&I Pipeline Overview' : 'Internal Status Overview';
-
-          return (
-            <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="w-full bg-[#1A1A1A] border border-zinc-800 rounded-lg p-3 mb-4"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-500 font-medium">
-                  {headerLabel}
-                </p>
-                <span className="text-[10px] text-zinc-500">{total} active app{total === 1 ? '' : 's'}</span>
-              </div>
-              <div className={`grid grid-cols-2 sm:grid-cols-3 ${isFAndIRole ? 'lg:grid-cols-5 xl:grid-cols-10' : 'lg:grid-cols-5'} gap-2`}>
-                {isFAndIRole
-                  ? FNI_PIPELINE.map((s) => (
-                      <div
-                        key={s.key}
-                        className={`flex items-center justify-between px-3 py-2 rounded-md border ${s.color}`}
-                      >
-                        <span className="text-[11px] uppercase tracking-wider truncate">{s.label}</span>
-                        <span className="text-lg font-semibold tabular-nums ml-2">{counts[s.key]}</span>
-                      </div>
-                    ))
-                  : internalOrder.map((key) => {
-                      const cfg = INTERNAL_STATUSES[key];
-                      return (
-                        <div
-                          key={key}
-                          className={`flex items-center justify-between px-3 py-2 rounded-md border ${cfg.color}`}
-                        >
-                          <span className="text-[11px] uppercase tracking-wider truncate">{cfg.label}</span>
-                          <span className="text-lg font-semibold tabular-nums ml-2">{counts[key]}</span>
-                        </div>
-                      );
-                    })}
-              </div>
-            </motion.div>
-          );
-        })()}
 
         {/* Action Feed — directed-routing notification banner.
             Admin → Note to Admin only.
@@ -853,7 +813,7 @@ const AdminFinance = () => {
                 </span>
               </div>
               <div className="flex flex-col gap-1.5 mt-1">
-                {feed.map((app: any) => {
+                {(feedExpanded ? feed : feed.slice(0, 5)).map((app: any) => {
                   // Color-code by which directed feed we're showing.
                   const isAdminFeed = effectiveView === 'admin';
                   const subLabel =
@@ -900,6 +860,15 @@ const AdminFinance = () => {
                     </button>
                   );
                 })}
+                {feed.length > 5 && (
+                  <button
+                    type="button"
+                    onClick={() => setFeedExpanded((e) => !e)}
+                    className="text-[11px] text-zinc-500 hover:text-zinc-300 py-1 text-left transition-colors"
+                  >
+                    {feedExpanded ? '▲ Show fewer' : `▼ Show all ${feed.length}`}
+                  </button>
+                )}
               </div>
               </>
               )}
@@ -921,11 +890,17 @@ const AdminFinance = () => {
           </Tabs>
         </motion.div>
 
-        {/* Docs Chase — pre-approval follow-up workstation (contact + docs tracking). */}
-        <DocsChasePanel applications={applications} />
-
-        {/* Flexi Deals — the non-traditional finance track's own section. */}
-        <FlexiDealsPanel applications={applications} />
+        {/* MY WORK — one queue per waiting stage with one-click next actions.
+            Absorbs the old DocsChasePanel + FlexiDealsPanel (same behaviors:
+            Contacted stamp, Docs in, Validated) and adds the rest of the flow
+            plus the cross-cutting ⚠ Stalled queue. Active view only. */}
+        {viewMode === 'active' && (
+          <QueuesSection
+            applications={activeApps}
+            role={role}
+            onSetStatus={(app, status) => requestFinanceStatusChange(app, status)}
+          />
+        )}
 
         {/* Filters */}
         <motion.div
@@ -972,111 +947,6 @@ const AdminFinance = () => {
             </Select>
           )}
         </motion.div>
-
-        {/* Stats */}
-        {(() => {
-          const isToday = (d?: string | null) => {
-            if (!d) return false;
-            const x = new Date(d), n = new Date();
-            return x.getFullYear() === n.getFullYear() && x.getMonth() === n.getMonth() && x.getDate() === n.getDate();
-          };
-          // Cumulative daily high-water mark: count any app that ENTERED this status today
-          // at any point (using status_history timeline), regardless of where it is now.
-          // .some() ensures one app contributes at most +1 per status per day.
-          const enteredStatusTodayHistory = (a: FinanceApplication, status: string) => {
-            const history = Array.isArray((a as any).status_history) ? (a as any).status_history : [];
-            if (history.some((e: any) => e?.status === status && isToday(e?.timestamp))) return true;
-            // Fallback: current status with status_updated_at today (covers pre-history rows)
-            if (a.status === status) {
-              const stamp = (a as any).status_updated_at;
-              if (stamp && isToday(stamp)) return true;
-            }
-            return false;
-          };
-
-          const todayByStatus = (status: string, useCreated = false) =>
-            applications.filter(a => {
-              if (enteredStatusTodayHistory(a, status)) return true;
-              // Intake fallback: count brand-new rows created today even with no history yet
-              if (useCreated && a.status === status && isToday(a.created_at)) return true;
-              return false;
-            }).length;
-
-          const totalActiveToday = activeApps.filter(a => {
-            const history = Array.isArray((a as any).status_history) ? (a as any).status_history : [];
-            if (history.some((e: any) => isToday(e?.timestamp))) return true;
-            const stamp = (a as any).status_updated_at;
-            if (stamp && isToday(stamp)) return true;
-            return isToday(a.created_at);
-          }).length;
-          const Sub = ({ n }: { n: number }) => (
-            <div className={`text-[10px] mt-0.5 ${n > 0 ? 'opacity-60' : 'text-zinc-600'}`}>+{n} today</div>
-          );
-          // Last-30-days window (was ALL-TIME, which dwarfed the active-scoped
-          // neighbours; pure active-scope would show ~0 for admins because
-          // declines auto-archive). Same rule for every role.
-          const THIRTY_D = 30 * 24 * 3600 * 1000;
-          const declinedCount = applications.filter(a => {
-            if (a.status !== 'declined' && a.status !== 'blacklisted') return false;
-            const t = (a as any).status_updated_at || a.updated_at;
-            return t && Date.now() - new Date(t).getTime() < THIRTY_D;
-          }).length;
-          const declinedToday = todayByStatus('declined') + todayByStatus('blacklisted');
-          return (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
-              className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-9 gap-2 mb-4"
-            >
-              <StatTile
-                label="Pending"
-                value={<span className="text-amber-400">{activeApps.filter(a => a.status === 'pending').length}</span>}
-                hint={<Sub n={todayByStatus('pending', true)} />}
-              />
-              <StatTile
-                label="Apps Submitted"
-                value={<span className="text-indigo-400">{activeApps.filter(a => a.status === 'application_submitted').length}</span>}
-                hint={<Sub n={todayByStatus('application_submitted')} />}
-              />
-              <StatTile
-                label="Ready to Submit"
-                value={<span className="text-emerald-300">{activeApps.filter(a => a.status === 'ready_to_submit').length}</span>}
-                hint={<Sub n={todayByStatus('ready_to_submit')} />}
-              />
-              <StatTile
-                label="Pre-Approved"
-                value={<span className="text-teal-400">{activeApps.filter(a => a.status === 'pre_approved').length}</span>}
-                hint={<Sub n={todayByStatus('pre_approved')} />}
-              />
-              <StatTile
-                label="Vals Submitted"
-                value={<span className="text-blue-400">{activeApps.filter(a => a.status === 'validations_pending').length}</span>}
-                hint={<Sub n={todayByStatus('validations_pending')} />}
-              />
-              <StatTile
-                label="Vals Complete"
-                value={<span className="text-cyan-400">{activeApps.filter(a => a.status === 'validations_complete').length}</span>}
-                hint={<Sub n={todayByStatus('validations_complete')} />}
-              />
-              <StatTile
-                label="Flexi Deals"
-                value={<span className="text-teal-400">{activeApps.filter(a => a.status === 'pre_approved_flexi' || a.status === 'validated_flexi').length}</span>}
-                hint={<Sub n={todayByStatus('pre_approved_flexi') + todayByStatus('validated_flexi')} />}
-              />
-              <StatTile
-                label="Declined (30d)"
-                value={<span className="text-red-400">{declinedCount}</span>}
-                hint={<span className={declinedToday > 0 ? 'text-red-300' : 'text-zinc-400'}>+{declinedToday} today</span>}
-              />
-              <StatTile
-                label="Active"
-                value={activeApps.length}
-                hint={<Sub n={totalActiveToday} />}
-              />
-            </motion.div>
-          );
-        })()}
 
         {/* Table */}
         <motion.div
