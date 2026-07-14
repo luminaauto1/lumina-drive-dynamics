@@ -120,6 +120,19 @@ export const useUpdateFinanceApplication = () => {
         updates = rest;
       }
 
+      // suppressClientNotifications — virtual flag (stripped before the DB write)
+      // for callers whose path has NEVER messaged the client (e.g. the CRM-modal
+      // preset buttons). When true, every CLIENT-facing dispatch below is skipped
+      // (auto-mailer email, notify-app-submitted/declined/blacklisted/cancelled,
+      // wa-status-send) while ALL bookkeeping still runs: status_history +
+      // status_updated_at stamp, activity trail, EasySocial tag-sync, deal-draft
+      // and staff-facing alerts. Owner rule 2026-07-14: no new client sends.
+      const suppressClient = updates?.suppressClientNotifications === true;
+      if (updates && 'suppressClientNotifications' in updates) {
+        const { suppressClientNotifications: _omit2, ...rest2 } = updates;
+        updates = rest2;
+      }
+
       // 1. Fetch current app to detect status change and get email — narrowed
       // to ONLY the fields the dispatch logic below actually reads (status +
       // history, client identity/contact, notes, bank_reference, vehicle_id,
@@ -320,7 +333,7 @@ export const useUpdateFinanceApplication = () => {
 
       // WhatsApp "Client Cancelled / Ghosted" notification — fires when the
       // main finance status update path moves into `client_cancelled`.
-      if (statusActuallyChanged && newStatus === 'client_cancelled') {
+      if (statusActuallyChanged && newStatus === 'client_cancelled' && !suppressClient) {
         try {
           const { publicApiHeaders } = await import('@/lib/publicApi');
           supabase.functions.invoke('notify-client-cancelled', {
@@ -337,6 +350,7 @@ export const useUpdateFinanceApplication = () => {
 
       if (
         statusActuallyChanged &&
+        !suppressClient &&
         currentApp.email &&
         EMAIL_ELIGIBLE_STATUSES.has(newStatus!)
       ) {
@@ -423,6 +437,7 @@ export const useUpdateFinanceApplication = () => {
       if (
         statusActuallyChanged &&
         newStatus === 'ready_to_submit' &&
+        !suppressClient &&
         currentApp?.phone
       ) {
         const priorHistory = Array.isArray((currentApp as any)?.status_history)
@@ -456,6 +471,7 @@ export const useUpdateFinanceApplication = () => {
       if (
         statusActuallyChanged &&
         newStatus === 'declined' &&
+        !suppressClient &&
         currentApp?.phone
       ) {
         try {
@@ -478,6 +494,7 @@ export const useUpdateFinanceApplication = () => {
       if (
         statusActuallyChanged &&
         newStatus === 'blacklisted' &&
+        !suppressClient &&
         currentApp?.phone
       ) {
         try {
@@ -606,6 +623,7 @@ export const useUpdateFinanceApplication = () => {
         statusActuallyChanged &&
         newStatus &&
         currentApp?.phone &&
+        !suppressClient &&
         !NOTIFY_OWNED_STATUSES.has(newStatus)
       ) {
         try {

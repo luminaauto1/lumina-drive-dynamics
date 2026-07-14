@@ -19,8 +19,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useUpdateFinanceApplication, type FinanceApplication } from '@/hooks/useFinanceApplications';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-
-const CONTACT_TTL_MS = 20 * 60 * 60 * 1000; // mirrors the existing 20h auto-reset
+import { CONTACT_TTL_MS } from '@/lib/finance/shared';
 
 const CHASE_STATUSES = new Set(['pre_approved', 'pre_approved_flexi']);
 
@@ -78,7 +77,8 @@ export function DocsChasePanel({ applications }: { applications: FinanceApplicat
         author_id: user?.id || null,
         author_name: actorName,
         action_type: 'Docs Chase Contact',
-      }]);
+        application_id: app.id,
+      } as any]);
       // Realtime on finance_applications refreshes the list automatically.
     } catch (e) {
       console.error('[docs-chase] stamp failed', e);

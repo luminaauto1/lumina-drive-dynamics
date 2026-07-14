@@ -12,6 +12,7 @@ import AdminLayout from '@/components/admin/AdminLayout';
 import PageHeader from '@/components/admin/PageHeader';
 import { ADMIN_ROUTES, quoteBuilderPath } from '@/lib/adminRoutes';
 import { validateSaId, isSaIdInvalid } from '@/lib/saIdValidation';
+import { isContactFresh } from '@/lib/finance/shared';
 import FinancePodiumModal from '@/components/admin/FinancePodiumModal';
 import FinalizeDealModal from '@/components/admin/FinalizeDealModal';
 import { DealExpensesSection } from '@/components/admin/DealExpensesSection';
@@ -966,17 +967,17 @@ const AdminDealRoom = () => {
                     </Button>
                   )}
                   {/* Docs-requested tracker for pre_approved — reflects the Telegram
-                      "✅ Contacted" tap and lets you toggle it here too. */}
+                      "✅ Contacted" tap and lets you toggle it here too. Freshness
+                      uses the SAME shared TTL as the Finance tab / Docs Chase panel
+                      (was same-calendar-day here, which disagreed with the 20h rule). */}
                   {application.status === 'pre_approved' && (() => {
-                    const at = (application as any).docs_contacted_at;
-                    const contactedToday = !!(application as any).docs_contacted && at &&
-                      new Date(at).toDateString() === new Date().toDateString();
+                    const contactedFresh = isContactFresh(application as any);
                     return (
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={async () => {
-                          const next = !contactedToday;
+                          const next = !contactedFresh;
                           const payload = next
                             ? { docs_contacted: true, docs_contacted_at: new Date().toISOString() }
                             : { docs_contacted: false, docs_contacted_at: null };
@@ -984,16 +985,16 @@ const AdminDealRoom = () => {
                             const { error } = await supabase.from('finance_applications').update(payload as any).eq('id', application.id);
                             if (error) throw error;
                             setApplication((prev) => prev ? ({ ...prev, ...payload } as any) : null);
-                            toast.success(next ? 'Marked: documents requested today' : 'Cleared documents-requested');
+                            toast.success(next ? 'Marked: documents requested' : 'Cleared documents-requested');
                           } catch {
                             toast.error('Failed to update');
                           }
                         }}
-                        className={contactedToday
+                        className={contactedFresh
                           ? 'text-xs md:text-sm border-emerald-500/40 text-emerald-600 bg-emerald-500/10'
                           : 'text-xs md:text-sm border-zinc-500/30 text-zinc-500 hover:bg-zinc-500/10'}
                       >
-                        {contactedToday ? '✅ Docs requested today' : '📩 Mark docs requested'}
+                        {contactedFresh ? '✅ Docs requested' : '📩 Mark docs requested'}
                       </Button>
                     );
                   })()}

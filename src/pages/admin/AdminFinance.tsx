@@ -39,6 +39,8 @@ import { CreditScanButton } from '@/components/finance/CreditScanButton';
 import { DocsChasePanel } from '@/components/admin/DocsChasePanel';
 import { FlexiDealsPanel } from '@/components/admin/FlexiDealsPanel';
 import { addPipelineNote } from '@/lib/pipelinev2/notes';
+import { HistoryFeed } from '@/components/admin/pipelinev2/HistoryFeed';
+import { CONTACT_TTL_MS, isArchivedApp } from '@/lib/finance/shared';
 
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -159,7 +161,10 @@ const AdminFinance = () => {
   // Comment-gate interception for the inline status dropdown. When the target
   // status has comment_required, we stash the pending change and pop the gate
   // modal instead of writing immediately.
-  const [commentGate, setCommentGate] = useState<{ app: FinanceApplication; status: string } | null>(null);
+  // `extra` carries additional columns captured before the gate popped (e.g. the
+  // bank-reference + F&I assignment from the bank-ref modal) so gating never
+  // loses them — they land in the same single hook write as the status.
+  const [commentGate, setCommentGate] = useState<{ app: FinanceApplication; status: string; extra?: any } | null>(null);
 
   // Action Feed → row scroll/highlight
   const [highlightedAppId, setHighlightedAppId] = useState<string | null>(null);
@@ -299,19 +304,11 @@ const AdminFinance = () => {
       matchesFni = owner === fniFilter;
     }
 
-    // Filter by active/archived. For F&I, terminal success statuses, 'archived' and
-    // cancelled/ghosted ('client_cancelled') go to the Archive tab. Declined/Blacklisted
-    // stay in Active. All other roles keep the legacy auto-archive behaviour.
-    const s = (app.status || '').toLowerCase().trim();
-    let isArchived: boolean;
-    if ((role === 'f_and_i' || role === 'senior_f_and_i')) {
-      const fAndIArchived = ['archived', 'vehicle_delivered', 'finalized', 'client_cancelled'];
-      isArchived = fAndIArchived.includes(s);
-    } else {
-      const legacyTerminal = ['finalized', 'delivered', 'vehicle_delivered', 'archived', 'client_cancelled'].includes(s);
-      isArchived = (app as any).is_archived === true || legacyTerminal;
-    }
-    const matchesViewMode = viewMode === 'archived' ? isArchived : !isArchived;
+    // Filter by active/archived — ONE shared rule (lib/finance/shared). For F&I,
+    // terminal success statuses, 'archived' and cancelled/ghosted go to the Archive
+    // tab while Declined/Blacklisted stay in Active; other roles use the legacy
+    // is_archived-or-terminal behaviour.
+    const matchesViewMode = viewMode === 'archived' ? isArchivedApp(app, role) : !isArchivedApp(app, role);
 
     return matchesSearch && matchesStatus && matchesFni && matchesViewMode;
   });
@@ -425,10 +422,10 @@ const AdminFinance = () => {
         updatePayload.assigned_f_and_i_at = new Date().toISOString();
       }
 
-      // 20-hour auto-reset enforcement: if the docs-contacted tick is older than
-      // 20h, flush it back to false on the next save so the DB matches the UI.
+      // Auto-reset enforcement: if the docs-contacted tick is older than the
+      // shared TTL, flush it back to false on the next save so DB matches UI.
       const dca = (pendingApp as any)?.docs_contacted_at;
-      if ((pendingApp as any)?.docs_contacted && dca && (Date.now() - new Date(dca).getTime() > 20 * 60 * 60 * 1000)) {
+      if ((pendingApp as any)?.docs_contacted && dca && (Date.now() - new Date(dca).getTime() > CONTACT_TTL_MS)) {
         updatePayload.docs_contacted = false;
         updatePayload.docs_contacted_at = null;
       }
@@ -438,15 +435,17 @@ const AdminFinance = () => {
         .eq('id', pendingApp.id);
       if (error) throw error;
 
-      // Dual-sync to Universal Timeline
+      // Dual-sync to Universal Timeline — application_id makes the entry show up
+      // in per-application feeds (HistoryFeed), not just the client-wide trail.
       await supabase.from('client_audit_logs').insert([{
         client_email: pendingApp.email || null,
         client_phone: pendingApp.phone || null,
         note: `«${roleTag}» ${actingName} — [Internal Status → ${INTERNAL_STATUSES[statusKey as keyof typeof INTERNAL_STATUSES]?.label || statusKey}] ${statusNote || 'No comment'}`,
         author_id: actingUser?.id || null,
         author_name: actingName,
-        action_type: 'Internal Status Update'
-      }]);
+        action_type: 'Internal Status Update',
+        application_id: pendingApp.id,
+      } as any]);
 
       toast({ title: "Status & CRM notes updated" });
       refetch();
@@ -469,7 +468,7 @@ const AdminFinance = () => {
   // ── Inline status-dropdown write (extracted so the comment gate can call it) ──
   // EXACT same finance write + sent_to_banks audit as before; `comment` (when
   // supplied via the comment gate) is appended as a status_change pipeline note.
-  const performFinanceStatusWrite = async (app: FinanceApplication, newStatus: string, comment?: string) => {
+  const performFinanceStatusWrite = async (app: FinanceApplication, newStatus: string, comment?: string, extraUpdates?: any) => {
     // GUARDRAIL: only allow whitelisted finance statuses to reach DB.
     const validFinanceStatuses = STATUS_OPTIONS.map(o => o.value);
     if (!validFinanceStatuses.includes(newStatus)) {
@@ -488,6 +487,7 @@ const AdminFinance = () => {
           status: newStatus,
           is_archived: archiveOnTerminal,
           ...(clearInternal ? { internal_status: 'no_notes' } : {}),
+          ...(extraUpdates || {}),
         },
       });
       // Comment gate — persist the entered comment as a status_change note.
@@ -541,7 +541,8 @@ const AdminFinance = () => {
             author_id: actingUser?.id || null,
             author_name: actingName,
             action_type: 'Sent to Bank',
-          }]);
+            application_id: app.id,
+          } as any]);
         } catch (auditErr) {
           console.error('[sent_to_banks audit] failed:', auditErr);
         }
@@ -631,14 +632,9 @@ const AdminFinance = () => {
     }
   };
 
-  // Stats for active applications only (mirrors the tab filter logic)
-  const activeApps = applications.filter(a => {
-    const s = (a.status || '').toLowerCase().trim();
-    if ((role === 'f_and_i' || role === 'senior_f_and_i')) {
-      return !['archived', 'vehicle_delivered', 'finalized', 'client_cancelled'].includes(s);
-    }
-    return !((a as any).is_archived === true) && !['finalized', 'delivered', 'vehicle_delivered', 'archived', 'client_cancelled'].includes(s);
-  });
+  // Stats for active applications only — same shared rule as the tab filter,
+  // so the counters can never drift from what the table shows.
+  const activeApps = applications.filter(a => !isArchivedApp(a, role));
 
   return (
     <AdminLayout>
@@ -1748,24 +1744,29 @@ const AdminFinance = () => {
               ) => {
                 if (!pendingApp) return;
                 try {
-                  const { error } = await supabase
-                    .from('finance_applications')
-                    .update({
+                  const comment = statusNote?.trim();
+                  // Route through the shared update hook so the bookkeeping this
+                  // path used to skip now fires: status_history + status_updated_at
+                  // stamp, activity trail, EasySocial tag-sync. These preset buttons
+                  // have NEVER messaged the client — suppressClientNotifications
+                  // keeps every client-facing send off (owner rule 2026-07-14).
+                  await updateApplication.mutateAsync({
+                    id: pendingApp.id,
+                    updates: {
                       status: targetStatus,
                       internal_status: 'no_notes',
                       attention_updated_at: new Date().toISOString(),
+                      suppressClientNotifications: true,
+                      comment: comment || undefined,
                       // Claim only when unassigned — never steal another F&I's file.
                       ...(role === 'f_and_i' && user?.id && !(pendingApp as any)?.assigned_f_and_i ? {
                         assigned_f_and_i: user.id,
                         assigned_f_and_i_at: new Date().toISOString(),
                       } : {}),
-
-                    })
-                    .eq('id', pendingApp.id);
-                  if (error) throw error;
+                    },
+                  });
 
                   const stamp = new Date().toLocaleString('en-ZA', { hour12: false });
-                  const comment = statusNote?.trim();
                   const autoEntry = comment
                     ? `[${stamp}] «FNI» ${opts.auditVerb} — ${comment}`
                     : `[${stamp}] «FNI» ${opts.auditVerb}`;
@@ -1784,7 +1785,8 @@ const AdminFinance = () => {
                       author_name: 'F&I',
                       client_email: pendingApp.email || null,
                       client_phone: pendingApp.phone || null,
-                    });
+                      application_id: pendingApp.id,
+                    } as any);
                   }
 
                   toast({ title: opts.label, description: 'Status updated & notification cleared.' });
@@ -1868,13 +1870,25 @@ const AdminFinance = () => {
                   </div>
                 </div>
               )}
+              {/* Unified timeline — the universal audit trail + structured pipeline
+                  notes for THIS application. This is where comment-gate comments
+                  (stored in pipeline_notes) and status changes made from any other
+                  surface become visible — the CRM blob above never showed them. */}
+              {pendingApp && (
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wider">Full Activity Timeline</Label>
+                  <div className="bg-muted/30 border border-border rounded-md max-h-[180px] overflow-auto p-2.5">
+                    <HistoryFeed app={pendingApp} />
+                  </div>
+                </div>
+              )}
             </div>
             {/* Pre-Approved doc-request tracker — visible only while the app is in pre_approved.
                 Auto-resets visually after 20h, and the next save flushes the stale flag to the DB. */}
             {(pendingApp as any)?.status === 'pre_approved' && (() => {
               const at = (pendingApp as any)?.docs_contacted_at;
               const ageMs = at ? Date.now() - new Date(at).getTime() : Infinity;
-              const stale = ageMs > 20 * 60 * 60 * 1000;
+              const stale = ageMs > CONTACT_TTL_MS;
               const dbChecked = !!(pendingApp as any)?.docs_contacted;
               const checked = dbChecked && !stale;
               return (
@@ -1990,17 +2004,20 @@ const AdminFinance = () => {
         docsReceived={!!((bankRefApp as any)?.docs_email || (bankRefApp as any)?.docs_whatsapp)}
         onConfirm={async (reference, fniId) => {
           if (!bankRefApp) return;
-          try {
-            const updates: any = { status: bankRefTargetStatus, bank_reference: reference };
-            // Honor explicit manual assignment from the popup. `null` => unassign.
-            if (fniId !== undefined) {
-              updates.assigned_f_and_i = fniId;
-              updates.assigned_f_and_i_at = fniId ? new Date().toISOString() : null;
-            }
-            await updateApplication.mutateAsync({ id: bankRefApp.id, updates });
-          } catch (err) {
-            // error toast handled by hook
+          // Bank-ref extras ride along with the status write (single hook call).
+          const extra: any = { bank_reference: reference };
+          // Honor explicit manual assignment from the popup. `null` => unassign.
+          if (fniId !== undefined) {
+            extra.assigned_f_and_i = fniId;
+            extra.assigned_f_and_i_at = fniId ? new Date().toISOString() : null;
           }
+          // This path used to skip the comment gate the plain dropdown enforces —
+          // same transition, same gate: pop it and let confirm run the write.
+          if (commentRequiredFor(bankRefTargetStatus)) {
+            setCommentGate({ app: bankRefApp, status: bankRefTargetStatus, extra });
+            return;
+          }
+          void performFinanceStatusWrite(bankRefApp, bankRefTargetStatus, undefined, extra);
         }}
       />
 
@@ -2013,9 +2030,9 @@ const AdminFinance = () => {
           prompt={commentPromptFor(commentGate.status)}
           onCancel={() => setCommentGate(null)}
           onConfirm={(comment) => {
-            const { app, status } = commentGate;
+            const { app, status, extra } = commentGate;
             setCommentGate(null);
-            void performFinanceStatusWrite(app, status, comment);
+            void performFinanceStatusWrite(app, status, comment, extra);
           }}
         />
       )}
