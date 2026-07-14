@@ -8,6 +8,7 @@
 // (only acts on the queried, time-gated subset).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { getWaTemplate, buildWaSendUrl } from "../_shared/waTemplates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,8 +16,12 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 };
 
-const TEMPLATE_URL_PREFIX =
-  "https://api.easysocial.in/api/v1/wa-templates/send/cmq5465hx17dtk8xp4t4o0juf/20020/4026/API/";
+// SETTINGS-DRIVEN (2026-07-14): template link from whatsapp_templates key
+// 'declined_followup_90d' (Admin → Settings → WhatsApp Templates). Seeded
+// INACTIVE after the WhatsApp ban (old template 20020 is dead, no replacement
+// created yet) — the sweep politely no-ops until the owner pastes a new link
+// and activates the row; nothing is stamped, so the backlog stays intact.
+const TEMPLATE_KEY = "declined_followup_90d";
 
 const sanitizePhone = (raw: unknown): string | null => {
   if (raw === null || raw === undefined) return null;
@@ -36,6 +41,18 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+
+  // Resolve the settings-managed template ONCE for the whole sweep. Missing /
+  // inactive / URL-less row = the normal "feature off" path: skip WITHOUT
+  // stamping followup_sent, so rows process later once a link is configured.
+  const tpl = await getWaTemplate(TEMPLATE_KEY);
+  if (!tpl || tpl.active === false || !tpl.send_url || !tpl.send_url.trim()) {
+    console.log("[process-delayed-followups] skipped — no active template configured for", TEMPLATE_KEY);
+    return new Response(
+      JSON.stringify({ ok: true, skipped: "no_active_template", template_key: TEMPLATE_KEY }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
 
   const threeMonthsAgoIso = new Date(Date.now() - 1000 * 60 * 60 * 24 * 90).toISOString();
 
@@ -70,7 +87,11 @@ Deno.serve(async (req) => {
       continue;
     }
 
-    const url = `${TEMPLATE_URL_PREFIX}${phone}?body1=${encodeURIComponent(name)}`;
+    const url = buildWaSendUrl(tpl.send_url, phone, { name, mobilenumber: phone });
+    if (!url) {
+      results.push({ id: row.id, skipped: "bad_send_url" });
+      continue;
+    }
     console.log("[process-delayed-followups] →", row.id, url);
 
     let httpStatus = 0;

@@ -1,8 +1,17 @@
+// notify-referral — welcome WhatsApp to a newly referred person.
+// Fired from the public Refer page / referral modal / useReferrals.
+//
+// SETTINGS-DRIVEN (2026-07-14): template link from whatsapp_templates key
+// 'referral' (Admin → Settings → WhatsApp Templates). No hardcoded ids or
+// tokens (the old plaintext token constant is gone). Stays unauthenticated —
+// the public referral pages call it without the internal key.
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { sendTemplateByKey } from "../_shared/waTemplates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-lumina-key",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-lumina-key, x-supabase-api-version, x-region, x-application-name",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -14,32 +23,19 @@ serve(async (req) => {
     if (!phone_number) throw new Error("No phone_number provided.");
     if (!client_name) throw new Error("No client_name provided.");
 
-    let sanitizedPhone = String(phone_number).replace(/[\s\-+()]/g, "").replace(/\D/g, "");
-    if (sanitizedPhone.startsWith("0")) sanitizedPhone = "27" + sanitizedPhone.substring(1);
-    if (sanitizedPhone.length < 8 || sanitizedPhone.length > 15) {
-      throw new Error("Invalid phone number");
-    }
-
     const firstName = String(client_name).trim().split(/\s+/)[0] || "Client";
-
-    // Hardcoded fallback token (isolated; do not share with other webhooks)
-    const _token = "eSt2dc1be4b95a4ccdabf289645ba0bf8ea85c016b5cde84430c3749430fbca43c627fa3b46e9db9fa9fe217aa74136ba";
-
-    const apiUrl = `https://api.easysocial.in/api/v1/wa-templates/send/cmq5azcl89x9ck8xp49tu6gm0/20030/4026/API/${sanitizedPhone}?body1=${encodeURIComponent(firstName)}`;
-    console.log("[notify-referral] dispatching:", apiUrl);
-
-    const response = await fetch(apiUrl, {
-      method: "GET",
-      headers: { Accept: "application/json" },
+    const r = await sendTemplateByKey("referral", phone_number, {
+      name: firstName,
+      mobilenumber: String(phone_number),
     });
+    console.log("[notify-referral] result:", JSON.stringify(r));
 
-    const rawText = await response.text();
-    let responseData: any;
-    try { responseData = JSON.parse(rawText); } catch { responseData = { raw: rawText }; }
-    console.log("[notify-referral] response:", response.status, responseData);
-
+    if ("skipped" in r && r.skipped) {
+      return new Response(JSON.stringify({ success: true, skipped: r.skipped }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const rr = r as any;
     return new Response(
-      JSON.stringify({ success: response.ok, status: response.status, api_response: responseData }),
+      JSON.stringify({ success: rr.sent, status: rr.status, api_response: rr.body }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (error: any) {

@@ -21,9 +21,11 @@ import { toast } from 'sonner';
 // — the built-in auto-notification rows have fixed keys wired into notify-*.
 const isCustomKey = (key: string) => key.startsWith('custom_');
 
-// Body-var source options (ZTC's body-var mapping concept). These are curated
-// notes describing which field fills each {bodyN} slot — they document intent for
-// the team; the live notify-* dispatch fills the vars in code, unaffected by this.
+// Body-var source options (ZTC's body-var mapping concept). Documentation for
+// the team: since the 2026-07-14 rewire, the LIVE body values are declared by
+// the send URL's own query string (?body1=name&body2=mobilenumber) — the
+// senders fill each declared token automatically. These dropdowns describe that
+// mapping in plain words so the next person knows what fills what.
 const BODY_SOURCES: { value: string; label: string }[] = [
   { value: 'none', label: 'Not used' },
   { value: 'applicant_full_name', label: 'Applicant full name' },
@@ -153,8 +155,10 @@ const Row = ({ t }: { t: WhatsAppTemplate }) => {
               <Input value={sendUrl} onChange={(e) => setSendUrl(e.target.value)} className="mt-1 h-8 font-mono text-[11px]"
                 placeholder="https://api.easysocial.in/api/v1/wa-templates/send/…/API/{phone}?body1=…" />
               <p className="text-[11px] text-muted-foreground mt-1">
-                Optional — needed only for <em>Test send</em>. This URL contains a campaign token, so it is <strong>not</strong> pre-filled.
-                Paste the matching send URL from the notify function for this template when you want to test it. Live notifications keep using the built-in URL regardless.
+                <strong>This URL drives the LIVE sends.</strong> When EasySocial gives you a new template link, paste it here and every
+                automatic notification for this key uses it immediately — no code changes. Keep the <code>?body1=…</code> part exactly as
+                EasySocial provides it: it declares which values the template expects (<code>name</code>, <code>mobilenumber</code>).
+                An empty URL or an inactive toggle simply turns this notification off.
               </p>
             </div>
 
