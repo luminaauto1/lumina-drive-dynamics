@@ -7,9 +7,11 @@ export const STATUS_OPTIONS = [
   { value: 'ready_to_submit', label: 'Ready to Submit' },
   { value: 'sent_to_banks', label: 'Sent to banks' },
   { value: 'pre_approved', label: 'Pre-Approved (Docs Req)' },
+  { value: 'pre_approved_flexi', label: 'Pre-Approved Flexi' },
   { value: 'documents_received', label: 'Docs Received' },
   { value: 'validations_pending', label: 'Validations Submitted' },
   { value: 'validations_complete', label: 'Validations Complete' },
+  { value: 'validated_flexi', label: 'Validated Flexi' },
   { value: 'contract_sent', label: 'Contract Sent' },
   { value: 'contract_signed', label: 'Contract Signed' },
   { value: 'vehicle_delivered', label: 'Vehicle Delivered' },
@@ -31,9 +33,11 @@ export const STATUS_STEP_ORDER: Record<string, number> = {
   ready_to_submit: 1,
   sent_to_banks: 2,
   pre_approved: 2,
+  pre_approved_flexi: 2, // Flexi (non-traditional) track mirrors pre_approved
   documents_received: 3,
   validations_pending: 4,
   validations_complete: 5,
+  validated_flexi: 5, // Flexi track mirrors validations_complete
   contract_sent: 6,
   contract_signed: 7,
   vehicle_delivered: 8,
@@ -55,9 +59,11 @@ export const USER_STATUS_LABELS: Record<string, string> = {
   ready_to_submit: 'Application Ready - Preparing Submission',
   sent_to_banks: 'Sent to Banks - Awaiting Response',
   pre_approved: 'Pre-Approved - Docs Required',
+  pre_approved_flexi: 'Pre-Approved (Flexi Finance) - Docs Required',
   documents_received: 'Documents Received - Verifying',
   validations_pending: 'Submitted to Bank - Awaiting Response',
   validations_complete: 'Bank Approved - Preparing Contract',
+  validated_flexi: 'Approved (Flexi Finance) - Preparing Next Steps',
   contract_sent: 'Contract Sent - Awaiting Signature',
   contract_signed: 'Contract Signed - Preparing Delivery',
   vehicle_delivered: '🎉 Vehicle Delivered - Congratulations!',
@@ -84,9 +90,11 @@ export const STATUS_STYLES: Record<string, string> = {
   ready_to_submit:       'bg-emerald-500/15 text-emerald-300 border-emerald-500/40',
   sent_to_banks:         'bg-sky-500/15 text-sky-300 border-sky-500/40',
   pre_approved:          'bg-emerald-500/15 text-emerald-300 border-emerald-500/40',
+  pre_approved_flexi:    'bg-teal-500/15 text-teal-300 border-teal-500/40',
   documents_received:    'bg-cyan-500/15 text-cyan-300 border-cyan-500/40',
   validations_pending:   'bg-orange-500/15 text-orange-300 border-orange-500/40',
   validations_complete:  'bg-green-500/15 text-green-300 border-green-500/40',
+  validated_flexi:       'bg-lime-500/15 text-lime-300 border-lime-500/40',
   contract_sent:         'bg-violet-500/15 text-violet-300 border-violet-500/40',
   contract_signed:       'bg-emerald-500/15 text-emerald-300 border-emerald-500/40',
   vehicle_delivered:     'bg-amber-400/15 text-amber-300 border-amber-400/40',
@@ -112,9 +120,11 @@ export const STATUS_STYLES_LIGHT: Record<string, string> = {
   ready_to_submit:       'bg-emerald-100 text-emerald-800 border-emerald-300',
   sent_to_banks:         'bg-sky-100 text-sky-800 border-sky-300',
   pre_approved:          'bg-emerald-100 text-emerald-800 border-emerald-300',
+  pre_approved_flexi:    'bg-teal-100 text-teal-800 border-teal-300',
   documents_received:    'bg-cyan-100 text-cyan-800 border-cyan-300',
   validations_pending:   'bg-orange-100 text-orange-800 border-orange-300',
   validations_complete:  'bg-green-100 text-green-800 border-green-300',
+  validated_flexi:       'bg-lime-100 text-lime-800 border-lime-300',
   contract_sent:         'bg-violet-100 text-violet-800 border-violet-300',
   contract_signed:       'bg-emerald-100 text-emerald-800 border-emerald-300',
   vehicle_delivered:     'bg-amber-100 text-amber-800 border-amber-300',
@@ -143,9 +153,11 @@ export const ADMIN_STATUS_LABELS: Record<string, string> = {
   ready_to_submit: 'Ready to Submit',
   sent_to_banks: 'Sent to banks',
   pre_approved: 'Pre-Approved - Docs Required',
+  pre_approved_flexi: 'Pre-Approved Flexi',
   documents_received: 'Docs Received',
   validations_pending: 'Validations Submitted',
   validations_complete: 'Validations Complete',
+  validated_flexi: 'Validated Flexi',
   contract_sent: 'Contract Sent',
   contract_signed: 'Contract Signed',
   vehicle_delivered: '🎉 Delivered',
@@ -211,6 +223,10 @@ export const getWhatsAppMessage = (
       return `Hi ${name}, thank you for submitting your finance application. Our team is reviewing your details and will be in touch soon.`;
     case 'pre_approved':
       return `Great news ${name}! 🎉 You've been pre-approved! To proceed, we need you to upload the following documents:\n\n• ID Card\n• Driver's License\n• Latest 3 Months Payslips\n• Latest 3 Months Bank Statements\n\nPlease upload them here: ${dashboardUrl}`;
+    case 'pre_approved_flexi':
+      return `Great news ${name}! 🎉 You've been pre-approved through our flexible finance partner! To proceed, we need you to send us the following documents:\n\n• ID Card\n• Driver's License\n• Latest 3 Months Payslips\n• Latest 3 Months Bank Statements\n\nPlease upload them here: ${dashboardUrl}`;
+    case 'validated_flexi':
+      return `Excellent news ${name}! 🎉 Your flexible finance application has been approved and validated! Our team will contact you shortly with the next steps.`;
     case 'documents_received':
       return `Hi ${name}, we have received your documents and are now verifying them. We will update you shortly.`;
     case 'validations_pending':
@@ -240,6 +256,8 @@ export const getWhatsAppMessage = (
 export const canShowDealActions = (status: string): boolean => {
   const eligibleStatuses = [
     'pre_approved',
+    'pre_approved_flexi',
+    'validated_flexi',
     'documents_received',
     'validations_pending',
     'validations_complete',
