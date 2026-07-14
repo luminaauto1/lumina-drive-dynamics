@@ -190,6 +190,20 @@ const AdminFinance = () => {
   const updateApplication = useUpdateFinanceApplication();
   const deleteApplication = useDeleteFinanceApplication();
 
+  // ?app=<id> deep-link (e.g. from Referrals): once the list is loaded, jump to
+  // and highlight the row exactly like an Action Feed click. Runs once per id.
+  const deepLinkedRef = useRef<string | null>(null);
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('app');
+    if (!id || deepLinkedRef.current === id || applications.length === 0) return;
+    const target = applications.find((a) => a.id === id);
+    if (target) {
+      deepLinkedRef.current = id;
+      focusApplicationRow(target);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [applications]);
+
   const copyInfoRequestTemplate = async () => {
     try {
       await navigator.clipboard.writeText(FINANCE_INFO_REQUEST_TEMPLATE);
@@ -1002,7 +1016,15 @@ const AdminFinance = () => {
           const Sub = ({ n }: { n: number }) => (
             <div className={`text-[10px] mt-0.5 ${n > 0 ? 'opacity-60' : 'text-zinc-600'}`}>+{n} today</div>
           );
-          const declinedCount = applications.filter(a => a.status === 'declined' || a.status === 'blacklisted').length;
+          // Last-30-days window (was ALL-TIME, which dwarfed the active-scoped
+          // neighbours; pure active-scope would show ~0 for admins because
+          // declines auto-archive). Same rule for every role.
+          const THIRTY_D = 30 * 24 * 3600 * 1000;
+          const declinedCount = applications.filter(a => {
+            if (a.status !== 'declined' && a.status !== 'blacklisted') return false;
+            const t = (a as any).status_updated_at || a.updated_at;
+            return t && Date.now() - new Date(t).getTime() < THIRTY_D;
+          }).length;
           const declinedToday = todayByStatus('declined') + todayByStatus('blacklisted');
           return (
             <motion.div
@@ -1047,7 +1069,7 @@ const AdminFinance = () => {
                 hint={<Sub n={todayByStatus('pre_approved_flexi') + todayByStatus('validated_flexi')} />}
               />
               <StatTile
-                label="Declined"
+                label="Declined (30d)"
                 value={<span className="text-red-400">{declinedCount}</span>}
                 hint={<span className={declinedToday > 0 ? 'text-red-300' : 'text-zinc-400'}>+{declinedToday} today</span>}
               />

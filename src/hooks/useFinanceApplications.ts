@@ -129,21 +129,24 @@ export const useUpdateFinanceApplication = () => {
       // types, hence the explicit row type on maybeSingle.
       const { data: currentApp } = await supabase
         .from('finance_applications')
-        .select('id, status, status_history, email, phone, first_name, last_name, full_name, notes, bank_reference, vehicle_id, ttclid')
+        .select('id, status, status_history, email, phone, first_name, last_name, full_name, notes, bank_reference, vehicle_id, ttclid, assigned_f_and_i')
         .eq('id', id)
         .maybeSingle<
           Pick<
             Tables<'finance_applications'>,
             | 'id' | 'status' | 'status_history' | 'email' | 'phone'
             | 'first_name' | 'last_name' | 'full_name' | 'notes'
-            | 'bank_reference' | 'vehicle_id'
+            | 'bank_reference' | 'vehicle_id' | 'assigned_f_and_i'
           > & { ttclid: string | null }
         >();
 
-      // F&I auto-claim: any update by an F&I user stamps ownership.
+      // F&I auto-claim — ONLY when the file is UNASSIGNED (owner rule
+      // 2026-07-14: an existing assignment is never overwritten by another
+      // F&I's activity; re-assignment happens only via the explicit pickers,
+      // which pass assigned_f_and_i in `updates`).
       try {
         const { data: { user: actor } } = await supabase.auth.getUser();
-        if (actor?.id && updates.assigned_f_and_i === undefined) {
+        if (actor?.id && updates.assigned_f_and_i === undefined && !currentApp?.assigned_f_and_i) {
           const { data: roleRows } = await supabase
             .from('user_roles')
             .select('role')

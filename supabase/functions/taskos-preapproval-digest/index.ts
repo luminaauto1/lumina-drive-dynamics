@@ -75,10 +75,11 @@ Deno.serve(async (req) => {
       if (!force && (hour < preHour || afterEnd)) continue;             // only ask within the working window (≤17:30)
       if (!force && (weekday === "Sat" || weekday === "Sun")) continue; // owner's rule: doc-chasing is weekday business
 
-      // Pre-approved deals dealership-wide that still need documents requested.
+      // Pre-approved deals dealership-wide that still need documents requested
+      // (both tracks: traditional + the Flexi non-traditional partner).
       const { data: apps } = await svc.from("finance_applications")
         .select("id, first_name, last_name, full_name, phone, bank_reference, docs_contacted, docs_contacted_at, is_archived, status")
-        .eq("status", "pre_approved").order("status_updated_at", { ascending: true });
+        .in("status", ["pre_approved", "pre_approved_flexi"]).order("status_updated_at", { ascending: true });
       const pending = (apps ?? []).filter((a: any) => !a.is_archived && needsContact(a));
       if (pending.length === 0) continue; // no chase needed → stay quiet
 
