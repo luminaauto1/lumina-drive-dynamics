@@ -36,6 +36,8 @@ import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
 import { INTERNAL_STATUSES, type InternalStatus, normalizeInternalStatus } from '@/lib/internalStatusConfig';
 import { CommentGateModal } from '@/components/admin/CommentGateModal';
 import { CreditScanButton } from '@/components/finance/CreditScanButton';
+import { DocsChasePanel } from '@/components/admin/DocsChasePanel';
+import { FlexiDealsPanel } from '@/components/admin/FlexiDealsPanel';
 import { addPipelineNote } from '@/lib/pipelinev2/notes';
 
 import { supabase } from '@/integrations/supabase/client';
@@ -688,8 +690,10 @@ const AdminFinance = () => {
             { key: 'ready_to_submit', label: 'Ready to Submit', color: 'bg-emerald-900/30 text-emerald-300 border-emerald-400/50' },
             { key: 'sent_to_banks', label: 'Sent to Banks', color: 'bg-sky-500/10 text-sky-400 border-sky-500/20' },
             { key: 'pre_approved', label: 'Pre-Approved', color: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' },
+            { key: 'pre_approved_flexi', label: 'Pre-Appr. Flexi', color: 'bg-teal-500/10 text-teal-400 border-teal-500/20' },
             { key: 'validations_pending', label: 'Validations Pending', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
             { key: 'validations_complete', label: 'Validations Complete', color: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' },
+            { key: 'validated_flexi', label: 'Validated Flexi', color: 'bg-lime-500/10 text-lime-400 border-lime-500/20' },
             { key: 'contract_sent', label: 'Contract Sent', color: 'bg-violet-500/10 text-violet-400 border-violet-500/20' },
             { key: 'contract_signed', label: 'Contract Signed', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
             { key: 'declined_conditional', label: 'Declined (Cond.)', color: 'bg-orange-500/10 text-orange-400 border-orange-500/20' },
@@ -907,6 +911,12 @@ const AdminFinance = () => {
           </Tabs>
         </motion.div>
 
+        {/* Docs Chase — pre-approval follow-up workstation (contact + docs tracking). */}
+        <DocsChasePanel applications={applications} />
+
+        {/* Flexi Deals — the non-traditional finance track's own section. */}
+        <FlexiDealsPanel applications={applications} />
+
         {/* Filters */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -999,7 +1009,7 @@ const AdminFinance = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-8 gap-2 mb-4"
+              className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-9 gap-2 mb-4"
             >
               <StatTile
                 label="Pending"
@@ -1030,6 +1040,11 @@ const AdminFinance = () => {
                 label="Vals Complete"
                 value={<span className="text-cyan-400">{activeApps.filter(a => a.status === 'validations_complete').length}</span>}
                 hint={<Sub n={todayByStatus('validations_complete')} />}
+              />
+              <StatTile
+                label="Flexi Deals"
+                value={<span className="text-teal-400">{activeApps.filter(a => a.status === 'pre_approved_flexi' || a.status === 'validated_flexi').length}</span>}
+                hint={<Sub n={todayByStatus('pre_approved_flexi') + todayByStatus('validated_flexi')} />}
               />
               <StatTile
                 label="Declined"
