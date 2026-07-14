@@ -22,7 +22,6 @@ import { sourceLabel } from '@/lib/pipelinev2/source';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useFinanceApplications, useUpdateFinanceApplication, useDeleteFinanceApplication, FinanceApplication } from '@/hooks/useFinanceApplications';
@@ -39,11 +38,20 @@ import { addPipelineNote } from '@/lib/pipelinev2/notes';
 import { HistoryFeed } from '@/components/admin/pipelinev2/HistoryFeed';
 import { CONTACT_TTL_MS, isArchivedApp } from '@/lib/finance/shared';
 import { bucketStatuses } from '@/lib/finance/buckets';
-import { isStalled } from '@/lib/finance/sla';
+import { isStalled, ageInStatusMs } from '@/lib/finance/sla';
 import { KpiStrip } from '@/components/admin/finance/KpiStrip';
 import { QueuesSection } from '@/components/admin/finance/QueuesSection';
+import { AgeChip } from '@/components/admin/finance/AgeChip';
+import { DocsChecklistChip } from '@/components/admin/finance/DocsChecklistChip';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { ChevronDown, Wrench } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ChevronDown, Wrench, Bookmark, ListChecks, X } from 'lucide-react';
+import { ApplicationTable } from '@/components/admin/pipelinev2/ApplicationTable';
+import { ColumnsPicker } from '@/components/admin/pipelinev2/ColumnsPicker';
+import { BulkStatusModal } from '@/components/admin/pipelinev2/BulkStatusModal';
+import { loadConfig, type TableConfig } from '@/lib/pipelinev2/columns';
+import { buildFacets, rowPassesColumnFilters, isFilterable, type FilterableKey } from '@/lib/pipelinev2/filters';
+import { useSavedViews } from '@/hooks/useSavedViews';
 
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -93,13 +101,19 @@ const AdminFinance = () => {
   const { toast } = useToast();
   const { isSuperAdmin, isSeniorFAndI, isFAndI, role, user } = useAuth();
   const { theme } = useDeskTheme();
-  const { labelFor, whatsappMessageFor, commentRequiredFor, commentPromptFor } = useStatusConfig();
+  const { labelFor, whatsappMessageFor, commentRequiredFor, commentPromptFor, clientLabels } = useStatusConfig();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   // KPI-strip bucket filter (redesign P2). A bucket groups 1-3 statuses; the
   // special 'stalled' / 'declined' buckets define their own scope (stalled =
   // active SLA breaches; declined = last 30 days regardless of archive).
   const [bucketFilter, setBucketFilter] = useState<string | null>(null);
+  // Table modernization (redesign P3): shared ApplicationTable machinery.
+  const [tableConfig, setTableConfig] = useState<TableConfig>(() => loadConfig('finance'));
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkStatusOpen, setBulkStatusOpen] = useState(false);
+  const [sortKey, setSortKey] = useState<'newest' | 'oldest' | 'age' | 'name'>('newest');
+  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
   // F&I owner filter. Everyone can change it.
   // Defaults: admin/senior → 'all'; normal F&I → 'self' (their own apps).
   // Values: 'all' | 'self' | 'unassigned' | <fni user uuid>
@@ -175,21 +189,13 @@ const AdminFinance = () => {
   // loses them — they land in the same single hook write as the status.
   const [commentGate, setCommentGate] = useState<{ app: FinanceApplication; status: string; extra?: any } | null>(null);
 
-  // Action Feed → row scroll/highlight
+  // Action Feed → row scroll/highlight. ApplicationTable owns the render window
+  // now: pendingScrollId rides in as ensureVisibleId and the table grows its own
+  // window + scrolls, then clears it via onEnsuredVisible.
   const [highlightedAppId, setHighlightedAppId] = useState<string | null>(null);
-
-  // Render-as-you-scroll window: how many rows are mounted right now. The full
-  // filtered list still drives counts/search/feeds — only the DOM grows in batches.
-  const [visibleCount, setVisibleCount] = useState(40);
-  const loadMoreRef = useRef<HTMLTableRowElement | null>(null);
-  // Row to scroll to after the window expands enough to mount it (Action Feed jump).
   const [pendingScrollId, setPendingScrollId] = useState<string | null>(null);
 
   const focusApplicationRow = (app: FinanceApplication) => {
-    // With scroll-loading, the target row may be past the current window — expand it
-    // so the row is mounted, then let the effect below scroll once React commits it.
-    const idx = filteredApplications.findIndex((a) => a.id === app.id);
-    if (idx >= 0) setVisibleCount((c) => Math.max(c, idx + 5));
     setPendingScrollId(app.id);
     setHighlightedAppId(app.id);
     window.setTimeout(() => setHighlightedAppId(prev => (prev === app.id ? null : prev)), 2000);
@@ -338,43 +344,83 @@ const AdminFinance = () => {
     return matchesSearch && matchesStatus && matchesBucket && matchesFni && matchesViewMode;
   });
 
-  // Only the first `visibleCount` rows are rendered to the DOM; the rest mount as
-  // the sentinel row scrolls into view. Keeps the whole list on one page, but the
-  // browser never has to lay out hundreds of heavy rows at once.
-  const visibleApplications = filteredApplications.slice(0, visibleCount);
+  // ── P3 table machinery: column filters → sort → facets → selection ─────────
+  // Per-column facet filters compose with the page filters above.
+  const columnFilteredApplications = filteredApplications.filter((a) =>
+    rowPassesColumnFilters(a, columnFilters, { statusLabels: ADMIN_STATUS_LABELS, clientLabels }),
+  );
 
-  // Reset the window whenever the filtered set changes (search/filter/tab switch).
-  useEffect(() => {
-    setVisibleCount(40);
-  }, [searchQuery, statusFilter, bucketFilter, fniFilter, viewMode]);
-
-  // Grow the window as the sentinel nears the viewport (load-more-on-scroll).
-  useEffect(() => {
-    if (visibleCount >= filteredApplications.length) return;
-    const el = loadMoreRef.current;
-    if (!el) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          setVisibleCount((c) => Math.min(c + 40, filteredApplications.length));
-        }
-      },
-      { rootMargin: '800px 0px' },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [visibleCount, filteredApplications.length]);
-
-  // Scroll to an Action-Feed-targeted row once the window has grown to mount it
-  // (runs after React commits, so the element is guaranteed present — no rAF race).
-  useEffect(() => {
-    if (!pendingScrollId) return;
-    const el = document.getElementById(`app-row-${pendingScrollId}`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setPendingScrollId(null);
+  const sortedApplications = [...columnFilteredApplications].sort((a, b) => {
+    switch (sortKey) {
+      case 'oldest': return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      case 'age': return ageInStatusMs(b as any) - ageInStatusMs(a as any); // longest-waiting first
+      case 'name': return (a.full_name || `${a.first_name} ${a.last_name}`).localeCompare(b.full_name || `${b.first_name} ${b.last_name}`);
+      default: return new Date(b.created_at).getTime() - new Date(a.created_at).getTime(); // newest
     }
-  }, [pendingScrollId, visibleCount, visibleApplications.length]);
+  });
+
+  // Facet options derive from the rows BEFORE column filters (stable option lists),
+  // only for visible+filterable columns.
+  const facets = buildFacets(
+    filteredApplications,
+    tableConfig.visible.filter((k) => isFilterable(k)) as FilterableKey[],
+    { statusLabels: ADMIN_STATUS_LABELS, clientLabels },
+  );
+
+  // Bulk selection. Selection survives filter tweaks (ids, not indexes); the
+  // bulk bar clears it after each batch.
+  const toggleSelect = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  const toggleSelectAll = (ids: string[], select: boolean) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) select ? next.add(id) : next.delete(id);
+      return next;
+    });
+  const clearSelection = () => setSelectedIds(new Set());
+
+  // Bulk assign-F&I / archive — sequential per-row writes through the ONE hook
+  // (assignment/archive-only writes fire no status side-effects there).
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const runBulk = async (label: string, updatesFor: () => any) => {
+    setBulkBusy(true);
+    let ok = 0, fail = 0;
+    for (const id of Array.from(selectedIds)) {
+      try { await updateApplication.mutateAsync({ id, updates: updatesFor() }); ok++; }
+      catch { fail++; }
+    }
+    setBulkBusy(false);
+    clearSelection();
+    toast({ title: `${label}: ${ok} updated${fail ? `, ${fail} failed` : ''}` });
+  };
+  const bulkAssignFni = (fniId: string | null) =>
+    runBulk(fniId ? 'Assigned F&I' : 'Unassigned F&I', () => ({
+      assigned_f_and_i: fniId,
+      assigned_f_and_i_at: fniId ? new Date().toISOString() : null,
+    }));
+  const bulkArchive = () => runBulk('Archived', () => ({ is_archived: true }));
+
+  // Saved views — named filter presets per user (same machinery as Pipeline).
+  interface FinanceViewPreset {
+    searchQuery: string; statusFilter: string; bucketFilter: string | null;
+    fniFilter: string; viewMode: 'active' | 'archived'; sortKey: typeof sortKey;
+  }
+  const { views: savedViews, saveView, deleteView } = useSavedViews<FinanceViewPreset>('finance', user?.id);
+  const [viewNameDraft, setViewNameDraft] = useState('');
+  const applyView = (p: FinanceViewPreset) => {
+    setSearchQuery(p.searchQuery ?? '');
+    setStatusFilter(p.statusFilter ?? 'all');
+    setBucketFilter(p.bucketFilter ?? null);
+    setFniFilter(p.fniFilter ?? 'all');
+    setViewMode(p.viewMode ?? 'active');
+    setSortKey(p.sortKey ?? 'newest');
+  };
+  const currentPreset = (): FinanceViewPreset =>
+    ({ searchQuery, statusFilter, bucketFilter, fniFilter, viewMode, sortKey });
 
   const handleStatusDropdownChange = (app: any, newStatus: string) => {
     setPendingApp(app);
@@ -660,6 +706,246 @@ const AdminFinance = () => {
   // Stats for active applications only — same shared rule as the tab filter,
   // so the counters can never drift from what the table shows.
   const activeApps = applications.filter(a => !isArchivedApp(a, role));
+
+  // ── Finance cell renderers for the shared ApplicationTable (redesign P3) ──
+  // The bespoke cells of the old hand-rolled table, ported verbatim: identity
+  // (client hub + bank ref + F&I chip + indicator cluster), EasySocial phone,
+  // internal-status dropdown + notes button, and the actions strip. Returning
+  // undefined for any other key falls back to ApplicationTable's built-ins.
+  const renderFinanceCell = (key: string, app: FinanceApplication): React.ReactNode | undefined => {
+    const any = app as any;
+    switch (key) {
+      case 'applicant': {
+        const noLicense = any.has_drivers_license === false;
+        const cs = (any.credit_score_status || '') as string;
+        const HIGH_RISK_CREDIT_LABELS: Record<string, string> = {
+          blacklisted: 'Blacklisted', debt_review: 'Debt Review', judgements: 'Judgements',
+          defaults_arrears: 'Defaults/Arrears', bad: 'Bad Credit',
+        };
+        const creditRiskLabel = HIGH_RISK_CREDIT_LABELS[cs];
+        const riskReason = creditRiskLabel ? `Risk: ${creditRiskLabel}` : noLicense ? 'Risk: No License' : null;
+        const stepIdx = STATUS_STEP_ORDER[app.status] ?? 0;
+        const hasNotes = !!(app.notes && String(app.notes).trim().length > 0);
+        const isNew = Date.now() - new Date(app.created_at).getTime() < 24 * 3600_000 && stepIdx < 2 && !hasNotes;
+        const isStagnant = Date.now() - new Date(app.updated_at || app.created_at).getTime() > 72 * 3600_000;
+        const creator = any.creator;
+        const fni = any.fni_owner;
+        const canReassign = role === 'super_admin' || role === 'senior_f_and_i';
+        const chipBase = 'inline-flex items-center gap-1 h-5 px-2 rounded-full text-[10px] uppercase tracking-wider font-semibold border transition-colors';
+        const indicatorBase = 'inline-flex items-center gap-1 h-5 px-1.5 rounded text-[10px] uppercase tracking-wider font-medium border whitespace-nowrap';
+        const iconTileBase = 'inline-flex items-center justify-center h-5 w-5 rounded border';
+        const src = any.submission_source;
+        const srcIcon = src === 'whatsapp_parser' ? <MessageCircle className="w-3 h-3" />
+          : src === 'website' ? <Globe className="w-3 h-3" /> : <FileText className="w-3 h-3" />;
+        const srcLabel = src === 'whatsapp_parser' ? 'WhatsApp PDF'
+          : src === 'website' ? 'Website'
+          : src && String(src).trim() !== '' ? sourceLabel(src) : 'Legacy';
+        const dEmail = !!any.docs_email;
+        const dWa = !!any.docs_whatsapp;
+        const hasDocs = dEmail || dWa;
+        const fniFirst = fni?.full_name ? String(fni.full_name).trim().split(/\s+/)[0]
+          : fni?.email ? String(fni.email).split('@')[0] : null;
+        return (
+          <div className="flex flex-col gap-1.5 min-w-[15rem]" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={(e) => { e.preventDefault(); openClientHub(app.email, app.phone); }}
+              className="group/name text-left focus:outline-none"
+            >
+              <p className="font-medium text-foreground flex items-center gap-2 flex-wrap group-hover/name:text-emerald-400 group-hover/name:underline transition-colors">
+                {any.bank_reference && (
+                  <BankReferenceBadge
+                    reference={any.bank_reference}
+                    onEdit={canReassign ? () => { setEditBankRefApp(app); setEditBankRefOpen(true); } : undefined}
+                  />
+                )}
+                <span>{app.first_name} {app.last_name}</span>
+              </p>
+              <p className="text-xs text-muted-foreground truncate max-w-[15rem]">{app.email || '—'}</p>
+              {(creator?.full_name || creator?.email) && (
+                <p className="text-[10px] text-muted-foreground/80 mt-0.5 flex items-center gap-1">
+                  <User className="w-2.5 h-2.5" />
+                  <span className="font-medium">Rep:</span>{' '}
+                  <span>{creator.full_name ? String(creator.full_name).trim().split(/\s+/)[0] : String(creator.email).split('@')[0]}</span>
+                </p>
+              )}
+            </button>
+            {/* F&I assignment chip */}
+            {!fniFirst ? (canReassign && (
+              <button type="button"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditBankRefApp(app); setEditBankRefOpen(true); }}
+                className={`${chipBase} w-fit text-muted-foreground border-border bg-muted/40 hover:bg-muted/70 hover:text-foreground`}
+                title="Assign F&I">
+                + Assign F&amp;I
+              </button>
+            )) : canReassign ? (
+              <button type="button"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditBankRefApp(app); setEditBankRefOpen(true); }}
+                className={`${chipBase} w-fit text-pink-400 border-pink-500/40 bg-pink-500/10 hover:bg-pink-500/20 cursor-pointer`}
+                title={`Reassign F&I (current: ${fni.full_name || fni.email})`}>
+                <User className="w-2.5 h-2.5" /> F&amp;I: {fniFirst}
+              </button>
+            ) : (
+              <span className={`${chipBase} w-fit text-pink-400 border-pink-500/40 bg-pink-500/10`} title={`Assigned F&I: ${fni.full_name || fni.email}`}>
+                <User className="w-2.5 h-2.5" /> F&amp;I: {fniFirst}
+              </span>
+            )}
+            {/* Secondary indicators */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {isNew && <span className={`${indicatorBase} font-bold border-emerald-500/30 bg-emerald-500/10 text-emerald-400`}>🔥 NEW</span>}
+              {isStagnant && !isNew && <span className={`${indicatorBase} font-bold border-orange-500/30 bg-orange-500/10 text-orange-400`}>⏳ STALE</span>}
+              {riskReason && <span className={`${indicatorBase} font-bold border-red-500/30 bg-red-500/10 text-red-400`} title={riskReason}>⚠ {riskReason}</span>}
+              <span className={`${iconTileBase} border-border bg-muted/40 text-muted-foreground`} title={`Source: ${srcLabel}`} aria-label={`Source: ${srcLabel}`}>{srcIcon}</span>
+              {hasDocs ? (
+                <span className={`${iconTileBase} border-border bg-muted/40 text-muted-foreground`} title={`Docs received via ${[dEmail && 'Email', dWa && 'WhatsApp'].filter(Boolean).join(' & ')}`}>
+                  {dEmail && <Mail className="w-3 h-3" />}
+                  {dWa && <MessageCircle className="w-3 h-3" />}
+                </span>
+              ) : (
+                <span className={`${indicatorBase} border-red-500/30 bg-red-500/10 text-red-400`} title="No documents received yet">
+                  <FileX className="w-3 h-3" /> No Docs
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      }
+      case 'phone': {
+        const cleaned = app.phone?.replace(/\D/g, '') || '';
+        const wa = cleaned.startsWith('0') ? `27${cleaned.slice(1)}` : cleaned;
+        return app.phone ? (
+          <button type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              // EasySocial has no phone deep-link: copy the number + open the chat
+              // panel in ONE reused tab — paste into its search to land on the client.
+              navigator.clipboard?.writeText(wa).catch(() => {});
+              window.open('https://app.easysocial.io/engage/chat?tab=all', 'easysocialChat');
+              toast({ title: 'Number copied', description: 'EasySocial opened — paste (Ctrl+V) into its chat search to jump to this client.' });
+            }}
+            className="inline-flex items-center gap-1.5 text-sm text-green-500 hover:text-green-400 transition-colors tabular-nums whitespace-nowrap"
+            title="Open this client in EasySocial chat (copies the number)">
+            <MessageCircle className="w-4 h-4 fill-green-500/20 shrink-0" />
+            {app.phone}
+          </button>
+        ) : <span className="text-muted-foreground text-sm">N/A</span>;
+      }
+      case 'internal': {
+        const safeStatusKey = getDisplayStatus(app);
+        const statusConfig = INTERNAL_STATUSES[safeStatusKey as keyof typeof INTERNAL_STATUSES] || INTERNAL_STATUSES.no_notes;
+        const hasNotes = !!(app.notes && String(app.notes).trim().length > 0);
+        const normInt = normalizeInternalStatus(any.internal_status);
+        const alertSet = role === 'senior_f_and_i'
+          ? new Set(['note_to_f_and_i', 'note_to_senior_f_and_i'])
+          : role === 'f_and_i' ? new Set(['note_to_f_and_i']) : new Set(['note_to_admin']);
+        const showDot = !!normInt && normInt !== 'no_notes' && alertSet.has(normInt);
+        return (
+          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <Select value={safeStatusKey} onValueChange={(value) => handleStatusDropdownChange(app, value)}>
+              <SelectTrigger className={`w-[200px] h-7 text-xs border ${statusConfig.color}`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.entries(INTERNAL_STATUSES) as [InternalStatus, typeof INTERNAL_STATUSES[InternalStatus]][]).map(([k, val]) => (
+                  <SelectItem key={k} value={k} className="text-xs">{val.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <button type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setPendingApp(app);
+                setPendingStatus(normalizeInternalStatus(any.internal_status) || 'no_notes');
+                setStatusNote('');
+                setStatusModalOpen(true);
+              }}
+              className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded border border-border bg-muted/40 text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors"
+              title={hasNotes ? 'View Notes' : 'Add Note'}>
+              <span className="text-xs leading-none">📝</span>
+              {showDot && <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-background" />}
+            </button>
+          </div>
+        );
+      }
+      case 'docs':
+        return <div onClick={(e) => e.stopPropagation()}><DocsChecklistChip app={app} /></div>;
+      case 'age':
+        return <AgeChip app={app} />;
+      case 'actions':
+        return (
+          <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+            {['pending', 'application_submitted', 'pre_approved', 'documents_received', 'revision_submitted'].includes(app.status) && (
+              <Button variant="ghost" size="icon" onClick={(e) => handleRequestRevision(app, e)}
+                className="text-pink-500 hover:text-pink-400 hover:bg-pink-500/10" title="Request Client Revision">
+                <MailWarning className="w-4 h-4" />
+              </Button>
+            )}
+            {['pre_approved', 'approved', 'vehicle_selected', 'contract_signed', 'vehicle_delivered'].includes(app.status) && (
+              <Button variant="ghost" size="icon" onClick={(e) => openDeliveryModal(app, e)}
+                className="text-purple-500 hover:text-purple-400 hover:bg-purple-500/10" title="Delivery Prep Checklist">
+                <ClipboardList className="w-4 h-4" />
+              </Button>
+            )}
+            {app.status === 'pre_approved' && any.access_token && (
+              <Button variant="ghost" size="icon" onClick={() => copyUploadLink(any.access_token)}
+                className="text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10" title="Copy Document Upload Link">
+                <Link className="w-4 h-4" />
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" onClick={() => openWhatsApp(app)}
+              className="text-green-500 hover:text-green-400 hover:bg-green-500/10" title="Send WhatsApp Update">
+              <MessageCircle className="w-4 h-4" />
+            </Button>
+            {!any.is_archived && app.status !== 'archived' && (
+              <Button variant="ghost" size="icon" onClick={(e) => handleArchive(app, e)}
+                className="text-muted-foreground hover:text-amber-400 hover:bg-amber-500/10" title="Archive Application">
+                <Archive className="w-4 h-4" />
+              </Button>
+            )}
+            {isSuperAdmin && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="icon"
+                    className="text-muted-foreground hover:text-red-400 hover:bg-red-500/10" title="Delete Application">
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Application?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete the application for {app.first_name} {app.last_name}. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => handleDelete(app.id)} className="bg-destructive hover:bg-destructive/90">
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
+        );
+      default:
+        return undefined;
+    }
+  };
+
+  // Row tint parity with the old table: pre-approved glow, NEW/stale hints,
+  // Action-Feed highlight pulse.
+  const financeRowClass = (app: FinanceApplication): string => {
+    const stepIdx = STATUS_STEP_ORDER[app.status] ?? 0;
+    const hasNotes = !!(app.notes && String(app.notes).trim().length > 0);
+    const isNew = Date.now() - new Date(app.created_at).getTime() < 24 * 3600_000 && stepIdx < 2 && !hasNotes;
+    const isStagnant = Date.now() - new Date(app.updated_at || app.created_at).getTime() > 72 * 3600_000;
+    return [
+      app.status === 'pre_approved' ? 'bg-green-900/10 shadow-[inset_4px_0_0_0_rgba(34,197,94,0.8)]' : '',
+      isNew ? 'bg-emerald-500/5' : '',
+      isStagnant ? 'bg-orange-500/5' : '',
+      highlightedAppId === app.id ? 'ring-2 ring-amber-300/70 bg-amber-300/10 animate-pulse' : '',
+    ].filter(Boolean).join(' ');
+  };
 
   return (
     <AdminLayout>
@@ -948,501 +1234,132 @@ const AdminFinance = () => {
           )}
         </motion.div>
 
-        {/* Table */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="glass-card rounded-xl overflow-hidden"
-        >
+        {/* Table toolbar — sort, saved views, column picker (redesign P3) */}
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          <Select value={sortKey} onValueChange={(v) => setSortKey(v as any)}>
+            <SelectTrigger className="w-44 h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest" className="text-xs">Newest first</SelectItem>
+              <SelectItem value="oldest" className="text-xs">Oldest first</SelectItem>
+              <SelectItem value="age" className="text-xs">Longest in status</SelectItem>
+              <SelectItem value="name" className="text-xs">Name A–Z</SelectItem>
+            </SelectContent>
+          </Select>
+          {/* Saved views — named filter presets, per user (same hook as Pipeline) */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8">
+                <Bookmark className="w-3.5 h-3.5 mr-1.5" /> Views{savedViews.length > 0 ? ` (${savedViews.length})` : ''}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-3" align="start">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-2">Saved views</p>
+              <div className="space-y-1 mb-3 max-h-48 overflow-auto">
+                {savedViews.length === 0 && <p className="text-xs text-muted-foreground">No saved views yet — set your filters, then save them here.</p>}
+                {savedViews.map((v) => (
+                  <div key={v.id} className="flex items-center gap-1">
+                    <button type="button" onClick={() => applyView(v.preset)}
+                      className="flex-1 text-left text-sm px-2 py-1 rounded hover:bg-muted/60 truncate" title="Apply this view">
+                      {v.name}
+                    </button>
+                    <button type="button" onClick={() => deleteView(v.id)}
+                      className="h-6 w-6 inline-flex items-center justify-center rounded text-muted-foreground hover:text-red-400" title="Delete view">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Input value={viewNameDraft} onChange={(e) => setViewNameDraft(e.target.value)}
+                  placeholder="Name current filters…" className="h-8 text-xs" />
+                <Button size="sm" className="h-8" disabled={!viewNameDraft.trim()}
+                  onClick={() => { saveView(viewNameDraft, currentPreset()); setViewNameDraft(''); }}>
+                  Save
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+          <ColumnsPicker tabKey="finance" config={tableConfig} onChange={setTableConfig} />
+          <span className="text-[11px] text-muted-foreground ml-auto tabular-nums">
+            {sortedApplications.length} row{sortedApplications.length === 1 ? '' : 's'}
+          </span>
+        </div>
+
+        {/* Bulk bar — appears while rows are selected */}
+        {selectedIds.size > 0 && (
+          <div className="sticky top-2 z-20 flex flex-wrap items-center gap-2 mb-3 px-3 py-2 rounded-lg border border-amber-500/40 bg-[#1A1A1A]/95 shadow-lg">
+            <ListChecks className="w-4 h-4 text-amber-400" />
+            <span className="text-sm text-foreground tabular-nums">{selectedIds.size} selected</span>
+            <Button size="sm" variant="outline" className="h-7" disabled={bulkBusy} onClick={() => setBulkStatusOpen(true)}>
+              Change status
+            </Button>
+            {(isSuperAdmin || isSeniorFAndI) && (
+              <Select onValueChange={(v) => void bulkAssignFni(v === '__none__' ? null : v)} disabled={bulkBusy}>
+                <SelectTrigger className="w-44 h-7 text-xs"><SelectValue placeholder="Assign F&I…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__" className="text-xs">Unassign</SelectItem>
+                  {fniUsers.map((u) => (
+                    <SelectItem key={u.id} value={u.id} className="text-xs">{u.name}{u.role === 'senior_f_and_i' ? ' (Senior)' : ''}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Button size="sm" variant="outline" className="h-7 border-amber-500/40 text-amber-400 hover:bg-amber-500/10" disabled={bulkBusy} onClick={() => void bulkArchive()}>
+              <Archive className="w-3.5 h-3.5 mr-1" /> Archive
+            </Button>
+            <Button size="sm" variant="ghost" className="h-7 ml-auto" onClick={clearSelection}>Clear</Button>
+          </div>
+        )}
+
+        {/* Table — the shared Pipeline v2 ApplicationTable with the Finance preset:
+            the same inline status + credit dropdowns as before (identical
+            interceptor chain), plus row selection, column picker, per-column facet
+            filters and the docs / age chips. Windowed rendering lives inside. */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
           {isLoading ? (
             <div className="p-8 text-center text-muted-foreground">Loading...</div>
-          ) : filteredApplications.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">
-              {searchQuery || statusFilter !== 'all' ? 'No applications match your filters' : 
-                viewMode === 'archived' ? 'No archived applications' : 'No finance applications yet'}
-            </div>
           ) : (
-            <div className="overflow-x-auto">
-            <Table className="min-w-[1040px] [&_td]:py-3 [&_th]:py-2.5">
-              <TableHeader>
-                <TableRow className="border-border hover:bg-transparent">
-                  <TableHead className="text-muted-foreground text-[11px] uppercase tracking-wider">Name</TableHead>
-                  <TableHead className="text-muted-foreground text-[11px] uppercase tracking-wider">Mobile</TableHead>
-                  <TableHead className="text-muted-foreground text-[11px] uppercase tracking-wider">Status</TableHead>
-                  <TableHead className="text-muted-foreground text-[11px] uppercase tracking-wider">Credit Check</TableHead>
-                  <TableHead className="text-muted-foreground text-[11px] uppercase tracking-wider">Internal</TableHead>
-                  <TableHead className="text-muted-foreground text-[11px] uppercase tracking-wider">Date</TableHead>
-                  <TableHead className="text-muted-foreground text-[11px] uppercase tracking-wider text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visibleApplications.map((app) => {
-                  const cleanedPhone = app.phone?.replace(/\D/g, '') || '';
-                  const whatsAppPhone = cleanedPhone.startsWith('0') ? `27${cleanedPhone.slice(1)}` : cleanedPhone;
-                  
-                  // Warning conditions
-                  
-                  const noLicense = (app as any).has_drivers_license === false;
-                  const cs = ((app as any).credit_score_status || '') as string;
-                  const HIGH_RISK_CREDIT_LABELS: Record<string, string> = {
-                    blacklisted: 'Blacklisted',
-                    debt_review: 'Debt Review',
-                    judgements: 'Judgements',
-                    defaults_arrears: 'Defaults/Arrears',
-                    bad: 'Bad Credit',
-                  };
-                  const creditRiskLabel = HIGH_RISK_CREDIT_LABELS[cs];
-                  // Hierarchy: credit risk supersedes license
-                  const riskReason = creditRiskLabel
-                    ? `Risk: ${creditRiskLabel}`
-                    : noLicense
-                    ? 'Risk: No License'
-                    : null;
-
-                  // Freshness & stagnation.
-                  // "NEW" disappears once the app has progressed past application_submitted
-                  // (sent_to_banks step or further) OR once any CRM notes exist.
-                  const stepIdx = STATUS_STEP_ORDER[app.status] ?? 0;
-                  const hasNotes = !!(app.notes && String(app.notes).trim().length > 0);
-                  const ageMs = Date.now() - new Date(app.created_at).getTime();
-                  const isNew = ageMs < (24 * 60 * 60 * 1000) && stepIdx < 2 && !hasNotes;
-                  const isStagnant = (Date.now() - new Date(app.updated_at || app.created_at).getTime()) > (72 * 60 * 60 * 1000);
-                  const isHighlighted = highlightedAppId === app.id;
-
-                  return (
-                  <TableRow
-                    key={app.id}
-                    id={`app-row-${app.id}`}
-                    className={`border-border hover:bg-muted/40 cursor-pointer transition-colors ${app.status === 'pre_approved' ? 'bg-green-900/10 border-l-4 !border-l-green-500 shadow-[0_0_12px_-4px_rgba(34,197,94,0.5)]' : ''} ${isNew ? 'bg-emerald-500/5' : ''} ${isStagnant ? 'bg-orange-500/5' : ''} ${isHighlighted ? 'ring-2 ring-amber-300/70 bg-amber-300/10 animate-pulse' : ''}`}
-                    onClick={() => navigate(`/admin/finance/${app.id}`)}
-                  >
-                    <TableCell className="align-top" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex flex-col gap-1.5 min-w-[15rem]">
-                        {/* Identity — primary line: name + email + rep */}
-                        <button
-                          onClick={(e) => { e.preventDefault(); openClientHub(app.email, app.phone); }}
-                          className="group/name text-left focus:outline-none"
-                        >
-                          <p className="font-medium text-foreground flex items-center gap-2 flex-wrap group-hover/name:text-emerald-400 group-hover/name:underline transition-colors">
-                            {(app as any).bank_reference && (
-                              <BankReferenceBadge
-                                reference={(app as any).bank_reference}
-                                onEdit={(role === 'super_admin' || role === 'senior_f_and_i')
-                                  ? () => { setEditBankRefApp(app); setEditBankRefOpen(true); }
-                                  : undefined}
-                              />
-                            )}
-                            <span>{app.first_name} {app.last_name}</span>
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate max-w-[15rem]">{app.email || '—'}</p>
-                          {(() => {
-                            const creator = (app as any).creator;
-                            if (!creator?.full_name && !creator?.email) return null;
-                            const firstName = creator.full_name
-                              ? String(creator.full_name).trim().split(/\s+/)[0]
-                              : String(creator.email).split('@')[0];
-                            return (
-                              <p className="text-[10px] text-muted-foreground/80 mt-0.5 flex items-center gap-1">
-                                <User className="w-2.5 h-2.5" />
-                                <span className="font-medium">Rep:</span>{' '}
-                                <span>{firstName}</span>
-                              </p>
-                            );
-                          })()}
-                        </button>
-
-                        {/* F&I assignment — one clean, consistent chip/control */}
-                        {(() => {
-                          const fni = (app as any).fni_owner;
-                          const canReassign = role === 'super_admin' || role === 'senior_f_and_i';
-                          // Uniform chip footprint shared by all three states.
-                          const chipBase = "inline-flex items-center gap-1 h-5 px-2 rounded-full text-[10px] uppercase tracking-wider font-semibold border transition-colors";
-                          if (!fni?.full_name && !fni?.email) {
-                            if (!canReassign) return null;
-                            return (
-                              <button
-                                type="button"
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditBankRefApp(app); setEditBankRefOpen(true); }}
-                                className={`${chipBase} w-fit text-muted-foreground border-border bg-muted/40 hover:bg-muted/70 hover:text-foreground`}
-                                title="Assign F&I"
-                              >
-                                + Assign F&amp;I
-                              </button>
-                            );
-                          }
-                          const fniFirst = fni.full_name
-                            ? String(fni.full_name).trim().split(/\s+/)[0]
-                            : String(fni.email).split('@')[0];
-                          const assignedCls = `${chipBase} w-fit text-pink-400 border-pink-500/40 bg-pink-500/10`;
-                          if (canReassign) {
-                            return (
-                              <button
-                                type="button"
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditBankRefApp(app); setEditBankRefOpen(true); }}
-                                className={`${assignedCls} hover:bg-pink-500/20 cursor-pointer`}
-                                title={`Reassign F&I (current: ${fni.full_name || fni.email})`}
-                              >
-                                <User className="w-2.5 h-2.5" />
-                                F&amp;I: {fniFirst}
-                              </button>
-                            );
-                          }
-                          return (
-                            <span className={assignedCls} title={`Assigned F&I: ${fni.full_name || fni.email}`}>
-                              <User className="w-2.5 h-2.5" />
-                              F&amp;I: {fniFirst}
-                            </span>
-                          );
-                        })()}
-
-                        {/* Secondary indicators — one tidy, uniform cluster.
-                            Muted unless meaningful; consistent h-5 pill / square footprint. */}
-                        {(() => {
-                          const indicatorBase = "inline-flex items-center gap-1 h-5 px-1.5 rounded text-[10px] uppercase tracking-wider font-medium border whitespace-nowrap";
-                          const iconTileBase = "inline-flex items-center justify-center h-5 w-5 rounded border";
-
-                          // Source descriptor
-                          const src = (app as any).submission_source;
-                          let srcIcon: JSX.Element;
-                          let srcLabel: string;
-                          if (src === 'whatsapp_parser') {
-                            srcIcon = <MessageCircle className="w-3 h-3" />;
-                            srcLabel = 'WhatsApp PDF';
-                          } else if (src === 'website') {
-                            srcIcon = <Globe className="w-3 h-3" />;
-                            srcLabel = 'Website';
-                          } else if (src && String(src).trim() !== '') {
-                            srcIcon = <FileText className="w-3 h-3" />;
-                            srcLabel = sourceLabel(src);
-                          } else {
-                            srcIcon = <FileText className="w-3 h-3" />;
-                            srcLabel = 'Legacy';
-                          }
-
-                          const dEmail = !!(app as any).docs_email;
-                          const dWa = !!(app as any).docs_whatsapp;
-                          const hasDocs = dEmail || dWa;
-
-                          return (
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              {isNew && (
-                                <span className={`${indicatorBase} font-bold border-emerald-500/30 bg-emerald-500/10 text-emerald-400`}>
-                                  🔥 NEW
-                                </span>
-                              )}
-                              {isStagnant && !isNew && (
-                                <span className={`${indicatorBase} font-bold border-orange-500/30 bg-orange-500/10 text-orange-400`}>
-                                  ⏳ STALE
-                                </span>
-                              )}
-                              {riskReason && (
-                                <span className={`${indicatorBase} font-bold border-red-500/30 bg-red-500/10 text-red-400`} title={riskReason}>
-                                  ⚠ {riskReason}
-                                </span>
-                              )}
-                              {/* Source — muted icon tile (informational, never alarming) */}
-                              <span
-                                className={`${iconTileBase} border-border bg-muted/40 text-muted-foreground`}
-                                title={`Source: ${srcLabel}`}
-                                aria-label={`Source: ${srcLabel}`}
-                              >
-                                {srcIcon}
-                              </span>
-                              {/* Docs — red pill when missing (meaningful), muted tile when received */}
-                              {hasDocs ? (
-                                <span
-                                  className={`${iconTileBase} border-border bg-muted/40 text-muted-foreground`}
-                                  title={`Docs received via ${[dEmail && 'Email', dWa && 'WhatsApp'].filter(Boolean).join(' & ')}`}
-                                >
-                                  {dEmail && <Mail className="w-3 h-3" />}
-                                  {dWa && <MessageCircle className="w-3 h-3" />}
-                                </span>
-                              ) : (
-                                <span
-                                  className={`${indicatorBase} border-red-500/30 bg-red-500/10 text-red-400`}
-                                  title="No documents received yet"
-                                >
-                                  <FileX className="w-3 h-3" /> No Docs
-                                </span>
-                              )}
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    </TableCell>
-                    <TableCell className="align-top" onClick={(e) => e.stopPropagation()}>
-                      {app.phone ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            // EasySocial has no phone deep-link (chat URLs need their
-                            // internal lead id), so: copy the number + open the chat
-                            // panel in ONE reused tab — paste into its search to land
-                            // on the client's conversation.
-                            navigator.clipboard?.writeText(whatsAppPhone).catch(() => {});
-                            window.open('https://app.easysocial.io/engage/chat?tab=all', 'easysocialChat');
-                            toast({ title: 'Number copied', description: 'EasySocial opened — paste (Ctrl+V) into its chat search to jump to this client.' });
-                          }}
-                          className="inline-flex items-center gap-1.5 text-sm text-green-500 hover:text-green-400 transition-colors tabular-nums whitespace-nowrap"
-                          title="Open this client in EasySocial chat (copies the number)"
-                        >
-                          <MessageCircle className="w-4 h-4 fill-green-500/20 shrink-0" />
-                          {app.phone}
-                        </button>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">N/A</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="align-top" onClick={(e) => e.stopPropagation()}>
-                      <Select
-                        value={app.status}
-                        onValueChange={(newStatus) => requestFinanceStatusChange(app, newStatus)}
-                      >
-                         {(() => {
-                           const stamp = (app as any).status_updated_at || app.updated_at;
-                           const tip = stamp
-                             ? `Changed: ${new Date(stamp).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' })} at ${new Date(stamp).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })}`
-                             : undefined;
-                           return (
-                             <SelectTrigger
-                               title={tip}
-                               className={`w-[180px] h-7 text-xs uppercase tracking-wider border whitespace-nowrap ${statusBadgeClass(app.status, theme) || statusBadgeClass('pending', theme)}`}
-                             >
-                               <SelectValue>
-                                 <span className="whitespace-nowrap">
-                                   {ADMIN_STATUS_LABELS[app.status] || app.status}
-                                 </span>
-                               </SelectValue>
-                             </SelectTrigger>
-                           );
-                         })()}
-                        <SelectContent>
-                          {filterStatusOptionsForRole(STATUS_OPTIONS, role, app.status).map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                              {ADMIN_STATUS_LABELS[opt.value] || opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                     </TableCell>
-                     <TableCell className="align-top" onClick={(e) => e.stopPropagation()}>
-                       <div className="flex items-center gap-1.5">
-                         {(() => {
-                           const cc = (app as any).credit_check_status as 'passed' | 'failed' | 'pending' | null | undefined;
-                           const ccStyle =
-                             cc === 'passed'
-                               ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                               : cc === 'failed'
-                                 ? 'bg-red-500/10 text-red-400 border-red-500/30'
-                                 : cc === 'pending'
-                                   ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                                   : 'bg-muted/40 text-muted-foreground border-border';
-                           return (
-                             <Select
-                               value={cc || ''}
-                               onValueChange={async (v) => {
-                                 if (v === 'pending') {
-                                   try {
-                                     await updateApplication.mutateAsync({ id: app.id, updates: { credit_check_status: 'pending' } as any });
-                                   } catch { /* hook toasts */ }
-                                   return;
-                                 }
-                                 setCreditCheckApp(app);
-                                 setCreditCheckOutcome(v as CreditCheckOutcome);
-                                 setCreditCheckOpen(true);
-                               }}
-                             >
-                               <SelectTrigger className={`w-[130px] h-7 text-xs uppercase tracking-wider border ${ccStyle}`}>
-                                 <SelectValue placeholder="Not Run" />
-                               </SelectTrigger>
-                               <SelectContent>
-                                 <SelectItem value="pending" className="text-xs">Pending</SelectItem>
-                                 <SelectItem value="passed" className="text-xs">Passed</SelectItem>
-                                 <SelectItem value="failed" className="text-xs">Failed</SelectItem>
-                               </SelectContent>
-                             </Select>
-                           );
-                         })()}
-                         <CreditScanButton application={app} />
-                       </div>
-                     </TableCell>
-                     <TableCell className="align-top" onClick={(e) => e.stopPropagation()}>
-                       {(() => {
-                         const safeStatusKey = getDisplayStatus(app);
-                         const statusConfig = INTERNAL_STATUSES[safeStatusKey as keyof typeof INTERNAL_STATUSES] || INTERNAL_STATUSES.no_notes;
-                         const hasNotes = !!(app.notes && String(app.notes).trim().length > 0);
-                         const normInt = normalizeInternalStatus((app as any).internal_status);
-                         const isFAndIRow = (role === 'f_and_i' || role === 'senior_f_and_i');
-                         // Show ping only on notes directed at this role.
-                         // Standard F&I: only Note to F&I. Senior F&I: F&I + Senior F&I.
-                         // Admin / Sales: only Note to Admin.
-                         const alertSet = role === 'senior_f_and_i'
-                           ? new Set(['note_to_f_and_i', 'note_to_senior_f_and_i'])
-                           : role === 'f_and_i'
-                             ? new Set(['note_to_f_and_i'])
-                             : new Set(['note_to_admin']);
-                         const showDot = !!normInt && normInt !== 'no_notes' && alertSet.has(normInt);
-                         return (
-                           <div className="flex items-center gap-2">
-                             <Select 
-                               value={safeStatusKey} 
-                               onValueChange={(value) => handleStatusDropdownChange(app, value)}
-                             >
-                               <SelectTrigger className={`w-[200px] h-7 text-xs border ${statusConfig.color}`}>
-                                 <SelectValue />
-                               </SelectTrigger>
-                               <SelectContent>
-                                 {(Object.entries(INTERNAL_STATUSES) as [InternalStatus, typeof INTERNAL_STATUSES[InternalStatus]][]).map(([key, val]) => (
-                                   <SelectItem key={key} value={key} className="text-xs">
-                                     {val.label}
-                                   </SelectItem>
-                                 ))}
-                               </SelectContent>
-                             </Select>
-                             <button
-                               type="button"
-                               onClick={(e) => {
-                                 e.stopPropagation();
-                                 setPendingApp(app);
-                                 setPendingStatus(normalizeInternalStatus((app as any).internal_status) || 'no_notes');
-                                 setStatusNote('');
-                                 setStatusModalOpen(true);
-                               }}
-                               className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded border border-border bg-muted/40 text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors"
-                               title={hasNotes ? "View Notes" : "Add Note"}
-                             >
-                               <span className="text-xs leading-none">📝</span>
-                               {showDot && (
-                                 <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-background" />
-                               )}
-                             </button>
-                           </div>
-                         );
-                       })()}
-                    </TableCell>
-                     <TableCell className="align-top text-sm text-muted-foreground">
-                       <div className="whitespace-nowrap text-sm text-foreground tabular-nums">
-                         {new Date(app.created_at).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short' })}
-                         <span className="text-xs text-muted-foreground ml-2">
-                           {new Date(app.created_at).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                         </span>
-                       </div>
-                     </TableCell>
-                    <TableCell className="align-top text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-end gap-1">
-                        {/* Request Revision */}
-                        {['pending', 'application_submitted', 'pre_approved', 'documents_received', 'revision_submitted'].includes(app.status) && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => handleRequestRevision(app, e)}
-                            className="text-pink-500 hover:text-pink-400 hover:bg-pink-500/10"
-                            title="Request Client Revision"
-                          >
-                            <MailWarning className="w-4 h-4" />
-                          </Button>
-                        )}
-                        {/* Delivery Prep - Show for approved/signed statuses */}
-                        {['pre_approved', 'approved', 'vehicle_selected', 'contract_signed', 'vehicle_delivered'].includes(app.status) && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => openDeliveryModal(app, e)}
-                            className="text-purple-500 hover:text-purple-400 hover:bg-purple-500/10"
-                            title="Delivery Prep Checklist"
-                          >
-                            <ClipboardList className="w-4 h-4" />
-                          </Button>
-                        )}
-                        {/* Copy Upload Link - Show for pre_approved status */}
-                        {app.status === 'pre_approved' && (app as any).access_token && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => copyUploadLink((app as any).access_token)}
-                            className="text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10"
-                            title="Copy Document Upload Link"
-                          >
-                            <Link className="w-4 h-4" />
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openWhatsApp(app)}
-                          className="text-green-500 hover:text-green-400 hover:bg-green-500/10"
-                          title="Send WhatsApp Update"
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => navigate(`/admin/finance/${app.id}`)}
-                          title="Open Deal Room"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </Button>
-                        {!((app as any).is_archived) && app.status !== 'archived' && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => handleArchive(app, e)}
-                            className="text-muted-foreground hover:text-amber-400 hover:bg-amber-500/10"
-                            title="Archive Application"
-                          >
-                            <Archive className="w-4 h-4" />
-                          </Button>
-                        )}
-                        {isSuperAdmin && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
-                                title="Delete Application"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Application?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This will permanently delete the application for {app.first_name} {app.last_name}. This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDelete(app.id)}
-                                  className="bg-destructive hover:bg-destructive/90"
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                  );
-                })}
-                {visibleCount < filteredApplications.length && (
-                  <TableRow ref={loadMoreRef} className="border-white/10 hover:bg-transparent">
-                    <TableCell colSpan={7} className="py-6 text-center text-xs text-muted-foreground">
-                      Loading more… showing {visibleApplications.length} of {filteredApplications.length}
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-            </div>
+            <ApplicationTable
+              applications={sortedApplications}
+              config={tableConfig}
+              onSelect={(id) => navigate(`/admin/finance/${id}`)}
+              selectable
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelect}
+              onToggleSelectAll={toggleSelectAll}
+              statusSelect={{
+                options: (app) => filterStatusOptionsForRole(STATUS_OPTIONS, role, (app as any).status),
+                onChange: (app, status) => requestFinanceStatusChange(app, status),
+              }}
+              showCreditScan
+              onCreditCheckOutcome={(app, outcome) => {
+                setCreditCheckApp(app);
+                setCreditCheckOutcome(outcome as CreditCheckOutcome);
+                setCreditCheckOpen(true);
+              }}
+              windowKey={`${searchQuery}|${statusFilter}|${bucketFilter ?? ''}|${fniFilter}|${viewMode}|${sortKey}`}
+              renderExtraCell={renderFinanceCell}
+              rowClassName={financeRowClass}
+              ensureVisibleId={pendingScrollId}
+              onEnsuredVisible={() => setPendingScrollId(null)}
+              facets={facets}
+              columnFilters={columnFilters}
+              onColumnFilterChange={(key, values) => setColumnFilters((prev) => ({ ...prev, [key]: values }))}
+            />
           )}
         </motion.div>
+
+        {/* Bulk status change — same per-row hook loop as Pipeline (comment gate
+            honored; each row fires exactly the dropdown's existing sends). */}
+        {bulkStatusOpen && (
+          <BulkStatusModal
+            appIds={Array.from(selectedIds)}
+            updateApplication={updateApplication}
+            role={role}
+            onClose={() => setBulkStatusOpen(false)}
+            onDone={() => { clearSelection(); refetch(); }}
+          />
+        )}
 
         {/* Delivery Checklist Modal */}
         {selectedAppForDelivery && (
