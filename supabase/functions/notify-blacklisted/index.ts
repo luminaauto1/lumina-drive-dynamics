@@ -1,5 +1,14 @@
+// notify-blacklisted — "blacklisted / bad credit" WhatsApp to the client.
+// Fired on status → blacklisted.
+//
+// SETTINGS-DRIVEN (2026-07-14): template link from whatsapp_templates key
+// 'blacklisted' (Admin → Settings → WhatsApp Templates). The pasted URL's own
+// query declares the body params — this template has NONE, so no name is sent.
+// See _shared/waTemplates.ts.
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { buildCorsHeaders, checkInternalKey } from "../_shared/publicGuard.ts";
+import { sendTemplateByKey } from "../_shared/waTemplates.ts";
 
 serve(async (req) => {
   const cors = buildCorsHeaders(req.headers.get("origin"), req.headers.get("access-control-request-headers"));
@@ -8,72 +17,23 @@ serve(async (req) => {
   const guard = checkInternalKey(req);
   if (guard) return guard;
 
-  // Per-notification on/off gate (Admin → Settings → WhatsApp). Fail-open: on error, send.
-  try {
-    const SU = Deno.env.get("SUPABASE_URL"); const SK = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (SU && SK) {
-      const gate = await fetch(`${SU}/rest/v1/whatsapp_templates?key=eq.blacklisted&select=active`, { headers: { apikey: SK, Authorization: `Bearer ${SK}` } });
-      const rows = await gate.json().catch(() => []);
-      if (Array.isArray(rows) && rows[0] && rows[0].active === false) {
-        return new Response(JSON.stringify({ success: true, skipped: "disabled" }), { headers: { ...cors, "Content-Type": "application/json" } });
-      }
-    }
-  } catch (_) { /* fail-open */ }
-
   try {
     const { phone_number, client_name } = await req.json();
     if (!phone_number) throw new Error("No phone_number provided.");
-    if (!client_name) throw new Error("No client_name provided.");
 
-    // Sanitize phone (mirror notify-app-submitted)
-    let sanitizedPhone = String(phone_number).replace(/[\s\-+()]/g, "").replace(/\D/g, "");
-    if (sanitizedPhone.startsWith("0")) {
-      sanitizedPhone = "27" + sanitizedPhone.substring(1);
+    const firstName = String(client_name ?? "").trim().split(/\s+/)[0] || "Client";
+    const r = await sendTemplateByKey("blacklisted", phone_number, {
+      name: firstName,
+      mobilenumber: String(phone_number),
+    });
+    console.log("[notify-blacklisted] result:", JSON.stringify(r));
+
+    if ("skipped" in r && r.skipped) {
+      return new Response(JSON.stringify({ success: true, skipped: r.skipped }), { headers: { ...cors, "Content-Type": "application/json" } });
     }
-    if (sanitizedPhone.length < 8 || sanitizedPhone.length > 15) {
-      throw new Error("Invalid phone number");
-    }
-
-    const firstName = String(client_name).trim().split(/\s+/)[0] || "Client";
-
-    // Mirror notify-app-submitted's request format/security, but use the blacklisted template route.
-    const documentedToken = "cmq6s2jnf1px2hfxp6tah7s03";
-    const envToken = Deno.env.get("EASYSOCIAL_API_KEY")?.trim();
-    const tokens = [...new Set([documentedToken, envToken].filter(Boolean))];
-
-    let responseStatus = 0;
-    let responseData: any = null;
-    let dispatchedUrl = "";
-
-    for (const token of tokens) {
-      const apiUrl = `https://api.easysocial.in/api/v1/wa-templates/send/${token}/20059/4026/API/${sanitizedPhone}?body1=${encodeURIComponent(firstName)}`;
-      dispatchedUrl = apiUrl;
-      console.log("Dispatching to EasySocial (blacklisted):", apiUrl);
-
-      const response = await fetch(apiUrl, {
-        method: "GET",
-        headers: { Accept: "application/json" },
-      });
-
-      responseStatus = response.status;
-      const rawText = await response.text();
-      try {
-        responseData = JSON.parse(rawText);
-      } catch {
-        responseData = { raw: rawText };
-      }
-      console.log("EasySocial Response (blacklisted):", responseData);
-
-      if (response.ok && responseData?.success !== false) break;
-    }
-
+    const rr = r as any;
     return new Response(
-      JSON.stringify({
-        success: responseStatus >= 200 && responseStatus < 300 && responseData?.success !== false,
-        status: responseStatus,
-        api_response: responseData,
-        dispatched_url: dispatchedUrl,
-      }),
+      JSON.stringify({ success: rr.sent, status: rr.status, api_response: rr.body, dispatched_url: rr.dispatched_url }),
       { headers: { ...cors, "Content-Type": "application/json" } },
     );
   } catch (error: any) {

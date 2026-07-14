@@ -8,6 +8,7 @@
 // Deployed with verify_jwt = false (TikTok cannot send Supabase JWTs).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { getWaTemplate, buildWaSendUrl } from "../_shared/waTemplates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,8 +17,10 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 };
 
-const EASYSOCIAL_TEMPLATE_BASE =
-  "https://api.easysocial.in/api/v1/wa-templates/send/cmoiymj99b30ciyxpdvtndj6n/18909/4026/API";
+// SETTINGS-DRIVEN (2026-07-14): the lead-welcome template link lives in
+// whatsapp_templates key 'tiktok_lead_welcome' (Admin → Settings → WhatsApp
+// Templates) — the ban wiped the old hardcoded template, never hardcode again.
+const WELCOME_TEMPLATE_KEY = "tiktok_lead_welcome";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -142,7 +145,19 @@ function extractLeadFields(formData: unknown) {
 async function dispatchWhatsAppAfterDelay(sanitizedNumber: string, clientName: string) {
   try {
     await new Promise((resolve) => setTimeout(resolve, 10000));
-    const url = `${EASYSOCIAL_TEMPLATE_BASE}/${sanitizedNumber}?body1=${encodeURIComponent(clientName)}`;
+    const tpl = await getWaTemplate(WELCOME_TEMPLATE_KEY);
+    if (!tpl || tpl.active === false) {
+      console.log("[tiktok-receiver] welcome skipped — template missing/inactive:", WELCOME_TEMPLATE_KEY);
+      return;
+    }
+    const url = buildWaSendUrl(tpl.send_url, sanitizedNumber, {
+      name: clientName || "there",
+      mobilenumber: sanitizedNumber,
+    });
+    if (!url) {
+      console.log("[tiktok-receiver] welcome skipped — no send_url on", WELCOME_TEMPLATE_KEY);
+      return;
+    }
     console.log("[tiktok-receiver] dispatching WhatsApp →", url);
     const res = await fetch(url, { method: "GET", headers: { Accept: "application/json" } });
     const text = await res.text();

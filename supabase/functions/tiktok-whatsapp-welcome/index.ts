@@ -14,8 +14,10 @@ const corsHeaders = {
 };
 
 const SECRET_TOKEN = "tt_wa_lumina_9F3xQ2vK7pL4mN8r";
-const EASYSOCIAL_TEMPLATE_BASE =
-  "https://api.easysocial.in/api/v1/wa-templates/send/cmoiymj99b30ciyxpdvtndj6n/18909/4026/API";
+// SETTINGS-DRIVEN (2026-07-14): welcome template from whatsapp_templates key
+// 'tiktok_lead_welcome' (Admin → Settings → WhatsApp Templates).
+import { getWaTemplate, buildWaSendUrl } from "../_shared/waTemplates.ts";
+const WELCOME_TEMPLATE_KEY = "tiktok_lead_welcome";
 
 function sanitizePhone(raw: unknown): string | null {
   if (raw === null || raw === undefined) return null;
@@ -65,7 +67,17 @@ function extractPhone(payload: any): string | null {
 async function dispatchWhatsAppAfterDelay(sanitizedNumber: string) {
   try {
     await new Promise((resolve) => setTimeout(resolve, 10000));
-    const url = `${EASYSOCIAL_TEMPLATE_BASE}/${sanitizedNumber}?body1=1`;
+    const tpl = await getWaTemplate(WELCOME_TEMPLATE_KEY);
+    if (!tpl || tpl.active === false) {
+      console.log("[tiktok-whatsapp-welcome] skipped — template missing/inactive:", WELCOME_TEMPLATE_KEY);
+      return;
+    }
+    // This isolated dispatcher has no name in its payload → greet generically.
+    const url = buildWaSendUrl(tpl.send_url, sanitizedNumber, { name: "there", mobilenumber: sanitizedNumber });
+    if (!url) {
+      console.log("[tiktok-whatsapp-welcome] skipped — no send_url on", WELCOME_TEMPLATE_KEY);
+      return;
+    }
     console.log("[tiktok-whatsapp-welcome] dispatching →", url);
     const res = await fetch(url, { method: "GET", headers: { Accept: "application/json" } });
     const text = await res.text();

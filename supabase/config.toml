@@ -156,3 +156,12 @@ verify_jwt = false
 verify_jwt = false
 [functions.chat-answer]
 verify_jwt = false
+
+# notify-pre-approval-internal does its own auth (x-lumina-key / staff invoke);
+# was implicitly verify_jwt=true which blocked keyed callers (2026-07-14 rewire).
+[functions.notify-pre-approval-internal]
+verify_jwt = false
+
+# tiktok-connect: one-time TikTok Marketing API connector (staff-JWT auth in-code).
+[functions.tiktok-connect]
+verify_jwt = false

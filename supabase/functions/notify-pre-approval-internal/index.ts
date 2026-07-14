@@ -1,10 +1,25 @@
+// notify-pre-approval-internal — "client pre-approved" WhatsApp to the F&I STAFF
+// numbers (NOT the client). Fired on status → pre_approved.
+//
+// SETTINGS-DRIVEN (2026-07-14): template link from whatsapp_templates key
+// 'pre_approval_internal'. The recreated (post-ban) template takes TWO vars —
+// body1=name (client's full name), body2=mobilenumber (client's phone) — the
+// pasted URL's query declares them, so this sends exactly what the template
+// expects (the old code pushed 4 vars at a dead template, which is why staff
+// notifications went missing).
+//
+// RELIABILITY: each staff number is dispatched with a built-in retry
+// (dispatchWa in _shared/waTemplates.ts), sequentially so one hard failure
+// can't starve the other, and the response reports per-number outcomes.
+//
+// TESTING: pass { test_phone: "0816783511" } to send ONLY to that number —
+// never to the staff list.
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { buildCorsHeaders, checkInternalKey } from "../_shared/publicGuard.ts";
+import { getWaTemplate, buildWaSendUrl, dispatchWa, sanitizeWaPhone } from "../_shared/waTemplates.ts";
 
 const STAFF_NUMBERS = ["27836117792", "27716196071"];
-const CAMPAIGN_ID = "cmq6u7szu234vhfxp8s1c7igi";
-const TEMPLATE_ID = "20060";
-const ACCOUNT_ID = "4026";
 
 serve(async (req) => {
   const cors = buildCorsHeaders(req.headers.get("origin"), req.headers.get("access-control-request-headers"));
@@ -13,68 +28,47 @@ serve(async (req) => {
   const guard = checkInternalKey(req);
   if (guard) return guard;
 
-  // Per-notification on/off gate (Admin → Settings → WhatsApp). Fail-open: on error, send.
-  try {
-    const SU = Deno.env.get("SUPABASE_URL"); const SK = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (SU && SK) {
-      const gate = await fetch(`${SU}/rest/v1/whatsapp_templates?key=eq.pre_approval_internal&select=active`, { headers: { apikey: SK, Authorization: `Bearer ${SK}` } });
-      const rows = await gate.json().catch(() => []);
-      if (Array.isArray(rows) && rows[0] && rows[0].active === false) {
-        return new Response(JSON.stringify({ success: true, skipped: "disabled" }), { headers: { ...cors, "Content-Type": "application/json" } });
-      }
-    }
-  } catch (_) { /* fail-open */ }
+  const json = (status: number, body: unknown) =>
+    new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
   try {
     const payload = await req.json();
     console.log("[notify-pre-approval-internal] incoming payload:", JSON.stringify(payload));
-    const { client_name, first_name, last_name, client_phone, bank_reference_code } = payload;
+    const { client_name, first_name, last_name, client_phone, test_phone } = payload;
 
-    let derivedFirst = (first_name || "").toString().trim();
-    let derivedLast = (last_name || "").toString().trim();
-    if (!derivedFirst && !derivedLast && client_name) {
-      const parts = String(client_name).trim().split(/\s+/);
-      derivedFirst = parts.shift() || "";
-      derivedLast = parts.join(" ");
+    let fullName = String(client_name ?? "").trim();
+    if (!fullName) fullName = [first_name, last_name].filter(Boolean).join(" ").trim();
+    if (!fullName) fullName = "Unknown Client";
+    const clientMobile = String(client_phone ?? "").trim() || "N/A";
+
+    const tpl = await getWaTemplate("pre_approval_internal");
+    if (!tpl) return json(200, { success: true, skipped: "template_row_missing" });
+    if (tpl.active === false) return json(200, { success: true, skipped: "disabled" });
+
+    const recipients = test_phone
+      ? [sanitizeWaPhone(test_phone)].filter(Boolean) as string[]
+      : STAFF_NUMBERS;
+    if (!recipients.length) return json(400, { success: false, error: "no valid recipient" });
+
+    const results: Array<Record<string, unknown>> = [];
+    for (const phone of recipients) {
+      const url = buildWaSendUrl(tpl.send_url, phone, { name: fullName, mobilenumber: clientMobile });
+      if (!url) { results.push({ phone, ok: false, skipped: "no_send_url" }); continue; }
+      console.log("[notify-pre-approval-internal] dispatching to", phone);
+      const r = await dispatchWa(url);
+      console.log("[notify-pre-approval-internal] result", phone, r.status, JSON.stringify(r.body).slice(0, 300));
+      results.push({ phone, ok: r.ok, status: r.status, body: r.body });
     }
-    if (!derivedFirst) derivedFirst = "Unknown";
-    if (!derivedLast) derivedLast = "-";
 
-    const phoneForBody = (client_phone || "N/A").toString();
-    const refCode = bank_reference_code ? String(bank_reference_code).trim() : "No Ref Code";
-
-    const b1 = encodeURIComponent(derivedFirst);
-    const b2 = encodeURIComponent(derivedLast);
-    const b3 = encodeURIComponent(phoneForBody);
-    const b4 = encodeURIComponent(refCode);
-
-    // Parallel execution to prevent sequential blocking
-    const dispatchPromises = STAFF_NUMBERS.map(async (phone) => {
-      const apiUrl = `https://api.easysocial.in/api/v1/wa-templates/send/${CAMPAIGN_ID}/${TEMPLATE_ID}/${ACCOUNT_ID}/API/${phone}?body1=${b1}&body2=${b2}&body3=${b3}&body4=${b4}`;
-      console.log("[notify-pre-approval-internal] dispatching to", phone, "url:", apiUrl);
-      try {
-        const resp = await fetch(apiUrl, { headers: { Accept: "application/json" } });
-        const raw = await resp.text();
-        let body;
-        try { body = JSON.parse(raw); } catch { body = { raw }; }
-        console.log("[notify-pre-approval-internal] response", phone, "status:", resp.status, "body:", raw);
-        return { phone, status: resp.status, body, ok: resp.ok && body?.success !== false };
-      } catch (err: any) {
-        console.error("[notify-pre-approval-internal] fetch error", phone, err.message);
-        return { phone, status: 500, error: err.message, ok: false };
-      }
+    const allOk = results.every((r) => r.ok === true);
+    console.log("[notify-pre-approval-internal] FINAL allOk:", allOk);
+    return json(allOk ? 200 : 207, {
+      success: allOk,
+      results,
+      payload: { body1: fullName, body2: clientMobile },
+      test_mode: !!test_phone,
     });
-
-    const results = await Promise.all(dispatchPromises);
-    const allOk = results.every((r) => r.ok);
-    console.log("[notify-pre-approval-internal] FINAL allOk:", allOk, "results:", JSON.stringify(results));
-
-    return new Response(
-      JSON.stringify({ success: allOk, results, payload: { body1: derivedFirst, body2: derivedLast, body3: phoneForBody, body4: refCode } }),
-      { status: allOk ? 200 : 207, headers: { ...cors, "Content-Type": "application/json" } },
-    );
-
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
+    return json(500, { error: error.message });
   }
 });
