@@ -35,3 +35,43 @@ export function isArchivedApp(
   }
   return app?.is_archived === true || LEGACY_TERMINAL_STATUSES.includes(s);
 }
+
+// ── Per-user application visibility (Settings → Team, app_visibility_rules) ──
+// Asymmetric by design: user A can be granted user B's apps without B being
+// granted A's. Finance AND Pipeline both filter through this ONE function so
+// the two pages can never disagree.
+export interface AppVisibilityRule {
+  user_id: string;
+  mode: 'default' | 'all' | 'own' | 'custom';
+  visible_user_ids: string[];
+}
+
+export function canSeeApplication(opts: {
+  /** assigned_f_and_i of the application */
+  owner: string | null | undefined;
+  /** unassigned OR owned by a senior (senior "ownership" = who captured it) */
+  effectivelyUnassigned: boolean;
+  role: string | null | undefined;
+  userId: string | null | undefined;
+  rule: AppVisibilityRule | null | undefined;
+}): boolean {
+  const { owner, effectivelyUnassigned, role, userId, rule } = opts;
+  // Admins are never lockable — the owner can't hide apps from themselves.
+  if (role === 'super_admin') return true;
+  const mode = rule?.mode && rule.mode !== 'default'
+    ? rule.mode
+    // Legacy defaults: normal F&I sees own + unassigned; everyone else sees all.
+    : role === 'f_and_i' ? 'own' : 'all';
+  switch (mode) {
+    case 'all':
+      return true;
+    case 'own':
+      return effectivelyUnassigned || owner === userId;
+    case 'custom':
+      return effectivelyUnassigned
+        || owner === userId
+        || (!!owner && (rule?.visible_user_ids || []).includes(owner));
+    default:
+      return true;
+  }
+}

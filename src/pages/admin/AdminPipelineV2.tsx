@@ -8,6 +8,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useFinanceApplications, useUpdateFinanceApplication, type FinanceApplication } from '@/hooks/useFinanceApplications';
 import { useFAndIUsers } from '@/hooks/useFAndIUsers';
+import { canSeeApplication } from '@/lib/finance/shared';
+import { useMyAppVisibility } from '@/hooks/useAppVisibility';
 import { useStatusConfig } from '@/hooks/useZtcSettings';
 import { PIPELINE_TABS, inTab } from '@/lib/pipelinev2/tabs';
 import { colorForUser } from '@/lib/pipelinev2/presence';
@@ -49,6 +51,7 @@ const AdminPipelineV2 = () => {
   const { user, role, isSuperAdmin, isSeniorFAndI } = useAuth();
   const { data: apps = [], isLoading } = useFinanceApplications();
   const { data: fniUsers = [] } = useFAndIUsers();
+  const myVisibility = useMyAppVisibility();
   const updateApplication = useUpdateFinanceApplication();
   const { labels: statusLabels, styles: statusStyles, financeLaneOverrides, clientLabels } = useStatusConfig();
 
@@ -158,15 +161,17 @@ const AdminPipelineV2 = () => {
       const ownerIsSenior = !!owner && fniUsers.some((u) => u.id === owner && u.role === 'senior_f_and_i');
       const effectivelyUnassigned = !owner || ownerIsSenior;
 
-      if (role === 'f_and_i') {
-        // Normal F&I: only their own deals + still-claimable (unassigned) ones.
-        return effectivelyUnassigned || owner === user?.id;
+      // Owner-configured visibility rule first (Settings → Team; same
+      // canSeeApplication the Finance page uses), then the dropdown narrows.
+      if (!canSeeApplication({ owner, effectivelyUnassigned, role, userId: user?.id, rule: myVisibility })) {
+        return false;
       }
+      if (role === 'f_and_i') return true; // rule already scoped them
       if (fniFilter === 'self') return owner === user?.id;
       if (fniFilter === 'unassigned') return effectivelyUnassigned;
       return true; // 'all'
     });
-  }, [apps, search, fniUsers, role, fniFilter, user?.id]);
+  }, [apps, search, fniUsers, role, fniFilter, user?.id, myVisibility]);
 
   // Counts per tab over the visible (ownership+search) set.
   const counts = useMemo(() => {
