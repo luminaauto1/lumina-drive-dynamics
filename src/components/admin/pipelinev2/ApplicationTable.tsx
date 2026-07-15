@@ -519,6 +519,32 @@ function renderCell(
           {formatTime(any.created_at) && <div className="text-[10px] opacity-60">{formatTime(any.created_at)}</div>}
         </div>
       );
+    case 'credit': {
+      // Read-only credit-check STATUS badge for the toggleable 'credit' column
+      // (visible on non-intake tabs). The interactive dropdown + CarTrust scan
+      // stays exclusive to the intake `showCreditScan` cell; here we only surface
+      // the status. Colour mapping is byte-equal to that cell's `ccStyle` so the
+      // two read as one control.
+      const cc = any.credit_check_status as 'passed' | 'failed' | 'pending' | null | undefined;
+      const ccStyle =
+        cc === 'passed'
+          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+          : cc === 'failed'
+            ? 'bg-red-500/10 text-red-400 border-red-500/30'
+            : cc === 'pending'
+              ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+              : 'bg-muted/40 text-muted-foreground border-border';
+      const ccLabel =
+        cc === 'passed' ? 'Passed'
+          : cc === 'failed' ? 'Failed'
+            : cc === 'pending' ? 'Pending'
+              : 'Not run';
+      return (
+        <span className={'inline-flex items-center rounded border px-2 py-0.5 text-xs uppercase tracking-wider ' + ccStyle}>
+          {ccLabel}
+        </span>
+      );
+    }
     default: return null;
   }
 }
