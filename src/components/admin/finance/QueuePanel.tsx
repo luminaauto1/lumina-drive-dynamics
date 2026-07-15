@@ -60,12 +60,17 @@ export function QueuePanel({
   busyId,
   onAction,
   defaultOpen = true,
+  chrome = 'panel',
 }: {
   def: QueueDef;
   apps: any[];
   busyId: string | null;
   onAction: (app: any, action: QueueAction) => void | Promise<void>;
   defaultOpen?: boolean;
+  /** 'panel' = standalone collapsible card (legacy). 'bare' = rows only with a
+   *  slim hint line — used inside the tabbed My Work bar (owner: "make it like
+   *  the pipeline"), where the tab itself is the header. */
+  chrome?: 'panel' | 'bare';
 }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(defaultOpen);
@@ -78,6 +83,94 @@ export function QueuePanel({
   const CAP = 12;
   const visible = showAll ? apps : apps.slice(0, CAP);
   const Icon = QUEUE_ICONS[def.icon] || Hourglass;
+  const slaH = def.slaStatus != null ? slaHoursFor(def.slaStatus) : null;
+
+  // One row — shared by the standalone panel and the tabbed (bare) rendering.
+  const renderRow = (a: any) => {
+    const fresh = isContactFresh(a);
+    return (
+      <div key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2">
+        <div className="min-w-[150px]">
+          <div className="text-sm font-medium text-foreground truncate">{clientName(a)}</div>
+          <div className="text-xs text-muted-foreground tabular-nums">{a.phone || '—'}</div>
+        </div>
+        <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border ${statusBadgeClass(a.status)}`}>
+          {ADMIN_STATUS_LABELS[a.status] || a.status}
+        </span>
+        <AgeChip app={a} />
+        {def.showDocsChecklist && <DocsChecklistChip app={a} />}
+        {def.showContactStatus && (
+          <span className={`text-[11px] whitespace-nowrap ${fresh ? 'text-emerald-400' : 'text-amber-400'}`}>
+            {fresh
+              ? `✓ contacted ${relTime(a.docs_contacted_at)}${a.docs_contacted_by ? ` by ${a.docs_contacted_by}` : ''}`
+              : a.docs_contacted_at
+                ? `⚠ last contact ${relTime(a.docs_contacted_at)} — chase again`
+                : '⚠ never contacted'}
+          </span>
+        )}
+        {a.fni_owner?.full_name && (
+          <span className="text-[11px] text-zinc-500 whitespace-nowrap hidden lg:inline">
+            F&I: {a.fni_owner.full_name}
+          </span>
+        )}
+        <div className="ml-auto flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+          {def.showCreditScan && <CreditScanButton application={a} />}
+          {def.actions
+            .filter((act) => (act.show ? act.show(a) : true))
+            .map((act) => {
+              const ActIcon = ACTION_ICONS[act.icon] || CheckCircle2;
+              return (
+                <Button
+                  key={act.key}
+                  size="sm"
+                  variant="outline"
+                  className={`h-7 gap-1 ${act.className || ''}`}
+                  disabled={busyId === a.id}
+                  onClick={() => void onAction(a, act)}
+                  title={act.title || act.label}
+                >
+                  <ActIcon className="w-3.5 h-3.5" /> {act.label}
+                </Button>
+              );
+            })}
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 w-7 p-0"
+            onClick={() => navigate(`/admin/finance/${a.id}`)}
+            title="Open full application"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  if (chrome === 'bare') {
+    return (
+      <div>
+        <div className="flex items-center justify-between px-4 pt-2 pb-1">
+          <span className="text-[11px] text-zinc-500">{def.hint}</span>
+          {slaH != null && (
+            <span className="text-[10px] text-zinc-600 whitespace-nowrap">SLA {slaH}h</span>
+          )}
+        </div>
+        <div className="divide-y divide-zinc-800/70">
+          {visible.map((a: any) => renderRow(a))}
+          {apps.length > CAP && (
+            <button
+              type="button"
+              onClick={() => setShowAll((s) => !s)}
+              className="w-full px-4 py-2 text-left text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors"
+            >
+              {showAll ? '▲ Show fewer' : `▼ Show all ${apps.length}`}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full bg-[#161616] border border-zinc-800 rounded-lg overflow-hidden">
@@ -97,8 +190,8 @@ export function QueuePanel({
           <span className="text-[11px] text-zinc-600 truncate hidden md:inline">{def.hint}</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {def.slaStatus != null && slaHoursFor(def.slaStatus) != null && (
-            <span className="text-[10px] text-zinc-600 whitespace-nowrap">SLA {slaHoursFor(def.slaStatus)}h</span>
+          {slaH != null && (
+            <span className="text-[10px] text-zinc-600 whitespace-nowrap">SLA {slaH}h</span>
           )}
           {open ? <ChevronUp className="w-4 h-4 text-zinc-500" /> : <ChevronDown className="w-4 h-4 text-zinc-500" />}
         </div>
@@ -106,66 +199,7 @@ export function QueuePanel({
 
       {open && (
         <div className="divide-y divide-zinc-800/70 border-t border-zinc-800">
-          {visible.map((a: any) => {
-            const fresh = isContactFresh(a);
-            return (
-              <div key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2">
-                <div className="min-w-[150px]">
-                  <div className="text-sm font-medium text-foreground truncate">{clientName(a)}</div>
-                  <div className="text-xs text-muted-foreground tabular-nums">{a.phone || '—'}</div>
-                </div>
-                <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border ${statusBadgeClass(a.status)}`}>
-                  {ADMIN_STATUS_LABELS[a.status] || a.status}
-                </span>
-                <AgeChip app={a} />
-                {def.showDocsChecklist && <DocsChecklistChip app={a} />}
-                {def.showContactStatus && (
-                  <span className={`text-[11px] whitespace-nowrap ${fresh ? 'text-emerald-400' : 'text-amber-400'}`}>
-                    {fresh
-                      ? `✓ contacted ${relTime(a.docs_contacted_at)}${a.docs_contacted_by ? ` by ${a.docs_contacted_by}` : ''}`
-                      : a.docs_contacted_at
-                        ? `⚠ last contact ${relTime(a.docs_contacted_at)} — chase again`
-                        : '⚠ never contacted'}
-                  </span>
-                )}
-                {a.fni_owner?.full_name && (
-                  <span className="text-[11px] text-zinc-500 whitespace-nowrap hidden lg:inline">
-                    F&I: {a.fni_owner.full_name}
-                  </span>
-                )}
-                <div className="ml-auto flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                  {def.showCreditScan && <CreditScanButton application={a} />}
-                  {def.actions
-                    .filter((act) => (act.show ? act.show(a) : true))
-                    .map((act) => {
-                      const ActIcon = ACTION_ICONS[act.icon] || CheckCircle2;
-                      return (
-                        <Button
-                          key={act.key}
-                          size="sm"
-                          variant="outline"
-                          className={`h-7 gap-1 ${act.className || ''}`}
-                          disabled={busyId === a.id}
-                          onClick={() => void onAction(a, act)}
-                          title={act.title || act.label}
-                        >
-                          <ActIcon className="w-3.5 h-3.5" /> {act.label}
-                        </Button>
-                      );
-                    })}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 w-7 p-0"
-                    onClick={() => navigate(`/admin/finance/${a.id}`)}
-                    title="Open full application"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
+          {visible.map((a: any) => renderRow(a))}
           {apps.length > CAP && (
             <button
               type="button"
