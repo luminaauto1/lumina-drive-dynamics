@@ -429,7 +429,7 @@ const TeamManagementTab = () => {
                             </PopoverTrigger>
                             <PopoverContent className="w-64 p-3" align="end">
                               <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
-                                Can also see apps assigned to
+                                Sees ONLY their own apps + apps assigned to
                               </p>
                               <div className="space-y-1.5 max-h-56 overflow-auto">
                                 {agents.filter((o) => o.user_id !== a.user_id).map((o) => (
@@ -448,7 +448,8 @@ const TeamManagementTab = () => {
                                 ))}
                               </div>
                               <p className="text-[11px] text-muted-foreground mt-2">
-                                One-way: this does NOT let those users see this person's apps in return.
+                                Strict: no unassigned/new apps, no other files. One-way — this does
+                                NOT let those users see this person's apps in return.
                               </p>
                             </PopoverContent>
                           </Popover>

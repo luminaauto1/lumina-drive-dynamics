@@ -68,8 +68,9 @@ export function canSeeApplication(opts: {
     case 'own':
       return effectivelyUnassigned || owner === userId;
     case 'custom':
-      return effectivelyUnassigned
-        || owner === userId
+      // STRICT (owner rule 2026-07-15): ONLY own apps + the granted users'
+      // apps. No unassigned/new pool, no senior-captured claimables.
+      return owner === userId
         || (!!owner && (rule?.visible_user_ids || []).includes(owner));
     default:
       return true;
