@@ -196,6 +196,11 @@ export function StatusEditModal({
   const [hidden, setHidden] = useState(!!existing?.is_hidden);
   const [commentRequired, setCommentRequired] = useState(!!existing?.comment_required);
   const [commentPrompt, setCommentPrompt] = useState(existing?.comment_prompt ?? '');
+  // Per-status SLA in hours (finance track). Empty = built-in default from
+  // lib/finance/sla.ts; drives the Finance page's Age chips + Stalled queue.
+  const [slaHours, setSlaHours] = useState<string>(
+    existing?.sla_hours != null ? String(existing.sla_hours) : '',
+  );
   const [isInternal, setIsInternal] = useState(!!existing?.is_internal);
   const [waMessage, setWaMessage] = useState(existing?.whatsapp_message ?? '');
   const [tag, setTag] = useState(existing?.easysocial_tag_to_add ?? '');
@@ -399,6 +404,8 @@ export function StatusEditModal({
         whatsapp_message: waMessage.trim() ? waMessage : null,
         comment_required: commentRequired,
         comment_prompt: commentPrompt.trim() ? commentPrompt.trim() : null,
+        // Empty / invalid => NULL so the built-in SLA default applies (finance only).
+        sla_hours: type === 'finance' && Number(slaHours) > 0 ? Math.round(Number(slaHours)) : null,
         is_internal: isInternal,
         easysocial_tag_to_add: legacySingleTag ? legacySingleTag : null,
         easysocial_tags_to_add: cleanTagsToAdd,
@@ -634,6 +641,23 @@ export function StatusEditModal({
               <Input value={commentPrompt} onChange={(e) => setCommentPrompt(e.target.value)} placeholder="e.g. Why are you setting this status?" className="h-8 text-sm" />
             </div>
           </div>
+
+          {/* SLA (finance track): how long an app may sit in this status before
+              it reads as STALLED on the Finance page (Age chip turns red +
+              lands in the ⚠ Stalled queue/tile). */}
+          {type === 'finance' && (
+            <div className="space-y-1.5 rounded-md border border-border p-3">
+              <Label className="text-xs text-muted-foreground">SLA — hours before an application in this status counts as stalled</Label>
+              <Input
+                type="number"
+                min={0}
+                value={slaHours}
+                onChange={(e) => setSlaHours(e.target.value)}
+                placeholder="Empty = built-in default (e.g. Sent to Banks 72h)"
+                className="h-8 text-sm w-56"
+              />
+            </div>
+          )}
 
           {/* Internal only (store-only) */}
           <div className="space-y-1">

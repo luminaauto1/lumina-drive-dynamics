@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { ADMIN_STATUS_LABELS, statusBadgeClass } from '@/lib/statusConfig';
 import type { QueueDef, QueueAction } from '@/lib/finance/queues';
 import { isContactFresh } from '@/lib/finance/shared';
+import { slaHoursFor } from '@/lib/finance/sla';
 import { AgeChip } from './AgeChip';
 import { DocsChecklistChip } from './DocsChecklistChip';
 import { CreditScanButton } from '@/components/finance/CreditScanButton';
@@ -96,8 +97,8 @@ export function QueuePanel({
           <span className="text-[11px] text-zinc-600 truncate hidden md:inline">{def.hint}</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {def.slaHours != null && (
-            <span className="text-[10px] text-zinc-600 whitespace-nowrap">SLA {def.slaHours}h</span>
+          {def.slaStatus != null && slaHoursFor(def.slaStatus) != null && (
+            <span className="text-[10px] text-zinc-600 whitespace-nowrap">SLA {slaHoursFor(def.slaStatus)}h</span>
           )}
           {open ? <ChevronUp className="w-4 h-4 text-zinc-500" /> : <ChevronDown className="w-4 h-4 text-zinc-500" />}
         </div>

@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Tables } from '@/integrations/supabase/types';
 import { logActivity, humanizeStatus } from '@/lib/activityLog';
+import { sendClientEmail } from '@/lib/clientEmail';
 import type { DocumentSettings } from '@/hooks/useDocumentSettings';
 
 export type FinanceApplication = Tables<'finance_applications'> & {
@@ -397,30 +398,16 @@ export const useUpdateFinanceApplication = () => {
             </div>
           `;
 
-          // Direct Frontend Dispatch to EmailJS
-          fetch("https://api.emailjs.com/api/v1.0/email/send", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              service_id: "service_myacl2m",
-              template_id: "template_b2igduv",
-              user_id: "pWT3blntfZk-_syL4",
-              template_params: {
-                to_email: currentApp.email,
-                subject: subject,
-                html_message: emailHtml,
-              }
-            }),
-          })
-          .then(async (res) => {
-            if (!res.ok) {
-              const text = await res.text();
-              console.error("EmailJS API Rejected the request:", text);
-            } else {
-              console.log("EmailJS successfully received the payload.");
-            }
-          })
-          .catch(err => console.error("Frontend failed to reach EmailJS:", err));
+          // ONE shared client-email helper (P4) — same EmailJS transport and
+          // payload as always, plus a comms-log entry on the client's timeline.
+          // Fire-and-forget: a failed email never breaks the status update.
+          void sendClientEmail({
+            to: currentApp.email,
+            subject,
+            html: emailHtml,
+            applicationId: id,
+            clientPhone: currentApp.phone ?? null,
+          });
         } else if (statusActuallyChanged) {
           console.log(`[Auto-Mailer] Status changed to "${newStatus}" — no active template with status_key="${newStatus}". No email sent.`);
         }

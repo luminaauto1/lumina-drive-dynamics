@@ -124,13 +124,49 @@ export async function dispatchWa(
 }
 
 /**
+ * Comms log (redesign P4): record a client-facing WhatsApp dispatch that this
+ * system ALREADY makes into client_audit_logs, so "what was this client sent"
+ * shows in the unified per-client/per-application timeline. Logging only —
+ * it can never block or alter a send (all failures are swallowed).
+ */
+export async function logClientSend(entry: {
+  kind: string;                       // template key / sender name
+  rawPhone: unknown;                  // as stored on the application (timeline matches on it)
+  ok: boolean;
+  applicationId?: string | null;
+  clientEmail?: string | null;
+  detail?: string | null;             // e.g. upstream error snippet
+}): Promise<void> {
+  try {
+    const SU = Deno.env.get("SUPABASE_URL");
+    const SK = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!SU || !SK) return;
+    await fetch(`${SU}/rest/v1/client_audit_logs`, {
+      method: "POST",
+      headers: { apikey: SK, Authorization: `Bearer ${SK}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify({
+        client_phone: String(entry.rawPhone ?? "") || null,
+        client_email: entry.clientEmail ?? null,
+        application_id: entry.applicationId ?? null,
+        author_name: "System",
+        action_type: "client_message",
+        note: `WhatsApp ${entry.ok ? "sent" : "send FAILED"} — ${entry.kind}${entry.detail ? ` (${String(entry.detail).slice(0, 180)})` : ""}`,
+      }),
+    });
+  } catch (_e) { /* logging must never break a send */ }
+}
+
+/**
  * One-call convenience used by the simple client-notify senders:
  * resolve template `key` → skip if inactive/unset → build URL → dispatch.
+ * Every real dispatch (sent or failed) is recorded via logClientSend;
+ * skips (disabled/bad phone/missing row) send nothing and log nothing.
  */
 export async function sendTemplateByKey(
   key: string,
   rawPhone: unknown,
   values: Record<string, string | null | undefined>,
+  logMeta?: { applicationId?: string | null; clientEmail?: string | null },
 ): Promise<
   | { sent: false; skipped: string }
   | { sent: boolean; skipped?: undefined; status: number; body: any; dispatched_url: string }
@@ -143,5 +179,13 @@ export async function sendTemplateByKey(
   const url = buildWaSendUrl(tpl.send_url, phone, values);
   if (!url) return { sent: false, skipped: "no_send_url" };
   const r = await dispatchWa(url);
+  await logClientSend({
+    kind: key,
+    rawPhone,
+    ok: r.ok,
+    applicationId: logMeta?.applicationId ?? null,
+    clientEmail: logMeta?.clientEmail ?? null,
+    detail: r.ok ? null : `status ${r.status}`,
+  });
   return { sent: r.ok, status: r.status, body: r.body, dispatched_url: url };
 }

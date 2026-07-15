@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { UserPlus, Loader2, Mail, Shield, Trash2, Copy, Check, KeyRound, Building2 } from 'lucide-react';
+import { sendClientEmail } from '@/lib/clientEmail';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -165,32 +166,16 @@ const TeamManagementTab = () => {
           </div>
         `;
 
-        fetch("https://api.emailjs.com/api/v1.0/email/send", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            service_id: "service_myacl2m",
-            template_id: "template_b2igduv",
-            user_id: "pWT3blntfZk-_syL4",
-            template_params: {
-              to_email: agentEmail,
-              subject: "Your Lumina Auto Sales Agent Login",
-              html_message: emailHtml,
-            }
-          }),
-        })
-        .then(async (res) => {
-          if (!res.ok) {
-            const text = await res.text();
-            console.error("EmailJS rejected agent credentials email:", text);
-            toast.success('Agent created — email failed, share credentials manually below');
-          } else {
-            toast.success(`Agent created — credentials emailed to ${agentEmail}`);
-          }
-        })
-        .catch(err => {
-          console.error("EmailJS unreachable for agent credentials:", err);
-          toast.success('Agent created — share credentials manually below');
+        // Shared EmailJS helper (P4) — staff audience: identical dispatch, no
+        // client comms-log entry (this is a credentials email to the agent).
+        void sendClientEmail({
+          to: agentEmail,
+          subject: "Your Lumina Auto Sales Agent Login",
+          html: emailHtml,
+          audience: 'staff',
+        }).then((ok) => {
+          if (ok) toast.success(`Agent created — credentials emailed to ${agentEmail}`);
+          else toast.success('Agent created — email failed, share credentials manually below');
         });
       } else if ((data as any)?.email_delivery === 'not_sent_existing_user') {
         toast.success('Existing user updated as sales agent — use Manual Password to set shareable login details');

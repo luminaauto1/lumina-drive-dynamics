@@ -27,9 +27,17 @@ export function ageInStatusMs(app: {
   return Math.max(0, Date.now() - new Date(t).getTime());
 }
 
+// Owner-tunable overrides (status_overrides.sla_hours, P4). Synced from the
+// settings query by the Finance page on load; empty until then, so the
+// defaults above always apply as the fallback.
+let SLA_OVERRIDES: Record<string, number> = {};
+export function setSlaOverrides(map: Record<string, number>) {
+  SLA_OVERRIDES = map || {};
+}
+
 export function slaHoursFor(status: string | null | undefined): number | null {
   if (!status) return null;
-  return DEFAULT_SLA_HOURS[status] ?? null;
+  return SLA_OVERRIDES[status] ?? DEFAULT_SLA_HOURS[status] ?? null;
 }
 
 /** How far past its status SLA this app is, in ms. 0 = within SLA or no SLA. */
