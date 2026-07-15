@@ -25,7 +25,7 @@ export const PIPELINE_TABS: PipelineTabDef[] = [
   { key: 'submitted',  label: 'Submitted',   statuses: ['ready_to_submit', 'sent_to_banks'], accent: 'text-blue-400' },
   { key: 'approved',   label: 'Approved',    statuses: ['pre_approved', 'documents_received', 'approved', 'vehicle_selected'], accent: 'text-yellow-400' },
   // Flexi = the non-traditional finance partner's track (owner, 2026-07-14).
-  { key: 'flexi',      label: 'Flexi',       statuses: ['pre_approved_flexi', 'validated_flexi'], accent: 'text-teal-400' },
+  { key: 'flexi',      label: 'Flexi',       statuses: ['pre_approved_flexi', 'vals_submitted_flexi', 'validated_flexi'], accent: 'text-teal-400' },
   // Contract lane removed: contract-signed deals stay grouped under Validations
   // ("Vals Done") rather than splitting into their own column. contract_sent /
   // contract_signed are VIEW-grouped here only — the status enum is unchanged so
