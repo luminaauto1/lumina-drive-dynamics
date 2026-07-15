@@ -36,8 +36,11 @@ import { CommentGateModal } from '@/components/admin/CommentGateModal';
 import { CreditScanButton } from '@/components/finance/CreditScanButton';
 import { addPipelineNote } from '@/lib/pipelinev2/notes';
 import { HistoryFeed } from '@/components/admin/pipelinev2/HistoryFeed';
-import { CONTACT_TTL_MS, isArchivedApp } from '@/lib/finance/shared';
-import { ageInStatusMs, setSlaOverrides } from '@/lib/finance/sla';
+import { CONTACT_TTL_MS, isArchivedApp, canSeeApplication } from '@/lib/finance/shared';
+import { ageInStatusMs, setSlaOverrides, isStalled } from '@/lib/finance/sla';
+import { KpiStrip } from '@/components/admin/finance/KpiStrip';
+import { bucketStatuses } from '@/lib/finance/buckets';
+import { useMyAppVisibility } from '@/hooks/useAppVisibility';
 import { AgeChip } from '@/components/admin/finance/AgeChip';
 import { DocsChecklistChip } from '@/components/admin/finance/DocsChecklistChip';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -111,6 +114,12 @@ const AdminFinance = () => {
   }, [JSON.stringify(slaHoursMap)]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  // Owner-configured per-user visibility rule (Settings → Team). Caps which
+  // applications this user can see; the F&I dropdown narrows within it.
+  const myVisibility = useMyAppVisibility();
+  // KPI-strip bucket filter (restored on owner request). 'stalled'/'declined'
+  // buckets carry their own scope (active SLA breaches / last-30d any-archive).
+  const [bucketFilter, setBucketFilter] = useState<string | null>(null);
   // Table modernization (redesign P3): shared ApplicationTable machinery.
   const [tableConfig, setTableConfig] = useState<TableConfig>(() => {
     const cfg = loadConfig('finance');
@@ -320,26 +329,40 @@ const AdminFinance = () => {
     const ownerIsNormalFni = !!owner && fniUsers.some(u => u.id === owner && u.role === 'f_and_i');
     const effectivelyUnassigned = !owner || ownerIsSenior;
 
-    let matchesFni: boolean;
-    if (role === 'f_and_i') {
-      matchesFni = effectivelyUnassigned || owner === user?.id;
-    } else if (fniFilter === 'all') {
-      matchesFni = true;
-    } else if (fniFilter === 'self') {
-      matchesFni = owner === user?.id;
-    } else if (fniFilter === 'unassigned') {
-      matchesFni = effectivelyUnassigned;
-    } else {
-      matchesFni = owner === fniFilter;
+    // Visibility rule first (Settings → Team; admins always see all), then the
+    // F&I dropdown narrows WITHIN what the rule allows.
+    let matchesFni = canSeeApplication({
+      owner, effectivelyUnassigned, role, userId: user?.id, rule: myVisibility,
+    });
+    if (matchesFni && role !== 'f_and_i') {
+      if (fniFilter === 'self') matchesFni = owner === user?.id;
+      else if (fniFilter === 'unassigned') matchesFni = effectivelyUnassigned;
+      else if (fniFilter !== 'all') matchesFni = owner === fniFilter;
+    }
+
+    // KPI-strip bucket filter. 'stalled' and 'declined' carry their own scope;
+    // other buckets are plain status groupings.
+    let matchesBucket = true;
+    if (bucketFilter === 'stalled') {
+      matchesBucket = !isArchivedApp(app, role) && isStalled(app as any);
+    } else if (bucketFilter === 'declined') {
+      const t = (app as any).status_updated_at || app.updated_at;
+      matchesBucket = ['declined', 'declined_conditional', 'blacklisted'].includes(app.status || '')
+        && !!t && Date.now() - new Date(t).getTime() < 30 * 24 * 3600 * 1000;
+    } else if (bucketFilter) {
+      matchesBucket = bucketStatuses(bucketFilter).includes(app.status || '');
     }
 
     // Filter by active/archived — ONE shared rule (lib/finance/shared). For F&I,
     // terminal success statuses, 'archived' and cancelled/ghosted go to the Archive
     // tab while Declined/Blacklisted stay in Active; other roles use the legacy
-    // is_archived-or-terminal behaviour.
-    const matchesViewMode = viewMode === 'archived' ? isArchivedApp(app, role) : !isArchivedApp(app, role);
+    // is_archived-or-terminal behaviour. The stalled/declined buckets override the
+    // tab split — their definitions already pin the scope.
+    const matchesViewMode = (bucketFilter === 'stalled' || bucketFilter === 'declined')
+      ? true
+      : viewMode === 'archived' ? isArchivedApp(app, role) : !isArchivedApp(app, role);
 
-    return matchesSearch && matchesStatus && matchesFni && matchesViewMode;
+    return matchesSearch && matchesStatus && matchesBucket && matchesFni && matchesViewMode;
   });
 
   // ── P3 table machinery: column filters → sort → facets → selection ─────────
@@ -404,7 +427,7 @@ const AdminFinance = () => {
 
   // Saved views — named filter presets per user (same machinery as Pipeline).
   interface FinanceViewPreset {
-    searchQuery: string; statusFilter: string;
+    searchQuery: string; statusFilter: string; bucketFilter?: string | null;
     fniFilter: string; viewMode: 'active' | 'archived'; sortKey: typeof sortKey;
   }
   const { views: savedViews, saveView, deleteView } = useSavedViews<FinanceViewPreset>('finance', user?.id);
@@ -412,12 +435,13 @@ const AdminFinance = () => {
   const applyView = (p: FinanceViewPreset) => {
     setSearchQuery(p.searchQuery ?? '');
     setStatusFilter(p.statusFilter ?? 'all');
+    setBucketFilter(p.bucketFilter ?? null);
     setFniFilter(p.fniFilter ?? 'all');
     setViewMode(p.viewMode ?? 'active');
     setSortKey(p.sortKey ?? 'newest');
   };
   const currentPreset = (): FinanceViewPreset =>
-    ({ searchQuery, statusFilter, fniFilter, viewMode, sortKey });
+    ({ searchQuery, statusFilter, bucketFilter, fniFilter, viewMode, sortKey });
 
   const handleStatusDropdownChange = (app: any, newStatus: string) => {
     setPendingApp(app);
@@ -892,7 +916,9 @@ const AdminFinance = () => {
               {badge.txt}
             </span>
             <CreditScanButton application={app} />
-            {cc !== 'passed' && (
+            {/* Outcome buttons only AFTER a scan exists (owner rule 2026-07-15:
+                nothing to pass/fail while the check is Not Run). */}
+            {cc && cc !== 'passed' && (
               <Button
                 size="sm"
                 variant="outline"
@@ -903,7 +929,7 @@ const AdminFinance = () => {
                 ✓ Passed
               </Button>
             )}
-            {cc !== 'failed' && (
+            {cc && cc !== 'failed' && (
               <Button
                 size="sm"
                 variant="outline"
@@ -1051,6 +1077,18 @@ const AdminFinance = () => {
       />
 
       <div className="p-6">
+
+        {/* Clickable KPI strip (restored on owner request 2026-07-15) — click a
+            tile to filter the table to that bucket; click again to clear. */}
+        <KpiStrip
+          applications={applications}
+          activeApps={activeApps}
+          activeBucket={bucketFilter}
+          onBucketClick={(key) => {
+            setBucketFilter((prev) => (prev === key ? null : key));
+            setStatusFilter('all'); // bucket and the status dropdown never fight
+          }}
+        />
 
 
 
@@ -1354,7 +1392,7 @@ const AdminFinance = () => {
                 options: (app) => filterStatusOptionsForRole(STATUS_OPTIONS, role, (app as any).status),
                 onChange: (app, status) => requestFinanceStatusChange(app, status),
               }}
-              windowKey={`${searchQuery}|${statusFilter}|${fniFilter}|${viewMode}|${sortKey}`}
+              windowKey={`${searchQuery}|${statusFilter}|${bucketFilter ?? ''}|${fniFilter}|${viewMode}|${sortKey}`}
               renderExtraCell={renderFinanceCell}
               rowClassName={financeRowClass}
               ensureVisibleId={pendingScrollId}

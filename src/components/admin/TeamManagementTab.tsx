@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { UserPlus, Loader2, Mail, Shield, Trash2, Copy, Check, KeyRound, Building2 } from 'lucide-react';
+import { UserPlus, Loader2, Mail, Shield, Trash2, Copy, Check, KeyRound, Building2, Eye } from 'lucide-react';
 import { sendClientEmail } from '@/lib/clientEmail';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useAppVisibilityRules, useUpsertAppVisibility } from '@/hooks/useAppVisibility';
+import type { AppVisibilityRule } from '@/lib/finance/shared';
 
 type StaffRoleKind = 'sales_agent' | 'f_and_i' | 'senior_f_and_i' | 'accountant';
 const ROLE_LABELS: Record<StaffRoleKind, string> = {
@@ -41,6 +45,11 @@ const TeamManagementTab = () => {
   const [role, setRole] = useState<StaffRoleKind>('sales_agent');
   const [inviting, setInviting] = useState(false);
   const [agents, setAgents] = useState<AgentRow[]>([]);
+  // Per-user application visibility (app_visibility_rules; asymmetric grants).
+  const { data: visRules = [] } = useAppVisibilityRules();
+  const upsertVisibility = useUpsertAppVisibility();
+  const ruleFor = (userId: string): AppVisibilityRule =>
+    visRules.find((r) => r.user_id === userId) ?? { user_id: userId, mode: 'default', visible_user_ids: [] };
   const [financeHouses, setFinanceHouses] = useState<FinanceHouse[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastCreds, setLastCreds] = useState<{ email: string; password: string } | null>(null);
@@ -386,6 +395,67 @@ const TeamManagementTab = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {/* App visibility — which applications this user SEES on the
+                      Finance + Pipeline pages. Asymmetric: granting someone
+                      another user's apps does NOT grant the reverse. */}
+                  {(() => {
+                    const rule = ruleFor(a.user_id);
+                    return (
+                      <div className="flex items-center gap-1">
+                        <Select
+                          value={rule.mode}
+                          onValueChange={(v) =>
+                            upsertVisibility.mutate({ ...rule, mode: v as AppVisibilityRule['mode'] })
+                          }
+                        >
+                          <SelectTrigger className="h-8 w-[160px] text-xs" title="Which applications this user can SEE in Finance & Pipeline">
+                            <Eye className="w-3 h-3 mr-1 shrink-0 opacity-70" />
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="default">Default (by role)</SelectItem>
+                            <SelectItem value="all">Sees all apps</SelectItem>
+                            <SelectItem value="own">Own + unassigned</SelectItem>
+                            <SelectItem value="custom">Custom…</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {rule.mode === 'custom' && (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button type="button" variant="outline" size="sm" className="h-8 text-xs tabular-nums"
+                                title="Pick whose applications this user can ALSO see (besides their own + unassigned)">
+                                +{rule.visible_user_ids.length}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-64 p-3" align="end">
+                              <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
+                                Can also see apps assigned to
+                              </p>
+                              <div className="space-y-1.5 max-h-56 overflow-auto">
+                                {agents.filter((o) => o.user_id !== a.user_id).map((o) => (
+                                  <label key={o.user_id} className="flex items-center gap-2 text-sm cursor-pointer">
+                                    <Checkbox
+                                      checked={rule.visible_user_ids.includes(o.user_id)}
+                                      onCheckedChange={(v) => {
+                                        const ids = v === true
+                                          ? [...rule.visible_user_ids, o.user_id]
+                                          : rule.visible_user_ids.filter((id) => id !== o.user_id);
+                                        upsertVisibility.mutate({ ...rule, mode: 'custom', visible_user_ids: ids });
+                                      }}
+                                    />
+                                    <span className="truncate">{o.full_name || o.email || o.user_id}</span>
+                                  </label>
+                                ))}
+                              </div>
+                              <p className="text-[11px] text-muted-foreground mt-2">
+                                One-way: this does NOT let those users see this person's apps in return.
+                              </p>
+                            </PopoverContent>
+                          </Popover>
+                        )}
+                      </div>
+                    );
+                  })()}
                   {isFniRole(a.role) && (
                     <Select
                       value={a.company_id ?? NO_COMPANY}
