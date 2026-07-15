@@ -13,6 +13,7 @@ export const DEFAULT_SLA_HOURS: Record<string, number> = {
   documents_received: 48,      // docs in — start validations
   validations_pending: 120,    // 5 days
   validations_complete: 72,    // move to contract
+  vals_submitted_flexi: 120,   // Flexi mirror of validations_pending
   contract_sent: 120,          // 5 days
 };
 

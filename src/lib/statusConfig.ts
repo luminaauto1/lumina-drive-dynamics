@@ -11,6 +11,7 @@ export const STATUS_OPTIONS = [
   { value: 'documents_received', label: 'Docs Received' },
   { value: 'validations_pending', label: 'Validations Submitted' },
   { value: 'validations_complete', label: 'Validations Complete' },
+  { value: 'vals_submitted_flexi', label: 'Flexi Vals Submitted' },
   { value: 'validated_flexi', label: 'Validated Flexi' },
   { value: 'contract_sent', label: 'Contract Sent' },
   { value: 'contract_signed', label: 'Contract Signed' },
@@ -37,6 +38,7 @@ export const STATUS_STEP_ORDER: Record<string, number> = {
   documents_received: 3,
   validations_pending: 4,
   validations_complete: 5,
+  vals_submitted_flexi: 4, // Flexi track mirrors validations_pending
   validated_flexi: 5, // Flexi track mirrors validations_complete
   contract_sent: 6,
   contract_signed: 7,
@@ -63,6 +65,7 @@ export const USER_STATUS_LABELS: Record<string, string> = {
   documents_received: 'Documents Received - Verifying',
   validations_pending: 'Submitted to Bank - Awaiting Response',
   validations_complete: 'Bank Approved - Preparing Contract',
+  vals_submitted_flexi: 'Submitted (Flexi Finance) - Awaiting Response',
   validated_flexi: 'Approved (Flexi Finance) - Preparing Next Steps',
   contract_sent: 'Contract Sent - Awaiting Signature',
   contract_signed: 'Contract Signed - Preparing Delivery',
@@ -94,6 +97,7 @@ export const STATUS_STYLES: Record<string, string> = {
   documents_received:    'bg-cyan-500/15 text-cyan-300 border-cyan-500/40',
   validations_pending:   'bg-orange-500/15 text-orange-300 border-orange-500/40',
   validations_complete:  'bg-green-500/15 text-green-300 border-green-500/40',
+  vals_submitted_flexi:  'bg-yellow-500/15 text-yellow-300 border-yellow-500/40',
   validated_flexi:       'bg-lime-500/15 text-lime-300 border-lime-500/40',
   contract_sent:         'bg-violet-500/15 text-violet-300 border-violet-500/40',
   contract_signed:       'bg-emerald-500/15 text-emerald-300 border-emerald-500/40',
@@ -124,6 +128,7 @@ export const STATUS_STYLES_LIGHT: Record<string, string> = {
   documents_received:    'bg-cyan-100 text-cyan-800 border-cyan-300',
   validations_pending:   'bg-orange-100 text-orange-800 border-orange-300',
   validations_complete:  'bg-green-100 text-green-800 border-green-300',
+  vals_submitted_flexi:  'bg-yellow-100 text-yellow-800 border-yellow-300',
   validated_flexi:       'bg-lime-100 text-lime-800 border-lime-300',
   contract_sent:         'bg-violet-100 text-violet-800 border-violet-300',
   contract_signed:       'bg-emerald-100 text-emerald-800 border-emerald-300',
@@ -157,6 +162,7 @@ export const ADMIN_STATUS_LABELS: Record<string, string> = {
   documents_received: 'Docs Received',
   validations_pending: 'Validations Submitted',
   validations_complete: 'Validations Complete',
+  vals_submitted_flexi: 'Flexi Vals Submitted',
   validated_flexi: 'Validated Flexi',
   contract_sent: 'Contract Sent',
   contract_signed: 'Contract Signed',
@@ -225,6 +231,8 @@ export const getWhatsAppMessage = (
       return `Great news ${name}! 🎉 You've been pre-approved! To proceed, we need you to upload the following documents:\n\n• ID Card\n• Driver's License\n• Latest 3 Months Payslips\n• Latest 3 Months Bank Statements\n\nPlease upload them here: ${dashboardUrl}`;
     case 'pre_approved_flexi':
       return `Great news ${name}! 🎉 You've been pre-approved through our flexible finance partner! To proceed, we need you to send us the following documents:\n\n• ID Card\n• Driver's License\n• Latest 3 Months Payslips\n• Latest 3 Months Bank Statements\n\nPlease upload them here: ${dashboardUrl}`;
+    case 'vals_submitted_flexi':
+      return `Hi ${name}, your application has been submitted to our flexible finance partner for final approval. We are awaiting their response and will update you as soon as we hear back.`;
     case 'validated_flexi':
       return `Excellent news ${name}! 🎉 Your flexible finance application has been approved and validated! Our team will contact you shortly with the next steps.`;
     case 'documents_received':
@@ -257,6 +265,7 @@ export const canShowDealActions = (status: string): boolean => {
   const eligibleStatuses = [
     'pre_approved',
     'pre_approved_flexi',
+    'vals_submitted_flexi',
     'validated_flexi',
     'documents_received',
     'validations_pending',

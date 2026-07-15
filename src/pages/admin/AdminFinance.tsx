@@ -37,9 +37,7 @@ import { CreditScanButton } from '@/components/finance/CreditScanButton';
 import { addPipelineNote } from '@/lib/pipelinev2/notes';
 import { HistoryFeed } from '@/components/admin/pipelinev2/HistoryFeed';
 import { CONTACT_TTL_MS, isArchivedApp } from '@/lib/finance/shared';
-import { bucketStatuses } from '@/lib/finance/buckets';
-import { isStalled, ageInStatusMs, setSlaOverrides } from '@/lib/finance/sla';
-import { KpiStrip } from '@/components/admin/finance/KpiStrip';
+import { ageInStatusMs, setSlaOverrides } from '@/lib/finance/sla';
 import { QueuesSection } from '@/components/admin/finance/QueuesSection';
 import { AgeChip } from '@/components/admin/finance/AgeChip';
 import { DocsChecklistChip } from '@/components/admin/finance/DocsChecklistChip';
@@ -114,10 +112,6 @@ const AdminFinance = () => {
   }, [JSON.stringify(slaHoursMap)]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  // KPI-strip bucket filter (redesign P2). A bucket groups 1-3 statuses; the
-  // special 'stalled' / 'declined' buckets define their own scope (stalled =
-  // active SLA breaches; declined = last 30 days regardless of archive).
-  const [bucketFilter, setBucketFilter] = useState<string | null>(null);
   // Table modernization (redesign P3): shared ApplicationTable machinery.
   const [tableConfig, setTableConfig] = useState<TableConfig>(() => {
     const cfg = loadConfig('finance');
@@ -318,19 +312,6 @@ const AdminFinance = () => {
     
     const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
 
-    // KPI-strip bucket filter. 'stalled' and 'declined' carry their own scope
-    // (see state comment); other buckets are plain status groupings.
-    let matchesBucket = true;
-    if (bucketFilter === 'stalled') {
-      matchesBucket = !isArchivedApp(app, role) && isStalled(app as any);
-    } else if (bucketFilter === 'declined') {
-      const t = (app as any).status_updated_at || app.updated_at;
-      matchesBucket = ['declined', 'declined_conditional', 'blacklisted'].includes(app.status || '')
-        && !!t && Date.now() - new Date(t).getTime() < 30 * 24 * 3600 * 1000;
-    } else if (bucketFilter) {
-      matchesBucket = bucketStatuses(bucketFilter).includes(app.status || '');
-    }
-
     // F&I ownership filter. Apps assigned to a NORMAL f&i are private to that
     // user (and admin/senior). Unassigned apps and apps "assigned" to a senior
     // f&i (whose name only reflects that they captured the app) remain visible
@@ -356,13 +337,10 @@ const AdminFinance = () => {
     // Filter by active/archived — ONE shared rule (lib/finance/shared). For F&I,
     // terminal success statuses, 'archived' and cancelled/ghosted go to the Archive
     // tab while Declined/Blacklisted stay in Active; other roles use the legacy
-    // is_archived-or-terminal behaviour. The stalled/declined buckets override the
-    // tab split — their definitions already pin the scope.
-    const matchesViewMode = (bucketFilter === 'stalled' || bucketFilter === 'declined')
-      ? true
-      : viewMode === 'archived' ? isArchivedApp(app, role) : !isArchivedApp(app, role);
+    // is_archived-or-terminal behaviour.
+    const matchesViewMode = viewMode === 'archived' ? isArchivedApp(app, role) : !isArchivedApp(app, role);
 
-    return matchesSearch && matchesStatus && matchesBucket && matchesFni && matchesViewMode;
+    return matchesSearch && matchesStatus && matchesFni && matchesViewMode;
   });
 
   // ── P3 table machinery: column filters → sort → facets → selection ─────────
@@ -427,7 +405,7 @@ const AdminFinance = () => {
 
   // Saved views — named filter presets per user (same machinery as Pipeline).
   interface FinanceViewPreset {
-    searchQuery: string; statusFilter: string; bucketFilter: string | null;
+    searchQuery: string; statusFilter: string;
     fniFilter: string; viewMode: 'active' | 'archived'; sortKey: typeof sortKey;
   }
   const { views: savedViews, saveView, deleteView } = useSavedViews<FinanceViewPreset>('finance', user?.id);
@@ -435,13 +413,12 @@ const AdminFinance = () => {
   const applyView = (p: FinanceViewPreset) => {
     setSearchQuery(p.searchQuery ?? '');
     setStatusFilter(p.statusFilter ?? 'all');
-    setBucketFilter(p.bucketFilter ?? null);
     setFniFilter(p.fniFilter ?? 'all');
     setViewMode(p.viewMode ?? 'active');
     setSortKey(p.sortKey ?? 'newest');
   };
   const currentPreset = (): FinanceViewPreset =>
-    ({ searchQuery, statusFilter, bucketFilter, fniFilter, viewMode, sortKey });
+    ({ searchQuery, statusFilter, fniFilter, viewMode, sortKey });
 
   const handleStatusDropdownChange = (app: any, newStatus: string) => {
     setPendingApp(app);
@@ -1076,18 +1053,6 @@ const AdminFinance = () => {
 
       <div className="p-6">
 
-        {/* ONE clickable KPI strip — replaces the old FNI_PIPELINE strip + 9
-            StatTiles (two counting systems that couldn't be clicked). Click a
-            tile to filter the table to that bucket; click again to clear. */}
-        <KpiStrip
-          applications={applications}
-          activeApps={activeApps}
-          activeBucket={bucketFilter}
-          onBucketClick={(key) => {
-            setBucketFilter((prev) => (prev === key ? null : key));
-            setStatusFilter('all'); // bucket and the status dropdown never fight
-          }}
-        />
 
 
         {/* Action Feed — directed-routing notification banner.
@@ -1402,7 +1367,7 @@ const AdminFinance = () => {
                 options: (app) => filterStatusOptionsForRole(STATUS_OPTIONS, role, (app as any).status),
                 onChange: (app, status) => requestFinanceStatusChange(app, status),
               }}
-              windowKey={`${searchQuery}|${statusFilter}|${bucketFilter ?? ''}|${fniFilter}|${viewMode}|${sortKey}`}
+              windowKey={`${searchQuery}|${statusFilter}|${fniFilter}|${viewMode}|${sortKey}`}
               renderExtraCell={renderFinanceCell}
               rowClassName={financeRowClass}
               ensureVisibleId={pendingScrollId}

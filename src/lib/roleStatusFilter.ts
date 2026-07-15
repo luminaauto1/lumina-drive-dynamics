@@ -6,6 +6,7 @@ export const F_AND_I_ALLOWED_STATUSES = [
   'pre_approved_flexi',
   'validations_pending',
   'validations_complete',
+  'vals_submitted_flexi',
   'validated_flexi',
   'contract_sent',
   'contract_signed',

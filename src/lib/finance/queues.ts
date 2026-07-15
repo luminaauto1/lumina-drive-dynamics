@@ -159,11 +159,13 @@ export const FINANCE_QUEUES: QueueDef[] = [
     hint: 'The Flexi partner track',
     icon: 'flexi',
     accent: 'text-lime-400',
-    match: (a) => active(a) && (a.status === 'pre_approved_flexi' || a.status === 'validated_flexi'),
+    match: (a) => active(a) && (a.status === 'pre_approved_flexi' || a.status === 'vals_submitted_flexi' || a.status === 'validated_flexi'),
     slaStatus: null,
-    urgency: (a) => (a.status === 'pre_approved_flexi' ? 1 : 0),
+    // Earliest stage first: pre-approved → vals submitted → validated.
+    urgency: (a) => (a.status === 'pre_approved_flexi' ? 2 : a.status === 'vals_submitted_flexi' ? 1 : 0),
     actions: [
-      { key: 'vf', label: 'Validated', icon: 'validated', kind: 'set_status', targetStatus: 'validated_flexi', className: 'border-lime-500/40 text-lime-400 hover:bg-lime-500/10', title: 'Move to Validated Flexi', show: (a) => a.status === 'pre_approved_flexi' },
+      { key: 'vsf', label: 'Vals Submitted', icon: 'check', kind: 'set_status', targetStatus: 'vals_submitted_flexi', className: 'border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/10', title: 'Move to Flexi Vals Submitted', show: (a) => a.status === 'pre_approved_flexi' },
+      { key: 'vf', label: 'Validated', icon: 'validated', kind: 'set_status', targetStatus: 'validated_flexi', className: 'border-lime-500/40 text-lime-400 hover:bg-lime-500/10', title: 'Move to Validated Flexi', show: (a) => a.status === 'pre_approved_flexi' || a.status === 'vals_submitted_flexi' },
     ],
   },
 ];
