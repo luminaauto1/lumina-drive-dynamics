@@ -38,7 +38,6 @@ import { addPipelineNote } from '@/lib/pipelinev2/notes';
 import { HistoryFeed } from '@/components/admin/pipelinev2/HistoryFeed';
 import { CONTACT_TTL_MS, isArchivedApp } from '@/lib/finance/shared';
 import { ageInStatusMs, setSlaOverrides } from '@/lib/finance/sla';
-import { QueuesSection } from '@/components/admin/finance/QueuesSection';
 import { AgeChip } from '@/components/admin/finance/AgeChip';
 import { DocsChecklistChip } from '@/components/admin/finance/DocsChecklistChip';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -1211,18 +1210,6 @@ const AdminFinance = () => {
             </TabsList>
           </Tabs>
         </motion.div>
-
-        {/* MY WORK — one queue per waiting stage with one-click next actions.
-            Absorbs the old DocsChasePanel + FlexiDealsPanel (same behaviors:
-            Contacted stamp, Docs in, Validated) and adds the rest of the flow
-            plus the cross-cutting ⚠ Stalled queue. Active view only. */}
-        {viewMode === 'active' && (
-          <QueuesSection
-            applications={activeApps}
-            role={role}
-            onSetStatus={(app, status) => requestFinanceStatusChange(app, status)}
-          />
-        )}
 
         {/* Filters */}
         <motion.div
