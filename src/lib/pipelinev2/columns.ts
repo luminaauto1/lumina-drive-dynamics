@@ -37,6 +37,7 @@ export const TABLE_COLUMNS: TableColumnDef[] = [
   // appear in its ColumnsPicker as opt-ins; without a page renderer they show "—").
   { key: 'docs',           label: 'Docs',           defaultVisible: false, defaultWidth: 'narrow' },
   { key: 'age',            label: 'Age',            defaultVisible: false, defaultWidth: 'narrow' },
+  { key: 'credit',         label: 'Credit Check',   defaultVisible: false, defaultWidth: 'wide' },
   { key: 'actions',        label: 'Actions',        defaultVisible: false, defaultWidth: 'normal', align: 'right' },
 ];
 
@@ -65,8 +66,9 @@ const LANE_DEFAULT_VISIBLE: Record<string, string[]> = {
   // Closed/archived: minimal.
   closed:      ['applicant', 'status', 'internal', 'source', 'created'],
   // The Finance page's table (redesign P3) — mirrors its long-standing hand-rolled
-  // column order (Name/Mobile/Status/Internal/Date/Actions) + the new docs & age chips.
-  finance:     ['applicant', 'phone', 'status', 'internal', 'docs', 'age', 'created', 'actions'],
+  // column order (Name/Mobile/Status/CREDIT CHECK/Internal/Date/Actions — credit
+  // sits CENTER, owner rule 2026-07-15) + the new docs & age chips.
+  finance:     ['applicant', 'phone', 'status', 'credit', 'internal', 'docs', 'age', 'created', 'actions'],
 };
 
 const KNOWN_KEYS = new Set(TABLE_COLUMNS.map((c) => c.key));

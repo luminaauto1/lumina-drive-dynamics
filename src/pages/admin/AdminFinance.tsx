@@ -119,7 +119,18 @@ const AdminFinance = () => {
   // active SLA breaches; declined = last 30 days regardless of archive).
   const [bucketFilter, setBucketFilter] = useState<string | null>(null);
   // Table modernization (redesign P3): shared ApplicationTable machinery.
-  const [tableConfig, setTableConfig] = useState<TableConfig>(() => loadConfig('finance'));
+  const [tableConfig, setTableConfig] = useState<TableConfig>(() => {
+    const cfg = loadConfig('finance');
+    // Self-heal configs saved before the Credit Check column existed (owner
+    // rule 2026-07-15: credit check sits CENTER, right after Status).
+    if (!cfg.visible.includes('credit')) {
+      const at = cfg.visible.indexOf('status');
+      cfg.visible = at >= 0
+        ? [...cfg.visible.slice(0, at + 1), 'credit', ...cfg.visible.slice(at + 1)]
+        : [...cfg.visible, 'credit'];
+    }
+    return cfg;
+  });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkStatusOpen, setBulkStatusOpen] = useState(false);
   const [sortKey, setSortKey] = useState<'newest' | 'oldest' | 'age' | 'name'>('newest');
@@ -880,6 +891,56 @@ const AdminFinance = () => {
         return <div onClick={(e) => e.stopPropagation()}><DocsChecklistChip app={app} /></div>;
       case 'age':
         return <AgeChip app={app} />;
+      case 'credit': {
+        // Credit check — CENTER column (owner rule 2026-07-15) with explicit
+        // one-click ✓ Passed / ✗ Failed buttons (each opens the standard
+        // CreditCheckResultModal, same flow the old dropdown selections ran)
+        // + the CarTrust scan button. Badge shows the current state.
+        const cc = any.credit_check_status as 'passed' | 'failed' | 'pending' | null | undefined;
+        const badge =
+          cc === 'passed'
+            ? { txt: 'Passed', cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' }
+            : cc === 'failed'
+              ? { txt: 'Failed', cls: 'bg-red-500/10 text-red-400 border-red-500/30' }
+              : cc === 'pending'
+                ? { txt: 'Pending', cls: 'bg-amber-500/10 text-amber-400 border-amber-500/30' }
+                : { txt: 'Not Run', cls: 'bg-muted/40 text-muted-foreground border-border' };
+        const openOutcome = (outcome: CreditCheckOutcome) => {
+          setCreditCheckApp(app);
+          setCreditCheckOutcome(outcome);
+          setCreditCheckOpen(true);
+        };
+        return (
+          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+            <span className={`inline-flex items-center h-7 px-2 rounded border text-xs uppercase tracking-wider whitespace-nowrap ${badge.cls}`}>
+              {badge.txt}
+            </span>
+            <CreditScanButton application={app} />
+            {cc !== 'passed' && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 px-2 gap-1 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+                onClick={() => openOutcome('passed')}
+                title="Credit check passed — attach the report & pick the next status"
+              >
+                ✓ Passed
+              </Button>
+            )}
+            {cc !== 'failed' && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 px-2 gap-1 border-red-500/40 text-red-400 hover:bg-red-500/10"
+                onClick={() => openOutcome('failed')}
+                title="Credit check failed — attach the report & pick the next status"
+              >
+                ✗ Failed
+              </Button>
+            )}
+          </div>
+        );
+      }
       case 'actions':
         return (
           <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
@@ -1340,12 +1401,6 @@ const AdminFinance = () => {
               statusSelect={{
                 options: (app) => filterStatusOptionsForRole(STATUS_OPTIONS, role, (app as any).status),
                 onChange: (app, status) => requestFinanceStatusChange(app, status),
-              }}
-              showCreditScan
-              onCreditCheckOutcome={(app, outcome) => {
-                setCreditCheckApp(app);
-                setCreditCheckOutcome(outcome as CreditCheckOutcome);
-                setCreditCheckOpen(true);
               }}
               windowKey={`${searchQuery}|${statusFilter}|${bucketFilter ?? ''}|${fniFilter}|${viewMode}|${sortKey}`}
               renderExtraCell={renderFinanceCell}
