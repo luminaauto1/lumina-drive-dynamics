@@ -13,6 +13,7 @@ import PageHeader from '@/components/admin/PageHeader';
 import { ADMIN_ROUTES, quoteBuilderPath } from '@/lib/adminRoutes';
 import { validateSaId, isSaIdInvalid } from '@/lib/saIdValidation';
 import { isContactFresh } from '@/lib/finance/shared';
+import { sendClientEmail } from '@/lib/clientEmail';
 import FinancePodiumModal from '@/components/admin/FinancePodiumModal';
 import FinalizeDealModal from '@/components/admin/FinalizeDealModal';
 import { DealExpensesSection } from '@/components/admin/DealExpensesSection';
@@ -269,28 +270,16 @@ const AdminDealRoom = () => {
         <p>Best regards,<br/>The Lumina Auto F&I Team</p>
       `;
       
-      // 3. Direct Frontend Dispatch to EmailJS
-      const emailRes = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          service_id: "service_myacl2m",
-          template_id: "template_b2igduv",
-          user_id: "pWT3blntfZk-_syL4",
-          template_params: {
-            to_email: application.email,
-            subject: "Lumina Auto - Finance Application Revision Required",
-            html_message: emailHtml,
-          }
-        }),
+      // 3. Dispatch via the ONE shared client-email helper (same EmailJS
+      // transport + payload; adds the comms-log entry).
+      const emailOk = await sendClientEmail({
+        to: application.email,
+        subject: "Lumina Auto - Finance Application Revision Required",
+        html: emailHtml,
+        applicationId: application.id,
+        clientPhone: (application as any).phone ?? null,
       });
-
-      if (!emailRes.ok) {
-        const text = await emailRes.text();
-        throw new Error(text);
-      }
+      if (!emailOk) throw new Error("EmailJS dispatch failed");
 
       toast.success("Revision request sent to client via EmailJS");
       setApplication(prev => prev ? { ...prev, status: 'needs_revision' } : null);
@@ -614,34 +603,17 @@ const AdminDealRoom = () => {
           <p>Best regards,<br/>The Lumina Auto F&I Team</p>
         `;
 
-        try {
-          const emailRes = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              service_id: "service_myacl2m",
-              template_id: "template_b2igduv",
-              user_id: "pWT3blntfZk-_syL4",
-              template_params: {
-                to_email: application.email,
-                subject: "Lumina Auto - Finance Application Revision Required",
-                html_message: emailHtml,
-              }
-            }),
-          });
-
-          if (!emailRes.ok) {
-            const text = await emailRes.text();
-            throw new Error(text);
-          }
-          
-          toast.success('Edits saved & client notified for signature');
-        } catch (emailErr) {
-          console.error('Frontend failed to reach EmailJS:', emailErr);
-          toast.error('Saved, but failed to dispatch email. Check console.');
-        }
+        // ONE shared client-email helper — same EmailJS transport + payload,
+        // plus the comms-log entry on the client's timeline.
+        const emailOk = await sendClientEmail({
+          to: application.email,
+          subject: "Lumina Auto - Finance Application Revision Required",
+          html: emailHtml,
+          applicationId: application.id,
+          clientPhone: (application as any).phone ?? null,
+        });
+        if (emailOk) toast.success('Edits saved & client notified for signature');
+        else toast.error('Saved, but failed to dispatch email. Check console.');
       } else {
         toast.success('Application forcefully updated (Silent)');
       }

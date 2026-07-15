@@ -246,13 +246,14 @@ export interface StatusOverride {
   wa_body1_source: string | null;             // BodySource for {body1} (full_name|first_name|comment|vehicle|email|phone|bank|static:…|none)
   wa_body2_source: string | null;
   wa_body3_source: string | null;
+  sla_hours: number | null;                   // per-status SLA (hours); NULL = built-in default (finance track)
 }
 
 export const useStatusOverrides = () =>
   useQuery({
     queryKey: ['status-overrides'],
     queryFn: async (): Promise<StatusOverride[]> => {
-      const { data, error } = await db.from('status_overrides').select('slug, label, color_class, sort_order, is_hidden, whatsapp_message, status_type, comment_required, comment_prompt, is_internal, easysocial_tag_to_add, easysocial_tags_to_add, lane, easysocial_client_status, tag_remove_mode, easysocial_tags_to_remove, whatsapp_template_key, wa_body1_source, wa_body2_source, wa_body3_source');
+      const { data, error } = await db.from('status_overrides').select('slug, label, color_class, sort_order, is_hidden, whatsapp_message, status_type, comment_required, comment_prompt, is_internal, easysocial_tag_to_add, easysocial_tags_to_add, lane, easysocial_client_status, tag_remove_mode, easysocial_tags_to_remove, whatsapp_template_key, wa_body1_source, wa_body2_source, wa_body3_source, sla_hours');
       if (error) throw error;
       return data ?? [];
     },
@@ -374,10 +375,18 @@ export const useStatusConfig = () => {
   // for editor defaults / display.
   const laneFor = (slug: string) => financeLaneOverrides[slug];
 
+  // Per-status SLA overrides (hours) — finance track; the Finance page feeds
+  // these into lib/finance/sla.ts (setSlaOverrides). Absent/0 = built-in default.
+  const slaHoursMap: Record<string, number> = {};
+  for (const o of overrides) {
+    const isFinance = !o.status_type || o.status_type === 'finance';
+    if (isFinance && o.sla_hours != null && Number(o.sla_hours) > 0) slaHoursMap[o.slug] = Number(o.sla_hours);
+  }
+
   return {
     merged, labelFor, classFor, whatsappMessageFor, labels, styles,
     clientStatuses, allClientStatuses, clientLabels, clientStyles,
     commentRequiredFor, commentPromptFor,
-    financeLaneOverrides, laneFor,
+    financeLaneOverrides, laneFor, slaHoursMap,
   };
 };

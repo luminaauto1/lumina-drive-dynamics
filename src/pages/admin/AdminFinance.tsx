@@ -38,7 +38,7 @@ import { addPipelineNote } from '@/lib/pipelinev2/notes';
 import { HistoryFeed } from '@/components/admin/pipelinev2/HistoryFeed';
 import { CONTACT_TTL_MS, isArchivedApp } from '@/lib/finance/shared';
 import { bucketStatuses } from '@/lib/finance/buckets';
-import { isStalled, ageInStatusMs } from '@/lib/finance/sla';
+import { isStalled, ageInStatusMs, setSlaOverrides } from '@/lib/finance/sla';
 import { KpiStrip } from '@/components/admin/finance/KpiStrip';
 import { QueuesSection } from '@/components/admin/finance/QueuesSection';
 import { AgeChip } from '@/components/admin/finance/AgeChip';
@@ -101,7 +101,17 @@ const AdminFinance = () => {
   const { toast } = useToast();
   const { isSuperAdmin, isSeniorFAndI, isFAndI, role, user } = useAuth();
   const { theme } = useDeskTheme();
-  const { labelFor, whatsappMessageFor, commentRequiredFor, commentPromptFor, clientLabels } = useStatusConfig();
+  const { labelFor, whatsappMessageFor, commentRequiredFor, commentPromptFor, clientLabels, slaHoursMap } = useStatusConfig();
+
+  // Owner-tunable SLAs (P4): push the settings map into the sla module so every
+  // consumer (AgeChip, Stalled queue, KPI strip, this page's filter) resolves
+  // overrides first. The state bump forces one re-render after the map lands.
+  const [, bumpSlaVersion] = useState(0);
+  useEffect(() => {
+    setSlaOverrides(slaHoursMap);
+    bumpSlaVersion((v) => v + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(slaHoursMap)]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   // KPI-strip bucket filter (redesign P2). A bucket groups 1-3 statuses; the

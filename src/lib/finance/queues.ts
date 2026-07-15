@@ -8,7 +8,6 @@
 // Status slugs and labels are NEVER renamed here (owner rule): queue titles
 // use the existing labels; grouping copy ("Docs Chase") is UI-only.
 
-import { slaHoursFor } from './sla';
 import { isContactFresh } from './shared';
 
 const isContactStale = (a: any) => !isContactFresh(a);
@@ -35,8 +34,9 @@ export interface QueueDef {
   accent: string;
   /** membership among ACTIVE apps (archive rule applied by the section) */
   match: (app: any) => boolean;
-  /** SLA badge shown in the header (informational; breaches land in Stalled) */
-  slaHours: number | null;
+  /** Status whose SLA shows in the header badge — resolved at render time via
+   *  slaHoursFor so owner overrides apply live; breaches land in Stalled. */
+  slaStatus: string | null;
   /** stale-first ordering: bigger = more urgent (default: age in status) */
   urgency?: (app: any) => number;
   actions: QueueAction[];
@@ -58,7 +58,7 @@ export const FINANCE_QUEUES: QueueDef[] = [
     icon: 'scan',
     accent: 'text-amber-400',
     match: (a) => active(a) && a.status === 'pending' && !a.credit_check_status,
-    slaHours: slaHoursFor('pending'),
+    slaStatus: 'pending',
     actions: [],
     showCreditScan: true,
   },
@@ -69,7 +69,7 @@ export const FINANCE_QUEUES: QueueDef[] = [
     icon: 'load',
     accent: 'text-indigo-400',
     match: (a) => active(a) && a.status === 'application_submitted',
-    slaHours: slaHoursFor('application_submitted'),
+    slaStatus: 'application_submitted',
     actions: [
       { key: 'rts', label: 'Ready to Submit', icon: 'check', kind: 'set_status', targetStatus: 'ready_to_submit', className: 'border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10' },
     ],
@@ -81,7 +81,7 @@ export const FINANCE_QUEUES: QueueDef[] = [
     icon: 'package',
     accent: 'text-emerald-300',
     match: (a) => active(a) && a.status === 'ready_to_submit',
-    slaHours: slaHoursFor('ready_to_submit'),
+    slaStatus: 'ready_to_submit',
     actions: [
       { key: 'stb', label: 'Sent to Banks', icon: 'bank', kind: 'set_status', targetStatus: 'sent_to_banks', className: 'border-sky-500/40 text-sky-400 hover:bg-sky-500/10' },
     ],
@@ -93,7 +93,7 @@ export const FINANCE_QUEUES: QueueDef[] = [
     icon: 'bank',
     accent: 'text-sky-400',
     match: (a) => active(a) && a.status === 'sent_to_banks',
-    slaHours: slaHoursFor('sent_to_banks'),
+    slaStatus: 'sent_to_banks',
     actions: [
       { key: 'pre', label: 'Pre-Approved', icon: 'approve', kind: 'set_status', targetStatus: 'pre_approved', className: 'border-teal-500/40 text-teal-400 hover:bg-teal-500/10' },
       { key: 'dec', label: 'Declined', icon: 'decline', kind: 'set_status', targetStatus: 'declined', className: 'border-red-500/40 text-red-400 hover:bg-red-500/10', title: 'Hard decline — fires the standard declined flow' },
@@ -106,7 +106,7 @@ export const FINANCE_QUEUES: QueueDef[] = [
     icon: 'chase',
     accent: 'text-teal-400',
     match: (a) => active(a) && (a.status === 'pre_approved' || a.status === 'pre_approved_flexi') && !!a.phone,
-    slaHours: slaHoursFor('pre_approved'),
+    slaStatus: 'pre_approved',
     // Never-contacted / stale-contact rows first, then oldest contact first.
     urgency: (a) => (isContactStale(a) ? Number.MAX_SAFE_INTEGER : -new Date(a.docs_contacted_at || 0).getTime()),
     actions: [
@@ -123,7 +123,7 @@ export const FINANCE_QUEUES: QueueDef[] = [
     icon: 'docs',
     accent: 'text-cyan-400',
     match: (a) => active(a) && a.status === 'documents_received',
-    slaHours: slaHoursFor('documents_received'),
+    slaStatus: 'documents_received',
     actions: [
       { key: 'val', label: 'Validations Submitted', icon: 'validated', kind: 'set_status', targetStatus: 'validations_pending', className: 'border-blue-500/40 text-blue-400 hover:bg-blue-500/10' },
     ],
@@ -136,7 +136,7 @@ export const FINANCE_QUEUES: QueueDef[] = [
     icon: 'validate',
     accent: 'text-blue-400',
     match: (a) => active(a) && a.status === 'validations_pending',
-    slaHours: slaHoursFor('validations_pending'),
+    slaStatus: 'validations_pending',
     actions: [
       { key: 'vc', label: 'Validations Complete', icon: 'check', kind: 'set_status', targetStatus: 'validations_complete', className: 'border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/10' },
     ],
@@ -148,7 +148,7 @@ export const FINANCE_QUEUES: QueueDef[] = [
     icon: 'contract',
     accent: 'text-violet-400',
     match: (a) => active(a) && a.status === 'contract_sent',
-    slaHours: slaHoursFor('contract_sent'),
+    slaStatus: 'contract_sent',
     actions: [
       { key: 'signed', label: 'Contract Signed', icon: 'contract', kind: 'set_status', targetStatus: 'contract_signed', className: 'border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10' },
     ],
@@ -160,7 +160,7 @@ export const FINANCE_QUEUES: QueueDef[] = [
     icon: 'flexi',
     accent: 'text-lime-400',
     match: (a) => active(a) && (a.status === 'pre_approved_flexi' || a.status === 'validated_flexi'),
-    slaHours: null,
+    slaStatus: null,
     urgency: (a) => (a.status === 'pre_approved_flexi' ? 1 : 0),
     actions: [
       { key: 'vf', label: 'Validated', icon: 'validated', kind: 'set_status', targetStatus: 'validated_flexi', className: 'border-lime-500/40 text-lime-400 hover:bg-lime-500/10', title: 'Move to Validated Flexi', show: (a) => a.status === 'pre_approved_flexi' },

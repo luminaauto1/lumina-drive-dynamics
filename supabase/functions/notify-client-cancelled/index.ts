@@ -38,7 +38,7 @@ serve(async (req) => {
     const r = await sendTemplateByKey("client_cancelled", phone_number, {
       name: firstName,
       mobilenumber: String(phone_number),
-    });
+    }, { applicationId: application_id || null });
     console.log("[notify-client-cancelled] result:", JSON.stringify(r));
 
     if ("skipped" in r && r.skipped) {

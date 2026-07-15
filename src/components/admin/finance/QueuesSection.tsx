@@ -18,7 +18,7 @@ const STALLED_QUEUE: QueueDef = {
   icon: 'stalled',
   accent: 'text-red-400',
   match: (a) => a?.is_archived !== true && isStalled(a),
-  slaHours: null,
+  slaStatus: null,
   urgency: (a) => slaOverrunMs(a),
   actions: [],
 };

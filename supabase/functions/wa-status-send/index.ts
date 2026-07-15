@@ -27,6 +27,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildCorsHeaders, checkInternalKey } from "../_shared/publicGuard.ts";
+import { logClientSend } from "../_shared/waTemplates.ts";
 
 // Slugs whose WhatsApp client notification is already owned by a dedicated
 // notify-* function. These MUST NOT auto-send here (no double messaging).
@@ -226,11 +227,21 @@ Deno.serve(async (req) => {
       try { apiResponse = JSON.parse(text); } catch { apiResponse = { raw: text.slice(0, 500) }; }
     } catch (e) {
       console.error("[wa-status-send] dispatch failed", String((e as Error).message ?? e));
+      await logClientSend({
+        kind: `status:${newStatus} (${templateKey})`, rawPhone: a.phone, ok: false,
+        applicationId, clientEmail: a.email ?? null, detail: String((e as Error).message ?? e),
+      });
       return json(200, { ok: false, error: "dispatch_failed", detail: String((e as Error).message ?? e), status: newStatus });
     }
 
     const ok = status >= 200 && status < 300 && (apiResponse as any)?.success !== false;
     console.log("[wa-status-send] result", { status, ok, newStatus, templateKey });
+    // Comms log (P4): record what was actually dispatched to the client so the
+    // per-application timeline shows it. Logging only — never blocks the response.
+    await logClientSend({
+      kind: `status:${newStatus} (${templateKey})`, rawPhone: a.phone, ok,
+      applicationId, clientEmail: a.email ?? null, detail: ok ? null : `status ${status}`,
+    });
     return json(200, { ok, status, template_key: templateKey, dispatched_url: dispatchedUrl, api_response: apiResponse });
   } catch (e: any) {
     console.error("[wa-status-send] error", e?.message || e);
