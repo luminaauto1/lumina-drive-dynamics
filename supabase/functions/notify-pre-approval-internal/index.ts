@@ -8,18 +8,50 @@
 // expects (the old code pushed 4 vars at a dead template, which is why staff
 // notifications went missing).
 //
-// RELIABILITY: each staff number is dispatched with a built-in retry
-// (dispatchWa in _shared/waTemplates.ts), sequentially so one hard failure
-// can't starve the other, and the response reports per-number outcomes.
+// RECIPIENTS ARE SETTINGS-DRIVEN (2026-07-15, owner: 081 was silent because
+// the list was hardcoded): integration_settings key 'pre_approval_notify',
+// config.staff_numbers — editable in Settings → WhatsApp Notifications.
+// Falls back to the historical pair if the row is missing/empty.
+//
+// RELIABILITY: numbers are dispatched sequentially with a spacing delay
+// (rapid back-to-back sends of the same template are the classic reason the
+// second number stays silent), each with dispatchWa's built-in retry PLUS one
+// extra retry when EasySocial answers but reports failure. Every attempt is
+// recorded in client_audit_logs via logClientSend so "which number got it"
+// is answerable from data.
 //
 // TESTING: pass { test_phone: "0816783511" } to send ONLY to that number —
 // never to the staff list.
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { buildCorsHeaders, checkInternalKey } from "../_shared/publicGuard.ts";
-import { getWaTemplate, buildWaSendUrl, dispatchWa, sanitizeWaPhone } from "../_shared/waTemplates.ts";
+import { getWaTemplate, buildWaSendUrl, dispatchWa, sanitizeWaPhone, logClientSend } from "../_shared/waTemplates.ts";
 
-const STAFF_NUMBERS = ["27836117792", "27716196071"];
+const FALLBACK_STAFF_NUMBERS = ["27836117792", "27716196071"];
+const GAP_BETWEEN_NUMBERS_MS = 1500;
+
+/** Settings-driven staff recipients (sanitized, deduped); fallback pair when unset. */
+async function getStaffNumbers(): Promise<string[]> {
+  try {
+    const SU = Deno.env.get("SUPABASE_URL");
+    const SK = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!SU || !SK) return FALLBACK_STAFF_NUMBERS;
+    const res = await fetch(
+      `${SU}/rest/v1/integration_settings?key=eq.pre_approval_notify&select=active,config`,
+      { headers: { apikey: SK, Authorization: `Bearer ${SK}` } },
+    );
+    const rows = await res.json().catch(() => []);
+    const row = Array.isArray(rows) ? rows[0] : null;
+    if (!row || row.active === false) return FALLBACK_STAFF_NUMBERS;
+    const raw = Array.isArray(row?.config?.staff_numbers) ? row.config.staff_numbers : [];
+    const cleaned = Array.from(new Set(
+      raw.map((n: unknown) => sanitizeWaPhone(n)).filter(Boolean) as string[],
+    ));
+    return cleaned.length > 0 ? cleaned : FALLBACK_STAFF_NUMBERS;
+  } catch (_e) {
+    return FALLBACK_STAFF_NUMBERS;
+  }
+}
 
 serve(async (req) => {
   const cors = buildCorsHeaders(req.headers.get("origin"), req.headers.get("access-control-request-headers"));
@@ -47,16 +79,33 @@ serve(async (req) => {
 
     const recipients = test_phone
       ? [sanitizeWaPhone(test_phone)].filter(Boolean) as string[]
-      : STAFF_NUMBERS;
+      : await getStaffNumbers();
     if (!recipients.length) return json(400, { success: false, error: "no valid recipient" });
 
     const results: Array<Record<string, unknown>> = [];
-    for (const phone of recipients) {
+    for (let i = 0; i < recipients.length; i++) {
+      const phone = recipients[i];
+      // Spacing between numbers — EasySocial drops rapid consecutive sends of
+      // the same template, which is how "the other number stays silent".
+      if (i > 0) await new Promise((r) => setTimeout(r, GAP_BETWEEN_NUMBERS_MS));
       const url = buildWaSendUrl(tpl.send_url, phone, { name: fullName, mobilenumber: clientMobile });
       if (!url) { results.push({ phone, ok: false, skipped: "no_send_url" }); continue; }
       console.log("[notify-pre-approval-internal] dispatching to", phone);
-      const r = await dispatchWa(url);
+      let r = await dispatchWa(url);
+      if (!r.ok) {
+        // dispatchWa retries network/5xx internally; this extra pass also
+        // covers "answered but success:false" (throttle/soft-reject).
+        console.warn("[notify-pre-approval-internal] first attempt failed, retrying", phone, r.status);
+        await new Promise((res) => setTimeout(res, 1500));
+        r = await dispatchWa(url);
+      }
       console.log("[notify-pre-approval-internal] result", phone, r.status, JSON.stringify(r.body).slice(0, 300));
+      await logClientSend({
+        kind: `pre_approval_internal → staff${test_phone ? " (TEST)" : ""}`,
+        rawPhone: phone,
+        ok: r.ok,
+        detail: r.ok ? `re: ${fullName}` : `re: ${fullName} — status ${r.status}`,
+      });
       results.push({ phone, ok: r.ok, status: r.status, body: r.body });
     }
 

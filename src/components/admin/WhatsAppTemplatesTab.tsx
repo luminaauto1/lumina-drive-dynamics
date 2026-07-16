@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Loader2, MessageCircle, Save, Info, Send, ChevronDown, ChevronUp, Plus, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -291,6 +291,76 @@ const AddTemplateForm = () => {
   );
 };
 
+// Who receives the internal "client pre-approved" WhatsApp (staff numbers, not
+// the client). Stored in integration_settings key 'pre_approval_notify' and
+// read server-side by notify-pre-approval-internal — save takes effect on the
+// very next pre-approval, no deploy needed.
+const PreApprovalRecipientsCard = () => {
+  const [numbers, setNumbers] = useState<string | null>(null); // null = loading
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    (supabase as any)
+      .from('integration_settings')
+      .select('config')
+      .eq('key', 'pre_approval_notify')
+      .maybeSingle()
+      .then(({ data }: any) => {
+        const list = Array.isArray(data?.config?.staff_numbers) ? data.config.staff_numbers : [];
+        setNumbers(list.join(', '));
+      }, () => setNumbers(''));
+  }, []);
+
+  const save = async () => {
+    const list = (numbers ?? '')
+      .split(/[,;\s]+/)
+      .map((n) => n.trim())
+      .filter(Boolean);
+    if (list.length === 0) { toast.error('Enter at least one number.'); return; }
+    setSaving(true);
+    try {
+      const { error } = await (supabase as any)
+        .from('integration_settings')
+        .upsert({
+          key: 'pre_approval_notify',
+          active: true,
+          config: { staff_numbers: list },
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'key' });
+      if (error) throw error;
+      toast.success(`Pre-approval notify recipients saved (${list.length})`);
+    } catch (e: any) {
+      toast.error('Failed to save recipients: ' + e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardContent className="py-3 space-y-2">
+        <div className="text-sm font-medium">Pre-Approval alert — staff numbers</div>
+        <p className="text-[11px] text-muted-foreground">
+          These numbers get the internal WhatsApp when a client turns <strong>Pre-Approved</strong>.
+          Comma-separated; 0-prefix or 27-prefix both work. Applies immediately.
+        </p>
+        <div className="flex items-center gap-2">
+          <Input
+            value={numbers ?? ''}
+            disabled={numbers === null}
+            onChange={(e) => setNumbers(e.target.value)}
+            className="h-8 font-mono text-[12px]"
+            placeholder="0836117792, 0716196071, 0816783511"
+          />
+          <Button size="sm" className="h-8 gap-1" onClick={save} disabled={saving || numbers === null}>
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Save
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 const WhatsAppTemplatesTab = () => {
   const { data: templates = [], isLoading } = useWhatsAppTemplates();
   return (
@@ -301,6 +371,7 @@ const WhatsAppTemplatesTab = () => {
           <h2 className="text-lg font-semibold">WhatsApp Notifications</h2>
         </div>
       </div>
+      <PreApprovalRecipientsCard />
       <div className="flex items-start gap-2 rounded-md border border-blue-500/30 bg-blue-500/5 p-2.5 text-xs text-blue-300">
         <Info className="w-4 h-4 shrink-0 mt-0.5" />
         <span>
