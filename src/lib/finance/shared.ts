@@ -18,22 +18,23 @@ export function isContactFresh(app: {
   return !!at && Date.now() - at < CONTACT_TTL_MS;
 }
 
-// Statuses that read as "archived" per role. F&I deliberately keeps
-// declined/blacklisted in Active (they still work those files); other roles
-// use the legacy is_archived-flag-or-terminal rule. One function, one truth —
+// ONE archive rule for EVERY role (owner 2026-07-15: "why is blacklisted and
+// declined not in archive??"): an app is archived when its is_archived flag is
+// set OR its status is terminal — including declined/blacklisted, which the old
+// F&I rule kept in Active and which older rows never had the flag set for.
+// declined_conditional stays ACTIVE (soft decline — still actionable).
 // AdminFinance's tab filter and its stat counters both call this.
-const FNI_ARCHIVED_STATUSES = ['archived', 'vehicle_delivered', 'finalized', 'client_cancelled'];
-const LEGACY_TERMINAL_STATUSES = ['finalized', 'delivered', 'vehicle_delivered', 'archived', 'client_cancelled'];
+const TERMINAL_STATUSES = [
+  'finalized', 'delivered', 'vehicle_delivered', 'archived',
+  'client_cancelled', 'declined', 'blacklisted', 'lost',
+];
 
 export function isArchivedApp(
   app: { status?: string | null; is_archived?: boolean | null },
-  role: string | null | undefined,
+  _role: string | null | undefined,
 ): boolean {
   const s = (app?.status || '').toLowerCase().trim();
-  if (role === 'f_and_i' || role === 'senior_f_and_i') {
-    return FNI_ARCHIVED_STATUSES.includes(s);
-  }
-  return app?.is_archived === true || LEGACY_TERMINAL_STATUSES.includes(s);
+  return app?.is_archived === true || TERMINAL_STATUSES.includes(s);
 }
 
 // ── Per-user application visibility (Settings → Team, app_visibility_rules) ──
