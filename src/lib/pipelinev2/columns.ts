@@ -48,27 +48,29 @@ export const TABLE_COLUMNS: TableColumnDef[] = [
 // Lanes omitted here fall back to GLOBAL_DEFAULT_VISIBLE.
 const GLOBAL_DEFAULT_VISIBLE = TABLE_COLUMNS.filter((c) => c.defaultVisible).map((c) => c.key);
 
+// Client Status sits right next to Finance Status in EVERY lane (owner rule
+// 2026-07-16: "client status must show standard on pipeline").
 const LANE_DEFAULT_VISIBLE: Record<string, string[]> = {
   // Fresh leads: who/what + latest note + how to reach them + where they came from.
-  intake:      ['applicant', 'status', 'internal', 'phone', 'vehicle', 'source', 'created'],
+  intake:      ['applicant', 'status', 'client_status', 'internal', 'phone', 'vehicle', 'source', 'created'],
   // Credit check passed / ready to load: who + how to reach them + F&I owner.
-  credit_passed: ['applicant', 'status', 'internal', 'phone', 'vehicle', 'fni', 'source', 'created'],
+  credit_passed: ['applicant', 'status', 'client_status', 'internal', 'phone', 'vehicle', 'fni', 'source', 'created'],
   // Submitted to banks: add the bank in play.
-  submitted:   ['applicant', 'status', 'internal', 'phone', 'vehicle', 'bank', 'fni', 'source', 'created'],
+  submitted:   ['applicant', 'status', 'client_status', 'internal', 'phone', 'vehicle', 'bank', 'fni', 'source', 'created'],
   // Approved/working: bank + F&I owner matter most.
-  approved:    ['applicant', 'status', 'internal', 'vehicle', 'bank', 'fni', 'source', 'created'],
+  approved:    ['applicant', 'status', 'client_status', 'internal', 'vehicle', 'bank', 'fni', 'source', 'created'],
   // Validations / contract: bank + F&I + bank ref.
-  validations: ['applicant', 'status', 'internal', 'vehicle', 'bank', 'bank_reference', 'fni', 'source', 'created'],
+  validations: ['applicant', 'status', 'client_status', 'internal', 'vehicle', 'bank', 'bank_reference', 'fni', 'source', 'created'],
   // Delivered: the win — vehicle + F&I + date.
-  delivered:   ['applicant', 'status', 'internal', 'vehicle', 'fni', 'source', 'created'],
+  delivered:   ['applicant', 'status', 'client_status', 'internal', 'vehicle', 'fni', 'source', 'created'],
   // Declined: keep it lean — reason lives in the note.
-  declined:    ['applicant', 'status', 'internal', 'phone', 'source', 'created'],
+  declined:    ['applicant', 'status', 'client_status', 'internal', 'phone', 'source', 'created'],
   // Closed/archived: minimal.
-  closed:      ['applicant', 'status', 'internal', 'source', 'created'],
+  closed:      ['applicant', 'status', 'client_status', 'internal', 'source', 'created'],
   // The Finance page's table (redesign P3) — mirrors its long-standing hand-rolled
   // column order (Name/Mobile/Status/CREDIT CHECK/Internal/Date/Actions — credit
   // sits CENTER, owner rule 2026-07-15) + the new docs & age chips.
-  finance:     ['applicant', 'phone', 'status', 'credit', 'internal', 'docs', 'age', 'created', 'actions'],
+  finance:     ['applicant', 'phone', 'status', 'client_status', 'credit', 'internal', 'docs', 'age', 'created', 'actions'],
 };
 
 const KNOWN_KEYS = new Set(TABLE_COLUMNS.map((c) => c.key));
@@ -96,11 +98,11 @@ export interface TableConfig {
   widths: Record<string, ColumnWidth>;
 }
 
-// Bumped v1 → v2 when the Source column was added to the lane defaults, so
-// existing persisted configs re-default and surface the new column (instead of
-// staying on a pre-Source `visible` list). Column widths/visibility reset to the
-// per-lane defaults on this bump; saved views are stored separately.
-const STORAGE_KEY = 'lumina.pipelinev2.table.config.v2';
+// Bumped v2 → v3 when Client Status joined every lane's defaults (owner rule
+// 2026-07-16), so persisted configs re-default and surface the new column.
+// Column widths/visibility reset to per-lane defaults on a bump; saved views
+// are stored separately and survive.
+const STORAGE_KEY = 'lumina.pipelinev2.table.config.v3';
 type AllConfigs = Record<string, TableConfig>;
 
 /** Default table config. Pass a lane key for per-lane default-visible columns;

@@ -36,7 +36,7 @@ import { CommentGateModal } from '@/components/admin/CommentGateModal';
 import { CreditScanButton } from '@/components/finance/CreditScanButton';
 import { addPipelineNote } from '@/lib/pipelinev2/notes';
 import { HistoryFeed } from '@/components/admin/pipelinev2/HistoryFeed';
-import { CONTACT_TTL_MS, isArchivedApp, canSeeApplication } from '@/lib/finance/shared';
+import { CONTACT_TTL_MS, isArchivedApp, canSeeApplication, canArchiveApps } from '@/lib/finance/shared';
 import { ageInStatusMs, setSlaOverrides, isStalled } from '@/lib/finance/sla';
 import { KpiStrip } from '@/components/admin/finance/KpiStrip';
 import { bucketStatuses } from '@/lib/finance/buckets';
@@ -117,6 +117,9 @@ const AdminFinance = () => {
   // Owner-configured per-user visibility rule (Settings → Team). Caps which
   // applications this user can see; the F&I dropdown narrows within it.
   const myVisibility = useMyAppVisibility();
+  // Archiving is admin + senior F&I only, unless the owner enabled it for this
+  // user in Settings → Team (owner rule 2026-07-16).
+  const allowArchive = canArchiveApps(role, myVisibility);
   // KPI-strip bucket filter (restored on owner request). 'stalled'/'declined'
   // buckets carry their own scope (active SLA breaches / last-30d any-archive).
   const [bucketFilter, setBucketFilter] = useState<string | null>(null);
@@ -970,7 +973,7 @@ const AdminFinance = () => {
               className="text-green-500 hover:text-green-400 hover:bg-green-500/10" title="Send WhatsApp Update">
               <MessageCircle className="w-4 h-4" />
             </Button>
-            {!any.is_archived && app.status !== 'archived' && (
+            {allowArchive && !any.is_archived && app.status !== 'archived' && (
               <Button variant="ghost" size="icon" onClick={(e) => handleArchive(app, e)}
                 className="text-muted-foreground hover:text-amber-400 hover:bg-amber-500/10" title="Archive Application">
                 <Archive className="w-4 h-4" />
@@ -1367,9 +1370,11 @@ const AdminFinance = () => {
                 </SelectContent>
               </Select>
             )}
-            <Button size="sm" variant="outline" className="h-7 border-amber-500/40 text-amber-400 hover:bg-amber-500/10" disabled={bulkBusy} onClick={() => void bulkArchive()}>
-              <Archive className="w-3.5 h-3.5 mr-1" /> Archive
-            </Button>
+            {allowArchive && (
+              <Button size="sm" variant="outline" className="h-7 border-amber-500/40 text-amber-400 hover:bg-amber-500/10" disabled={bulkBusy} onClick={() => void bulkArchive()}>
+                <Archive className="w-3.5 h-3.5 mr-1" /> Archive
+              </Button>
+            )}
             <Button size="sm" variant="ghost" className="h-7 ml-auto" onClick={clearSelection}>Clear</Button>
           </div>
         )}

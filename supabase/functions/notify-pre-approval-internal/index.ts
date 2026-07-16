@@ -35,6 +35,9 @@ interface QueueRow {
   client_phone: string | null;
   staff_phone: string;
   attempts: number;
+  /** which whatsapp_templates row to send ('pre_approval_internal' |
+   *  'validation_complete_internal' | future keys) */
+  template_key: string | null;
 }
 
 function svcHeaders(): Record<string, string> {
@@ -66,17 +69,28 @@ async function drain(): Promise<{ drained: number; failed: number; busy?: boolea
   const started = Date.now();
   let drained = 0, failed = 0;
   try {
-    const tpl = await getWaTemplate("pre_approval_internal");
-    if (!tpl || tpl.active === false || !tpl.send_url) {
-      console.log("[drain] template missing/disabled — leaving queue untouched");
-      return { drained: 0, failed: 0 };
-    }
+    // Rows carry their template key; resolve each once per run.
+    const tplCache = new Map<string, Awaited<ReturnType<typeof getWaTemplate>>>();
+    const tplFor = async (key: string) => {
+      if (!tplCache.has(key)) tplCache.set(key, await getWaTemplate(key));
+      return tplCache.get(key) ?? null;
+    };
 
     while (Date.now() - started < DRAIN_BUDGET_MS) {
       const batch = (await rpc<QueueRow[]>("claim_pre_approval_notifies", { batch: 5 })) ?? [];
       if (batch.length === 0) break;
 
       for (const row of batch) {
+        const tpl = await tplFor(row.template_key || "pre_approval_internal");
+        if (!tpl || tpl.active === false || !tpl.send_url) {
+          // Template not configured (e.g. validation alert before the owner
+          // pastes its link) — fail the row so the queue never clogs.
+          console.log("[drain] template unset/disabled for row", row.id, row.template_key);
+          await patchRow(row.id, { status: "failed", last_status: 0 });
+          failed++;
+          continue;
+        }
+
         if (drained + failed > 0) await new Promise((r) => setTimeout(r, GAP_MS));
 
         const phone = sanitizeWaPhone(row.staff_phone);
@@ -97,7 +111,7 @@ async function drain(): Promise<{ drained: number; failed: number; busy?: boolea
         }
         console.log("[drain] row", row.id, "→", phone, "ok:", r.ok, "status:", r.status);
         await logClientSend({
-          kind: `pre_approval_internal → staff (queue #${row.id}, attempt ${row.attempts})`,
+          kind: `${row.template_key || "pre_approval_internal"} → staff (queue #${row.id}, attempt ${row.attempts})`,
           rawPhone: phone, ok: r.ok,
           applicationId: row.application_id,
           detail: r.ok ? `re: ${row.client_name}` : `re: ${row.client_name} — status ${r.status}`,

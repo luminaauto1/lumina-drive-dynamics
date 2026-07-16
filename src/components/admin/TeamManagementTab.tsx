@@ -419,6 +419,23 @@ const TeamManagementTab = () => {
                             <SelectItem value="custom">Custom…</SelectItem>
                           </SelectContent>
                         </Select>
+                        {/* Archive permission — default: admin + Senior F&I only. */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const roleDefault = a.role === 'senior_f_and_i' || a.role === 'accountant';
+                            const current = rule.can_archive != null ? rule.can_archive : roleDefault;
+                            upsertVisibility.mutate({ ...rule, can_archive: !current } as any);
+                          }}
+                          className={`h-8 px-2 rounded border text-[11px] whitespace-nowrap transition-colors ${
+                            (rule.can_archive != null ? rule.can_archive : (a.role === 'senior_f_and_i' || a.role === 'accountant'))
+                              ? 'border-amber-500/40 text-amber-400 bg-amber-500/10'
+                              : 'border-border text-muted-foreground'
+                          }`}
+                          title="Toggle whether this user may archive applications (default: only admins + Senior F&I)"
+                        >
+                          Archive {(rule.can_archive != null ? rule.can_archive : (a.role === 'senior_f_and_i' || a.role === 'accountant')) ? '✓' : '✕'}
+                        </button>
                         {rule.mode === 'custom' && (
                           <Popover>
                             <PopoverTrigger asChild>
