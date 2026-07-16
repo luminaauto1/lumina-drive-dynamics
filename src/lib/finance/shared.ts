@@ -45,6 +45,18 @@ export interface AppVisibilityRule {
   user_id: string;
   mode: 'default' | 'all' | 'own' | 'custom';
   visible_user_ids: string[];
+  /** NULL = role default (admin + senior F&I may archive); true/false = owner override. */
+  can_archive?: boolean | null;
+}
+
+/** Who may archive applications (owner rule 2026-07-16): admins + senior F&I
+ *  by default, plus anyone the owner explicitly enables in Settings → Team. */
+export function canArchiveApps(
+  role: string | null | undefined,
+  rule: AppVisibilityRule | null | undefined,
+): boolean {
+  if (rule?.can_archive != null) return rule.can_archive === true;
+  return role === 'super_admin' || role === 'senior_f_and_i' || role === 'accountant';
 }
 
 export function canSeeApplication(opts: {

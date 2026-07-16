@@ -15,7 +15,7 @@ export const useAppVisibilityRules = () =>
     queryFn: async (): Promise<AppVisibilityRule[]> => {
       const { data, error } = await (supabase as any)
         .from('app_visibility_rules')
-        .select('user_id, mode, visible_user_ids');
+        .select('user_id, mode, visible_user_ids, can_archive');
       if (error) throw error;
       return (data ?? []) as AppVisibilityRule[];
     },
