@@ -916,29 +916,31 @@ const AdminFinance = () => {
               {badge.txt}
             </span>
             <CreditScanButton application={app} />
-            {/* Outcome buttons only AFTER a scan exists (owner rule 2026-07-15:
-                nothing to pass/fail while the check is Not Run). */}
-            {cc && cc !== 'passed' && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 px-2 gap-1 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
-                onClick={() => openOutcome('passed')}
-                title="Credit check passed — attach the report & pick the next status"
-              >
-                ✓ Passed
-              </Button>
-            )}
-            {cc && cc !== 'failed' && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 px-2 gap-1 border-red-500/40 text-red-400 hover:bg-red-500/10"
-                onClick={() => openOutcome('failed')}
-                title="Credit check failed — attach the report & pick the next status"
-              >
-                ✗ Failed
-              </Button>
+            {/* Outcome buttons ONLY while the scan is PENDING (owner rules
+                2026-07-15): Not Run has nothing to pass/fail, and a recorded
+                Passed/Failed shows just the badge — re-running the scan flips
+                it back to Pending if the outcome must change. */}
+            {cc === 'pending' && (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 px-2 gap-1 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+                  onClick={() => openOutcome('passed')}
+                  title="Credit check passed — attach the report & pick the next status"
+                >
+                  ✓ Passed
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 px-2 gap-1 border-red-500/40 text-red-400 hover:bg-red-500/10"
+                  onClick={() => openOutcome('failed')}
+                  title="Credit check failed — attach the report & pick the next status"
+                >
+                  ✗ Failed
+                </Button>
+              </>
             )}
           </div>
         );
