@@ -152,7 +152,12 @@ Deno.serve(async (req) => {
 
     const ok = status >= 200 && status < 300 && (apiResponse as any)?.success !== false;
     console.log("[whatsapp-test-send] result", { status, ok });
-    return json(200, { ok, status, dispatched_url: dispatchedUrl, api_response: apiResponse });
+    // Surface EasySocial's own message so the Settings toast says WHY (e.g.
+    // "Identical message sent recently. Try again after some time." on their
+    // duplicate-protection 403) instead of a bare HTTP code.
+    const detail = ok ? undefined
+      : (apiResponse as any)?.message || (apiResponse as any)?.error || `HTTP ${status}`;
+    return json(200, { ok, status, dispatched_url: dispatchedUrl, api_response: apiResponse, ...(detail ? { detail } : {}) });
   } catch (e: any) {
     return json(500, { error: e?.message || "Unknown error" });
   }
