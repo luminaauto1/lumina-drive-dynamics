@@ -30,6 +30,7 @@ const BODY_SOURCES: { value: string; label: string }[] = [
   { value: 'none', label: 'Not used' },
   { value: 'applicant_full_name', label: 'Applicant full name' },
   { value: 'applicant_first_name', label: 'Applicant first name' },
+  { value: 'applicant_mobile', label: 'Applicant mobile number' },
   { value: 'vehicle', label: 'Vehicle' },
   { value: 'dealership_name', label: 'Dealership name' },
   { value: 'reference', label: 'Reference / application no.' },
