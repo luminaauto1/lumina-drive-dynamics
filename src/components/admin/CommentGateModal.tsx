@@ -16,6 +16,9 @@ export function CommentGateModal({
   open,
   required,
   prompt,
+  waInfoEnabled = false,
+  waInfoRequired = false,
+  waInfoPrompt,
   onConfirm,
   onCancel,
 }: {
@@ -24,20 +27,31 @@ export function CommentGateModal({
   required: boolean;
   /** Label shown above the box (status_overrides.comment_prompt). */
   prompt?: string | null;
-  /** Receives the trimmed comment (may be '' when not required). */
-  onConfirm: (comment: string) => void;
+  /** When true, a dedicated "WhatsApp To Client Info" box is shown (opt-in per caller). */
+  waInfoEnabled?: boolean;
+  /** When true, Confirm stays disabled until the WhatsApp box is filled. */
+  waInfoRequired?: boolean;
+  /** Label shown above the WhatsApp box (status_overrides.wa_client_info_prompt). */
+  waInfoPrompt?: string | null;
+  /** Receives the trimmed comment + trimmed WhatsApp-info text (either may be ''). */
+  onConfirm: (comment: string, waClientInfo: string) => void;
   onCancel: () => void;
 }) {
   const [comment, setComment] = useState('');
+  const [waClientInfo, setWaClientInfo] = useState('');
   const label = (prompt && prompt.trim()) || 'Comment';
-  const canConfirm = !required || !!comment.trim();
+  const waLabel = (waInfoPrompt && waInfoPrompt.trim()) || 'WhatsApp To Client Info';
+  const commentOk = !required || !!comment.trim();
+  const waInfoOk = !waInfoEnabled || !waInfoRequired || !!waClientInfo.trim();
+  const canConfirm = commentOk && waInfoOk;
 
   const confirm = () => {
     if (!canConfirm) return;
-    onConfirm(comment.trim());
+    onConfirm(comment.trim(), waClientInfo.trim());
     setComment('');
+    setWaClientInfo('');
   };
-  const cancel = () => { setComment(''); onCancel(); };
+  const cancel = () => { setComment(''); setWaClientInfo(''); onCancel(); };
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && cancel()}>
@@ -56,6 +70,20 @@ export function CommentGateModal({
             placeholder={required ? 'A comment is required for this status…' : 'Optional comment…'}
             autoFocus
           />
+          {/* WhatsApp To Client Info — dedicated box, opt-in per caller. */}
+          {waInfoEnabled && (
+            <div className="space-y-2 pt-1">
+              <label className="text-sm font-medium text-foreground">
+                {waLabel}{waInfoRequired && <span className="text-red-400"> *</span>}
+              </label>
+              <Textarea
+                value={waClientInfo}
+                onChange={(e) => setWaClientInfo(e.target.value)}
+                rows={3}
+                placeholder={waInfoRequired ? 'A WhatsApp message is required for this status…' : 'Message to send the client on WhatsApp…'}
+              />
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={cancel}>Cancel</Button>

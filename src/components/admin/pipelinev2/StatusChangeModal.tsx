@@ -11,6 +11,7 @@ import { StatusSelect } from '@/components/admin/StatusSelect';
 import { useStatusConfig } from '@/hooks/useZtcSettings';
 import { useAuth } from '@/contexts/AuthContext';
 import { addPipelineNote } from '@/lib/pipelinev2/notes';
+import { supabase } from '@/integrations/supabase/client';
 
 // Terminal statuses also archive (mirrors AdminFinance line ~1090 — 'lost' is a
 // defensive extra that's never a STATUS_OPTIONS value; kept for parity).
@@ -35,9 +36,13 @@ export function StatusChangeModal({
   const [clientStatus, setClientStatus] = useState<string>((app as any).client_status || '');
   const [track, setTrack] = useState<'finance' | 'client'>(initialTrack);
   const [comment, setComment] = useState('');
+  const [waClientInfo, setWaClientInfo] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const { labels: financeLabels, clientStatuses, clientLabels, commentRequiredFor, commentPromptFor } = useStatusConfig();
+  const {
+    labels: financeLabels, clientStatuses, clientLabels, commentRequiredFor, commentPromptFor,
+    waClientInfoEnabledFor, waClientInfoRequiredFor, waClientInfoPromptFor,
+  } = useStatusConfig();
   const updateClientStatus = useUpdateClientStatus();
   const { user } = useAuth();
 
@@ -52,12 +57,29 @@ export function StatusChangeModal({
   const commentRequired = !!gateStatus;
   const commentMissing = commentRequired && !comment.trim();
 
+  // WhatsApp To Client Info gate — independent of the comment gate. A SINGLE box
+  // can be wanted by the finance status AND/OR the client status being changed in
+  // this submit, so evaluate each independently: show it if EITHER enables it,
+  // require it if EITHER requires it, and (on submit) feed the text to EVERY send
+  // that wants it. This avoids a required client-status gate being bypassed when a
+  // non-required finance status changes alongside it.
+  const financeWantsInfo = financeChanged && waClientInfoEnabledFor(status);
+  const clientWantsInfo = clientChanged && waClientInfoEnabledFor(clientStatus);
+  const waInfoEnabled = financeWantsInfo || clientWantsInfo;
+  const waInfoRequired =
+    (financeWantsInfo && waClientInfoRequiredFor(status)) ||
+    (clientWantsInfo && waClientInfoRequiredFor(clientStatus));
+  const waInfoMissing = waInfoRequired && !waClientInfo.trim();
+  // Prompt label: prefer the finance status's prompt, else the client status's.
+  const waInfoStatus = financeWantsInfo ? status : clientWantsInfo ? clientStatus : '';
+
   const submit = async () => {
     setError('');
     // Allow a comment-only update (log a note without changing a status), so the
     // button isn't permanently greyed out when the shown status is already current.
-    if (!financeChanged && !clientChanged && !comment.trim()) { onClose(); return; }
+    if (!financeChanged && !clientChanged && !comment.trim() && !waClientInfo.trim()) { onClose(); return; }
     if (commentMissing) { setError('A comment is required for this status.'); return; }
+    if (waInfoMissing) { setError('A WhatsApp To Client Info message is required for this status.'); return; }
     setBusy(true);
     try {
       // Finance write — EXACT reuse of AdminFinance's mutation path (notify-*/
@@ -66,17 +88,41 @@ export function StatusChangeModal({
         const updates: any = { status };
         if (TERMINAL.includes(status)) updates.is_archived = true;
         if (status === 'sent_to_banks') updates.internal_status = 'no_notes';
+        // Feed the WhatsApp To Client Info text to the finance wa-status-send when
+        // the finance status enables the box. Stripped before the DB write in the
+        // hook. (The client route below is fed independently.)
+        if (financeWantsInfo && waClientInfo.trim()) updates.wa_client_info = waClientInfo.trim();
         await updateApplication.mutateAsync({ id: app.id, updates });
       }
-      // Client status — isolated writer, no fan-out.
+      // Client status — isolated writer. Routes the box text here (and to the
+      // client status's own opt-in wa-status-send) when the box owner is the client
+      // status; otherwise the finance path above owns it.
       if (clientChanged) {
-        await updateClientStatus.mutateAsync({ id: app.id, client_status: clientStatus });
+        await updateClientStatus.mutateAsync({
+          id: app.id,
+          client_status: clientStatus,
+          wa_client_info: clientWantsInfo && waClientInfo.trim() ? waClientInfo.trim() : undefined,
+        });
       }
       // Persist the gated comment as a status_change note.
       if (comment.trim()) {
         await addPipelineNote(app, {
           body: comment.trim(),
           category: financeChanged || clientChanged ? 'status_change' : 'note',
+          author_id: user?.id ?? null,
+          author_name: authorName(user),
+        });
+      }
+      // Persist the WhatsApp To Client Info text as its own note (always logged).
+      // Re-fetch fresh pipeline_notes so this prepend doesn't clobber the comment
+      // note written just above (addPipelineNote reads notes off the passed row).
+      if (waClientInfo.trim()) {
+        const noteTarget = comment.trim()
+          ? (await supabase.from('finance_applications').select('id, pipeline_notes').eq('id', app.id).maybeSingle()).data ?? app
+          : app;
+        await addPipelineNote(noteTarget as any, {
+          body: waClientInfo.trim(),
+          category: 'client_whatsapp',
           author_id: user?.id ?? null,
           author_name: authorName(user),
         });
@@ -165,6 +211,22 @@ export function StatusChangeModal({
             />
           </div>
 
+          {/* WhatsApp To Client Info — shown only when the changed status enables it. */}
+          {waInfoEnabled && (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">
+                WhatsApp To Client Info
+                {waInfoRequired && <span className="text-red-400"> *</span>}
+              </Label>
+              <Textarea
+                value={waClientInfo}
+                onChange={(e) => setWaClientInfo(e.target.value)}
+                rows={2}
+                placeholder={waClientInfoPromptFor(waInfoStatus) || (waInfoRequired ? 'A WhatsApp message is required for this status…' : 'Message to send the client on WhatsApp…')}
+              />
+            </div>
+          )}
+
           {error && <p className="text-sm text-red-400">{error}</p>}
           <p className="text-[11px] text-muted-foreground">
             Finance changes send the same WhatsApp / email / CRM notifications as the Finance page. Client-status changes are silent.
@@ -172,7 +234,7 @@ export function StatusChangeModal({
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button onClick={submit} disabled={busy || (!financeChanged && !clientChanged && !comment.trim()) || commentMissing}>
+          <Button onClick={submit} disabled={busy || (!financeChanged && !clientChanged && !comment.trim() && !waClientInfo.trim()) || commentMissing || waInfoMissing}>
             {busy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Update status
           </Button>
         </DialogFooter>

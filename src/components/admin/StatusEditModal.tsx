@@ -87,6 +87,7 @@ const BODY_SOURCE_OPTIONS: { value: string; label: string }[] = [
   { value: 'full_name', label: 'Full name' },
   { value: 'first_name', label: 'First name' },
   { value: 'comment', label: 'Status comment' },
+  { value: 'wa_client_info', label: 'WhatsApp To Client Info' },
   { value: 'vehicle', label: 'Vehicle (year make model)' },
   { value: 'email', label: 'Email' },
   { value: 'phone', label: 'Phone' },
@@ -196,6 +197,12 @@ export function StatusEditModal({
   const [hidden, setHidden] = useState(!!existing?.is_hidden);
   const [commentRequired, setCommentRequired] = useState(!!existing?.comment_required);
   const [commentPrompt, setCommentPrompt] = useState(existing?.comment_prompt ?? '');
+  // WhatsApp To Client Info — a dedicated per-status message box (distinct from the
+  // comment gate). When enabled, the status-change UIs show it on apply; the text is
+  // logged as a note AND available as the wa_client_info WhatsApp body source.
+  const [waClientInfoEnabled, setWaClientInfoEnabled] = useState(!!existing?.wa_client_info_enabled);
+  const [waClientInfoRequired, setWaClientInfoRequired] = useState(!!existing?.wa_client_info_required);
+  const [waClientInfoPrompt, setWaClientInfoPrompt] = useState(existing?.wa_client_info_prompt ?? '');
   // Per-status SLA in hours (finance track). Empty = built-in default from
   // lib/finance/sla.ts; drives the Finance page's Age chips + Stalled queue.
   const [slaHours, setSlaHours] = useState<string>(
@@ -404,6 +411,12 @@ export function StatusEditModal({
         whatsapp_message: waMessage.trim() ? waMessage : null,
         comment_required: commentRequired,
         comment_prompt: commentPrompt.trim() ? commentPrompt.trim() : null,
+        // WhatsApp To Client Info — dedicated per-status message box. When disabled,
+        // required is forced off + the prompt cleared so a no-op status is inert.
+        wa_client_info_enabled: waClientInfoEnabled,
+        wa_client_info_required: waClientInfoEnabled ? waClientInfoRequired : false,
+        wa_client_info_prompt:
+          waClientInfoEnabled && waClientInfoPrompt.trim() ? waClientInfoPrompt.trim() : null,
         // Empty / invalid => NULL so the built-in SLA default applies (finance only).
         sla_hours: type === 'finance' && Number(slaHours) > 0 ? Math.round(Number(slaHours)) : null,
         is_internal: isInternal,
@@ -420,15 +433,17 @@ export function StatusEditModal({
         easysocial_client_status: esClientStatus.trim() ? esClientStatus.trim() : null,
         tag_remove_mode: tagRemoveMode,
         easysocial_tags_to_remove: tagRemoveMode !== 'none' ? tagsToRemove : [],
-        // Auto-send link is suppressed for notify-* owned slugs (no double-send).
+        // Auto-send link — persisted for BOTH tracks (finance + opt-in client
+        // auto-send). Suppressed only for notify-* owned finance slugs (no
+        // double-send); isNotifyOwned is never true for client statuses.
         whatsapp_template_key:
-          type === 'finance' && !isNotifyOwned && waTemplateKey ? waTemplateKey : null,
+          !isNotifyOwned && waTemplateKey ? waTemplateKey : null,
         wa_body1_source:
-          type === 'finance' && !isNotifyOwned ? joinBodySource(waBody1Kind, waBody1Static) : null,
+          !isNotifyOwned ? joinBodySource(waBody1Kind, waBody1Static) : null,
         wa_body2_source:
-          type === 'finance' && !isNotifyOwned ? joinBodySource(waBody2Kind, waBody2Static) : null,
+          !isNotifyOwned ? joinBodySource(waBody2Kind, waBody2Static) : null,
         wa_body3_source:
-          type === 'finance' && !isNotifyOwned ? joinBodySource(waBody3Kind, waBody3Static) : null,
+          !isNotifyOwned ? joinBodySource(waBody3Kind, waBody3Static) : null,
       });
 
       // Mirror the EasySocial tag into the live integration path (read-modify-write).
@@ -640,6 +655,33 @@ export function StatusEditModal({
               <Label className="text-xs text-muted-foreground">Prompt shown above the comment box</Label>
               <Input value={commentPrompt} onChange={(e) => setCommentPrompt(e.target.value)} placeholder="e.g. Why are you setting this status?" className="h-8 text-sm" />
             </div>
+          </div>
+
+          {/* WhatsApp To Client Info — a dedicated per-status message box (separate
+              from the comment gate). Shown for BOTH tracks (per-status behaviour,
+              like the comment gate). When enabled, the status-change UIs prompt for
+              this text on apply; it is logged as a note AND can be injected into a
+              WhatsApp template via the 'WhatsApp To Client Info' Body option. */}
+          <div className="space-y-2 rounded-md border border-border p-3">
+            <div className="flex items-center gap-2">
+              <Checkbox id="waClientInfo" checked={waClientInfoEnabled} onCheckedChange={(v) => setWaClientInfoEnabled(!!v)} />
+              <Label htmlFor="waClientInfo" className="text-sm font-normal">Ask for a WhatsApp To Client Info message when this status is set</Label>
+            </div>
+            {waClientInfoEnabled && (
+              <>
+                <div className="flex items-center gap-2">
+                  <Checkbox id="waClientInfoReq" checked={waClientInfoRequired} onCheckedChange={(v) => setWaClientInfoRequired(!!v)} />
+                  <Label htmlFor="waClientInfoReq" className="text-sm font-normal">Require this message before the status can be saved</Label>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Prompt shown above the box (optional)</Label>
+                  <Input value={waClientInfoPrompt} onChange={(e) => setWaClientInfoPrompt(e.target.value)} placeholder="e.g. Message to send the client on WhatsApp" className="h-8 text-sm" />
+                </div>
+              </>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              This message can be injected into a WhatsApp template via the <span className="font-medium text-foreground">WhatsApp To Client Info</span> Body option.
+            </p>
           </div>
 
           {/* SLA (finance track): how long an app may sit in this status before
@@ -896,10 +938,18 @@ export function StatusEditModal({
               </div>
           )}
 
-          {/* B. WhatsApp auto-send — FINANCE only (client statuses never message the client) */}
-          {type === 'finance' && slug && (
+          {/* B. WhatsApp auto-send — FINANCE statuses and (opt-in) CLIENT statuses.
+              A curated template attached here fires on apply; left unset it stays
+              silent (wa-status-send self-gates to skipped:'no_template'). */}
+          {((type === 'finance' && slug) || type === 'client') && (
               <div className="space-y-3 rounded-md border border-border p-3">
                 <div className="text-sm font-medium">WhatsApp auto-send (on apply)</div>
+
+                {type === 'client' && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Attaching a template makes this client status send a WhatsApp when it's applied (silent if left unset). Map a Body to <span className="font-medium text-foreground">WhatsApp To Client Info</span> to inject the typed message.
+                  </p>
+                )}
 
                 {isNotifyOwned ? (
                   <div className="rounded-md border border-border bg-muted/20 p-2.5 text-[12px] text-muted-foreground">
