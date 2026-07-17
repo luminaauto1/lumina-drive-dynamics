@@ -14,6 +14,8 @@ import { useOtps, useCreateOtp, useUpdateOtp, useDeleteOtp } from '@/hooks/useOt
 import { OtpDocument } from '@/features/otp/OtpDocument';
 import type { OtpData, OtpClient, OtpVehicle, OtpFinance, OtpFinancials, OtpRecord } from '@/features/otp/types';
 import type { DocumentSettings } from '@/hooks/useDocumentSettings';
+import { ClientSearchInput } from '@/components/admin/ClientSearchInput';
+import { useVehiclesLite } from '@/hooks/useVehiclesLite';
 import { fmtZAR, fmtOtpDate, addDaysOtpDate } from '@/features/otp/format';
 import { calcOtp } from '@/features/otp/calc';
 import './../../features/otp/otpPrint.css';
@@ -53,6 +55,7 @@ const AdminOTP = () => {
   const updateOtp = useUpdateOtp();
   const deleteOtp = useDeleteOtp();
 
+  const { data: stock = [] } = useVehiclesLite();
   const [view, setView] = useState<'list' | 'edit'>('list');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [data, setData] = useState<OtpData | null>(null);
@@ -208,6 +211,20 @@ const AdminOTP = () => {
             <Card>
               <CardHeader className="pb-3"><CardTitle className="text-base">Client</CardTitle></CardHeader>
               <CardContent className="grid grid-cols-2 gap-3">
+                {/* Prefill from an existing client (owner 2026-07-17) — everything stays editable. */}
+                <div className="col-span-2">
+                  <ClientSearchInput
+                    label="Prefill from a client"
+                    onPick={(c) => setClient({
+                      name: c.name,
+                      id: c.idNumber,
+                      cell: c.phone,
+                      email: c.email,
+                      address: c.address,
+                      postal: c.postalCode,
+                    })}
+                  />
+                </div>
                 {textInput('Title', data.client.title, (v) => setClient({ title: v }))}
                 {textInput('Name', data.client.name, (v) => setClient({ name: v }))}
                 {textInput('ID Number', data.client.id, (v) => setClient({ id: v }))}
@@ -223,6 +240,37 @@ const AdminOTP = () => {
             <Card>
               <CardHeader className="pb-3"><CardTitle className="text-base">Vehicle</CardTitle></CardHeader>
               <CardContent className="grid grid-cols-2 gap-3">
+                {/* Prefill from stock (owner 2026-07-17) — same picker as the Invoice
+                    Creator; the base price fills only when still empty. */}
+                <div className="col-span-2 space-y-1.5">
+                  <Label className="text-xs">Prefill from stock</Label>
+                  <Select onValueChange={(vehicleId) => {
+                    const v = stock.find((x: any) => x.id === vehicleId);
+                    if (!v) return;
+                    setVehicle({
+                      make: v.make || '',
+                      model: v.model || '',
+                      year: v.year ? String(v.year) : '',
+                      colour: v.color || '',
+                      trim: v.variant || '',
+                      mileage: v.mileage != null ? String(v.mileage) : '',
+                      vin: v.vin || '',
+                      engine_no: v.engine_code || '',
+                      reg_no: v.registration_number || '',
+                      stock_no: v.stock_number || '',
+                    });
+                    if (!data.financials.base_price && v.price) setFin({ base_price: Number(v.price) });
+                  }}>
+                    <SelectTrigger><SelectValue placeholder="Select a vehicle…" /></SelectTrigger>
+                    <SelectContent>
+                      {stock.map((v: any) => (
+                        <SelectItem key={v.id} value={v.id}>
+                          {[v.stock_number ? `#${v.stock_number}` : null, v.year, v.make, v.model, v.variant].filter(Boolean).join(' ')}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 {textInput('Make', data.vehicle.make, (v) => setVehicle({ make: v }))}
                 {textInput('Model', data.vehicle.model, (v) => setVehicle({ model: v }))}
                 {textInput('Year', data.vehicle.year, (v) => setVehicle({ year: v }))}
