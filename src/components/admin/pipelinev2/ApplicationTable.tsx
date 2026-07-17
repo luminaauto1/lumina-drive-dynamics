@@ -15,7 +15,7 @@ import { formatCurrencyR, formatDate, formatTime, formatPhone, relativeTime } fr
 import { CreditScanButton } from '@/components/finance/CreditScanButton';
 import { TABLE_COLUMNS, columnClass, type TableConfig } from '@/lib/pipelinev2/columns';
 import { sourceLabel } from '@/lib/pipelinev2/source';
-import { latestPipelineNote, noteCategory } from '@/lib/pipelinev2/notes';
+import { latestAnyNote, noteCategory } from '@/lib/pipelinev2/notes';
 
 interface Busy { userId: string; name: string; color: string }
 
@@ -468,9 +468,11 @@ function renderCell(
       );
     }
     case 'internal': {
-      // Prefer the most recent structured pipeline note (with author + time);
-      // fall back to the directed internal-status label, then to nothing.
-      const latest = latestPipelineNote(a);
+      // The single NEWEST note across BOTH systems (structured pipeline notes
+      // + the Finance CRM popup's legacy blob) — owner rule 2026-07-17: one
+      // note per client, and blob-only notes must not vanish. Falls back to
+      // the directed internal-status label, then to nothing.
+      const latest = latestAnyNote(a);
       if (latest) {
         const cat = noteCategory(latest.category);
         return (
@@ -482,7 +484,10 @@ function renderCell(
             )}
             <div className="line-clamp-2 text-xs text-foreground">{latest.body}</div>
             <div className="text-[10px] text-muted-foreground">
-              {latest.author_name || 'Unknown'}{latest.created_at ? ` · ${relativeTime(latest.created_at)}` : ''}
+              {latest.author_name || 'Unknown'}
+              {latest.created_at
+                ? ` · ${relativeTime(latest.created_at)}`
+                : latest.legacyStamp ? ` · ${latest.legacyStamp}` : ''}
             </div>
           </div>
         );
