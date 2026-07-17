@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, Plus, Printer, Save, ArrowLeft, Pencil, Trash2 } from 'lucide-react';
+import { FileText, Plus, Printer, Save, ArrowLeft, Pencil, Trash2, Download, Loader2 } from 'lucide-react';
+import { downloadPdfFromPages, pdfFilename } from '@/lib/domToPdf';
 import { toast } from 'sonner';
 import { useDocumentSettings, consumeOtpNumber } from '@/hooks/useDocumentSettings';
 import { useOtps, useCreateOtp, useUpdateOtp, useDeleteOtp } from '@/hooks/useOtps';
@@ -57,6 +58,10 @@ const AdminOTP = () => {
 
   const { data: stock = [] } = useVehiclesLite();
   const [view, setView] = useState<'list' | 'edit'>('list');
+  // Direct PDF download of the preview's A4 sheets (owner 2026-07-17: no print
+  // dialog, no save-as prompt — same as the Invoice Creator).
+  const previewRef = useRef<HTMLDivElement>(null);
+  const [downloading, setDownloading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [data, setData] = useState<OtpData | null>(null);
   const [saving, setSaving] = useState(false);
@@ -201,7 +206,31 @@ const AdminOTP = () => {
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground font-mono">{data.offer.ref || '(ref assigned on save)'}</span>
             <Button variant="outline" onClick={handleSave} disabled={saving} className="gap-2"><Save className="w-4 h-4" /> {saving ? 'Saving…' : 'Save'}</Button>
-            <Button onClick={() => window.print()} className="gap-2"><Printer className="w-4 h-4" /> Download PDF</Button>
+            <Button variant="ghost" size="icon" onClick={() => window.print()} title="Print (physical printer)"><Printer className="w-4 h-4" /></Button>
+            <Button
+              onClick={async () => {
+                const root = previewRef.current;
+                if (!root) return;
+                setDownloading(true);
+                try {
+                  // Each .page node in the OTP document is one A4 sheet → one PDF page.
+                  const pages = Array.from(root.querySelectorAll<HTMLElement>('.page'));
+                  await downloadPdfFromPages(
+                    pages.length ? pages : [root],
+                    pdfFilename('OTP', data.offer.ref || 'draft', data.client.name || 'client'),
+                  );
+                } catch (e: any) {
+                  toast.error('PDF download failed: ' + (e?.message || e));
+                } finally {
+                  setDownloading(false);
+                }
+              }}
+              disabled={downloading}
+              className="gap-2"
+            >
+              {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              {downloading ? 'Preparing…' : 'Download PDF'}
+            </Button>
           </div>
         </div>
 
@@ -362,7 +391,9 @@ const AdminOTP = () => {
           {/* LIVE PREVIEW */}
           <div className="bg-muted/30 rounded-lg p-4 overflow-auto max-h-[calc(100vh-160px)]">
             <div className="otp-print-root otp-preview-wrap origin-top" style={{ transform: 'scale(0.62)', transformOrigin: 'top left', width: '210mm' }}>
-              <OtpDocument data={data} />
+              <div ref={previewRef}>
+                <OtpDocument data={data} />
+              </div>
             </div>
           </div>
         </div>
