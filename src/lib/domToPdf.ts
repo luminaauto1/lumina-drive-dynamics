@@ -12,47 +12,55 @@ const PAGE_H = 297; // mm
 const render = (el: HTMLElement) =>
   toCanvas(el, { pixelRatio: 2, backgroundColor: '#ffffff', cacheBust: true });
 
+/** Place a rendered canvas into the PDF: one page when it fits the A4 ratio,
+ *  clean full-height slices when taller — NEVER squashed to fit (squashing is
+ *  what displaces signature lines and text). */
+function addCanvasAsPages(doc: jsPDF, canvas: HTMLCanvasElement, first: boolean): boolean {
+  const imgHmm = (canvas.height * PAGE_W) / canvas.width;
+  if (imgHmm <= PAGE_H + 2) {
+    if (!first) doc.addPage();
+    doc.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, PAGE_W, Math.min(imgHmm, PAGE_H));
+    return false;
+  }
+  const pageCanvasH = Math.floor((canvas.width * PAGE_H) / PAGE_W);
+  let offset = 0;
+  while (offset < canvas.height) {
+    const slice = document.createElement('canvas');
+    slice.width = canvas.width;
+    slice.height = Math.min(pageCanvasH, canvas.height - offset);
+    const ctx = slice.getContext('2d');
+    if (!ctx) break;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, slice.width, slice.height);
+    ctx.drawImage(canvas, 0, offset, canvas.width, slice.height, 0, 0, canvas.width, slice.height);
+    if (!first) doc.addPage();
+    doc.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, PAGE_W, (slice.height * PAGE_W) / canvas.width);
+    first = false;
+    offset += pageCanvasH;
+  }
+  return false;
+}
+
 /** One element designed as a single A4: exactly one page when it fits, clean
  *  full-height slices only on genuine overflow. */
 export async function downloadPdfFromElement(el: HTMLElement, filename: string): Promise<void> {
   const canvas = await render(el);
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-  const imgHmm = (canvas.height * PAGE_W) / canvas.width;
-
-  if (imgHmm <= PAGE_H + 2) {
-    doc.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, PAGE_W, Math.min(imgHmm, PAGE_H));
-  } else {
-    const pageCanvasH = Math.floor((canvas.width * PAGE_H) / PAGE_W);
-    let offset = 0;
-    let first = true;
-    while (offset < canvas.height) {
-      const slice = document.createElement('canvas');
-      slice.width = canvas.width;
-      slice.height = Math.min(pageCanvasH, canvas.height - offset);
-      const ctx = slice.getContext('2d');
-      if (!ctx) break;
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, slice.width, slice.height);
-      ctx.drawImage(canvas, 0, offset, canvas.width, slice.height, 0, 0, canvas.width, slice.height);
-      if (!first) doc.addPage();
-      doc.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, PAGE_W, (slice.height * PAGE_W) / canvas.width);
-      first = false;
-      offset += pageCanvasH;
-    }
-  }
+  addCanvasAsPages(doc, canvas, true);
   doc.save(filename);
 }
 
 /** Multi-sheet documents (e.g. the OTP's `.page` A4 sheets): each element
- *  becomes exactly one PDF page, in order. */
+ *  becomes one PDF page (or a clean run of pages if a sheet grew taller than
+ *  A4 — content is never squashed). */
 export async function downloadPdfFromPages(pages: HTMLElement[], filename: string): Promise<void> {
   if (pages.length === 0) return;
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-  for (let i = 0; i < pages.length; i++) {
-    const canvas = await render(pages[i]);
-    const h = Math.min((canvas.height * PAGE_W) / canvas.width, PAGE_H);
-    if (i > 0) doc.addPage();
-    doc.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, PAGE_W, h);
+  let first = true;
+  for (const page of pages) {
+    const canvas = await render(page);
+    addCanvasAsPages(doc, canvas, first);
+    first = false;
   }
   doc.save(filename);
 }
