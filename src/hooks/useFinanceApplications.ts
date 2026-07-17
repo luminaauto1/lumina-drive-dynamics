@@ -121,6 +121,18 @@ export const useUpdateFinanceApplication = () => {
         updates = rest;
       }
 
+      // Optional transient "WhatsApp To Client Info" text — a SEPARATE per-status
+      // box (distinct from `comment`), passed by status-change UIs to feed the
+      // wa_client_info WhatsApp body source. Like `comment` it is NOT a
+      // finance_applications column — strip it before the DB write. Omitted =>
+      // behaves as today. It is NOT forwarded to easysocial-tag-sync.
+      const waClientInfo =
+        typeof updates?.wa_client_info === 'string' ? updates.wa_client_info.trim() : '';
+      if (updates && 'wa_client_info' in updates) {
+        const { wa_client_info: _omitWci, ...restWci } = updates;
+        updates = restWci;
+      }
+
       // suppressClientNotifications — virtual flag (stripped before the DB write)
       // for callers whose path has NEVER messaged the client (e.g. the CRM-modal
       // preset buttons). When true, every CLIENT-facing dispatch below is skipped
@@ -621,6 +633,7 @@ export const useUpdateFinanceApplication = () => {
               application_id: id,
               new_status: newStatus,
               comment: statusComment || undefined,
+              wa_client_info: waClientInfo || undefined,
             },
           }).then(({ data: waData, error: waErr }) => {
             if (waErr) console.error('[wa-status-send] error:', waErr);
@@ -645,14 +658,18 @@ export const useUpdateFinanceApplication = () => {
 };
 
 // Isolated writer for the customizable CLIENT-status track (finance_applications.
-// client_status). Lowest possible blast radius: it touches ONLY that one column
-// and fires NO notify-* / easysocial / auto-mailer / status_history side-effects.
-// The finance dispatch fan-out in useUpdateFinanceApplication is never involved.
+// client_status). Low blast radius: it touches ONLY that one column and fires NO
+// notify-* / auto-mailer / status_history side-effects. It DOES fire two isolated,
+// self-gating microservices: easysocial-tag-sync (CRM tags) and — opt-in since the
+// client auto-send scope — wa-status-send. wa-status-send reads THIS client slug's
+// config from status_overrides and NO-OPS (skipped:'no_template') unless the status
+// has a whatsapp_template_key + send_url attached, so every existing client status
+// (none configured) stays exactly as silent as before.
 export const useUpdateClientStatus = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, client_status, label }: { id: string; client_status: string; label?: string }) => {
+    mutationFn: async ({ id, client_status, label, wa_client_info }: { id: string; client_status: string; label?: string; wa_client_info?: string }) => {
       const { data, error } = await supabase
         .from('finance_applications')
         .update({ client_status } as any)
@@ -702,6 +719,32 @@ export const useUpdateClientStatus = () => {
               toast.error(`EasySocial sync failed: ${detail}`);
             }
           }, () => {});
+
+        // Opt-in client-status WhatsApp auto-send. Self-gates to skipped:'no_template'
+        // unless THIS client slug has a curated template attached (status editor →
+        // WhatsApp auto-send), so it's silent for every existing client status. Fires
+        // fire-and-forget with the SAME x-lumina-key auth as the finance path
+        // (checkInternalKey fails closed without it). Non-fatal; NO toast on failure
+        // (the easysocial toast above is the only client-status toast).
+        (async () => {
+          try {
+            const { publicApiHeaders } = await import('@/lib/publicApi');
+            supabase.functions.invoke('wa-status-send', {
+              headers: publicApiHeaders(),
+              body: {
+                application_id: id,
+                new_status: client_status,
+                wa_client_info: wa_client_info?.trim() || undefined,
+              },
+            }).then(({ data: waData, error: waErr }) => {
+              if (waErr) console.error('[wa-status-send] client error:', waErr);
+              else if ((waData as any)?.skipped) console.log('[wa-status-send] client skipped:', (waData as any).skipped);
+              else console.log('[wa-status-send] client dispatched for application', id, waData);
+            });
+          } catch (waEx) {
+            console.error('[wa-status-send] client failed to invoke:', waEx);
+          }
+        })();
       }
     },
     onSuccess: () => {

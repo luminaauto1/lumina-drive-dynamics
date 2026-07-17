@@ -35,19 +35,30 @@ export function BulkStatusModal({
   const [track, setTrack] = useState<StatusTrack>('finance');
   const [status, setStatus] = useState('');
   const [comment, setComment] = useState('');
+  const [waClientInfo, setWaClientInfo] = useState('');
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(0);
   const [failures, setFailures] = useState<string[]>([]);
-  const { commentRequiredFor, commentPromptFor } = useStatusConfig();
+  const {
+    commentRequiredFor, commentPromptFor,
+    waClientInfoEnabledFor, waClientInfoRequiredFor, waClientInfoPromptFor,
+  } = useStatusConfig();
   const { user } = useAuth();
 
   // Comment gate only applies to the finance track here (deal stage has no rules).
   const commentRequired = track === 'finance' && !!status && commentRequiredFor(status);
   const commentMissing = commentRequired && !comment.trim();
 
+  // WhatsApp To Client Info — a single message applied to every selected row.
+  // Finance track only (deal stage has no rules). Same enable/require semantics.
+  const waInfoEnabled = track === 'finance' && !!status && waClientInfoEnabledFor(status);
+  const waInfoRequired = waInfoEnabled && waClientInfoRequiredFor(status);
+  const waInfoMissing = waInfoRequired && !waClientInfo.trim();
+
   const run = async () => {
     if (!status) return;
     if (commentMissing) return;
+    if (waInfoMissing) return;
     setRunning(true); setDone(0); setFailures([]);
 
     // Deal-stage track: delegate the whole batch to the caller's updater (writes
@@ -68,6 +79,7 @@ export function BulkStatusModal({
 
     const fails: string[] = [];
     const noteBody = comment.trim();
+    const waInfoBody = waInfoEnabled ? waClientInfo.trim() : '';
     // Sequential — each row goes through the SAME mutation so every notification
     // fires (matches ZTC's per-row change-status loop). The hook toasts per row.
     for (const id of appIds) {
@@ -75,21 +87,38 @@ export function BulkStatusModal({
         const updates: any = { status };
         if (TERMINAL.includes(status)) updates.is_archived = true;
         if (status === 'sent_to_banks') updates.internal_status = 'no_notes';
+        // Feed the shared WhatsApp To Client Info text to wa-status-send (finance
+        // fan-out). Stripped before the DB write in the hook.
+        if (waInfoBody) updates.wa_client_info = waInfoBody;
         await updateApplication.mutateAsync({ id, updates });
-        // Persist the same batch comment per row as a status_change note. Fetch the
-        // current pipeline_notes for this row so the prepend is correct.
-        if (noteBody) {
-          const { data: row } = await supabase
-            .from('finance_applications')
-            .select('id, pipeline_notes')
-            .eq('id', id)
-            .maybeSingle();
-          await addPipelineNote(row ?? { id }, {
-            body: noteBody,
-            category: 'status_change',
-            author_id: user?.id ?? null,
-            author_name: authorName(user),
-          });
+        // Persist the batch comment + WhatsApp message per row as notes. addPipelineNote
+        // reads pipeline_notes off the passed row, so re-fetch fresh before EACH write
+        // (otherwise the second note's update would clobber the first).
+        if (noteBody || waInfoBody) {
+          const fetchRow = async () => {
+            const { data } = await supabase
+              .from('finance_applications')
+              .select('id, pipeline_notes')
+              .eq('id', id)
+              .maybeSingle();
+            return (data ?? { id }) as any;
+          };
+          if (noteBody) {
+            await addPipelineNote(await fetchRow(), {
+              body: noteBody,
+              category: 'status_change',
+              author_id: user?.id ?? null,
+              author_name: authorName(user),
+            });
+          }
+          if (waInfoBody) {
+            await addPipelineNote(await fetchRow(), {
+              body: waInfoBody,
+              category: 'client_whatsapp',
+              author_id: user?.id ?? null,
+              author_name: authorName(user),
+            });
+          }
         }
       } catch {
         fails.push(id);
@@ -101,7 +130,7 @@ export function BulkStatusModal({
     if (fails.length === 0) { onDone(); onClose(); }
   };
 
-  const setTrackAndReset = (t: StatusTrack) => { setTrack(t); setStatus(''); setComment(''); };
+  const setTrackAndReset = (t: StatusTrack) => { setTrack(t); setStatus(''); setComment(''); setWaClientInfo(''); };
 
   return (
     <Dialog open onOpenChange={(o) => !o && !running && onClose()}>
@@ -146,6 +175,21 @@ export function BulkStatusModal({
             </div>
           )}
 
+          {/* WhatsApp To Client Info — one message applied to every selected row. */}
+          {waInfoEnabled && !running && (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">
+                WhatsApp To Client Info{waInfoRequired && <span className="text-red-400"> *</span>}
+              </Label>
+              <Textarea
+                value={waClientInfo}
+                onChange={(e) => setWaClientInfo(e.target.value)}
+                rows={2}
+                placeholder={waClientInfoPromptFor(status) || 'Message to send the client on WhatsApp — applied to every selected application.'}
+              />
+            </div>
+          )}
+
           {running && <p className="text-sm text-muted-foreground">Processing {done}/{appIds.length}…{track === 'finance' ? ' (each fires its own notifications)' : ''}</p>}
           {failures.length > 0 && <p className="text-sm text-red-400">{failures.length} failed — others applied. Close and retry the rest.</p>}
           {!running && track === 'finance' && <p className="text-[11px] text-muted-foreground">Each application is updated individually so its WhatsApp / email / CRM notification fires — expect one toast per application.</p>}
@@ -153,7 +197,7 @@ export function BulkStatusModal({
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} disabled={running}>Cancel</Button>
-          <Button onClick={run} disabled={running || !status || commentMissing}>
+          <Button onClick={run} disabled={running || !status || commentMissing || waInfoMissing}>
             {running ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Apply to {appIds.length}
           </Button>
         </DialogFooter>
