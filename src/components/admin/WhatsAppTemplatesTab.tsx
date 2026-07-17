@@ -178,6 +178,9 @@ const Row = ({ t }: { t: WhatsAppTemplate }) => {
                 ),
               )}
             </div>
+            <p className="text-[11px] text-muted-foreground">
+              These are reference labels only. The live body mapping — including <span className="font-medium text-foreground">WhatsApp To Client Info</span> — is configured per status in the status editor's <span className="font-medium text-foreground">WhatsApp auto-send</span> section.
+            </p>
 
             <div>
               <Label className="text-xs text-muted-foreground">Preview text</Label>

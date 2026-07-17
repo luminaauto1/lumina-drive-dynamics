@@ -22,7 +22,7 @@
 //   3. status is a notify-* owned slug                → skipped:'notify_owned'
 //   4. linked template row missing / send_url blank   → skipped:'no_send_url'
 //
-// Request body: { application_id, new_status, comment? }
+// Request body: { application_id, new_status, comment?, wa_client_info? }
 // Side effects: NONE on Supabase data — only fires the external send URL.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
@@ -58,6 +58,7 @@ const resolveBodySource = (
   app: Record<string, any>,
   comment: string,
   vehicleLabel: string,
+  clientInfo: string,
 ): string => {
   const src = String(source ?? "").trim();
   if (!src || src === "none" || src === "Not used") return "";
@@ -77,6 +78,8 @@ const resolveBodySource = (
       );
     case "comment":
       return comment || "";
+    case "wa_client_info":
+      return clientInfo || "";
     case "vehicle":
       return vehicleLabel || "";
     case "email":
@@ -111,6 +114,9 @@ Deno.serve(async (req) => {
     const applicationId = String(payload?.application_id ?? "").trim();
     const newStatus = String(payload?.new_status ?? "").toLowerCase().trim();
     const comment = typeof payload?.comment === "string" ? payload.comment.trim() : "";
+    // Dedicated "WhatsApp To Client Info" text (separate from `comment`). Fills the
+    // wa_client_info BodySource; omitted => that source resolves to "".
+    const clientInfo = typeof payload?.wa_client_info === "string" ? payload.wa_client_info.trim() : "";
 
     if (!applicationId || !newStatus) {
       return json(400, { ok: false, error: "missing application_id / new_status" });
@@ -189,9 +195,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    const body1 = resolveBodySource(o.wa_body1_source, a, comment, vehicleLabel);
-    const body2 = resolveBodySource(o.wa_body2_source, a, comment, vehicleLabel);
-    const body3 = resolveBodySource(o.wa_body3_source, a, comment, vehicleLabel);
+    const body1 = resolveBodySource(o.wa_body1_source, a, comment, vehicleLabel, clientInfo);
+    const body2 = resolveBodySource(o.wa_body2_source, a, comment, vehicleLabel, clientInfo);
+    const body3 = resolveBodySource(o.wa_body3_source, a, comment, vehicleLabel, clientInfo);
 
     // 4. Normalise the curated URL exactly like the ZTC test-send / notify-* shape.
     // Strip any pasted /API/:mobile?... placeholder + query + trailing slashes,

@@ -41,6 +41,8 @@ export const NOTE_CATEGORIES: NoteCategoryDef[] = [
   { key: 'follow_up',       label: 'Follow Up',       color: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' },
   // Gated comments captured when a status with comment_required is applied.
   { key: 'status_change',   label: 'Status Change',   color: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' },
+  // WhatsApp To Client Info text captured when a status with wa_client_info_enabled is applied.
+  { key: 'client_whatsapp', label: 'WhatsApp to client', emoji: '💬', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
 ];
 
 export const noteCategory = (key: string | undefined | null): NoteCategoryDef =>
