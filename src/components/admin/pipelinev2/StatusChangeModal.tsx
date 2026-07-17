@@ -68,9 +68,14 @@ export function StatusChangeModal({
         if (status === 'sent_to_banks') updates.internal_status = 'no_notes';
         await updateApplication.mutateAsync({ id: app.id, updates });
       }
-      // Client status — isolated writer, no fan-out.
+      // Client status — isolated writer, no fan-out. The exact label rides
+      // along so the auto-note ("No Answer", …) matches the badge verbatim.
       if (clientChanged) {
-        await updateClientStatus.mutateAsync({ id: app.id, client_status: clientStatus });
+        await updateClientStatus.mutateAsync({
+          id: app.id,
+          client_status: clientStatus,
+          label: clientLabels[clientStatus] || undefined,
+        });
       }
       // Persist the gated comment as a status_change note.
       if (comment.trim()) {
