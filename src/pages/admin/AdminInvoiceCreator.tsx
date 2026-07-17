@@ -53,6 +53,7 @@ const MISC_PRESETS: { label: string; vatExempt: boolean }[] = [
   { label: 'Delivery Fee', vatExempt: false },
   { label: 'DIC', vatExempt: false },
   { label: 'VAP', vatExempt: false },
+  { label: 'Extras', vatExempt: false },
 ];
 
 /** Map a picked client onto a party block — single mapping for Invoiced-To AND Delivered-To. */
