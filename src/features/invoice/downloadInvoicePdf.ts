@@ -4,21 +4,26 @@
 // canvas and places it on a REAL A4 jsPDF that saves straight to Downloads —
 // same behaviour as every other PDF in the app (doc.save()).
 //
+// RENDERER: html-to-image (SVG foreignObject → the browser's OWN text
+// renderer). html2canvas was tried first and mangled the document — the
+// Montserrat webfont + letter-spacing combo collapses word spaces and clips
+// glyphs ("Sherine van Zyl" → "SherinevanZyl"). html-to-image inlines the
+// webfont and renders faithfully.
+//
 // The document is designed as a single A4; content that fits within one page
 // is placed on exactly ONE page (no stray blank pages possible). If it ever
 // overflows (very long item lists), it splits into clean full-height slices.
-import html2canvas from 'html2canvas';
+import { toCanvas } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 
 const PAGE_W = 210; // mm
 const PAGE_H = 297; // mm
 
 export async function downloadInvoicePdf(el: HTMLElement, filename: string): Promise<void> {
-  const canvas = await html2canvas(el, {
-    scale: 2,               // crisp text
-    useCORS: true,          // company logo from storage
-    logging: false,
+  const canvas = await toCanvas(el, {
+    pixelRatio: 2,          // crisp text
     backgroundColor: '#ffffff',
+    cacheBust: true,        // company logo from storage without stale-cache CORS surprises
   });
 
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
