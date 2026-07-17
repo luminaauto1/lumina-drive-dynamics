@@ -350,7 +350,40 @@ const AdminOTP = () => {
               <CardHeader className="pb-3"><CardTitle className="text-base">Financials (VAT-inclusive inputs)</CardTitle></CardHeader>
               <CardContent className="grid grid-cols-2 gap-3">
                 {moneyInput('Base Vehicle Price', data.financials.base_price, (n) => setFin({ base_price: n }))}
-                {moneyInput('Extras', data.financials.extras, (n) => setFin({ extras: n }))}
+                {/* Extras as LINE ITEMS (owner 2026-07-17) — each prints on the OTP;
+                    financials.extras stays their sum so calc/legacy docs are untouched. */}
+                {(() => {
+                  const items = data.financials.extras_items
+                    ?? (data.financials.extras ? [{ description: 'Extras', amount: data.financials.extras }] : []);
+                  const commit = (next: { description: string; amount: number }[]) =>
+                    setFin({ extras_items: next, extras: next.reduce((s, i) => s + (Number(i.amount) || 0), 0) });
+                  return (
+                    <div className="space-y-1.5 col-span-2">
+                      <Label className="text-xs">Extras (line items — each prints on the OTP)</Label>
+                      {items.map((it, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <Input value={it.description} placeholder="e.g. Tow bar"
+                            onChange={(e) => commit(items.map((x, idx) => idx === i ? { ...x, description: e.target.value } : x))} />
+                          <Input type="number" value={it.amount || ''} placeholder="0.00" className="w-36"
+                            onChange={(e) => commit(items.map((x, idx) => idx === i ? { ...x, amount: parseFloat(e.target.value) || 0 } : x))} />
+                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-red-400"
+                            onClick={() => commit(items.filter((_, idx) => idx !== i))} title="Remove extra">✕</Button>
+                        </div>
+                      ))}
+                      <div className="flex items-center justify-between">
+                        <Button type="button" variant="outline" size="sm" className="h-7"
+                          onClick={() => commit([...items, { description: '', amount: 0 }])}>
+                          + Add extra
+                        </Button>
+                        {items.length > 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            Extras total: <span className="font-mono text-foreground">{fmtZAR(data.financials.extras)}</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
                 {moneyInput('Value Added Products', data.financials.vap, (n) => setFin({ vap: n }))}
                 {moneyInput('Administration Fee', data.financials.admin_fee, (n) => setFin({ admin_fee: n }))}
                 {moneyInput('Delivery Fee', data.financials.delivery_fee, (n) => setFin({ delivery_fee: n }))}
