@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Loader2, Save, ListChecks, Info, Eye, EyeOff, MessageCircle, SlidersHorizontal, Plus, Pencil, Trash2, UserCheck } from 'lucide-react';
+import { Loader2, Save, ListChecks, Info, Eye, EyeOff, MessageCircle, SlidersHorizontal, Plus, Pencil, Trash2, UserCheck, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -131,6 +131,16 @@ const StatusesTab = () => {
   const { isLoading } = useStatusOverrides();
   // Modal state: which editor is open, in which mode, on which slug.
   const [editor, setEditor] = useState<{ mode: 'finance' | 'client'; slug?: string } | null>(null);
+  const [query, setQuery] = useState('');
+
+  // Filter BOTH tracks by label OR slug — every whitespace-split term must match.
+  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const matches = (label: string, slug: string) =>
+    terms.length === 0 || terms.every((t) => `${label} ${slug}`.toLowerCase().includes(t));
+  const filteredClients = allClientStatuses.filter((c) => matches(c.label, c.value));
+  const filteredMerged = merged
+    .map((s, i) => ({ s, order: s.sortOrder ?? i }))
+    .filter(({ s }) => matches(s.label, s.value));
 
   return (
     <div className="space-y-3 max-w-3xl">
@@ -142,6 +152,28 @@ const StatusesTab = () => {
           editable. <strong>Client statuses</strong> are free-form: add, rename, recolour and delete them freely; they never move pipeline lanes
           and never fire client notifications.
         </span>
+      </div>
+
+      {/* Search — filters both the client + pipeline status lists by label or slug. */}
+      <div className="relative max-w-md">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search statuses…"
+          className="pl-9 pr-9"
+          aria-label="Search statuses"
+        />
+        {query && (
+          <button
+            type="button"
+            onClick={() => setQuery('')}
+            aria-label="Clear search"
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       {/* Client Statuses panel — placed first so "Add client status" is reachable without scrolling past the finance list. */}
@@ -161,7 +193,9 @@ const StatusesTab = () => {
         <div className="mt-2 space-y-2">
           {allClientStatuses.length === 0
             ? <p className="text-xs text-muted-foreground py-3">No client statuses yet. Add one to start the track.</p>
-            : allClientStatuses.map((c) => <ClientRow key={c.value} c={c} onEdit={(slug) => setEditor({ mode: 'client', slug })} />)}
+            : filteredClients.length === 0
+              ? <p className="text-xs text-muted-foreground py-3">No client statuses match “{query.trim()}”.</p>
+              : filteredClients.map((c) => <ClientRow key={c.value} c={c} onEdit={(slug) => setEditor({ mode: 'client', slug })} />)}
         </div>
       </div>
 
@@ -171,7 +205,9 @@ const StatusesTab = () => {
         <h2 className="text-lg font-semibold">Pipeline Statuses</h2>
       </div>
       {isLoading ? <div className="py-8 text-center text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin inline" /></div>
-        : merged.map((s, i) => <Row key={s.value} s={s} order={s.sortOrder ?? i} onEdit={(slug) => setEditor({ mode: 'finance', slug })} />)}
+        : filteredMerged.length === 0
+          ? <p className="text-xs text-muted-foreground py-3">No pipeline statuses match “{query.trim()}”.</p>
+          : filteredMerged.map(({ s, order }) => <Row key={s.value} s={s} order={order} onEdit={(slug) => setEditor({ mode: 'finance', slug })} />)}
 
       {editor && (
         <StatusEditModal initialMode={editor.mode} slug={editor.slug} onClose={() => setEditor(null)} />
