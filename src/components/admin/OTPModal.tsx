@@ -57,7 +57,9 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
 
   // Financial
   const [basePrice, setBasePrice] = useState<number>(0);
-  const [extrasPrice, setExtrasPrice] = useState<number>(0);
+  // Extras are LINE ITEMS (owner 2026-07-17); extrasPrice = their sum.
+  const [extrasItems, setExtrasItems] = useState<Array<{ description: string; amount: number }>>([]);
+  const extrasPrice = extrasItems.reduce((s, i) => s + (Number(i.amount) || 0), 0);
   const [vapPrice, setVapPrice] = useState<number>(0);
   const [adminFee, setAdminFee] = useState<number>(2500);
   const [deliveryFee, setDeliveryFee] = useState<number>(0);
@@ -73,7 +75,7 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
   const collectDraft = () => ({
     clientName, idNumber, address, email, cellPhone, salesExecutive, signedPlace,
     make, model, regNo, year, colorVal, vin, engineNo, mileage,
-    basePrice, extrasPrice, vapPrice, adminFee, deliveryFee, licReg, deposit,
+    basePrice, extrasPrice, extrasItems, vapPrice, adminFee, deliveryFee, licReg, deposit,
   });
 
   const applyDraft = (d: Partial<ReturnType<typeof collectDraft>>) => {
@@ -82,7 +84,12 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
     setSignedPlace(d.signedPlace ?? 'Lumina Auto, Pretoria');
     setMake(d.make ?? ''); setModel(d.model ?? ''); setRegNo(d.regNo ?? ''); setYear(d.year ?? '');
     setColorVal(d.colorVal ?? ''); setVin(d.vin ?? ''); setEngineNo(d.engineNo ?? ''); setMileage(d.mileage ?? '');
-    setBasePrice(d.basePrice ?? 0); setExtrasPrice(d.extrasPrice ?? 0); setVapPrice(d.vapPrice ?? 0);
+    setBasePrice(d.basePrice ?? 0);
+    // Old drafts carry a single extrasPrice number — surface it as one item.
+    setExtrasItems(Array.isArray(d.extrasItems) && d.extrasItems.length
+      ? d.extrasItems
+      : (d.extrasPrice ? [{ description: 'Extras', amount: d.extrasPrice }] : []));
+    setVapPrice(d.vapPrice ?? 0);
     setAdminFee(d.adminFee ?? 2500); setDeliveryFee(d.deliveryFee ?? 0); setLicReg(d.licReg ?? 0); setDeposit(d.deposit ?? 0);
   };
 
@@ -167,6 +174,7 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
       mileage: mileage || '[PENDING]',
       basePrice,
       extrasPrice,
+      extrasItems: extrasItems.filter((i) => i.description.trim() || Number(i.amount)),
       vapPrice,
       adminFee,
       deliveryFee,
@@ -237,7 +245,39 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
               <h3 className="font-semibold text-xs uppercase tracking-wider text-amber-400 mb-3">3. Pricing (VAT-inclusive inputs)</h3>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Base Vehicle Price</Label><Input type="number" value={basePrice} onChange={e=>setBasePrice(parseFloat(e.target.value)||0)} className="bg-background border-input"/></div>
-                <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Extras Price</Label><Input type="number" value={extrasPrice} onChange={e=>setExtrasPrice(parseFloat(e.target.value)||0)} className="bg-background border-input"/></div>
+                <div className="space-y-1.5 col-span-2">
+                  <Label className="text-xs text-muted-foreground">Extras (line items — each prints on the OTP)</Label>
+                  {extrasItems.map((it, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <Input
+                        value={it.description}
+                        placeholder="e.g. Tow bar"
+                        onChange={(e) => setExtrasItems((prev) => prev.map((x, idx) => idx === i ? { ...x, description: e.target.value } : x))}
+                        className="bg-background border-input flex-1"
+                      />
+                      <Input
+                        type="number"
+                        value={it.amount || ''}
+                        placeholder="0.00"
+                        onChange={(e) => setExtrasItems((prev) => prev.map((x, idx) => idx === i ? { ...x, amount: parseFloat(e.target.value) || 0 } : x))}
+                        className="bg-background border-input w-36"
+                      />
+                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-red-400"
+                        onClick={() => setExtrasItems((prev) => prev.filter((_, idx) => idx !== i))} title="Remove extra">
+                        ✕
+                      </Button>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between">
+                    <Button type="button" variant="outline" size="sm" className="h-7"
+                      onClick={() => setExtrasItems((prev) => [...prev, { description: '', amount: 0 }])}>
+                      + Add extra
+                    </Button>
+                    {extrasItems.length > 0 && (
+                      <span className="text-xs text-muted-foreground">Extras total: <span className="font-mono text-foreground">{fmt(extrasPrice)}</span></span>
+                    )}
+                  </div>
+                </div>
                 <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Value Added Products Price</Label><Input type="number" value={vapPrice} onChange={e=>setVapPrice(parseFloat(e.target.value)||0)} className="bg-background border-input"/></div>
                 <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Administration Fee</Label><Input type="number" value={adminFee} onChange={e=>setAdminFee(parseFloat(e.target.value)||0)} className="bg-background border-input"/></div>
                 <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Delivery Fee</Label><Input type="number" value={deliveryFee} onChange={e=>setDeliveryFee(parseFloat(e.target.value)||0)} className="bg-background border-input"/></div>

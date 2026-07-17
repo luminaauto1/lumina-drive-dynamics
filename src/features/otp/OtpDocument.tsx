@@ -111,7 +111,18 @@ export function OtpDocument({ data }: { data: OtpData }) {
               <div className="price-head"><span>Vehicle Price</span><span>{totalIncl}</span></div>
               <div className="price-row"><span className="lbl">Base Vehicle Price</span><span className="amt">{fmtZAR(financials.base_price)}</span></div>
               {lines.extras && (
-                <div className="price-row"><span className="lbl">Extras</span><span className="amt">{fmtZAR(financials.extras)}</span></div>
+                financials.extras_items && financials.extras_items.length
+                  ? financials.extras_items
+                      .filter((it) => it.description.trim() || Number(it.amount))
+                      .map((it, i) => (
+                        <div key={i} className="price-row">
+                          <span className="lbl">{it.description.trim() || 'Extras'}</span>
+                          <span className="amt">{fmtZAR(Number(it.amount) || 0)}</span>
+                        </div>
+                      ))
+                  : (
+                    <div className="price-row"><span className="lbl">Extras</span><span className="amt">{fmtZAR(financials.extras)}</span></div>
+                  )
               )}
               {lines.vap && (
                 <div className="price-row"><span className="lbl">Value Added Products</span><span className="amt">{fmtZAR(financials.vap)}</span></div>

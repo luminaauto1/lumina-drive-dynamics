@@ -53,10 +53,16 @@ export interface OtpFinance {
   branch_contact: string;
 }
 
-/** Raw monetary inputs (numbers). Derived totals are computed by calcOtp(). */
+/** One itemized extra (owner 2026-07-17): prints as its own line on the OTP. */
+export interface OtpExtraItem { description: string; amount: number }
+
+/** Raw monetary inputs (numbers). Derived totals are computed by calcOtp().
+ *  `extras` ALWAYS carries the extras total — when `extras_items` is present
+ *  the editors keep it in sync (sum), so calc/older documents never change. */
 export interface OtpFinancials {
   base_price: number;
   extras: number;
+  extras_items?: OtpExtraItem[];
   vap: number; // value added products
   admin_fee: number;
   delivery_fee: number; // VATABLE

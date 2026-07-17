@@ -30,6 +30,9 @@ export interface OTPData {
   // Financial inputs (VAT-inclusive, except licReg which is a non-VATable disbursement)
   basePrice: number;
   extrasPrice: number;
+  /** Itemized extras (owner 2026-07-17). When present, each prints as its own
+   *  line and extrasPrice carries their SUM (kept for totals/back-compat). */
+  extrasItems?: Array<{ description: string; amount: number }>;
   vapPrice: number;
   adminFee: number;
   deliveryFee: number;
@@ -256,7 +259,12 @@ export const generateOTP = (data: OTPData) => {
     head: [['FINANCIAL SUMMARY (VAT inclusive)', 'Amount']],
     body: [
       ['Base Vehicle Price (incl. VAT)', fmt(data.basePrice)],
-      ['Extras (incl. VAT)', fmt(data.extrasPrice)],
+      // Itemized extras (one line each) when provided; legacy single line otherwise.
+      ...(data.extrasItems && data.extrasItems.length
+        ? data.extrasItems.map((it): [string, string] => [
+            `${(it.description || 'Extras').trim()} (incl. VAT)`, fmt(Number(it.amount) || 0),
+          ])
+        : [['Extras (incl. VAT)', fmt(data.extrasPrice)] as [string, string]]),
       ['Value Added Products (incl. VAT)', fmt(data.vapPrice)],
       ['Administration Fee (incl. VAT)', fmt(data.adminFee)],
       ['Delivery Fee (incl. VAT)', fmt(data.deliveryFee)],
