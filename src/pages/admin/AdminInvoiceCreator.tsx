@@ -12,7 +12,7 @@
 // so it can be re-downloaded or duplicated from the History list below the form.
 import { ChangeEvent, useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { Car, Copy, Download, FileText, Plus, Search, User, X, Building2, History } from 'lucide-react';
+import { Car, Copy, Download, FileText, Pencil, Plus, Search, User, X, Building2, History } from 'lucide-react';
 import { toast } from 'sonner';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useVendors } from '@/hooks/useVendors';
-import { useInvoices, useInsertInvoice, InvoiceRow } from '@/hooks/useInvoices';
+import { useInvoices, useInsertInvoice, useUpdateInvoice, InvoiceRow } from '@/hooks/useInvoices';
 import { useDocumentSettings, consumeInvoiceNumber, formatInvoiceNumber } from '@/hooks/useDocumentSettings';
 import { computeInvoiceTotals } from '@/lib/generateDealInvoicePDF';
 import { InvoicePrintPreview } from '@/features/invoice/InvoicePrintPreview';
@@ -85,6 +85,10 @@ const AdminInvoiceCreator = () => {
   const { data: docSettings } = useDocumentSettings();
   const { data: history = [] } = useInvoices();
   const insertInvoice = useInsertInvoice();
+  const updateInvoice = useUpdateInvoice();
+  // Editing an existing invoice (owner 2026-07-17): loaded from History via the
+  // pencil — Save UPDATES the row in place, keeping its invoice number.
+  const [editing, setEditing] = useState<{ id: string; number: string } | null>(null);
   const queryClient = useQueryClient();
 
   const [mode, setMode] = useState<'vehicle' | 'general'>('vehicle');
@@ -220,6 +224,27 @@ const AdminInvoiceCreator = () => {
     setBusy(true);
     let finalNumber = invoiceNumber.trim();
     try {
+      // EDIT MODE — update the existing row in place; the invoice number is
+      // preserved (never re-consumes the counter).
+      if (editing) {
+        finalNumber = finalNumber || editing.number;
+        const payload = { ...currentPayload(), invoiceNumber: finalNumber };
+        await updateInvoice.mutateAsync({
+          id: editing.id,
+          invoice_number: finalNumber,
+          invoice_date: dateStr,
+          kind: mode,
+          bill_to_name: billTo.name.trim(),
+          grand_total: totals.grand,
+          payload: payload as any,
+        });
+        setPreview(payload);
+        setEditing(null);
+        setInvoiceNumber(''); // back to the next auto number for new invoices
+        toast.success(`Invoice ${finalNumber} updated`);
+        return;
+      }
+
       // Untouched auto number → consume (and bump) the shared counter now.
       if (!finalNumber || finalNumber === autoNumber) {
         finalNumber = await consumeInvoiceNumber(docSettings);
@@ -238,16 +263,22 @@ const AdminInvoiceCreator = () => {
         grand_total: totals.grand,
         payload: payload as any,
       });
-      setPreview(payload); // full-screen A4 preview → Download PDF prints it
+      setPreview(payload); // full-screen A4 preview → direct PDF download inside
       setInvoiceNumber(''); // re-defaults to the (now bumped) next number
       toast.success(`Invoice ${finalNumber} saved`);
     } catch (e: any) {
       // Pin the already-consumed number in the field so a retry reuses it (no gaps).
-      if (finalNumber) setInvoiceNumber(finalNumber);
+      if (finalNumber && !editing) setInvoiceNumber(finalNumber);
       toast.error(`Failed: ${e?.message || e}`);
     } finally {
       setBusy(false);
     }
+  };
+
+  const startEditing = (row: InvoiceRow) => {
+    loadPayload(row.payload as InvoicePayload, false);
+    setEditing({ id: row.id, number: row.invoice_number });
+    toast.info(`Editing invoice ${row.invoice_number} — Save will update it in place.`);
   };
 
   const redownload = (row: InvoiceRow) => {
@@ -529,9 +560,23 @@ const AdminInvoiceCreator = () => {
           </CardContent>
         </Card>
 
-        <div className="flex justify-end">
+        <div className="flex justify-end items-center gap-3">
+          {editing && (
+            <div className="flex items-center gap-2 text-sm text-amber-400">
+              <Pencil className="w-4 h-4" />
+              <span>Editing <span className="font-mono">{editing.number}</span> — Save updates it in place</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7"
+                onClick={() => { setEditing(null); setInvoiceNumber(''); toast.info('Switched to creating a new invoice.'); }}
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
           <Button onClick={generate} size="lg" disabled={busy}>
-            <Download className="w-4 h-4 mr-2" /> {busy ? 'Saving…' : 'Save & Open Invoice'}
+            <Download className="w-4 h-4 mr-2" /> {busy ? 'Saving…' : editing ? 'Update & Open Invoice' : 'Save & Open Invoice'}
           </Button>
         </div>
 
@@ -555,7 +600,10 @@ const AdminInvoiceCreator = () => {
                     <Button variant="ghost" size="icon" title="Download again" onClick={() => redownload(row)}>
                       <Download className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" title="Duplicate as new" onClick={() => loadPayload(row.payload as InvoicePayload, true)}>
+                    <Button variant="ghost" size="icon" title="Edit this invoice (updates it in place, same number)" onClick={() => startEditing(row)}>
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" title="Duplicate as new" onClick={() => { setEditing(null); loadPayload(row.payload as InvoicePayload, true); }}>
                       <Copy className="w-4 h-4" />
                     </Button>
                   </div>

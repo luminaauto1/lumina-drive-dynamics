@@ -40,3 +40,17 @@ export const useInsertInvoice = () => {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['invoices'] }),
   });
 };
+
+/** Update an existing invoice in place (owner 2026-07-17: "go back and edit
+ *  invoices"). The invoice number is preserved by the caller; only the
+ *  editable fields + the full payload change. */
+export const useUpdateInvoice = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...row }: Partial<Omit<InvoiceRow, 'created_at'>> & { id: string }) => {
+      const { error } = await (supabase as any).from('invoices').update(row).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['invoices'] }),
+  });
+};
