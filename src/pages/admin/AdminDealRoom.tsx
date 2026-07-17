@@ -222,7 +222,11 @@ const AdminDealRoom = () => {
   const writeClientStatus = async (newClientStatus: string, comment?: string) => {
     if (!application) return;
     try {
-      await updateClientStatus.mutateAsync({ id: application.id, client_status: newClientStatus });
+      await updateClientStatus.mutateAsync({
+        id: application.id,
+        client_status: newClientStatus,
+        label: clientLabels[newClientStatus] || undefined,
+      });
       setApplication(prev => prev ? ({ ...prev, client_status: newClientStatus } as any) : null);
       if (comment && comment.trim()) {
         await addPipelineNote(application, {

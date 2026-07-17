@@ -669,16 +669,42 @@ export const useUpdateClientStatus = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, client_status, wa_client_info }: { id: string; client_status: string; wa_client_info?: string }) => {
+    mutationFn: async ({ id, client_status, label, wa_client_info }: { id: string; client_status: string; label?: string; wa_client_info?: string }) => {
       const { data, error } = await supabase
         .from('finance_applications')
         .update({ client_status } as any)
         .eq('id', id)
-        .select('phone')
+        .select('phone, pipeline_notes')
         .maybeSingle();
       if (error) throw error;
       // Lightweight audit trail only — never a status_change dispatch.
       void logActivity({ actionType: 'other', note: `Client status → ${client_status}`, applicationId: id });
+
+      // Auto-note (owner 2026-07-17): picking a client status stamps a note
+      // with its label ("No Answer", "Call Back", …) so yesterday's call
+      // outcome survives the DAILY client-status reset in the notes history
+      // and in the pipeline's newest-note column. Clearing a status adds none.
+      if (client_status && String(client_status).trim()) {
+        try {
+          // Label from the caller when available; otherwise humanize the slug
+          // (client_no_answer → "No Answer").
+          const noteBody = (label && label.trim())
+            || String(client_status).replace(/^client_/, '').replace(/_/g, ' ')
+                 .replace(/\b\w/g, (c) => c.toUpperCase());
+          const { data: { user: actor } } = await supabase.auth.getUser();
+          const authorName = (actor as any)?.user_metadata?.full_name?.trim()
+            || actor?.email?.split('@')[0] || 'Staff';
+          const { addPipelineNote } = await import('@/lib/pipelinev2/notes');
+          await addPipelineNote({ id, pipeline_notes: (data as any)?.pipeline_notes }, {
+            body: noteBody,
+            category: 'note',
+            author_id: actor?.id ?? null,
+            author_name: authorName,
+          });
+        } catch (noteEx) {
+          console.error('[client-status] auto-note failed (non-fatal):', noteEx);
+        }
+      }
       // EasySocial tags for the CLIENT track (2026-07-14): the edge function reads
       // this status's config (tags to add / remove-mode) server-side and NO-OPS
       // when nothing is configured — so an unconfigured client status stays as

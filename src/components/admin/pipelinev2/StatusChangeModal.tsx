@@ -94,13 +94,15 @@ export function StatusChangeModal({
         if (financeWantsInfo && waClientInfo.trim()) updates.wa_client_info = waClientInfo.trim();
         await updateApplication.mutateAsync({ id: app.id, updates });
       }
-      // Client status — isolated writer. Routes the box text here (and to the
-      // client status's own opt-in wa-status-send) when the box owner is the client
-      // status; otherwise the finance path above owns it.
+      // Client status — isolated writer. The exact label rides along so the
+      // auto-note ("No Answer", …) matches the badge verbatim, and the box text
+      // routes here (and to the client status's own opt-in wa-status-send) when
+      // the box owner is the client status; otherwise the finance path owns it.
       if (clientChanged) {
         await updateClientStatus.mutateAsync({
           id: app.id,
           client_status: clientStatus,
+          label: clientLabels[clientStatus] || undefined,
           wa_client_info: clientWantsInfo && waClientInfo.trim() ? waClientInfo.trim() : undefined,
         });
       }
