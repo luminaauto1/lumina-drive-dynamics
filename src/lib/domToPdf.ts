@@ -12,14 +12,25 @@ const PAGE_H = 297; // mm
 const render = (el: HTMLElement) =>
   toCanvas(el, { pixelRatio: 2, backgroundColor: '#ffffff', cacheBust: true });
 
-/** Place a rendered canvas into the PDF: one page when it fits the A4 ratio,
- *  clean full-height slices when taller — NEVER squashed to fit (squashing is
- *  what displaces signature lines and text). */
+/** Place a rendered canvas into the PDF: one page when it fits the A4 ratio;
+ *  when a sheet outgrows A4 by a MODEST amount (extra pricing rows, longer
+ *  notes) it is scaled down UNIFORMLY to stay whole on one page — that keeps
+ *  signature blocks on their sheet (owner 2026-07-17: a sliced sheet dumped
+ *  the signature area onto a stub page). Only gross overflow slices. */
 function addCanvasAsPages(doc: jsPDF, canvas: HTMLCanvasElement, first: boolean): boolean {
   const imgHmm = (canvas.height * PAGE_W) / canvas.width;
   if (imgHmm <= PAGE_H + 2) {
     if (!first) doc.addPage();
     doc.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, PAGE_W, Math.min(imgHmm, PAGE_H));
+    return false;
+  }
+  const overflowRatio = imgHmm / PAGE_H;
+  if (overflowRatio <= 1.25) {
+    // Slightly-too-tall sheet: shrink uniformly (aspect kept, centered) so the
+    // WHOLE sheet — signatures included — sits on one page.
+    const w = PAGE_W / overflowRatio;
+    if (!first) doc.addPage();
+    doc.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', (PAGE_W - w) / 2, 0, w, PAGE_H);
     return false;
   }
   const pageCanvasH = Math.floor((canvas.width * PAGE_H) / PAGE_W);
