@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { useDocumentSettings, consumeOtpNumber } from '@/hooks/useDocumentSettings';
 import { useOtps, useCreateOtp, useUpdateOtp, useDeleteOtp } from '@/hooks/useOtps';
 import { OtpDocument } from '@/features/otp/OtpDocument';
+import { blankOtp } from '@/features/otp/blank';
 import type { OtpData, OtpClient, OtpVehicle, OtpFinance, OtpFinancials, OtpRecord } from '@/features/otp/types';
 import type { DocumentSettings } from '@/hooks/useDocumentSettings';
 import { ClientSearchInput } from '@/components/admin/ClientSearchInput';
@@ -21,33 +22,7 @@ import { fmtZAR, fmtOtpDate, addDaysOtpDate } from '@/features/otp/format';
 import { calcOtp } from '@/features/otp/calc';
 import './../../features/otp/otpPrint.css';
 
-const blankOtp = (s: DocumentSettings): OtpData => ({
-  company: {
-    legal_name: s.companyLegalName,
-    trading_name: s.companyTradingName,
-    address: s.companyAddress,
-    email: s.companyEmail,
-    phone: s.companyPhone,
-    reg_no: s.companyRegNumber,
-    vat_no: s.vatRegistered ? s.companyVatNumber || 'N/A' : 'N/A',
-  },
-  vat_registered: s.vatRegistered,
-  offer: { ref: '', date: fmtOtpDate(), valid_until: addDaysOtpDate(s.otpValidityDays) },
-  client: { title: '', name: '', id: '', address: '', postal: '', email: '', cell: '' },
-  sales: { exec_name: s.otpSalesExecutive, exec_phone: '' },
-  vehicle: {
-    make: '', model: '', year: '', reg_no: '', colour: '', trim: '',
-    vin: '', engine_no: '', mileage: '', stock_no: '', mm_code: '', order_type: 'Used',
-  },
-  finance: { method: 'Bank Finance', financed_by: '', bank_branch: '', branch_phone: '', branch_contact: '' },
-  notes: '',
-  financials: {
-    base_price: 0, extras: 0, vap: 0,
-    admin_fee: s.defaultAdminFee, delivery_fee: s.otpDefaultDeliveryFee, licensing: s.otpDefaultLicensing,
-    deposit: 0,
-  },
-  lines: s.otpLines,
-});
+// blankOtp moved to features/otp/blank.ts — shared with the Deal Room popup.
 
 const AdminOTP = () => {
   const { data: settings } = useDocumentSettings();

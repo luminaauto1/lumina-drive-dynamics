@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,9 +6,12 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Download, FileText, Save } from 'lucide-react';
-import { generateOTP, OTPData } from '@/lib/generateOTP';
 import { useDocumentSettings } from '@/hooks/useDocumentSettings';
 import { toast } from 'sonner';
+import { blankOtp } from '@/features/otp/blank';
+import { OtpDocument } from '@/features/otp/OtpDocument';
+import type { OtpData } from '@/features/otp/types';
+import { downloadPdfFromPages, pdfFilename } from '@/lib/domToPdf';
 
 interface OTPModalProps {
   open: boolean;
@@ -152,44 +155,63 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
 
   const fmt = (n: number) => `R ${n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  const handleDownload = () => {
+  // The popup now downloads the SAME designed 5-sheet legal document as the
+  // OTP Generator page (owner 2026-07-17: the old text-PDF put signature blocks
+  // wherever the flow landed — 11 loose pages). We build a full OtpData from
+  // the modal fields, render the OtpDocument off-screen, and save each A4 sheet
+  // as one PDF page — signature blocks exactly where the template puts them.
+  const [pdfData, setPdfData] = useState<OtpData | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const pdfRef = useRef<HTMLDivElement>(null);
+
+  const handleDownload = async () => {
+    if (!docSettings) { toast.error('Document settings not loaded yet'); return; }
     // Persist the latest values too, so a generated OTP can be reopened with the same data.
     try { localStorage.setItem(draftKey, JSON.stringify(collectDraft())); } catch { /* ignore */ }
-    const data: OTPData = {
-      clientName: clientName || '[PENDING]',
-      idNumber: idNumber || '[PENDING]',
-      address: address || '[PENDING]',
-      email: email || '[PENDING]',
-      cellPhone: cellPhone || '[PENDING]',
-      salesExecutive: salesExecutive || 'Albert Prinsloo',
-      date: today,
-      quoteRef,
-      make: make || '[PENDING]',
-      model: model || '[PENDING]',
-      year: year || '[PENDING]',
-      regNo: regNo || '[TBA]',
-      colorVal: colorVal || '[TBA]',
-      vin: vin || '[PENDING]',
-      engineNo: engineNo || '[TBA]',
-      mileage: mileage || '[PENDING]',
-      basePrice,
-      extrasPrice,
-      extrasItems: extrasItems.filter((i) => i.description.trim() || Number(i.amount)),
-      vapPrice,
-      adminFee,
-      deliveryFee,
-      licReg,
-      deposit,
-      signedPlace,
-      companyLegalName: docSettings?.companyLegalName,
-      companyTradingName: docSettings?.companyTradingName,
-      companyContactLine: docSettings
-        ? [docSettings.companyAddress, docSettings.companyEmail, docSettings.companyPhone].filter(Boolean).join('  •  ')
-        : undefined,
+
+    const base = blankOtp(docSettings);
+    const cleanExtras = extrasItems.filter((i) => i.description.trim() || Number(i.amount));
+    const data: OtpData = {
+      ...base,
+      offer: { ...base.offer, ref: quoteRef },
+      client: { ...base.client, name: clientName, id: idNumber, address, email, cell: cellPhone },
+      sales: { ...base.sales, exec_name: salesExecutive || base.sales.exec_name },
+      vehicle: {
+        ...base.vehicle,
+        make, model, year, reg_no: regNo, colour: colorVal,
+        vin, engine_no: engineNo, mileage,
+      },
+      financials: {
+        ...base.financials,
+        base_price: basePrice,
+        extras: extrasPrice,
+        extras_items: cleanExtras.length ? cleanExtras : undefined,
+        vap: vapPrice,
+        admin_fee: adminFee,
+        delivery_fee: deliveryFee,
+        licensing: licReg,
+        deposit,
+      },
     };
-    generateOTP(data);
-    toast.success('OTP PDF downloaded');
-    onOpenChange(false);
+
+    setDownloading(true);
+    setPdfData(data);
+    try {
+      // Let React mount the off-screen document and fonts settle before capture.
+      await new Promise((r) => setTimeout(r, 150));
+      await (document as any).fonts?.ready?.catch?.(() => {});
+      const root = pdfRef.current;
+      if (!root) throw new Error('document did not render');
+      const pages = Array.from(root.querySelectorAll<HTMLElement>('.page'));
+      await downloadPdfFromPages(pages.length ? pages : [root], pdfFilename('OTP', quoteRef, clientName || 'client'));
+      toast.success('OTP PDF downloaded');
+      onOpenChange(false);
+    } catch (e: any) {
+      toast.error('PDF download failed: ' + (e?.message || e));
+    } finally {
+      setDownloading(false);
+      setPdfData(null);
+    }
   };
 
   return (
@@ -303,11 +325,20 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
           <Button variant="outline" onClick={saveDraft} className="gap-2">
             <Save className="w-4 h-4" /> Save
           </Button>
-          <Button onClick={handleDownload} className="gap-2 bg-amber-500 hover:bg-amber-600 text-black">
-            <Download className="w-4 h-4" /> Download OTP PDF
+          <Button onClick={handleDownload} disabled={downloading} className="gap-2 bg-amber-500 hover:bg-amber-600 text-black">
+            <Download className="w-4 h-4" /> {downloading ? 'Preparing…' : 'Download OTP PDF'}
           </Button>
         </DialogFooter>
       </DialogContent>
+      {/* Off-screen render of the designed 5-sheet OTP document for the PDF
+          capture — signature blocks land exactly where the template puts them. */}
+      {pdfData && (
+        <div style={{ position: 'fixed', left: '-9999px', top: 0, width: '210mm', zIndex: -1 }} aria-hidden>
+          <div ref={pdfRef}>
+            <OtpDocument data={pdfData} />
+          </div>
+        </div>
+      )}
     </Dialog>
   );
 };
