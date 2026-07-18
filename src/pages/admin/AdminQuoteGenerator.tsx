@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { Plus, X, Copy, Check, Calculator, ChevronDown } from 'lucide-react';
+import { Pencil, Plus, X, Copy, Check, Calculator, ChevronDown } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import PageHeader from '@/components/admin/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,12 @@ import {
 import { toast } from 'sonner';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import {
+  useDocumentSettings,
+  useUpdateDocumentSettings,
+  DEFAULT_DOCUMENT_SETTINGS,
+  type DocumentSettings,
+} from '@/hooks/useDocumentSettings';
+import {
   calcFinanceQuote,
   formatRand,
   type QuoteAddon,
@@ -28,7 +34,9 @@ const DEFAULT_TERM = 72;
 const FALLBACK_RESIDUAL = 0;
 const DEFAULT_BANK_DOC_FEE = 1207;
 
-/* Financed add-on line items (Saker sheet) — all default to 0. */
+/* Financed add-on line items (Saker sheet) — all default to 0.
+   Ids are stable keys; labels are the built-in defaults and can be renamed for
+   everyone via document_settings.quoteAddonLabels (id → custom label). */
 const makeAddons = (): QuoteAddon[] => [
   { id: 'admin', label: 'Admin Fee', amount: 0 },
   { id: 'license', label: 'License & Reg', amount: 0 },
@@ -98,6 +106,8 @@ const ResultRow = ({
 /* ───────── main ───────── */
 const AdminQuoteGenerator = () => {
   const { data: settings } = useSiteSettings();
+  const { data: docSettings } = useDocumentSettings();
+  const updateDocSettings = useUpdateDocumentSettings();
 
   const [vehiclePrice, setVehiclePrice] = useState(305000);
   const [deposit, setDeposit] = useState(0);
@@ -111,6 +121,14 @@ const AdminQuoteGenerator = () => {
   const [covers, setCovers] = useState<QuoteCover[]>(makeCovers);
   const [addonsOpen, setAddonsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  /* Rename mode for the add-on labels (shared, persisted per addon id). */
+  const [editingLabels, setEditingLabels] = useState(false);
+  const [labelDraft, setLabelDraft] = useState<Record<string, string>>({});
+
+  /* Effective label: admin override from document settings, else built-in. */
+  const addonLabel = (a: QuoteAddon) =>
+    docSettings?.quoteAddonLabels?.[a.id]?.trim() || a.label;
 
   /* Pull finance defaults from the same settings source the rest of the app uses. */
   const effectiveRate = rate ?? settings?.default_interest_rate ?? FALLBACK_RATE;
@@ -152,7 +170,34 @@ const AdminQuoteGenerator = () => {
 
   const removeCover = (id: string) => setCovers((prev) => prev.filter((c) => c.id !== id));
 
+  /* ── add-on rename mode ── */
+  const startEditLabels = () => {
+    setLabelDraft(Object.fromEntries(addons.map((a) => [a.id, addonLabel(a)])));
+    setEditingLabels(true);
+    setAddonsOpen(true);
+  };
+
+  const cancelEditLabels = () => setEditingLabels(false);
+
+  const saveLabels = () => {
+    /* Only store labels that differ from the built-in default; an emptied input
+       (or one typed back to the default) reverts that addon to its default. */
+    const overrides: Record<string, string> = {};
+    for (const a of addons) {
+      const v = (labelDraft[a.id] ?? '').trim();
+      if (v && v !== a.label) overrides[a.id] = v;
+    }
+    const base: DocumentSettings = { ...DEFAULT_DOCUMENT_SETTINGS, ...(docSettings || {}) };
+    updateDocSettings.mutate(
+      { ...base, quoteAddonLabels: overrides },
+      { onSuccess: () => setEditingLabels(false) },
+    );
+  };
+
   const handleCopy = async () => {
+    const activeAddons = addons.filter((a) => a.amount > 0);
+    const activeCovers = covers.filter((c) => c.amount > 0);
+
     const msg = [
       '🚗 *Lumina Auto | Finance Quote*',
       '',
@@ -163,6 +208,14 @@ const AdminQuoteGenerator = () => {
       effectiveResidualPct > 0
         ? `Residual/Balloon: ${effectiveResidualPct.toFixed(1)}% (${formatRand(effectiveResidualAmount, 0)})`
         : null,
+      ...activeAddons.map((a) => `• ${addonLabel(a)}: ${formatRand(a.amount, 0)}`),
+      ...(activeCovers.length > 0
+        ? [
+            '',
+            'Monthly covers:',
+            ...activeCovers.map((c) => `• ${c.label.trim() || 'Cover'}: ${formatRand(c.amount, 0)}`),
+          ]
+        : []),
       '',
       `💰 *Total payment / month: ${formatRand(result.totalPaymentPerMonth)}*`,
       '',
@@ -207,19 +260,21 @@ const AdminQuoteGenerator = () => {
               <CardTitle className="text-sm">Deal</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <NumberField
-                label="Vehicle Price"
-                value={vehiclePrice}
-                onChange={setVehiclePrice}
-                prefix="R"
-              />
-              <NumberField
-                label="Deposit"
-                value={deposit}
-                onChange={setDeposit}
-                prefix="R"
-                hint={`${depositPct.toFixed(1)}% of vehicle price`}
-              />
+              <div className="grid grid-cols-2 gap-4">
+                <NumberField
+                  label="Vehicle Price"
+                  value={vehiclePrice}
+                  onChange={setVehiclePrice}
+                  prefix="R"
+                />
+                <NumberField
+                  label="Deposit"
+                  value={deposit}
+                  onChange={setDeposit}
+                  prefix="R"
+                  hint={`${depositPct.toFixed(1)}% of vehicle price`}
+                />
+              </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <NumberField
@@ -273,34 +328,95 @@ const AdminQuoteGenerator = () => {
               />
 
               {/* Add-ons (financed) */}
-              <Collapsible open={addonsOpen} onOpenChange={setAddonsOpen}>
-                <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm" className="w-full justify-between px-2 h-8">
-                    <span className="text-xs font-medium">Add-ons (financed)</span>
-                    <ChevronDown
-                      className={`h-4 w-4 transition-transform ${addonsOpen ? 'rotate-180' : ''}`}
-                    />
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="pt-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    {addons.map((a) => (
-                      <NumberField
-                        key={a.id}
-                        label={a.label}
-                        value={a.amount}
-                        onChange={(v) => updateAddon(a.id, v)}
-                        prefix="R"
-                      />
-                    ))}
+              <div className="border-t border-border pt-3">
+                <Collapsible open={addonsOpen} onOpenChange={setAddonsOpen}>
+                  <div className="flex items-center gap-1">
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" size="sm" className="flex-1 justify-between px-2 h-8">
+                        <span className="text-xs font-medium">Add-ons (financed)</span>
+                        <ChevronDown
+                          className={`h-4 w-4 transition-transform ${addonsOpen ? 'rotate-180' : ''}`}
+                        />
+                      </Button>
+                    </CollapsibleTrigger>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+                      title="Rename add-ons"
+                      aria-label="Rename add-ons"
+                      onClick={editingLabels ? cancelEditLabels : startEditLabels}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
-                </CollapsibleContent>
-              </Collapsible>
+                  <CollapsibleContent className="pt-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      {addons.map((a) =>
+                        editingLabels ? (
+                          <div key={a.id} className="space-y-1.5">
+                            <Input
+                              value={labelDraft[a.id] ?? ''}
+                              onChange={(e) =>
+                                setLabelDraft((d) => ({ ...d, [a.id]: e.target.value }))
+                              }
+                              placeholder={a.label}
+                              className="h-7 text-xs"
+                            />
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs text-muted-foreground font-medium w-4">
+                                R
+                              </span>
+                              <Input
+                                type="number"
+                                value={a.amount || ''}
+                                onChange={(e) => updateAddon(a.id, Number(e.target.value) || 0)}
+                                className="font-mono h-8 text-sm"
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <NumberField
+                            key={a.id}
+                            label={addonLabel(a)}
+                            value={a.amount}
+                            onChange={(v) => updateAddon(a.id, v)}
+                            prefix="R"
+                          />
+                        ),
+                      )}
+                    </div>
+                    {editingLabels && (
+                      <div className="flex items-center justify-end gap-2 pt-3">
+                        <p className="text-[11px] text-muted-foreground mr-auto">
+                          Renames apply for all users. Clear a name to restore its default.
+                        </p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          onClick={cancelEditLabels}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="h-7 px-3 text-xs"
+                          onClick={saveLabels}
+                          disabled={updateDocSettings.isPending}
+                        >
+                          {updateDocSettings.isPending ? 'Saving…' : 'Save names'}
+                        </Button>
+                      </div>
+                    )}
+                  </CollapsibleContent>
+                </Collapsible>
+              </div>
             </CardContent>
           </Card>
 
           {/* ═══════ RESULTS + COVERS ═══════ */}
-          <div className="space-y-4">
+          <div className="space-y-4 lg:sticky lg:top-6 self-start">
             <Card className="glass-card">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm">Breakdown</CardTitle>
@@ -323,14 +439,14 @@ const AdminQuoteGenerator = () => {
                 <ResultRow label="Covers" value={formatRand(result.coversTotal)} op="+" muted />
 
                 <Separator />
-                <div className="flex items-center justify-between pt-1">
+                <div className="flex items-center justify-between gap-3 rounded-lg bg-emerald-500/10 px-3 py-2.5 mt-1">
                   <div>
                     <p className="text-sm font-semibold">Total payment / month</p>
                     <p className="text-[11px] text-muted-foreground">
                       Incl. doc fee &amp; monthly covers
                     </p>
                   </div>
-                  <p className="text-3xl font-bold text-primary font-mono">
+                  <p className="text-3xl font-bold text-emerald-400 font-mono">
                     {formatRand(result.totalPaymentPerMonth)}
                   </p>
                 </div>
