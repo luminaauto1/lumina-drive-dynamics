@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,14 +9,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FileText, Plus, Printer, Save, ArrowLeft, Pencil, Trash2, Download, Loader2, X } from 'lucide-react';
 import ConfirmDialog from '@/components/admin/ConfirmDialog';
-import { downloadPdfFromPages, pdfFilename } from '@/lib/domToPdf';
+import { pdfFilename } from '@/lib/domToPdf';
 import { toast } from 'sonner';
 import { useDocumentSettings, consumeOtpNumber } from '@/hooks/useDocumentSettings';
 import { useOtps, useCreateOtp, useUpdateOtp, useDeleteOtp } from '@/hooks/useOtps';
 import { OtpDocument } from '@/features/otp/OtpDocument';
 import { blankOtp } from '@/features/otp/blank';
 import type { OtpData, OtpClient, OtpVehicle, OtpFinance, OtpFinancials, OtpRecord } from '@/features/otp/types';
-import type { DocumentSettings } from '@/hooks/useDocumentSettings';
 import { ClientSearchInput } from '@/components/admin/ClientSearchInput';
 import { useVehiclesLite } from '@/hooks/useVehiclesLite';
 import { fmtZAR, fmtOtpDate, addDaysOtpDate } from '@/features/otp/format';
@@ -34,9 +33,6 @@ const AdminOTP = () => {
 
   const { data: stock = [] } = useVehiclesLite();
   const [view, setView] = useState<'list' | 'edit'>('list');
-  // Direct PDF download of the preview's A4 sheets (owner 2026-07-17: no print
-  // dialog, no save-as prompt — same as the Invoice Creator).
-  const previewRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [data, setData] = useState<OtpData | null>(null);
@@ -192,16 +188,14 @@ const AdminOTP = () => {
             <Button variant="ghost" size="icon" onClick={() => window.print()} title="Print (physical printer)"><Printer className="w-4 h-4" /></Button>
             <Button
               onClick={async () => {
-                const root = previewRef.current;
-                if (!root) return;
                 setDownloading(true);
                 try {
-                  // Each .page node in the OTP document is one A4 sheet → one PDF page.
-                  const pages = Array.from(root.querySelectorAll<HTMLElement>('.page'));
-                  await downloadPdfFromPages(
-                    pages.length ? pages : [root],
-                    pdfFilename('OTP', data.offer.ref || 'draft', data.client.name || 'client'),
-                  );
+                  // Real-text vector PDF (crisp Montserrat, ~130KB — the owner's
+                  // reference print-quality look), rendered off the same OtpData
+                  // as the on-screen preview. Lazy import keeps the renderer out
+                  // of the main bundle.
+                  const { downloadOtpPdf } = await import('@/features/otp/pdf/download');
+                  await downloadOtpPdf(data, pdfFilename('OTP', data.offer.ref || 'draft', data.client.name || 'client'));
                 } catch (e: any) {
                   toast.error('PDF download failed: ' + (e?.message || e));
                 } finally {
@@ -407,7 +401,7 @@ const AdminOTP = () => {
           {/* LIVE PREVIEW */}
           <div className="bg-muted/30 rounded-lg p-4 overflow-auto max-h-[calc(100vh-160px)]">
             <div className="otp-print-root otp-preview-wrap origin-top" style={{ transform: 'scale(0.62)', transformOrigin: 'top left', width: '210mm' }}>
-              <div ref={previewRef}>
+              <div>
                 <OtpDocument data={data} />
               </div>
             </div>

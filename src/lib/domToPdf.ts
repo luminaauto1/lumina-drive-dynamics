@@ -1,8 +1,8 @@
-// Shared DOM → PDF download (Invoice Creator, OTP Generator, any A4 document
-// tool). Renders via html-to-image (SVG foreignObject = the browser's OWN text
-// renderer — html2canvas mangled letter-spaced Montserrat text) and saves a
-// real jsPDF straight to Downloads: no print dialog, no save-as prompt, no
-// print-CSS page-count surprises.
+// Shared DOM → PDF download (Invoice Creator and other single-sheet A4 tools;
+// the OTP uses the real-text renderer in features/otp/pdf instead). Renders
+// via html-to-image (SVG foreignObject = the browser's OWN text renderer —
+// html2canvas mangled letter-spaced Montserrat text) and saves a real jsPDF
+// straight to Downloads: no print dialog, no save-as prompt.
 import { toCanvas } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 
@@ -58,21 +58,6 @@ export async function downloadPdfFromElement(el: HTMLElement, filename: string):
   const canvas = await render(el);
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
   addCanvasAsPages(doc, canvas, true);
-  doc.save(filename);
-}
-
-/** Multi-sheet documents (e.g. the OTP's `.page` A4 sheets): each element
- *  becomes one PDF page (or a clean run of pages if a sheet grew taller than
- *  A4 — content is never squashed). */
-export async function downloadPdfFromPages(pages: HTMLElement[], filename: string): Promise<void> {
-  if (pages.length === 0) return;
-  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-  let first = true;
-  for (const page of pages) {
-    const canvas = await render(page);
-    addCanvasAsPages(doc, canvas, first);
-    first = false;
-  }
   doc.save(filename);
 }
 
