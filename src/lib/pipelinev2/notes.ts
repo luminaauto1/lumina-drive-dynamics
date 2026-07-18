@@ -30,6 +30,11 @@ export interface NoteCategoryDef {
 
 // Workflow-relevant tags an F&I/admin reaches for, in roughly pipeline order.
 // `note` is the neutral default (no coloured badge).
+// NOTE: the Notes composer no longer OFFERS the status-lookalike categories
+// (actioned, callback, docs_received, vals_*, contract_signed, follow_up) —
+// they duplicated the client-status vocabulary and staff picked them believing
+// they set the client status (see fix/client-status-note-trap). They remain
+// here ONLY so old notes still resolve a label/colour via noteCategory().
 export const NOTE_CATEGORIES: NoteCategoryDef[] = [
   { key: 'note',            label: 'Note',            color: 'bg-muted text-muted-foreground border-border' },
   { key: 'actioned',        label: 'Actioned',        color: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
@@ -47,6 +52,12 @@ export const NOTE_CATEGORIES: NoteCategoryDef[] = [
 
 export const noteCategory = (key: string | undefined | null): NoteCategoryDef =>
   NOTE_CATEGORIES.find((c) => c.key === key) || NOTE_CATEGORIES[0];
+
+// System/event notes — auto-logged by status changes (status_change) and
+// WhatsApp-to-client sends (client_whatsapp), not typed by a person. Excluded
+// from the pipeline table's Notes column (owner 2026-07-18: "Notes are for the
+// notes left by the user"); still visible with their tags in the drawer feed.
+export const SYSTEM_NOTE_CATEGORIES = new Set(['status_change', 'client_whatsapp']);
 
 /** Structured notes stored on the app row (newest-first). Defensive read. */
 export function readPipelineNotes(app: any): PipelineNote[] {
@@ -120,7 +131,22 @@ function parseLegacyStamp(stamp: string | undefined): number | null {
  * note (which has a real timestamp) wins.
  */
 export function latestAnyNote(app: any): PipelineNote | null {
-  const p = latestPipelineNote(app);
+  return newestVsLegacy(latestPipelineNote(app), app);
+}
+
+/**
+ * The newest USER-written note — same legacy merge as latestAnyNote, but
+ * structured notes in SYSTEM_NOTE_CATEGORIES are skipped so a client-status
+ * auto-note (or a WhatsApp-send log) can't displace the user's note in the
+ * table's Notes column. Legacy blob entries are always user-written.
+ */
+export function latestUserNote(app: any): PipelineNote | null {
+  const p = readPipelineNotes(app).find((n) => !SYSTEM_NOTE_CATEGORIES.has(n.category)) ?? null;
+  return newestVsLegacy(p, app);
+}
+
+/** Shared merge: the given structured note vs the newest legacy-blob entry. */
+function newestVsLegacy(p: PipelineNote | null, app: any): PipelineNote | null {
   const rawLegacy = readLegacyNotes(app)[0] ?? null;
 
   let legacy: PipelineNote | null = null;
