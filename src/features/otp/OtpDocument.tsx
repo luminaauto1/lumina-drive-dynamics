@@ -90,11 +90,13 @@ export function OtpDocument({ data }: { data: OtpData }) {
               <div className="panel-head">Vehicle Finance Details</div>
               <table className="spec">
                 <tbody>
+                  {/* Empty bank rows are dropped — a Cash deal (or an unfilled
+                      bank block) must not print a column of blank labels. */}
                   <tr><td className="k">Finance Method</td><td className="v">{finance.method}</td></tr>
-                  <tr><td className="k">Financed By</td><td className="v">{finance.financed_by}</td></tr>
-                  <tr><td className="k">Bank / Branch</td><td className="v">{finance.bank_branch}</td></tr>
-                  <tr><td className="k">Branch Phone</td><td className="v">{finance.branch_phone}</td></tr>
-                  <tr><td className="k">Branch Contact</td><td className="v">{finance.branch_contact}</td></tr>
+                  {finance.financed_by.trim() && <tr><td className="k">Financed By</td><td className="v">{finance.financed_by}</td></tr>}
+                  {finance.bank_branch.trim() && <tr><td className="k">Bank / Branch</td><td className="v">{finance.bank_branch}</td></tr>}
+                  {finance.branch_phone.trim() && <tr><td className="k">Branch Phone</td><td className="v">{finance.branch_phone}</td></tr>}
+                  {finance.branch_contact.trim() && <tr><td className="k">Branch Contact</td><td className="v">{finance.branch_contact}</td></tr>}
                 </tbody>
               </table>
             </div>
