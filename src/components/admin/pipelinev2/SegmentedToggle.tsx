@@ -32,6 +32,8 @@ export function SegmentedToggle<T extends string>({
   return (
     <div
       title={title}
+      role="group"
+      aria-label={title}
       className={cn('relative grid items-center rounded-md border border-border bg-background p-0.5', className)}
       style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}
     >

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   ChevronLeft, ChevronRight, Download, ExternalLink, Loader2, Maximize2, RefreshCw,
 } from 'lucide-react';
@@ -33,8 +33,11 @@ async function loadPdfjs() {
 }
 
 /** Fetches + parses the PDF behind a (signed) URL while `enabled`. The document
- *  is destroyed and re-loaded when the URL changes; `retry` re-attempts after a
- *  failure (network blip, expired signed URL, corrupt file). */
+ *  is destroyed (and any in-flight fetch aborted) on unmount or URL change;
+ *  `retry` re-attempts the SAME url after a failure (network blip, corrupt
+ *  file). An EXPIRED signed URL can only be cured by minting a fresh one, so
+ *  viewer Retry buttons also call the owner's `onRetry` (CreditCheckAttachment
+ *  re-signs, the url prop changes, and this hook reloads). */
 function usePdfDocument(url: string | null | undefined, enabled: boolean) {
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [error, setError] = useState(false);
@@ -48,6 +51,7 @@ function usePdfDocument(url: string | null | undefined, enabled: boolean) {
     if (!enabled || !url) return;
     let cancelled = false;
     let loaded: PDFDocumentProxy | null = null;
+    const aborter = new AbortController();
     setDoc(null);
     setError(false);
     (async () => {
@@ -55,7 +59,7 @@ function usePdfDocument(url: string | null | undefined, enabled: boolean) {
         const pdfjs = await loadPdfjs();
         // Fetch ourselves (the Download button already does) instead of handing
         // the signed URL to pdf.js — one code path, predictable CORS behaviour.
-        const res = await fetch(url);
+        const res = await fetch(url, { signal: aborter.signal });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = new Uint8Array(await res.arrayBuffer());
         loaded = await pdfjs.getDocument({ data }).promise;
@@ -70,6 +74,7 @@ function usePdfDocument(url: string | null | undefined, enabled: boolean) {
     })();
     return () => {
       cancelled = true;
+      aborter.abort();
       loaded?.destroy();
       setDoc(null);
     };
@@ -81,7 +86,9 @@ function usePdfDocument(url: string | null | undefined, enabled: boolean) {
 /** One PDF page → canvas at fit-to-width scale, devicePixelRatio-aware (the
  *  canvas backing store is scaled by dpr, then squeezed back to CSS pixels) so
  *  text stays sharp on hiDPI screens. Cancels any in-flight render when the
- *  page or document changes. */
+ *  page or document changes, and RE-RENDERS when the container width changes
+ *  (window resize / rotation) — the canvas carries a fixed px width, so a
+ *  narrower dialog would otherwise clip it with no horizontal scroll. */
 function PdfPageCanvas({
   doc, pageNum, onRenderState, canvasClassName,
 }: {
@@ -92,8 +99,27 @@ function PdfPageCanvas({
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Container width, measured before first paint then tracked via
+  // ResizeObserver. The >1px guard swallows scrollbar/rounding jitter so a
+  // settled layout can't re-render in a loop.
+  const [width, setWidth] = useState(0);
+
+  useLayoutEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const measure = () =>
+      setWidth((prev) => {
+        const w = Math.floor(wrap.clientWidth);
+        return Math.abs(prev - w) > 1 ? w : prev;
+      });
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(wrap);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
+    if (!width) return; // container not laid out yet
     let cancelled = false;
     let renderTask: { promise: Promise<unknown>; cancel: () => void } | null = null;
     onRenderState?.('rendering');
@@ -101,10 +127,9 @@ function PdfPageCanvas({
       try {
         const page = await doc.getPage(pageNum);
         const canvas = canvasRef.current;
-        const wrap = wrapRef.current;
-        if (cancelled || !canvas || !wrap) return;
+        if (cancelled || !canvas) return;
         const base = page.getViewport({ scale: 1 });
-        const cssWidth = Math.max(1, wrap.clientWidth);
+        const cssWidth = Math.max(1, width);
         const dpr = Math.max(1, window.devicePixelRatio || 1);
         const viewport = page.getViewport({ scale: (cssWidth / base.width) * dpr });
         const ctx = canvas.getContext('2d');
@@ -130,7 +155,7 @@ function PdfPageCanvas({
       cancelled = true;
       renderTask?.cancel();
     };
-  }, [doc, pageNum, onRenderState]);
+  }, [doc, pageNum, width, onRenderState]);
 
   return (
     <div ref={wrapRef} className="w-full">
@@ -143,10 +168,13 @@ function PdfPageCanvas({
  *  drawer width, clipped to a fixed max height) that opens the full paginated
  *  viewer on click. Replaces the old cut-off h-64 iframe. */
 export function PdfFirstPagePreview({
-  url, onExpand,
+  url, onExpand, onRetry,
 }: {
   url: string | null;
   onExpand: () => void;
+  /** Also invoked by Retry — owners re-mint the signed URL here (an expired
+   *  signature can't be cured by refetching the same URL). */
+  onRetry?: () => void;
 }) {
   const { doc, error, retry } = usePdfDocument(url, !!url);
   const [state, setState] = useState<RenderState>('rendering');
@@ -156,7 +184,7 @@ export function PdfFirstPagePreview({
     return (
       <div className="flex items-center justify-between gap-2 rounded border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
         <span>Couldn't load the PDF preview.</span>
-        <Button size="sm" variant="outline" className="gap-1.5" onClick={retry}>
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { retry(); onRetry?.(); }}>
           <RefreshCw className="w-3.5 h-3.5" /> Retry
         </Button>
       </div>
@@ -193,7 +221,7 @@ export function PdfFirstPagePreview({
 }
 
 export function DocumentViewerDialog({
-  open, onOpenChange, url, kind, filename, onDownload,
+  open, onOpenChange, url, kind, filename, onDownload, onRetry,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -201,6 +229,9 @@ export function DocumentViewerDialog({
   kind: 'pdf' | 'image';
   filename: string;
   onDownload?: () => void;
+  /** Also invoked by Retry — owners re-mint the signed URL here (an expired
+   *  signature can't be cured by refetching the same URL). */
+  onRetry?: () => void;
 }) {
   const isPdf = kind === 'pdf';
   // Only load (and keep) the document while the dialog is actually open.
@@ -274,7 +305,7 @@ export function DocumentViewerDialog({
             error ? (
               <div className="flex h-64 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
                 Couldn't load this PDF.
-                <Button size="sm" variant="outline" className="gap-1.5" onClick={retry}>
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { retry(); onRetry?.(); }}>
                   <RefreshCw className="w-3.5 h-3.5" /> Retry
                 </Button>
               </div>

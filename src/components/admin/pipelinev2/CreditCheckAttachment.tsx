@@ -13,6 +13,9 @@ export function CreditCheckAttachment({ app }: { app: any }) {
   const [loading, setLoading] = useState<boolean>(false);
   const [errored, setErrored] = useState<boolean>(false);
   const [viewerOpen, setViewerOpen] = useState<boolean>(false);
+  // Bumped to mint a FRESH signed URL (the 1h signature can expire while the
+  // drawer sits open) — wired to the viewer/preview Retry buttons.
+  const [urlNonce, setUrlNonce] = useState(0);
 
   useEffect(() => {
     if (!path) return;
@@ -35,7 +38,9 @@ export function CreditCheckAttachment({ app }: { app: any }) {
     return () => {
       cancelled = true;
     };
-  }, [path]);
+  }, [path, urlNonce]);
+
+  const refreshSignedUrl = () => setUrlNonce((n) => n + 1);
 
   if (!path) return null;
 
@@ -61,11 +66,29 @@ export function CreditCheckAttachment({ app }: { app: any }) {
     '.' +
     (ext || 'pdf');
 
+  // res.ok is checked because an EXPIRED signed URL answers 400 with a JSON
+  // error body — without the check that JSON used to be saved as a corrupt
+  // "document" under a success toast. On failure we mint a fresh signed URL and
+  // retry once (state is left alone so an open viewer isn't disturbed).
+  const fetchBlob = async (url: string) => {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.blob();
+  };
+
   const handleDownload = async () => {
-    if (!signedUrl) return;
+    if (!signedUrl || !path) return;
     try {
-      const res = await fetch(signedUrl);
-      const blob = await res.blob();
+      let blob: Blob;
+      try {
+        blob = await fetchBlob(signedUrl);
+      } catch {
+        const { data, error } = await supabase.storage
+          .from('credit-check-screenshots')
+          .createSignedUrl(path, 3600);
+        if (error || !data?.signedUrl) throw error ?? new Error('no signed url');
+        blob = await fetchBlob(data.signedUrl);
+      }
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -121,7 +144,11 @@ export function CreditCheckAttachment({ app }: { app: any }) {
             {isPdf ? (
               // First page rendered via pdf.js (sharp, no inner scrollbar) — the
               // old h-64 iframe cut pages off. Click opens the paginated viewer.
-              <PdfFirstPagePreview url={signedUrl} onExpand={() => setViewerOpen(true)} />
+              <PdfFirstPagePreview
+                url={signedUrl}
+                onExpand={() => setViewerOpen(true)}
+                onRetry={refreshSignedUrl}
+              />
             ) : isImage ? (
               <button
                 type="button"
@@ -171,6 +198,7 @@ export function CreditCheckAttachment({ app }: { app: any }) {
           kind={isPdf ? 'pdf' : 'image'}
           filename={filename}
           onDownload={handleDownload}
+          onRetry={refreshSignedUrl}
         />
       )}
     </>
