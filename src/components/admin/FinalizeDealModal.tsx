@@ -69,8 +69,6 @@ export interface ExistingDealData {
   sales_rep_commission?: number | null;
   delivery_address?: string | null;
   delivery_date?: string | null;
-  next_service_date?: string | null;
-  next_service_km?: number | null;
   aftersales_expenses?: Array<{ type: string; amount: number; description?: string }> | null;
   addons_data?: DealAddOnItem[] | null;
   // Referral fields (Expense)
@@ -279,9 +277,7 @@ const FinalizeDealModal = ({
   
   // Vehicle Info
   const [soldMileage, setSoldMileage] = useState(0);
-  const [nextServiceDate, setNextServiceDate] = useState('');
-  const [nextServiceKm, setNextServiceKm] = useState<number | ''>('');
-  
+
   // Deal-level expenses — itemized, attached to the deal via application_id. These
   // combine with the linked car's vehicle_expenses (recon) to make up the deal's
   // costs. Edited via <DealExpensesSection> (writes the deal_expenses table); the
@@ -390,9 +386,7 @@ const FinalizeDealModal = ({
         
         // Vehicle Info
         setSoldMileage(Number(existingDeal.sold_mileage) || 0);
-        setNextServiceDate(existingDeal.next_service_date || '');
-        setNextServiceKm(existingDeal.next_service_km || '');
-        
+
         // Sale Date
         if (existingDeal.sale_date) {
           setSaleDate(new Date(existingDeal.sale_date));
@@ -444,8 +438,6 @@ const FinalizeDealModal = ({
         setDeliveryDate('');
         setDeliveryTime('10:00');
         setDeliveryAddress('');
-        setNextServiceDate('');
-        setNextServiceKm('');
         setLicenseRegCost(0);
         setLicenseRegRefund(0);
         setAdminRecoveryCost(0);
@@ -629,8 +621,6 @@ const FinalizeDealModal = ({
       salesRepCommission: commissionAmount,
       soldPrice: adjustedSellingPrice,
       soldMileage,
-      nextServiceDate: nextServiceDate || undefined,
-      nextServiceKm: nextServiceKm || undefined,
       deliveryAddress,
       deliveryDate: `${deliveryDate}T${deliveryTime}:00`,
       // Snapshot the itemized deal_expenses into the aftersales_expenses JSONB so every
@@ -1569,31 +1559,12 @@ const FinalizeDealModal = ({
               <Car className="w-4 h-4" />
               Vehicle Information
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Current Mileage (km)</Label>
-                <Input
-                  type="number"
-                  value={soldMileage}
-                  onChange={(e) => setSoldMileage(parseInt(e.target.value) || 0)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Next Service (km)</Label>
-                <Input
-                  type="number"
-                  placeholder="e.g., 95000"
-                  value={nextServiceKm}
-                  onChange={(e) => setNextServiceKm(e.target.value ? parseInt(e.target.value) : '')}
-                />
-              </div>
-            </div>
             <div className="space-y-2">
-              <Label>Next Service Date (Optional)</Label>
+              <Label>Current Mileage (km)</Label>
               <Input
-                type="date"
-                value={nextServiceDate}
-                onChange={(e) => setNextServiceDate(e.target.value)}
+                type="number"
+                value={soldMileage}
+                onChange={(e) => setSoldMileage(parseInt(e.target.value) || 0)}
               />
             </div>
           </div>

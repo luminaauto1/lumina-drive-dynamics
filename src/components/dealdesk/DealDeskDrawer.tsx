@@ -33,7 +33,7 @@ export function DealDeskDrawer({ deal, onClose }: { deal: Deal | null; onClose: 
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="costsheet">Cost Sheet</TabsTrigger>
             <TabsTrigger value="checklist">Checklist</TabsTrigger>
-            <TabsTrigger value="delivery">Delivery &amp; Natis</TabsTrigger>
+            <TabsTrigger value="delivery">NATIS</TabsTrigger>
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
             <TabsTrigger value="activity">Activity</TabsTrigger>
           </TabsList>

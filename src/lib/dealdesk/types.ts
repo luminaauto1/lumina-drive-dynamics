@@ -31,6 +31,70 @@ export const DEAL_STAGE_LABEL: Record<DealStage, string> = {
   cleared: 'Cleared',
 };
 export type DealCondition = 'new' | 'used' | 'demo' | 'commercial';
+
+/**
+ * NATIS lifecycle step (deal_records.natis_stage). Tracks the registration
+ * paperwork AFTER delivery, in parallel to the coarse deal_stage track:
+ *   Delivered → ID & POR → Original Natis → Dealer stock → Blue File → Ready to send
+ * `null` on a row = not started (UI defaults to 'delivered' once the deal is
+ * delivered) or lifecycle complete (natis_sent_at set → stage cleared).
+ */
+export type NatisStage = 'delivered' | 'id_por' | 'original_natis' | 'dealer_stock' | 'blue_file' | 'ready_to_send';
+
+/** Where the registration happens (deal_records.natis_location). */
+export type NatisLocation = 'gauteng' | 'outside_gp';
+
+export interface NatisStepDef {
+  key: NatisStage;
+  /** Short label shown under the stepper circle. */
+  label: string;
+  /** Forward-action button text used to advance INTO this step (e.g. 'Original Natis received'). */
+  advanceLabel: string;
+  /** Helper copy describing what to do while ON this step. */
+  helper: string;
+}
+
+/** The 6 NATIS lifecycle steps, in order. */
+export const NATIS_STEPS: NatisStepDef[] = [
+  {
+    key: 'delivered', label: 'Delivered', advanceLabel: 'Delivered',
+    helper: 'Vehicle delivered. Collect the client’s ID and proof of residence to start the registration pack.',
+  },
+  {
+    key: 'id_por', label: 'ID & POR', advanceLabel: 'ID & POR received',
+    helper: 'ID and proof of residence are in hand. Waiting on the original NATIS document from the bank.',
+  },
+  {
+    key: 'original_natis', label: 'Original Natis', advanceLabel: 'Original Natis received',
+    helper: 'Original NATIS received. Register the vehicle into dealer stock.',
+  },
+  {
+    key: 'dealer_stock', label: 'Dealer stock', advanceLabel: 'Dealer stock done',
+    helper: 'Vehicle registered into dealer stock. Compile the blue file for registration.',
+  },
+  {
+    key: 'blue_file', label: 'Blue File', advanceLabel: 'Blue file compiled',
+    helper: 'Blue file compiled. Prepare the NATIS pack — mark it ready to send when everything is together.',
+  },
+  {
+    key: 'ready_to_send', label: 'Ready to send', advanceLabel: 'Ready to send',
+    helper: 'Everything is ready. Completing this step marks the NATIS as sent and clears the deal.',
+  },
+];
+
+export const NATIS_STAGE_LABEL: Record<NatisStage, string> = {
+  delivered: 'Delivered',
+  id_por: 'ID & POR',
+  original_natis: 'Original Natis',
+  dealer_stock: 'Dealer stock',
+  blue_file: 'Blue File',
+  ready_to_send: 'Ready to send',
+};
+
+export const NATIS_LOCATION_LABEL: Record<NatisLocation, string> = {
+  gauteng: 'In Gauteng (plates + disc)',
+  outside_gp: 'Outside GP (send Natis only)',
+};
 export type ChecklistStep = 'not_started' | 'requested' | 'in_progress' | 'done' | 'not_applicable';
 export type PickupOrDelivery = 'pickup' | 'delivery';
 export type PayeeType = 'spotter' | 'other';
@@ -67,10 +131,19 @@ export interface Deal {
   sale_date: string | null;
   delivery_date: string | null;     // SAST YYYY-MM-DD (coerced in the adapter)
   delivery_date_raw: string | null;  // original timestamptz, for display
+  /** Financing bank (finance_applications.contract_bank_name, falling back to bank_name). */
+  bank: string | null;
   /** Natis sent? Derived from deal_records.natis_sent_at != null. */
   natis_sent: boolean;
   natis_sent_at: string | null;
   natis_window_days: number | null;
+  /** Stored NATIS lifecycle step (deal_records.natis_stage); null = not started / cleared. */
+  natis_stage: NatisStage | null;
+  natis_location: NatisLocation | null;
+  natis_plates_disc_done: boolean;
+  natis_whatsapp_on_done: boolean;
+  /** Storage path of the uploaded NATIS doc in the documents bucket (deal/{id}/natis/...). */
+  natis_doc_path: string | null;
   is_closed: boolean;
   notes: string | null;
   created_at: string;

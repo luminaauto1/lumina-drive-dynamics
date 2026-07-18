@@ -1,93 +1,193 @@
-import { useEffect, useState } from 'react';
-import { Save, Loader2, CheckCircle2 } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { CheckCircle2, ChevronDown, Download, Loader2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { Deal, DeliveryChecklist, ChecklistStep, PickupOrDelivery } from '@/lib/dealdesk/types';
-import { CHECKLIST_STEPS, CHECKLIST_STEP_LABEL, CHECKLIST_STEP_OPTIONS } from '@/lib/dealdesk/types';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { cn } from '@/lib/utils';
+import type { Deal, ChecklistStep, PickupOrDelivery } from '@/lib/dealdesk/types';
+import { CHECKLIST_STEP_LABEL, CHECKLIST_STEP_OPTIONS } from '@/lib/dealdesk/types';
 import { useDealChecklist, useSaveChecklist } from '@/hooks/dealdesk/useDealDesk';
-
-type StepState = Record<string, ChecklistStep>;
+import {
+  useDocumentSettings, resolveDealChecklistConfig,
+  DEAL_CHECKLIST_SECTIONS, type DealChecklistItem, type DealChecklistSectionKey,
+} from '@/hooks/useDocumentSettings';
+import {
+  useDealChecklistDocs, useUpsertDealChecklistDoc, useUploadDealChecklistDoc,
+  getDealChecklistDocUrl, findChecklistDoc, type DealChecklistDoc,
+} from '@/hooks/useDealChecklistDocs';
 
 const STEP_DOT: Record<ChecklistStep, string> = {
   not_started: 'bg-muted-foreground/40', requested: 'bg-blue-400', in_progress: 'bg-amber-400',
   done: 'bg-emerald-400', not_applicable: 'bg-muted-foreground/30',
 };
 
-export function ChecklistTab({ deal }: { deal: Deal }) {
-  const { data: existing, isLoading } = useDealChecklist(deal.id);
-  const save = useSaveChecklist();
-  const [steps, setSteps] = useState<StepState>(() => Object.fromEntries(CHECKLIST_STEPS.map((s) => [s.key, 'not_started'])));
-  const [handover, setHandover] = useState<PickupOrDelivery>('delivery');
-  const [ready, setReady] = useState(false);
-  const [comments, setComments] = useState('');
-  const [hydrated, setHydrated] = useState(false);
+/** 'done' and 'N/A' both count as complete for the section progress chip. */
+const isComplete = (s: ChecklistStep) => s === 'done' || s === 'not_applicable';
 
-  useEffect(() => {
-    if (isLoading || hydrated) return;
-    if (existing) {
-      setSteps(Object.fromEntries(CHECKLIST_STEPS.map((s) => [s.key, (existing as any)[s.key] || 'not_started'])));
-      setHandover(existing.pickup_or_delivery || 'delivery');
-      setReady(!!existing.delivery_ready);
-      setComments(existing.comments || '');
-    }
-    setHydrated(true);
-  }, [existing, isLoading, hydrated]);
+function ItemRow({ dealId, section, item, doc }: {
+  dealId: string;
+  section: DealChecklistSectionKey;
+  item: DealChecklistItem;
+  doc: DealChecklistDoc | undefined;
+}) {
+  const upsert = useUpsertDealChecklistDoc();
+  const upload = useUploadDealChecklistDoc();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [opening, setOpening] = useState(false);
 
-  const onSave = () => {
-    const patch: Partial<DeliveryChecklist> = {
-      pickup_or_delivery: handover, delivery_ready: ready, comments: comments || null,
-      ...(steps as any),
-    };
-    save.mutate({ dealId: deal.id, patch });
+  const status: ChecklistStep = doc?.status ?? 'not_started';
+  const busy = upsert.isPending || upload.isPending;
+
+  const handleFile = (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) return;
+    upload.mutate({ dealId, section, itemKey: item.key, file });
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  if (isLoading && !hydrated) return <div className="py-8 text-center text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin inline" /></div>;
+  const handleOpen = async () => {
+    if (!doc?.file_path) return;
+    setOpening(true);
+    const url = await getDealChecklistDocUrl(doc.file_path);
+    setOpening(false);
+    if (url) window.open(url, '_blank', 'noopener,noreferrer');
+  };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <span className="text-sm text-muted-foreground">Handover</span>
-        <Select value={handover} onValueChange={(v) => setHandover(v as PickupOrDelivery)}>
-          <SelectTrigger className="h-8 w-36"><SelectValue /></SelectTrigger>
-          <SelectContent><SelectItem value="delivery">Delivery</SelectItem><SelectItem value="pickup">Pickup</SelectItem></SelectContent>
+    <div className="flex items-center justify-between gap-3 px-3 py-2">
+      <div className="min-w-0 flex-1">
+        <span className="flex items-center gap-2 text-sm">
+          <span className={cn('h-2 w-2 rounded-full shrink-0', STEP_DOT[status])} /> {item.label}
+        </span>
+        {doc?.file_name && (
+          <p className="text-[11px] text-muted-foreground truncate pl-4">{doc.file_name}</p>
+        )}
+      </div>
+
+      <div className="flex items-center gap-1.5 shrink-0">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
+          className="hidden"
+          onChange={(e) => handleFile(e.target.files)}
+        />
+        {doc?.file_path && (
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleOpen} title="View / download">
+            {opening ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+          </Button>
+        )}
+        <Button
+          variant="outline" size="sm" className="h-8 gap-1"
+          onClick={() => fileInputRef.current?.click()} disabled={busy}
+          title={doc?.file_path ? 'Replace file' : 'Upload file'}
+        >
+          {upload.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+          <span className="hidden sm:inline">{doc?.file_path ? 'Replace' : 'Upload'}</span>
+        </Button>
+        <Select
+          value={status}
+          onValueChange={(v) => upsert.mutate({ dealId, section, itemKey: item.key, status: v as ChecklistStep })}
+        >
+          <SelectTrigger className="h-8 w-32"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {CHECKLIST_STEP_OPTIONS.map((o) => <SelectItem key={o} value={o}>{CHECKLIST_STEP_LABEL[o]}</SelectItem>)}
+          </SelectContent>
         </Select>
       </div>
+    </div>
+  );
+}
 
-      <div className="rounded-lg border border-border divide-y divide-border">
-        {CHECKLIST_STEPS.map((s) => (
-          <div key={s.key} className="flex items-center justify-between gap-3 px-3 py-2">
-            <span className="flex items-center gap-2 text-sm">
-              <span className={'h-2 w-2 rounded-full ' + STEP_DOT[steps[s.key]]} /> {s.label}
-            </span>
-            <Select value={steps[s.key]} onValueChange={(v) => setSteps((p) => ({ ...p, [s.key]: v as ChecklistStep }))}>
-              <SelectTrigger className="h-8 w-40"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {CHECKLIST_STEP_OPTIONS.map((o) => <SelectItem key={o} value={o}>{CHECKLIST_STEP_LABEL[o]}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-        ))}
-      </div>
+export function ChecklistTab({ deal }: { deal: Deal }) {
+  const { data: settings, isLoading: settingsLoading } = useDocumentSettings();
+  const { data: docs, isLoading: docsLoading } = useDealChecklistDocs(deal.id);
+  const { data: checklist } = useDealChecklist(deal.id);
+  const saveChecklist = useSaveChecklist();
+  const [open, setOpen] = useState<Record<DealChecklistSectionKey, boolean>>({
+    car_prep: true, delivery_prep: true, payout: true,
+  });
 
-      <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
-        <span className="flex items-center gap-2 text-sm font-medium">
-          <CheckCircle2 className={'w-4 h-4 ' + (ready ? 'text-emerald-400' : 'text-muted-foreground')} /> Delivery ready
-        </span>
-        <Switch checked={ready} onCheckedChange={setReady} />
-      </div>
+  if (settingsLoading || docsLoading) {
+    return <div className="py-8 text-center text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin inline" /></div>;
+  }
 
-      <div>
-        <label className="text-xs uppercase tracking-wide text-muted-foreground">Comments</label>
-        <Textarea value={comments} onChange={(e) => setComments(e.target.value)} rows={3} className="mt-1" />
-      </div>
+  const config = resolveDealChecklistConfig(settings?.dealChecklistConfig);
 
-      <div className="flex justify-end">
-        <Button onClick={onSave} disabled={save.isPending} className="gap-2">
-          {save.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save checklist
-        </Button>
-      </div>
+  return (
+    <div className="space-y-3">
+      {DEAL_CHECKLIST_SECTIONS.map((sec) => {
+        const items = config[sec.key];
+        const done = items.filter((it) => {
+          const d = findChecklistDoc(docs, sec.key, it.key);
+          return d ? isComplete(d.status) : false;
+        }).length;
+        const complete = items.length > 0 && done === items.length;
+
+        return (
+          <Collapsible key={sec.key} open={open[sec.key]} onOpenChange={(v) => setOpen((p) => ({ ...p, [sec.key]: v }))}>
+            <div className="rounded-lg border border-border">
+              <CollapsibleTrigger asChild>
+                <button type="button" className="flex w-full items-center gap-2 px-3 py-2.5 text-left">
+                  <ChevronDown className={cn('w-4 h-4 text-muted-foreground transition-transform', !open[sec.key] && '-rotate-90')} />
+                  <span className="text-sm font-medium flex-1">{sec.label}</span>
+                  <span className={cn(
+                    'rounded-full border px-2 py-0.5 text-[11px] font-medium',
+                    complete
+                      ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-400'
+                      : 'border-border bg-muted text-muted-foreground',
+                  )}>
+                    {done}/{items.length}
+                  </span>
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="border-t border-border divide-y divide-border">
+                  {items.length === 0 && (
+                    <p className="px-3 py-3 text-xs text-muted-foreground">
+                      No items configured. Add some in Settings → Deal Checklist.
+                    </p>
+                  )}
+                  {items.map((it) => (
+                    <ItemRow key={it.key} dealId={deal.id} section={sec.key} item={it}
+                      doc={findChecklistDoc(docs, sec.key, it.key)} />
+                  ))}
+
+                  {sec.key === 'delivery_prep' && (
+                    <>
+                      <div className="flex items-center justify-between gap-3 px-3 py-2">
+                        <span className="text-sm text-muted-foreground">Handover</span>
+                        <Select
+                          value={checklist?.pickup_or_delivery || 'delivery'}
+                          onValueChange={(v) => saveChecklist.mutate({ dealId: deal.id, patch: { pickup_or_delivery: v as PickupOrDelivery } })}
+                        >
+                          <SelectTrigger className="h-8 w-32"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="delivery">Delivery</SelectItem>
+                            <SelectItem value="pickup">Pickup</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+                        <span className="flex items-center gap-2 text-sm font-medium">
+                          <CheckCircle2 className={cn('w-4 h-4', checklist?.delivery_ready ? 'text-emerald-400' : 'text-muted-foreground')} />
+                          Delivery ready
+                        </span>
+                        <Switch
+                          checked={!!checklist?.delivery_ready}
+                          disabled={saveChecklist.isPending}
+                          onCheckedChange={(v) => saveChecklist.mutate({ dealId: deal.id, patch: { delivery_ready: v }, currentStage: deal.deal_stage })}
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
+        );
+      })}
     </div>
   );
 }
