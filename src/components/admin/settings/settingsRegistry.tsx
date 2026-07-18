@@ -1,7 +1,7 @@
 import * as React from 'react';
 import {
   DollarSign, Phone, MapPin, CreditCard, Users, Mail, Building2, Shield, FileText,
-  Landmark, Plug, MessageCircle, ListChecks, LayoutDashboard, ClipboardList, Columns3, Send, Calculator, type LucideIcon,
+  Landmark, Plug, MessageCircle, ListChecks, ListTodo, LayoutDashboard, ClipboardList, Columns3, Send, Calculator, type LucideIcon,
 } from 'lucide-react';
 
 import BankIntegrationsTab from '@/components/admin/BankIntegrationsTab';
@@ -17,6 +17,7 @@ import SalaryCalculatorTab from '@/components/admin/SalaryCalculatorTab';
 import PipelineLanesTab from '@/components/admin/PipelineLanesTab';
 import EmailTemplatesTab from '@/components/admin/EmailTemplatesTab';
 import AppearanceNavTab from '@/components/admin/AppearanceNavTab';
+import DealChecklistTab from '@/components/admin/settings/DealChecklistTab';
 import { NatisSettings } from '@/components/dealdesk/NatisSettings';
 import { FinanceBody, SalesBody, ContactBody, LocationBody, FeaturesBody } from './SettingsFormBodies';
 
@@ -81,6 +82,7 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
     label: 'Deal Desk',
     items: [
       { key: 'dealdesk', title: 'Deal Desk', description: 'Natis window and urgency-warning thresholds for the Deal Desk.', icon: ClipboardList, requireSuperAdmin: true, body: <DealDeskBody /> },
+      { key: 'dealchecklist', title: 'Deal Checklist', description: 'Configure the Car Preparation, Delivery Preparation and Payout checklist items shown on every deal.', icon: ListTodo, requireSuperAdmin: true, body: <DealChecklistTab /> },
       { key: 'sales', title: 'Sales Team & Target', description: 'Monthly sales target and the sales reps used when finalizing deals.', icon: Users, body: <SalesBody /> },
     ],
   },

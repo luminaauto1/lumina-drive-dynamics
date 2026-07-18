@@ -18,7 +18,7 @@ import { useState, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   Package, Calendar, AlertCircle, AlertTriangle, Loader2, MessageCircle, Edit2, Save, X,
-  Eye, Undo2, TrendingUp, DollarSign, Users, Plus, Receipt, Wrench,
+  Eye, Undo2, TrendingUp, DollarSign, Users, Plus, Receipt,
   FileText, FolderOpen, Settings, Calculator,
   Lock, Unlock, Download
 } from 'lucide-react';
@@ -26,7 +26,7 @@ import ConfirmDialog from '@/components/admin/ConfirmDialog';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { differenceInDays, differenceInYears, format, addYears, startOfMonth, endOfMonth, subMonths, isWithinInterval, parseISO } from 'date-fns';
+import { differenceInDays, differenceInYears, format, startOfMonth, endOfMonth, subMonths, isWithinInterval, parseISO } from 'date-fns';
 import ClientProfileModal from '@/components/admin/ClientProfileModal';
 import FinalizeDealModal, { ExistingDealData } from '@/components/admin/FinalizeDealModal';
 import { DealExpensesSection } from '@/components/admin/DealExpensesSection';
@@ -55,8 +55,6 @@ interface DealRecord {
   sales_rep_commission: number | null;
   sold_price: number | null;
   sold_mileage: number | null;
-  next_service_date: string | null;
-  next_service_km: number | null;
   delivery_address: string | null;
   delivery_date: string | null;
   aftersales_expenses: Array<{ type: string; amount: number; description?: string }> | null;
@@ -101,9 +99,6 @@ interface DealRecord {
     purchase_price?: number;
     reconditioning_cost?: number;
     cost_price?: number;
-    last_service_date?: string;
-    next_service_date?: string;
-    next_service_km?: number;
   };
   application?: {
     id: string;
@@ -153,7 +148,7 @@ const useDealRecords = () => {
         .from('deal_records')
         .select(`
           *,
-          vehicle:vehicles(id, make, model, variant, year, price, purchase_price, reconditioning_cost, cost_price, last_service_date, next_service_date, next_service_km),
+          vehicle:vehicles(id, make, model, variant, year, price, purchase_price, reconditioning_cost, cost_price),
           application:finance_applications(id, first_name, last_name, full_name, email, phone, gross_salary, additional_income)
         `)
         .order('created_at', { ascending: false });
@@ -302,113 +297,15 @@ const useAddDealExpense = () => {
   });
 };
 
-const useLogServiceRecord = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({
-      vehicleId,
-      dealId,
-      serviceDate,
-      serviceMileage,
-      workshopName,
-      serviceCost,
-      currentExpenses
-    }: {
-      vehicleId: string;
-      dealId: string;
-      serviceDate: string;
-      serviceMileage: number;
-      workshopName: string;
-      serviceCost: number;
-      currentExpenses: Array<{ type: string; amount: number }>;
-    }) => {
-      // Calculate next service date (1 year from service)
-      const nextServiceDate = addYears(new Date(serviceDate), 1).toISOString().split('T')[0];
-      const nextServiceKm = serviceMileage + 15000; // Standard 15,000km interval
-
-      // Update vehicle with service info
-      const { error: vehicleError } = await supabase
-        .from('vehicles')
-        .update({
-          last_service_date: serviceDate,
-          last_service_km: serviceMileage,
-          next_service_date: nextServiceDate,
-          next_service_km: nextServiceKm,
-        })
-        .eq('id', vehicleId);
-
-      if (vehicleError) throw vehicleError;
-
-      // Update deal record with new next service date
-      const { error: dealError } = await supabase
-        .from('deal_records')
-        .update({
-          next_service_date: nextServiceDate,
-          next_service_km: nextServiceKm,
-        })
-        .eq('id', dealId);
-
-      if (dealError) throw dealError;
-
-      // If there's a cost, add it as an expense
-      if (serviceCost > 0) {
-        const updatedExpenses = [...currentExpenses, {
-          type: `Service at ${workshopName}`,
-          amount: serviceCost
-        }];
-
-        await supabase
-          .from('deal_records')
-          .update({ aftersales_expenses: updatedExpenses as any })
-          .eq('id', dealId);
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['deal-records'] });
-      queryClient.invalidateQueries({ queryKey: ['vehicles'] });
-      toast.success('Service record logged. Next service date updated.');
-    },
-    onError: () => {
-      toast.error('Failed to log service');
-    },
-  });
-};
-
-const getServiceDueStatus = (deal: DealRecord) => {
-  if (!deal.next_service_date) return { isDue: false, reason: null };
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const serviceDate = new Date(deal.next_service_date);
-  serviceDate.setHours(0, 0, 0, 0);
-
-  if (serviceDate < today) {
-    return { isDue: true, reason: 'Service Date Passed' };
-  }
-
-  return { isDue: false, reason: null };
-};
-
-const getServiceStatus = (saleDate: string) => {
+const getTradeInStatus = (saleDate: string) => {
   const days = differenceInDays(new Date(), new Date(saleDate));
   const years = differenceInYears(new Date(), new Date(saleDate));
 
-  const daysSinceLastService = days % 365;
-  const daysUntilNextService = 365 - daysSinceLastService;
-
+  const daysIntoYear = days % 365;
   const yearsRemaining = 3 - (years % 3);
-  const daysUntil3Year = yearsRemaining * 365 - daysSinceLastService;
+  const daysUntil3Year = yearsRemaining * 365 - daysIntoYear;
 
-  let serviceStatus: 'ok' | 'due_soon' | 'overdue' = 'ok';
   let tradeInStatus: 'ok' | 'due_soon' | 'overdue' = 'ok';
-
-  if (daysUntilNextService <= 0 || daysUntilNextService > 335) {
-    serviceStatus = 'overdue';
-  } else if (daysUntilNextService <= 30) {
-    serviceStatus = 'due_soon';
-  }
 
   if (years >= 3 && daysUntil3Year <= 0) {
     tradeInStatus = 'overdue';
@@ -416,7 +313,7 @@ const getServiceStatus = (saleDate: string) => {
     tradeInStatus = 'due_soon';
   }
 
-  return { serviceStatus, tradeInStatus, daysUntilNextService, daysUntil3Year, years };
+  return { tradeInStatus, daysUntil3Year, years };
 };
 
 const getVehicleHealthStatus = (saleDateString: string | null) => {
@@ -434,12 +331,6 @@ const getVehicleHealthStatus = (saleDateString: string | null) => {
 
   if (diffDays < 90) {
     return { label: "Recently Sold", color: "text-emerald-500", bg: "bg-emerald-500/10", days: diffDays };
-  }
-
-  const daysIntoYear = diffDays % 365;
-
-  if (daysIntoYear >= 335) {
-    return { label: "Service Due Soon", color: "text-yellow-500", bg: "bg-yellow-500/10", days: diffDays };
   }
 
   return { label: "Healthy", color: "text-blue-500", bg: "bg-blue-500/10", days: diffDays };
@@ -487,16 +378,11 @@ const useUpdateDealDIC = () => {
 // Deal Management Modal Component
 const DealManagementModal = ({ deal, open, onOpenChange }: { deal: DealRecord; open: boolean; onOpenChange: (open: boolean) => void }) => {
   const addExpense = useAddDealExpense();
-  const logService = useLogServiceRecord();
   const updateDIC = useUpdateDealDIC();
   const { data: documents = [] } = useClientDocuments(deal.application?.id);
 
   const [expenseType, setExpenseType] = useState('');
   const [expenseAmount, setExpenseAmount] = useState('');
-  const [serviceDate, setServiceDate] = useState('');
-  const [serviceMileage, setServiceMileage] = useState('');
-  const [workshopName, setWorkshopName] = useState('');
-  const [serviceCost, setServiceCost] = useState('');
   const [dicAmount, setDicAmount] = useState(deal.dic_amount || 0);
   const [isEditingDIC, setIsEditingDIC] = useState(false);
 
@@ -554,45 +440,12 @@ const DealManagementModal = ({ deal, open, onOpenChange }: { deal: DealRecord; o
     setExpenseAmount('');
   };
 
-  const handleLogService = () => {
-    if (!serviceDate || !serviceMileage || !workshopName) {
-      toast.error('Please fill in service date, mileage and workshop name');
-      return;
-    }
-
-    if (!deal.vehicle_id) {
-      toast.error('No vehicle linked to this deal');
-      return;
-    }
-
-    logService.mutate({
-      vehicleId: deal.vehicle_id,
-      dealId: deal.id,
-      serviceDate,
-      serviceMileage: parseInt(serviceMileage),
-      workshopName,
-      serviceCost: serviceCost ? parseFloat(serviceCost) : 0,
-      currentExpenses: deal.aftersales_expenses || [],
-    });
-
-    setServiceDate('');
-    setServiceMileage('');
-    setWorkshopName('');
-    setServiceCost('');
-    onOpenChange(false);
-  };
-
-  const serviceDue = getServiceDueStatus(deal);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             Deal Management
-            {serviceDue.isDue && (
-              <Badge variant="destructive" className="text-xs">Service Overdue</Badge>
-            )}
           </DialogTitle>
           <DialogDescription>
             {deal.vehicle && `${deal.vehicle.year} ${deal.vehicle.make} ${deal.vehicle.model}`} •
@@ -600,12 +453,8 @@ const DealManagementModal = ({ deal, open, onOpenChange }: { deal: DealRecord; o
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="service" className="flex-1 overflow-hidden">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="service" className="gap-2">
-              <Wrench className="w-4 h-4" />
-              Service
-            </TabsTrigger>
+        <Tabs defaultValue="expenses" className="flex-1 overflow-hidden">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="expenses" className="gap-2">
               <Receipt className="w-4 h-4" />
               Expenses
@@ -615,107 +464,6 @@ const DealManagementModal = ({ deal, open, onOpenChange }: { deal: DealRecord; o
               Documents
             </TabsTrigger>
           </TabsList>
-
-          {/* Service Tab */}
-          <TabsContent value="service" className="flex-1 overflow-auto">
-            <ScrollArea className="h-[400px]">
-              <div className="space-y-4 p-1">
-                {/* Current Service Status */}
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Current Service Status</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Next Service Date</p>
-                        <p className="font-medium">
-                          {deal.next_service_date
-                            ? format(new Date(deal.next_service_date), 'dd MMM yyyy')
-                            : 'Not set'
-                          }
-                        </p>
-                        {serviceDue.isDue && (
-                          <Badge variant="destructive" className="mt-1 text-xs">{serviceDue.reason}</Badge>
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Next Service KM</p>
-                        <p className="font-medium">
-                          {deal.next_service_km ? `${deal.next_service_km.toLocaleString()} km` : 'Not set'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Current Mileage</p>
-                        <p className="font-medium">
-                          {deal.sold_mileage ? `${deal.sold_mileage.toLocaleString()} km` : 'Not recorded'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Sale Date</p>
-                        <p className="font-medium">{format(new Date(deal.created_at), 'dd MMM yyyy')}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Log Service Form */}
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Wrench className="w-4 h-4" />
-                      Log Service Record
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Service Date</Label>
-                        <Input
-                          type="date"
-                          value={serviceDate}
-                          onChange={(e) => setServiceDate(e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Mileage at Service</Label>
-                        <Input
-                          type="number"
-                          placeholder="e.g., 45000"
-                          value={serviceMileage}
-                          onChange={(e) => setServiceMileage(e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Workshop Name</Label>
-                        <Input
-                          placeholder="e.g., Toyota Sandton"
-                          value={workshopName}
-                          onChange={(e) => setWorkshopName(e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Service Cost (R) - Optional</Label>
-                        <Input
-                          type="number"
-                          placeholder="0.00"
-                          value={serviceCost}
-                          onChange={(e) => setServiceCost(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <Button onClick={handleLogService} disabled={logService.isPending} className="w-full">
-                      {logService.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Wrench className="w-4 h-4 mr-2" />}
-                      Log Service & Update Next Date
-                    </Button>
-                    <p className="text-xs text-muted-foreground text-center">
-                      This will set the next service date to 1 year from the service date
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-            </ScrollArea>
-          </TabsContent>
 
           {/* Expenses Tab */}
           <TabsContent value="expenses" className="flex-1 overflow-auto">
@@ -1111,9 +859,6 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
   // Count deals with zero cost_price (data quality warning)
   const zeroCostDealsCount = dealRecords.filter(deal => !deal.cost_price || deal.cost_price === 0).length;
 
-  // Service alerts
-  const serviceAlertCount = dealRecords.filter(deal => getServiceDueStatus(deal).isDue).length;
-
   const startEditing = (record: AftersalesRecord) => {
     setEditingId(record.id);
     setEditNotes(record.notes || '');
@@ -1138,15 +883,13 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
     }
     const cleanedPhone = phone.replace(/\D/g, '');
     const formattedPhone = cleanedPhone.startsWith('0') ? `27${cleanedPhone.slice(1)}` : cleanedPhone;
-    const message = `Hi ${name}, this is Lumina Auto. We hope you're enjoying your vehicle! We wanted to check in regarding your upcoming service.`;
+    const message = `Hi ${name}, this is Lumina Auto. We hope you're enjoying your vehicle! We just wanted to check in and see how everything is going.`;
     window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   const sortedRecords = [...aftersalesRecords].sort((a, b) => {
-    const aStatus = getServiceStatus(a.sale_date);
-    const bStatus = getServiceStatus(b.sale_date);
-    const aUrgent = aStatus.serviceStatus !== 'ok' || aStatus.tradeInStatus !== 'ok';
-    const bUrgent = bStatus.serviceStatus !== 'ok' || bStatus.tradeInStatus !== 'ok';
+    const aUrgent = getTradeInStatus(a.sale_date).tradeInStatus !== 'ok';
+    const bUrgent = getTradeInStatus(b.sale_date).tradeInStatus !== 'ok';
     if (aUrgent && !bUrgent) return -1;
     if (!aUrgent && bUrgent) return 1;
     return 0;
@@ -1164,7 +907,7 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
         >
           <div className="p-4 border-b border-border">
             <h2 className="text-lg font-semibold">Customer Follow-ups</h2>
-            <p className="text-sm text-muted-foreground">Service &amp; trade-in follow-ups for delivered customers</p>
+            <p className="text-sm text-muted-foreground">Follow-ups for delivered customers</p>
           </div>
           {aftersalesLoading ? (
             <div className="p-8 text-center">
@@ -1191,8 +934,8 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
               </TableHeader>
               <TableBody>
                 {sortedRecords.map((record) => {
-                  const status = getServiceStatus(record.sale_date);
-                  const hasAlert = status.serviceStatus !== 'ok' || status.tradeInStatus !== 'ok';
+                  const status = getTradeInStatus(record.sale_date);
+                  const hasAlert = status.tradeInStatus !== 'ok';
 
                   return (
                     <TableRow
@@ -1230,7 +973,6 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
-                          <StatusBadge status={status.serviceStatus} label="Service Due" />
                           <StatusBadge status={status.tradeInStatus} label="Trade-In Follow-up" />
                           {!hasAlert && (
                             <span className="text-xs text-muted-foreground">No alerts</span>
@@ -1401,21 +1143,6 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
         </div>
       </motion.div>
 
-      {/* Service Alert Banner */}
-      {serviceAlertCount > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg flex items-center gap-3"
-        >
-          <Wrench className="w-5 h-5 text-red-500" />
-          <p className="text-sm">
-            <span className="font-semibold">{serviceAlertCount} deal(s)</span> have overdue service dates. Use the manage action to update.
-          </p>
-        </motion.div>
-      )}
-
       {/* Zero Cost Warning Banner */}
       {zeroCostDealsCount > 0 && (
         <motion.div
@@ -1479,7 +1206,6 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
                 </TableHeader>
                 <TableBody>
                   {monthDeals.map((deal) => {
-                    const serviceDue = getServiceDueStatus(deal);
                     const netProfit = deal.gross_profit || 0;
                     const hasZeroCost = !deal.cost_price || deal.cost_price === 0;
                     const isLocked = !!deal.is_closed;
@@ -1488,7 +1214,7 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
                       <TableRow
                         key={deal.id}
                         tabIndex={0}
-                        className={`border-border hover:bg-muted/30 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/60 ${serviceDue.isDue ? 'bg-red-500/5' : ''} ${isLocked ? 'opacity-80' : ''}`}
+                        className={`border-border hover:bg-muted/30 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/60 ${isLocked ? 'opacity-80' : ''}`}
                         onClick={() => {
                           if (isLocked) {
                             toast.info('This deal is locked. Unlock it first to edit.');
@@ -1509,10 +1235,7 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
                           {isLocked && (
                             <Lock className="w-4 h-4 text-muted-foreground" />
                           )}
-                          {!isLocked && serviceDue.isDue && (
-                            <AlertCircle className="w-4 h-4 text-red-500" />
-                          )}
-                          {!isLocked && !serviceDue.isDue && hasZeroCost && (
+                          {!isLocked && hasZeroCost && (
                             <span title="Zero cost price">
                               <AlertCircle className="w-4 h-4 text-yellow-500" />
                             </span>
@@ -1581,17 +1304,6 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
                               <Badge variant="outline" className="text-xs mt-1 border-muted-foreground/30">
                                 <Lock className="w-3 h-3 mr-1" /> Locked
                               </Badge>
-                            )}
-                            {!isLocked && deal.next_service_date && (
-                              <div className="mt-1">
-                                {serviceDue.isDue ? (
-                                  <Badge variant="destructive" className="text-xs">Service Overdue</Badge>
-                                ) : (
-                                  <p className="text-xs text-muted-foreground">
-                                    Service: {format(new Date(deal.next_service_date), 'dd MMM')}
-                                  </p>
-                                )}
-                              </div>
                             )}
                           </div>
                         </TableCell>

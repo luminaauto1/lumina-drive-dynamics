@@ -1,15 +1,36 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Plus, Trash2, Save, Loader2, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { Deal, AccessoryLine, FniLine } from '@/lib/dealdesk/types';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { CONDITION_LABEL, type Deal, type AccessoryLine, type FniLine } from '@/lib/dealdesk/types';
 import {
-  computeCostSheet, blankCostSheetInput, accessoryProfit, fniProfit,
+  computeCostSheet, blankCostSheetInput, accessoryProfit, fniProfit, isDicLine,
   type CostSheetInput,
 } from '@/lib/dealdesk/costsheet';
-import { formatRand, parseMoney } from '@/lib/dealdesk/format';
+import { formatRand, formatDate, parseMoney } from '@/lib/dealdesk/format';
 import { useDealCostsheet, useSaveCostsheet } from '@/hooks/dealdesk/useDealDesk';
+
+/** Financing bank of the linked application (contract_bank_name) — read-only, for
+ *  the DEAL header. Not in the Deal adapter shape, so fetched here on demand. */
+function useDealBank(applicationId: string | null) {
+  return useQuery<string | null>({
+    queryKey: ['dealdesk', 'costsheet-bank', applicationId],
+    enabled: !!applicationId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('finance_applications')
+        .select('contract_bank_name')
+        .eq('id', applicationId)
+        .maybeSingle();
+      if (error) throw error;
+      return (data?.contract_bank_name as string | null) ?? null;
+    },
+  });
+}
 
 // Inline editable Rand cell. Holds raw text while focused; parses to number on change.
 function Money({ value, onChange, className = '' }: { value: number; onChange: (n: number) => void; className?: string }) {
@@ -36,8 +57,20 @@ function NumRow({ label, value, onChange, hint }: { label: string; value: number
   );
 }
 
+/** One label/value pair in the DEAL header grid. */
+function HeaderField({ label, value }: { label: string; value: string | null | undefined }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="text-sm font-medium truncate" title={value || undefined}>{value || '—'}</div>
+    </div>
+  );
+}
+
 export function CostSheetTab({ deal }: { deal: Deal }) {
   const { data: existing, isLoading } = useDealCostsheet(deal.id);
+  const { user } = useAuth();
+  const { data: bankName } = useDealBank(deal.application_id);
   const save = useSaveCostsheet();
   const [input, setInput] = useState<CostSheetInput>(() => blankCostSheetInput());
   const [hydrated, setHydrated] = useState(false);
@@ -70,6 +103,9 @@ export function CostSheetTab({ deal }: { deal: Deal }) {
 
   if (isLoading && !hydrated) return <div className="py-8 text-center text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin inline" /></div>;
 
+  const salesperson =
+    ((user as any)?.user_metadata?.full_name as string | undefined)?.trim() || user?.email || null;
+
   return (
     <div className="space-y-4">
       <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-300">
@@ -78,9 +114,27 @@ export function CostSheetTab({ deal }: { deal: Deal }) {
         The deal's ledger gross profit is <strong>{formatRand(deal.gross_profit)}</strong>.
       </div>
 
+      {/* DEAL header block (read-only, ZTC parity) */}
+      <Card>
+        <CardHeader className="py-3">
+          <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Deal</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 gap-x-4 gap-y-2.5 sm:grid-cols-3">
+          <HeaderField label="Salesperson" value={salesperson} />
+          <HeaderField label="Date" value={formatDate(deal.sale_date) || formatDate(deal.created_at)} />
+          <HeaderField label="Customer" value={deal.client_name} />
+          <HeaderField label="Make / Model" value={deal.vehicle_make_model} />
+          <HeaderField label="Year" value={deal.vehicle_year} />
+          <HeaderField label="VIN" value={deal.vehicle_vin} />
+          <HeaderField label="Stock no" value={deal.vehicle_stock_no} />
+          <HeaderField label="Condition" value={deal.condition ? CONDITION_LABEL[deal.condition] : null} />
+          <HeaderField label="Bank" value={bankName} />
+        </CardContent>
+      </Card>
+
       {/* Vehicle GP block */}
       <Card>
-        <CardHeader className="py-3"><CardTitle className="text-base">Vehicle GP</CardTitle></CardHeader>
+        <CardHeader className="py-3"><CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vehicle GP</CardTitle></CardHeader>
         <CardContent className="space-y-0.5">
           <NumRow label="Retail" value={input.retail} onChange={(n) => set({ retail: n })} />
           <NumRow label="Spotter" value={input.spotter} onChange={(n) => set({ spotter: n })} />
@@ -104,7 +158,7 @@ export function CostSheetTab({ deal }: { deal: Deal }) {
       {/* Accessories */}
       <Card>
         <CardHeader className="py-3 flex-row items-center justify-between">
-          <CardTitle className="text-base">Accessories</CardTitle>
+          <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Accessories</CardTitle>
           <Button size="sm" variant="outline" className="h-7 gap-1"
             onClick={() => set({ accessories: [...input.accessories, { detail: '', supplier: '', retail: 0, cost: 0 }] })}>
             <Plus className="w-3.5 h-3.5" /> Add
@@ -117,25 +171,25 @@ export function CostSheetTab({ deal }: { deal: Deal }) {
             </thead>
             <tbody>
               {input.accessories.map((l, i) => (
-                <tr key={i} className="border-t border-border">
+                <tr key={i} className="border-t border-border even:bg-muted/40">
                   <td className="py-1 pr-2"><Input value={l.detail} onChange={(e) => setAcc(i, { detail: e.target.value })} className="h-8" /></td>
                   <td className="pr-2"><Input value={l.supplier} onChange={(e) => setAcc(i, { supplier: e.target.value })} className="h-8" /></td>
                   <td className="w-28"><Money value={l.retail} onChange={(n) => setAcc(i, { retail: n })} /></td>
                   <td className="w-28"><Money value={l.cost} onChange={(n) => setAcc(i, { cost: n })} /></td>
-                  <td className="w-28 text-right tabular-nums pr-2">{formatRand(accessoryProfit(l))}</td>
+                  <td className="w-28 text-right tabular-nums pr-2 font-medium text-emerald-400">{formatRand(accessoryProfit(l))}</td>
                   <td><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => set({ accessories: input.accessories.filter((_, idx) => idx !== i) })}><Trash2 className="w-3.5 h-3.5" /></Button></td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <div className="flex justify-end pt-2 text-sm font-medium">Accessories Total:&nbsp;<span className="tabular-nums">{formatRand(computed.accessories_total)}</span></div>
+          <div className="flex justify-end pt-2 text-sm font-medium">Accessories Total:&nbsp;<span className="tabular-nums font-semibold text-emerald-400">{formatRand(computed.accessories_total)}</span></div>
         </CardContent>
       </Card>
 
       {/* F&I */}
       <Card>
         <CardHeader className="py-3 flex-row items-center justify-between">
-          <CardTitle className="text-base">F&amp;I</CardTitle>
+          <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">F&amp;I</CardTitle>
           <Button size="sm" variant="outline" className="h-7 gap-1"
             onClick={() => set({ fni: [...input.fni, { detail: '', retail: 0, cost: 0, profit_override: null }] })}>
             <Plus className="w-3.5 h-3.5" /> Add
@@ -148,18 +202,37 @@ export function CostSheetTab({ deal }: { deal: Deal }) {
             </thead>
             <tbody>
               {input.fni.map((l, i) => (
-                <tr key={i} className="border-t border-border">
+                <tr key={i} className="border-t border-border even:bg-muted/40">
                   <td className="py-1 pr-2"><Input value={l.detail} onChange={(e) => setFni(i, { detail: e.target.value })} className="h-8" /></td>
-                  <td className="w-28"><Money value={l.retail} onChange={(n) => setFni(i, { retail: n })} /></td>
-                  <td className="w-28"><Money value={l.cost} onChange={(n) => setFni(i, { cost: n })} /></td>
-                  <td className="w-32"><Money value={l.profit_override ?? 0} onChange={(n) => setFni(i, { profit_override: n || null })} /></td>
-                  <td className="w-28 text-right tabular-nums pr-2">{formatRand(fniProfit(l))}</td>
+                  {isDicLine(l.detail) ? (
+                    // DIC is pure profit: one Amount input, stored as profit_override
+                    // with retail/cost 0 (persist shape unchanged; fniProfit needs no
+                    // special case, and untouched legacy rows compute identically).
+                    <td colSpan={3} className="pr-2">
+                      <div className="flex items-center justify-end gap-2">
+                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground whitespace-nowrap">Amount (pure profit)*</span>
+                        <div className="w-32"><Money value={fniProfit(l)} onChange={(n) => setFni(i, { profit_override: n || null, retail: 0, cost: 0 })} /></div>
+                      </div>
+                    </td>
+                  ) : (
+                    <>
+                      <td className="w-28"><Money value={l.retail} onChange={(n) => setFni(i, { retail: n })} /></td>
+                      <td className="w-28"><Money value={l.cost} onChange={(n) => setFni(i, { cost: n })} /></td>
+                      <td className="w-32"><Money value={l.profit_override ?? 0} onChange={(n) => setFni(i, { profit_override: n || null })} /></td>
+                    </>
+                  )}
+                  <td className="w-28 text-right tabular-nums pr-2 font-medium text-emerald-400">{formatRand(fniProfit(l))}</td>
                   <td><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => set({ fni: input.fni.filter((_, idx) => idx !== i) })}><Trash2 className="w-3.5 h-3.5" /></Button></td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <div className="flex justify-end pt-2 text-sm font-medium">F&amp;I Total:&nbsp;<span className="tabular-nums">{formatRand(computed.fni_total)}</span></div>
+          {input.fni.some((l) => isDicLine(l.detail)) && (
+            <p className="pt-2 text-[11px] italic text-muted-foreground">
+              * DIC is pure profit — the amount entered counts directly as profit (no retail/cost split).
+            </p>
+          )}
+          <div className="flex justify-end pt-2 text-sm font-medium">F&amp;I Total:&nbsp;<span className="tabular-nums font-semibold text-emerald-400">{formatRand(computed.fni_total)}</span></div>
         </CardContent>
       </Card>
 

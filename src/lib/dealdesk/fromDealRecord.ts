@@ -2,7 +2,7 @@
 // ZTC-style `Deal` the ported Deal Desk components expect. Display-only logic;
 // it never writes anything. gross_profit is read through dealNetProfit (canonical).
 
-import type { Deal, DealStatus, DealStage, DealCondition } from './types';
+import type { Deal, DealStatus, DealStage, DealCondition, NatisStage, NatisLocation } from './types';
 import { toSastDateString } from './format';
 import { dealNetProfit } from '@/lib/dealMetrics';
 
@@ -17,6 +17,9 @@ export function deriveDealStatus(row: any): DealStatus {
 }
 
 const DEAL_STAGE_VALUES: DealStage[] = ['none', 'deal_started', 'contract_signed', 'in_delivery', 'delivered', 'cleared'];
+
+const NATIS_STAGE_VALUES: NatisStage[] = ['delivered', 'id_por', 'original_natis', 'dealer_stock', 'blue_file', 'ready_to_send'];
+const NATIS_LOCATION_VALUES: NatisLocation[] = ['gauteng', 'outside_gp'];
 
 /** Deal-stage track: use the stored `deal_stage` column if present/valid, else map
  *  from the derived deal_status so the second badge always renders something sane. */
@@ -65,9 +68,15 @@ export function fromDealRecord(row: any): Deal {
     sale_date: row.sale_date ?? null,
     delivery_date: toSastDateString(row.delivery_date),
     delivery_date_raw: row.delivery_date ?? null,
+    bank: app.contract_bank_name || app.bank_name || null,
     natis_sent: !!row.natis_sent_at,
     natis_sent_at: row.natis_sent_at ?? null,
     natis_window_days: row.natis_window_days ?? null,
+    natis_stage: NATIS_STAGE_VALUES.includes(row.natis_stage) ? (row.natis_stage as NatisStage) : null,
+    natis_location: NATIS_LOCATION_VALUES.includes(row.natis_location) ? (row.natis_location as NatisLocation) : null,
+    natis_plates_disc_done: !!row.natis_plates_disc_done,
+    natis_whatsapp_on_done: !!row.natis_whatsapp_on_done,
+    natis_doc_path: row.natis_doc_path ?? null,
     is_closed: !!row.is_closed,
     notes: row.post_deal_notes ?? null,
     created_at: row.created_at,
@@ -79,6 +88,7 @@ export const DEAL_DESK_SELECT = `
   id, application_id, vehicle_id, sale_date, sold_price, cost_price, gross_profit,
   recon_cost, dic_amount, addons_data, aftersales_expenses, delivery_date, is_closed,
   post_deal_notes, natis_sent_at, natis_window_days, deal_stage, created_at,
+  natis_stage, natis_location, natis_plates_disc_done, natis_whatsapp_on_done, natis_doc_path,
   vehicle:vehicles(make, model, variant, year, vin, stock_number),
-  application:finance_applications(first_name, last_name, full_name, id_number, phone, email, status)
+  application:finance_applications(first_name, last_name, full_name, id_number, phone, email, status, contract_bank_name, bank_name)
 `;

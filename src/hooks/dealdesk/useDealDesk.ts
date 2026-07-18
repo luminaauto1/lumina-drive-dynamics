@@ -6,8 +6,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { fromDealRecord, DEAL_DESK_SELECT } from '@/lib/dealdesk/fromDealRecord';
-import type { Deal, DealCosting, DeliveryChecklist, Payee, Expense, DealEvent, DeskSettings, DealStage } from '@/lib/dealdesk/types';
-import { DEAL_STAGE_LABEL } from '@/lib/dealdesk/types';
+import type { Deal, DealCosting, DeliveryChecklist, Payee, Expense, DealEvent, DeskSettings, DealStage, NatisStage } from '@/lib/dealdesk/types';
+import { DEAL_STAGE_LABEL, NATIS_STAGE_LABEL } from '@/lib/dealdesk/types';
+import { compressIfImage } from '@/lib/compressFile';
 import type { CostSheetInput, CostSheetComputed } from '@/lib/dealdesk/costsheet';
 import { nextStageAfter } from '@/lib/dealdesk/stageFlow';
 
@@ -178,9 +179,11 @@ export function useMarkNatisSent() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ dealId, sent, currentStage }: { dealId: string; sent: boolean; currentStage?: DealStage }) => {
-      const { error } = await db.from('deal_records')
-        .update({ natis_sent_at: sent ? new Date().toISOString() : null })
-        .eq('id', dealId);
+      const patch: Record<string, unknown> = { natis_sent_at: sent ? new Date().toISOString() : null };
+      // Sending completes the NATIS lifecycle — clear the stepper stage. (Un-sending
+      // leaves the stage as-is; the tab re-defaults to 'delivered'.)
+      if (sent) patch.natis_stage = null;
+      const { error } = await db.from('deal_records').update(patch).eq('id', dealId);
       if (error) throw error;
       await logDealEvent(dealId, 'delivery_changed', sent ? 'Natis marked as sent' : 'Natis sent flag cleared');
       // NATIS sent → the deal is fully cleared.
@@ -193,6 +196,122 @@ export function useMarkNatisSent() {
     },
     onError: (e: any) => toast.error('Update failed: ' + (e?.message || e)),
   });
+}
+
+/* ---------------- NATIS lifecycle (deal_records.natis_* columns) ----------------
+   Powers the NATIS tab stepper (Delivered → ID & POR → Original Natis → Dealer
+   stock → Blue File → Ready to send) plus the location / plates toggles and the
+   uploaded NATIS document. Same shape as useMarkNatisSent: write the net-new
+   deal_records columns, log to deal_events, invalidate the dealdesk caches. */
+
+const NATIS_DOCS_BUCKET = 'documents';
+
+const sanitizeFileName = (name: string) =>
+  name.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/_+/g, '_').slice(0, 120);
+
+/** Move the NATIS lifecycle stage (forward or back). Every transition is logged
+ *  to deal_events as 'Natis: X → Y' (event_type 'natis_stage_changed') so the
+ *  tab's Change history can replay it. */
+export function useSetNatisStage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ dealId, stage, fromStage }: { dealId: string; stage: NatisStage; fromStage?: NatisStage | null }) => {
+      const { error } = await db.from('deal_records').update({ natis_stage: stage }).eq('id', dealId);
+      if (error) throw error;
+      const from = fromStage ? NATIS_STAGE_LABEL[fromStage] : 'Not started';
+      await logDealEvent(dealId, 'natis_stage_changed', `Natis: ${from} → ${NATIS_STAGE_LABEL[stage]}`);
+    },
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ['dealdesk', 'deals'] });
+      qc.invalidateQueries({ queryKey: ['dealdesk', 'events', v.dealId] });
+    },
+    onError: (e: any) => toast.error('Natis stage update failed: ' + (e?.message || e)),
+  });
+}
+
+/** Patch the NATIS location / plates-disc / whatsapp-opt-in fields. `summary`
+ *  is the human line written to the deal_events log for this change. */
+export function useSaveNatisFields() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ dealId, patch, summary }: {
+      dealId: string;
+      patch: Partial<Pick<Deal, 'natis_location' | 'natis_plates_disc_done' | 'natis_whatsapp_on_done'>>;
+      summary: string;
+    }) => {
+      const { error } = await db.from('deal_records').update(patch).eq('id', dealId);
+      if (error) throw error;
+      await logDealEvent(dealId, 'natis_updated', summary);
+    },
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ['dealdesk', 'deals'] });
+      qc.invalidateQueries({ queryKey: ['dealdesk', 'events', v.dealId] });
+    },
+    onError: (e: any) => toast.error('Update failed: ' + (e?.message || e)),
+  });
+}
+
+/** Append a manual note to the NATIS update log (deal_events kind 'natis_note').
+ *  Unlike logDealEvent this THROWS on failure so the form can surface it. */
+export function useAddNatisNote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ dealId, note }: { dealId: string; note: string }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await db.from('deal_events').insert({
+        deal_id: dealId, actor_id: user?.id ?? null, event_type: 'natis_note', summary: note, changes: null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ['dealdesk', 'events', v.dealId] });
+      toast.success('Note added');
+    },
+    onError: (e: any) => toast.error('Could not add note: ' + (e?.message || e)),
+  });
+}
+
+/** Upload the NATIS document (documents bucket, deal/{dealId}/natis/…) and store
+ *  the path on deal_records.natis_doc_path. Mirrors useUploadVehicleStockDoc:
+ *  compress images, upload, write the row, roll the object back on row failure. */
+export function useUploadNatisDoc() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ dealId, file }: { dealId: string; file: File }) => {
+      const compressed = await compressIfImage(file, 'balanced');
+      const path = `deal/${dealId}/natis/${Date.now()}-${sanitizeFileName(compressed.name)}`;
+
+      const { error: upErr } = await supabase.storage
+        .from(NATIS_DOCS_BUCKET)
+        .upload(path, compressed, { contentType: compressed.type || undefined, upsert: false });
+      if (upErr) throw upErr;
+
+      const { error } = await db.from('deal_records').update({ natis_doc_path: path }).eq('id', dealId);
+      if (error) {
+        // Roll back the orphaned storage object if the row write failed.
+        await supabase.storage.from(NATIS_DOCS_BUCKET).remove([path]);
+        throw error;
+      }
+      await logDealEvent(dealId, 'natis_doc_uploaded', `Natis document uploaded (${compressed.name})`);
+      return path;
+    },
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ['dealdesk', 'deals'] });
+      qc.invalidateQueries({ queryKey: ['dealdesk', 'events', v.dealId] });
+      toast.success('Natis document uploaded');
+    },
+    onError: (e: any) => toast.error('Upload failed: ' + (e?.message || e)),
+  });
+}
+
+/** Short-lived signed URL to view/download the uploaded NATIS document. */
+export async function getNatisDocUrl(filePath: string): Promise<string | null> {
+  const { data, error } = await supabase.storage.from(NATIS_DOCS_BUCKET).createSignedUrl(filePath, 60 * 60);
+  if (error) {
+    toast.error('Could not open document');
+    return null;
+  }
+  return data?.signedUrl ?? null;
 }
 
 /* ---------------- Payees + expenses (payables tracker) ---------------- */
