@@ -45,6 +45,10 @@ export interface DocumentSettings {
   quoteNextNumber: number; // next sequence number
   quoteValidityDays: number; // how long a quote stays valid
   quoteSalesExecutive: string; // default sales executive on new quotes
+  /** Quote Generator: renamed labels for the financed add-on lines, keyed by the
+   *  stable addon id (admin/license/oem/service/dent/master/smash). Missing or
+   *  empty key = use the built-in label. Display-only — the calc sums amounts. */
+  quoteAddonLabels?: Record<string, string>;
   // Deals automation
   // When ON, marking a finance application "Contract Signed" auto-creates a DRAFT
   // deal_records row so the deal appears in Deal Desk ready to be finalized.
@@ -136,6 +140,7 @@ export const DEFAULT_DOCUMENT_SETTINGS: DocumentSettings = {
   quoteNextNumber: 1,
   quoteValidityDays: 7,
   quoteSalesExecutive: '',
+  quoteAddonLabels: {},
   autoCreateDealOnContractSigned: false,
   creditScanAutoSubmit: false,
   bankBranches: DEFAULT_BANK_BRANCHES,
