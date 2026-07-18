@@ -15,20 +15,24 @@ export interface DealColumnDef {
   wrap?: boolean;
 }
 
-// The current 6 columns (client, vehicle, status, natis, sale_date, gp) are
-// default-visible; everything else is hideable/addable. Order here is the
-// default column order.
+// Default-visible columns fill the full desktop width (the ledger used to run
+// half-empty): client, vehicle, status, natis, delivery, next_action, sale_date,
+// sold_price, gp, actions. Everything else is hideable/addable. Order here is
+// the default column order.
 export const DEAL_COLUMNS: DealColumnDef[] = [
-  { key: 'client',     label: 'Client',     defaultVisible: true,  defaultWidth: 'wide', wrap: true },
-  { key: 'vehicle',    label: 'Vehicle',    defaultVisible: true,  defaultWidth: 'wide', wrap: true },
-  { key: 'vin',        label: 'VIN',        defaultVisible: false, defaultWidth: 'normal' },
-  { key: 'stock_no',   label: 'Stock #',    defaultVisible: false, defaultWidth: 'narrow' },
-  { key: 'status',     label: 'Status',     defaultVisible: true,  defaultWidth: 'wide', wrap: true },
-  { key: 'deal_stage', label: 'Deal stage', defaultVisible: false, defaultWidth: 'normal' },
-  { key: 'natis',      label: 'Natis',      defaultVisible: true,  defaultWidth: 'normal' },
-  { key: 'sale_date',  label: 'Sale date',  defaultVisible: true,  defaultWidth: 'normal' },
-  { key: 'sold_price', label: 'Sold price', defaultVisible: false, defaultWidth: 'normal', align: 'right' },
-  { key: 'gp',         label: 'GP (ledger)', defaultVisible: true, defaultWidth: 'normal', align: 'right' },
+  { key: 'client',      label: 'Client',      defaultVisible: true,  defaultWidth: 'wide', wrap: true },
+  { key: 'vehicle',     label: 'Vehicle',     defaultVisible: true,  defaultWidth: 'wide', wrap: true },
+  { key: 'vin',         label: 'VIN',         defaultVisible: false, defaultWidth: 'normal' },
+  { key: 'stock_no',    label: 'Stock #',     defaultVisible: false, defaultWidth: 'narrow' },
+  { key: 'status',      label: 'Status',      defaultVisible: true,  defaultWidth: 'wide', wrap: true },
+  { key: 'deal_stage',  label: 'Deal stage',  defaultVisible: false, defaultWidth: 'normal' },
+  { key: 'natis',       label: 'Natis',       defaultVisible: true,  defaultWidth: 'normal' },
+  { key: 'delivery',    label: 'Delivered',   defaultVisible: true,  defaultWidth: 'normal' },
+  { key: 'next_action', label: 'Next action', defaultVisible: true,  defaultWidth: 'normal' },
+  { key: 'sale_date',   label: 'Sale date',   defaultVisible: true,  defaultWidth: 'normal' },
+  { key: 'sold_price',  label: 'Sold price',  defaultVisible: true,  defaultWidth: 'normal', align: 'right' },
+  { key: 'gp',          label: 'GP (ledger)', defaultVisible: true,  defaultWidth: 'normal', align: 'right' },
+  { key: 'actions',     label: '',            defaultVisible: true,  defaultWidth: 'narrow', align: 'right' },
 ];
 
 const DEFAULT_VISIBLE = DEAL_COLUMNS.filter((c) => c.defaultVisible).map((c) => c.key);
@@ -52,7 +56,9 @@ export interface DealTableConfig {
 }
 
 // Namespaced distinctly from the pipeline's 'lumina.pipelinev2.table.config.v1'.
-const STORAGE_KEY = 'lumina.dealdesk.table.config.v1';
+// v2: full-width redesign added delivery / next_action / actions + sold_price to
+// the defaults — key bumped so saved v1 layouts pick up the new default set.
+const STORAGE_KEY = 'lumina.dealdesk.table.config.v2';
 
 export function defaultConfig(): DealTableConfig {
   return {

@@ -359,12 +359,18 @@ html, body {
   overflow-x: hidden;
 }
 
-/* 2. Force Tables to Scroll Internally */
-.table-container, [role="table"], table {
-  display: block;
-  overflow-x: auto;
-  width: 100%;
-  -webkit-overflow-scrolling: touch;
+/* 2. Force Tables to Scroll Internally — MOBILE ONLY. On desktop this
+   display:block hack broke real table layout: columns stopped distributing
+   across the container, so tables with few columns (e.g. the Deal Desk ledger)
+   collapsed to half-width with a dead zone beside them. Desktop tables render
+   as real tables inside their overflow-x-auto wrappers. */
+@media (max-width: 767px) {
+  .table-container, [role="table"], table {
+    display: block;
+    overflow-x: auto;
+    width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 /* 3. Allow text wrapping in specific table cells if needed */
