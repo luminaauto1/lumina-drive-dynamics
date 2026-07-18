@@ -196,7 +196,7 @@ const AdminSidebar = ({ onNavigate, onCollapse }: AdminSidebarProps) => {
                 {section.label}
               </div>
             )}
-            {collapsed && <div className="my-1.5 mx-3 border-t border-border/60" />}
+            {collapsed && <div className="my-1.5 mx-3 border-t border-border" />}
             <div className="space-y-0.5">{section.items.map(renderItem)}</div>
           </div>
         ))}

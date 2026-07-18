@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Download, FileText, Save } from 'lucide-react';
+import { Download, FileText, Save, X } from 'lucide-react';
 import { useDocumentSettings } from '@/hooks/useDocumentSettings';
 import { toast } from 'sonner';
 import { blankOtp } from '@/features/otp/blank';
@@ -372,7 +372,7 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
                       />
                       <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-red-400"
                         onClick={() => setExtrasItems((prev) => prev.filter((_, idx) => idx !== i))} title="Remove extra">
-                        ✕
+                        <X className="w-3.5 h-3.5" />
                       </Button>
                     </div>
                   ))}

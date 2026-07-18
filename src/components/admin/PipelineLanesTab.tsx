@@ -77,7 +77,7 @@ const LaneRow = ({ lane }: { lane: EffectivePipelineLane }) => {
   const previewColor = hasOverride ? trimmedColor : 'hsl(var(--desk-accent))';
 
   return (
-    <div className="rounded-xl border border-border/60 bg-card/40 p-4 space-y-3">
+    <div className="rounded-xl border border-border bg-card/40 p-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
           {lane.key}

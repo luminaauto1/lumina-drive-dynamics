@@ -18,7 +18,7 @@ const RentalFleetTab = () => {
     active: 'bg-green-500/20 text-green-400 border-green-500/30',
     maintenance: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
     available: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-    sold: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+    sold: 'bg-muted text-muted-foreground border-border',
   };
 
   const activeRentals = rentals.filter(r => r.status === 'active');
@@ -117,10 +117,18 @@ const RentalFleetTab = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {rentals.map((rental) => (
-            <Card 
-              key={rental.id} 
-              className="cursor-pointer hover:border-primary/50 transition-colors"
+            <Card
+              key={rental.id}
+              role="button"
+              tabIndex={0}
+              className="cursor-pointer hover:border-primary/50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={() => handleRentalClick(rental)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleRentalClick(rental);
+                }
+              }}
             >
               <CardContent className="p-4">
                 <div className="flex items-start justify-between mb-3">

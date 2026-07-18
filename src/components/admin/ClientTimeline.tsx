@@ -35,7 +35,7 @@ const ClientTimeline = ({ items }: { items: TimelineItem[] }) => {
             <div className="mt-0.5 shrink-0">
               <Icon className={`w-4 h-4 ${color}`} />
             </div>
-            <div className="flex-1 min-w-0 border-b border-border/40 pb-3 last:border-0">
+            <div className="flex-1 min-w-0 border-b border-border pb-3 last:border-0">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-medium capitalize truncate">{item.title}</span>
                 <span className="text-[10px] text-muted-foreground font-mono shrink-0">{when}</span>

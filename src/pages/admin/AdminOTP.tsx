@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, Plus, Printer, Save, ArrowLeft, Pencil, Trash2, Download, Loader2 } from 'lucide-react';
+import { FileText, Plus, Printer, Save, ArrowLeft, Pencil, Trash2, Download, Loader2, X } from 'lucide-react';
+import ConfirmDialog from '@/components/admin/ConfirmDialog';
 import { downloadPdfFromPages, pdfFilename } from '@/lib/domToPdf';
 import { toast } from 'sonner';
 import { useDocumentSettings, consumeOtpNumber } from '@/hooks/useDocumentSettings';
@@ -96,8 +97,8 @@ const AdminOTP = () => {
     }
   };
 
+  const [confirmDelete, setConfirmDelete] = useState<OtpRecord | null>(null);
   const handleDelete = async (rec: OtpRecord) => {
-    if (!window.confirm(`Delete OTP ${rec.ref}? This cannot be undone.`)) return;
     await deleteOtp.mutateAsync(rec.id);
     toast.success('OTP deleted');
   };
@@ -157,7 +158,7 @@ const AdminOTP = () => {
                       <td className="p-3">{new Date(rec.created_at).toLocaleDateString('en-ZA')}</td>
                       <td className="p-3 text-right whitespace-nowrap">
                         <Button variant="ghost" size="sm" onClick={() => startEdit(rec)} className="gap-1"><Pencil className="w-3.5 h-3.5" /> Edit</Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(rec)} className="gap-1 text-destructive"><Trash2 className="w-3.5 h-3.5" /></Button>
+                        <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(rec)} className="gap-1 text-destructive"><Trash2 className="w-3.5 h-3.5" /></Button>
                       </td>
                     </tr>
                   ))}
@@ -166,6 +167,13 @@ const AdminOTP = () => {
             </CardContent>
           </Card>
         </div>
+        <ConfirmDialog
+          open={!!confirmDelete}
+          title="Delete OTP?"
+          description={confirmDelete ? `Delete OTP ${confirmDelete.ref}? This cannot be undone.` : undefined}
+          onConfirm={() => { if (confirmDelete) void handleDelete(confirmDelete); setConfirmDelete(null); }}
+          onCancel={() => setConfirmDelete(null)}
+        />
       </AdminLayout>
     );
   }
@@ -342,7 +350,7 @@ const AdminOTP = () => {
                           <Input type="number" value={it.amount || ''} placeholder="0.00" className="w-36"
                             onChange={(e) => commit(items.map((x, idx) => idx === i ? { ...x, amount: parseFloat(e.target.value) || 0 } : x))} />
                           <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-red-400"
-                            onClick={() => commit(items.filter((_, idx) => idx !== i))} title="Remove extra">✕</Button>
+                            onClick={() => commit(items.filter((_, idx) => idx !== i))} title="Remove extra"><X className="w-3.5 h-3.5" /></Button>
                         </div>
                       ))}
                       <div className="flex items-center justify-between">

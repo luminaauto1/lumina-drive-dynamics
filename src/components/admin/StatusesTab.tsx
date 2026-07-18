@@ -15,6 +15,7 @@ import {
 } from '@/hooks/useZtcSettings';
 import { getWhatsAppMessage } from '@/lib/statusConfig';
 import { StatusEditModal } from '@/components/admin/StatusEditModal';
+import ConfirmDialog from '@/components/admin/ConfirmDialog';
 
 // Colour presets (shadcn/dark tokens) the admin can pick per status.
 const COLOR_PRESETS: { label: string; cls: string }[] = [
@@ -100,6 +101,7 @@ const Row = ({ s, order, onEdit }: { s: MergedStatus; order: number; onEdit: (sl
 // Client-status row — badge preview, label, colour, visibility, Edit, Delete.
 const ClientRow = ({ c, onEdit }: { c: ClientStatus; onEdit: (slug: string) => void }) => {
   const del = useDeleteStatusOverride();
+  const [confirmOpen, setConfirmOpen] = useState(false);
   return (
     <Card>
       <CardContent className="py-3">
@@ -114,7 +116,7 @@ const ClientRow = ({ c, onEdit }: { c: ClientStatus; onEdit: (slug: string) => v
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => { if (window.confirm(`Delete client status "${c.label}"?`)) del.mutate(c.value); }}
+            onClick={() => setConfirmOpen(true)}
             disabled={del.isPending}
             className="h-7 gap-1 text-red-400 hover:text-red-300"
           >
@@ -122,6 +124,13 @@ const ClientRow = ({ c, onEdit }: { c: ClientStatus; onEdit: (slug: string) => v
           </Button>
         </div>
       </CardContent>
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Delete client status?"
+        description={`Delete client status "${c.label}"?`}
+        onConfirm={() => { del.mutate(c.value); setConfirmOpen(false); }}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </Card>
   );
 };

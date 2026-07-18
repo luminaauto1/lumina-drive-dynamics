@@ -123,7 +123,7 @@ export const AddHiddenStockModal = ({ onSuccess }: { onSuccess: () => void }) =>
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="gap-2 border-muted text-muted-foreground hover:bg-muted/20">
+        <Button variant="outline" className="gap-2 border-input text-muted-foreground hover:bg-muted/20">
           <Ghost className="w-4 h-4" />
           Add Hidden Stock
         </Button>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Loader2, Mail } from 'lucide-react';
+import { Check, Loader2, Mail, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { publicApiHeaders } from '@/lib/publicApi';
 import { supabase } from '@/integrations/supabase/client';
@@ -63,7 +63,10 @@ export const TestEmailButton = () => {
               : 'bg-destructive/10 text-destructive border border-destructive/30'
           }`}
         >
-          <p className="font-medium">{testResult.success ? '✓ Success' : '✗ Failed'}</p>
+          <p className="font-medium inline-flex items-center gap-1">
+            {testResult.success ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
+            {testResult.success ? 'Success' : 'Failed'}
+          </p>
           <p className="mt-1 text-xs opacity-80 break-all">{testResult.message}</p>
         </div>
       )}

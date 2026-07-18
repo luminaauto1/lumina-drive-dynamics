@@ -896,7 +896,7 @@ const FinalizeDealModal = ({
                 </label>
               ))}
               {/* Custom invoice lines — e.g. invoice only the margin to a finance house */}
-              <div className="pt-2 border-t border-border/60 space-y-2">
+              <div className="pt-2 border-t border-border space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-muted-foreground">Custom lines (e.g. "Profit on deal", facilitation fee)</span>
                   <Button
@@ -1689,29 +1689,29 @@ const FinalizeDealModal = ({
             
             <div className="space-y-3">
               {/* Total Deal Value */}
-              <div className="flex justify-between items-center py-2 border-b border-border/50">
+              <div className="flex justify-between items-center py-2 border-b border-border">
                 <span className="text-sm text-muted-foreground">Vehicle Sell Price:</span>
                 <span className="font-medium">{formatPrice(adjustedSellingPrice)}</span>
               </div>
               
               {addons.length > 0 && (
-                <div className="flex justify-between items-center py-2 border-b border-border/50">
+                <div className="flex justify-between items-center py-2 border-b border-border">
                   <span className="text-sm text-muted-foreground">+ Add-on Revenue:</span>
                   <span className="font-medium text-purple-400">+{formatPrice(totalAddonPrice)}</span>
                 </div>
               )}
               
-              <div className="flex justify-between items-center py-2 border-b border-border/50">
+              <div className="flex justify-between items-center py-2 border-b border-border">
                 <span className="text-sm text-muted-foreground">+ Fees (Admin + Bank):</span>
                 <span className="font-medium">+{formatPrice(externalAdminFee + bankInitiationFee)}</span>
               </div>
               
-              <div className="flex justify-between items-center py-2 border-b border-border/50 bg-muted/30 -mx-2 px-2 rounded">
+              <div className="flex justify-between items-center py-2 border-b border-border bg-muted/30 -mx-2 px-2 rounded">
                 <span className="text-sm font-medium">Invoice to Bank:</span>
                 <span className="text-lg font-bold text-emerald-400">{formatPrice(totalFinanceAmount)}</span>
               </div>
               
-              <div className="flex justify-between items-center py-2 border-b border-border/50">
+              <div className="flex justify-between items-center py-2 border-b border-border">
                 <span className="text-sm text-muted-foreground">Total Costs:</span>
                 <span className="font-medium text-red-400">-{formatPrice(totalCosts)}</span>
               </div>
@@ -1720,20 +1720,20 @@ const FinalizeDealModal = ({
               </p>
               
               {dicAmount > 0 && (
-                <div className="flex justify-between items-center py-2 border-b border-border/50 bg-emerald-500/5">
+                <div className="flex justify-between items-center py-2 border-b border-border bg-emerald-500/5">
                   <span className="text-sm text-muted-foreground">+ Bank Reward / DIC:</span>
                   <span className="font-medium text-emerald-400">+{formatPrice(dicAmount)}</span>
                 </div>
               )}
               
               {referralIncome > 0 && (
-                <div className="flex justify-between items-center py-2 border-b border-border/50 bg-emerald-500/5">
+                <div className="flex justify-between items-center py-2 border-b border-border bg-emerald-500/5">
                   <span className="text-sm text-muted-foreground">+ Referral Income:</span>
                   <span className="font-medium text-emerald-400">+{formatPrice(referralIncome)}</span>
                 </div>
               )}
               
-              <div className="flex justify-between items-center py-2 border-b border-border/50">
+              <div className="flex justify-between items-center py-2 border-b border-border">
                 <span className="text-sm text-muted-foreground">Gross Profit:</span>
                 <span className={`text-lg font-bold ${grossProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                   {formatPrice(grossProfit)}
@@ -1741,7 +1741,7 @@ const FinalizeDealModal = ({
               </div>
               
               {isSharedCapital && (
-                <div className="flex justify-between items-center py-2 border-b border-border/50">
+                <div className="flex justify-between items-center py-2 border-b border-border">
                   <span className="text-sm text-muted-foreground">
                     Partner Payout ({partnerSplitType === 'percentage' ? `${partnerSplitValue}%` : 'Fixed'}):
                   </span>
@@ -1758,7 +1758,7 @@ const FinalizeDealModal = ({
               </div>
               
               {/* Payouts Section - Shown separately, not subtracted from saved profit */}
-              <div className="mt-4 pt-4 border-t border-border/50 space-y-3">
+              <div className="mt-4 pt-4 border-t border-border space-y-3">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Payouts from Profit:</p>
                 
                 <div className="flex justify-between items-center py-2 bg-blue-500/5 rounded-lg px-3 -mx-1">

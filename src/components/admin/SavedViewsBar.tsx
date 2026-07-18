@@ -45,7 +45,7 @@ export function SavedViewsBar<P>({
               {active && <Check className="mr-1 inline h-3 w-3" />}{v.name}
             </button>
             <button type="button" title="Delete view" onClick={() => onDelete(v.id)}
-              className="opacity-0 transition group-hover:opacity-100 hover:text-red-400">
+              className="opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100 hover:text-red-400">
               <X className="h-3 w-3" />
             </button>
           </span>

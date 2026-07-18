@@ -102,7 +102,7 @@ const AdminSettings = () => {
                         >
                           <Link
                             to={`/admin/settings/${item.key}`}
-                            className="group flex items-start gap-3 rounded-xl border border-border/60 bg-card/40 p-4 transition-colors hover:border-border hover:bg-card/70"
+                            className="group flex items-start gap-3 rounded-xl border border-border bg-card/40 p-4 transition-colors hover:border-foreground/20 hover:bg-card/70"
                           >
                             <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                               <Icon className="h-4 w-4" />

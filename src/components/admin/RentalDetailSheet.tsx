@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
+import ConfirmDialog from '@/components/admin/ConfirmDialog';
 
 interface RentalDetailSheetProps {
   rental: Rental | null;
@@ -51,6 +52,7 @@ const RentalDetailSheet = ({ rental, open, onOpenChange }: RentalDetailSheetProp
 
   // Convert to retail state
   const [convertModalOpen, setConvertModalOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<null | 'delete' | 'unassign'>(null);
   const [retailPrice, setRetailPrice] = useState('');
   const [retailYear, setRetailYear] = useState(String(new Date().getFullYear()));
   const [retailMileage, setRetailMileage] = useState('');
@@ -89,15 +91,12 @@ const RentalDetailSheet = ({ rental, open, onOpenChange }: RentalDetailSheetProp
   };
 
   const handleDelete = async () => {
-    if (confirm('Are you sure you want to delete this rental? All logs will be deleted.')) {
-      await deleteRental.mutateAsync(rental.id);
-      onOpenChange(false);
-    }
+    await deleteRental.mutateAsync(rental.id);
+    onOpenChange(false);
   };
 
   // Unassign current renter
   const handleUnassignRenter = async () => {
-    if (!confirm('Unassign the current renter? The vehicle will be set to Available.')) return;
     await updateRental.mutateAsync({
       id: rental.id,
       renter_name: null,
@@ -230,7 +229,7 @@ const RentalDetailSheet = ({ rental, open, onOpenChange }: RentalDetailSheetProp
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     {rental.renter_name && (
-                      <DropdownMenuItem onClick={handleUnassignRenter}>
+                      <DropdownMenuItem onClick={() => setConfirmAction('unassign')}>
                         <UserMinus className="h-4 w-4 mr-2" />
                         Unassign Renter
                       </DropdownMenuItem>
@@ -249,7 +248,7 @@ const RentalDetailSheet = ({ rental, open, onOpenChange }: RentalDetailSheetProp
                       Convert to Retail Stock
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleDelete} className="text-destructive">
+                    <DropdownMenuItem onClick={() => setConfirmAction('delete')} className="text-destructive">
                       Delete Rental
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -295,7 +294,7 @@ const RentalDetailSheet = ({ rental, open, onOpenChange }: RentalDetailSheetProp
                     <span className="font-medium">Current Renter</span>
                   </div>
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleUnassignRenter}>
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setConfirmAction('unassign')}>
                       <UserMinus className="h-3 w-3 mr-1" /> Unassign
                     </Button>
                     <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={openReassignModal}>
@@ -634,6 +633,22 @@ const RentalDetailSheet = ({ rental, open, onOpenChange }: RentalDetailSheetProp
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!confirmAction}
+        title={confirmAction === 'delete' ? 'Delete rental?' : 'Unassign renter?'}
+        description={confirmAction === 'delete'
+          ? 'Are you sure you want to delete this rental? All logs will be deleted.'
+          : 'Unassign the current renter? The vehicle will be set to Available.'}
+        confirmLabel={confirmAction === 'delete' ? 'Delete' : 'Unassign'}
+        destructive={confirmAction === 'delete'}
+        onConfirm={() => {
+          if (confirmAction === 'delete') void handleDelete();
+          else if (confirmAction === 'unassign') void handleUnassignRenter();
+          setConfirmAction(null);
+        }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </>
   );
 };

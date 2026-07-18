@@ -36,8 +36,16 @@ const KanbanCard = ({ lead, onEdit }: KanbanCardProps) => {
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={() => onEdit(lead)}
-      className="bg-card border border-border rounded-lg p-3 shadow-sm hover:shadow-md hover:border-primary/50 transition-all cursor-pointer"
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onEdit(lead);
+        }
+      }}
+      className="bg-card border border-border rounded-lg p-3 shadow-sm hover:shadow-md hover:border-primary/50 transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       {/* Header */}
       <div className="flex items-start justify-between mb-2">

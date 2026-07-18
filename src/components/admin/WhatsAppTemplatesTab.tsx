@@ -16,6 +16,7 @@ import {
 } from '@/hooks/useZtcSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import ConfirmDialog from '@/components/admin/ConfirmDialog';
 
 // Custom (admin-added) rows carry a `custom_` key prefix. Only these are deletable
 // — the built-in auto-notification rows have fixed keys wired into notify-*.
@@ -110,10 +111,10 @@ const Row = ({ t }: { t: WhatsAppTemplate }) => {
     }
   };
 
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const remove = () => {
     if (!custom) return;
-    if (!window.confirm(`Delete custom template "${t.title || t.key}"? This can't be undone.`)) return;
-    del.mutate(t.key);
+    setConfirmDeleteOpen(true);
   };
 
   return (
@@ -227,6 +228,13 @@ const Row = ({ t }: { t: WhatsAppTemplate }) => {
           </div>
         )}
       </CardContent>
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        title="Delete custom template?"
+        description={`Delete custom template "${t.title || t.key}"? This can't be undone.`}
+        onConfirm={() => { del.mutate(t.key); setConfirmDeleteOpen(false); }}
+        onCancel={() => setConfirmDeleteOpen(false)}
+      />
     </Card>
   );
 };

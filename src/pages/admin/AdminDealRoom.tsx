@@ -5,7 +5,8 @@ import { Helmet } from 'react-helmet-async';
 import { 
   ArrowLeft, User, MapPin, Building, Wallet, Users, Phone, Mail, 
   MessageCircle, Car, Plus, X, Search, FileText, CheckCircle, AlertTriangle, Copy, Check,
-  Download, PartyPopper, Edit2, Save, Building2, FileSignature, Share2, FileDown, ReceiptText
+  Download, PartyPopper, Edit2, Save, Building2, FileSignature, Share2, FileDown, ReceiptText,
+  CheckCircle2, Zap
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import AdminLayout from '@/components/admin/AdminLayout';
@@ -318,7 +319,7 @@ const AdminDealRoom = () => {
     const phone = application.phone?.replace(/\D/g, '') || '';
     if (!phone) {
       // Show error if no phone
-      alert('No phone number available for this client');
+      toast.error('No phone number available for this client');
       return;
     }
     const formattedPhone = phone.startsWith('0') ? `27${phone.slice(1)}` : phone;
@@ -968,9 +969,11 @@ const AdminDealRoom = () => {
                         }}
                         className={contactedFresh
                           ? 'text-xs md:text-sm border-emerald-500/40 text-emerald-600 bg-emerald-500/10'
-                          : 'text-xs md:text-sm border-zinc-500/30 text-zinc-500 hover:bg-zinc-500/10'}
+                          : 'text-xs md:text-sm border-border text-muted-foreground hover:bg-muted'}
                       >
-                        {contactedFresh ? '✅ Docs requested' : '📩 Mark docs requested'}
+                        {contactedFresh
+                          ? <><CheckCircle2 className="w-4 h-4 mr-1" /> Docs requested</>
+                          : <><Mail className="w-4 h-4 mr-1" /> Mark docs requested</>}
                       </Button>
                     );
                   })()}
@@ -1494,7 +1497,7 @@ const AdminDealRoom = () => {
                     }}
                     className="text-primary border-primary/30 hover:bg-primary/10"
                   >
-                    ⚡ Auto-Match
+                    <Zap className="w-4 h-4 mr-1" /> Auto-Match
                   </Button>
                   <Button size="sm" onClick={() => setVehicleModalOpen(true)}>
                     <Plus className="w-4 h-4 mr-1" />

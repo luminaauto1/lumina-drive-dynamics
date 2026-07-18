@@ -30,8 +30,8 @@ const statusColors: Record<string, string> = {
   finalized: 'bg-emerald-600/20 text-emerald-300',
   vehicle_delivered: 'bg-amber-500/20 text-amber-400',
   declined: 'bg-destructive/20 text-destructive',
-  declined_conditional: 'bg-gray-500/20 text-gray-300',
-  lost: 'bg-zinc-800/50 text-zinc-500',
+  declined_conditional: 'bg-muted text-muted-foreground',
+  lost: 'bg-muted/50 text-muted-foreground',
 };
 
 const vehicleOf = (app: any) => app?.selected_vehicle || app?.linked_vehicle || null;
@@ -256,8 +256,16 @@ const ClientProfile = () => {
               return (
                 <div
                   key={app.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setSelectedId(app.id)}
-                  className={`rounded-lg border p-3 cursor-pointer transition-colors ${isActive ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/40'}`}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedId(app.id);
+                    }
+                  }}
+                  className={`rounded-lg border p-3 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isActive ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/40'}`}
                 >
                   <div className="flex items-center justify-between gap-3 flex-wrap">
                     <div className="min-w-0">

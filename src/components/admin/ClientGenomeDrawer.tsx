@@ -3,7 +3,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { 
   Phone, Mail, MessageCircle, Send, MoreVertical, Key, CreditCard, 
   ArrowRight, Clock, Heart, FileText, User, Activity, Sparkles, 
-  Flame, Snowflake, UserCheck, Plus, ExternalLink
+  Flame, Snowflake, UserCheck, Plus, ExternalLink, CheckCircle2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -177,11 +177,21 @@ const ClientGenomeDrawer = ({ profile, open, onOpenChange }: ClientGenomeDrawerP
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="new">🆕 New</SelectItem>
-                <SelectItem value="contacted">📞 Contacted</SelectItem>
-                <SelectItem value="warm">🔥 Warm</SelectItem>
-                <SelectItem value="cold">❄️ Cold</SelectItem>
-                <SelectItem value="converted">✅ Converted</SelectItem>
+                <SelectItem value="new">
+                  <span className="inline-flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5" /> New</span>
+                </SelectItem>
+                <SelectItem value="contacted">
+                  <span className="inline-flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" /> Contacted</span>
+                </SelectItem>
+                <SelectItem value="warm">
+                  <span className="inline-flex items-center gap-1.5"><Flame className="h-3.5 w-3.5" /> Warm</span>
+                </SelectItem>
+                <SelectItem value="cold">
+                  <span className="inline-flex items-center gap-1.5"><Snowflake className="h-3.5 w-3.5" /> Cold</span>
+                </SelectItem>
+                <SelectItem value="converted">
+                  <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5" /> Converted</span>
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -286,7 +296,7 @@ const ClientGenomeDrawer = ({ profile, open, onOpenChange }: ClientGenomeDrawerP
                                 {format(new Date(lead.created_at), 'MMM d, yyyy')}
                               </p>
                             </div>
-                            <Badge className={lead.status === 'new' ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-500/20 text-gray-400'}>
+                            <Badge className={lead.status === 'new' ? 'bg-blue-500/20 text-blue-400' : 'bg-muted text-muted-foreground'}>
                               {lead.status}
                             </Badge>
                           </div>
@@ -444,7 +454,7 @@ const ClientGenomeDrawer = ({ profile, open, onOpenChange }: ClientGenomeDrawerP
                 <div className="space-y-3">
                   {applications.map((app: any) => {
                     const statusStyles: Record<string, string> = {
-                      pending: 'bg-gray-500/20 text-gray-400',
+                      pending: 'bg-muted text-muted-foreground',
                       'application_submitted': 'bg-blue-500/20 text-blue-400',
                       'pre_approved': 'bg-purple-500/20 text-purple-400',
                       'docs_received': 'bg-amber-500/20 text-amber-400',

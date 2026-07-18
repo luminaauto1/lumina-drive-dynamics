@@ -33,7 +33,7 @@ const LEAD_STATUS_OPTIONS = [
 
 const getStatusColor = (status: string) => {
   const s = (status || '').toLowerCase().trim();
-  if (['new', 'draft'].includes(s)) return 'border-zinc-400 bg-zinc-500/10 text-zinc-300';
+  if (['new', 'draft'].includes(s)) return 'border-border bg-muted/50 text-muted-foreground';
   if (['contacted'].includes(s)) return 'border-sky-400 bg-sky-500/10 text-sky-400';
   if (['in_progress'].includes(s)) return 'border-yellow-400 bg-yellow-500/10 text-yellow-400';
   if (['pending', 'application_submitted', 'needs_revision', 'revision_submitted', 'under_review'].includes(s)) return 'border-orange-500 bg-orange-500/10 text-orange-400';
@@ -41,7 +41,7 @@ const getStatusColor = (status: string) => {
   if (['validations_pending', 'validations_complete', 'contract_sent', 'contract_signed'].includes(s)) return 'border-blue-500 bg-blue-500/10 text-blue-400';
   if (['finalized', 'delivered', 'vehicle_delivered', 'converted', 'qualified'].includes(s)) return 'border-emerald-500 bg-emerald-500/10 text-emerald-400';
   if (['lost', 'declined', 'archived'].includes(s)) return 'border-red-500 bg-red-500/10 text-red-400';
-  return 'border-zinc-600 bg-zinc-500/10 text-zinc-300';
+  return 'border-border bg-muted/50 text-muted-foreground';
 };
 
 const getRowBorder = (status: string) => getStatusColor(status).split(' ')[0].replace('border-', 'border-l-');
@@ -193,7 +193,7 @@ const CrmTable = ({ records, onOpen, onChanged, selectedIds, onToggleSelect, can
                       key={rec.id}
                       defaultValue={rec.notes || ''}
                       onBlur={(e) => { if (e.target.value !== (rec.notes || '')) handleNotesChange(rec, e.target.value); }}
-                      className="h-8 text-xs bg-transparent border-transparent hover:border-muted focus:border-primary px-2 w-full rounded-md"
+                      className="h-8 text-xs bg-transparent border-transparent hover:border-input focus:border-primary px-2 w-full rounded-md"
                       placeholder="Add comment…"
                     />
                   </TableCell>

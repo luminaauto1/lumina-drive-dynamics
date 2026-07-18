@@ -452,7 +452,10 @@ td.wrap-text, th.wrap-text {
    ============================================================================ */
 .desk-root.theme-light,
 html.desk-portal-light {
-  --background: 60 9% 93%;            /* #f1f1ee paper */
+  /* AIRY WHITE pass (owner feedback: the warm-grey paper read "too grey").
+     Page is a barely-tinted cream-white — cards still pop via the elevation
+     shadow + hairline, but the overall field reads white and airy. */
+  --background: 48 12% 97%;           /* ~#f9f8f4 cream-white */
   --foreground: 240 6% 10%;          /* #18181b ink */
   --card: 0 0% 100%;                 /* #ffffff surface */
   --card-foreground: 240 6% 10%;
@@ -460,26 +463,226 @@ html.desk-portal-light {
   --popover-foreground: 240 6% 10%;
   --primary: 240 6% 10%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 60 9% 96%;            /* #f6f6f3 surface-2 */
+  --secondary: 0 0% 98.5%;           /* near-white surface-2 */
   --secondary-foreground: 240 6% 10%;
-  --muted: 48 12% 94%;
-  --muted-foreground: 240 4% 37%;    /* #5b5b63 */
-  --accent: 60 9% 96%;
+  /* Hover/selected fill — light but still visible as a fill on white
+     (the pre-pass 48 12% 94% measured 1.13:1 — effectively invisible). */
+  --muted: 48 9% 93.5%;              /* ~#f0efe9 */
+  --muted-foreground: 240 4% 34%;    /* #52525b — 7.7:1 on white */
+  --accent: 0 0% 97%;
   --accent-foreground: 240 6% 10%;
-  --border: 51 12% 88%;              /* #e3e3dd */
-  --input: 51 12% 88%;
+  /* TWO-TIER BORDERS (contrast pass): soft neutral hairline for card edges/
+     dividers (~1.6:1 vs white — visible, not heavy) + a clearly stronger
+     border for form controls (~2.9:1) so inputs read as inputs at a glance.
+     The pre-pass single tier (#e3e3dd) measured 1.29:1 — near invisible. */
+  --border: 45 5% 79%;               /* ~#cccbc6 neutral hairline */
+  --input: 240 2% 59%;               /* ~#95959a control border */
   --ring: 240 6% 10%;
   --sidebar-background: 0 0% 100%;
   --sidebar-foreground: 240 6% 10%;
-  --sidebar-accent: 60 9% 96%;
+  --sidebar-accent: 0 0% 97%;
   --sidebar-accent-foreground: 240 6% 10%;
-  --sidebar-border: 51 12% 88%;
+  --sidebar-border: 45 5% 83%;
   /* accent fill stays bright gold; emphasis TEXT darkens for white surfaces */
   --desk-accent: 51 100% 50%;        /* #FFD600 */
   --desk-accent-foreground: 0 0% 10%;
-  --desk-accent-text: 39 100% 33%;   /* ~#a16207 readable gold on white */
+  --desk-accent-text: 38 100% 29%;   /* deep gold ≥4.5:1 on white (old 33% hit 4.33) */
 }
 .desk-root.theme-light { background: hsl(var(--background)); color: hsl(var(--foreground)); }
+
+/* ============================================================================
+   ADMIN DARK SURFACES — scoped retune of the :root (public/brand) tokens for the
+   admin wrapper + its portaled overlays (html.desk-portal-dark is set by
+   AdminLayout, mirroring desk-portal-light). The PUBLIC site keeps the original
+   near-black look; only the admin gains separation. Measured (WCAG):
+   the old values put cards at 1.02:1 vs the page and borders at 1.27:1 —
+   everything blended. New: card #131313 on #0a0a0a page, hairline ~1.7:1,
+   control borders ~2.5:1.
+   KEY: --accent is redefined from PURE WHITE to a muted fill here. Every shadcn
+   primitive (dropdown/select/command/menubar/calendar/button outline+ghost)
+   uses bg-accent for hover/focus fills — with white accent each of those
+   flashed solid white in admin dark. Retokening fixes the whole class at once
+   (the public site keeps its white-accent branding).
+   ============================================================================ */
+.desk-root:not(.theme-light),
+html.desk-portal-dark {
+  --card: 0 0% 7.5%;                 /* #131313 — clearly lighter than the page */
+  --card-foreground: 0 0% 98%;
+  --popover: 0 0% 9%;
+  --popover-foreground: 0 0% 98%;
+  --secondary: 0 0% 12%;
+  --muted: 0 0% 16%;
+  --muted-foreground: 0 0% 72%;
+  --accent: 0 0% 16%;                /* subtle hover/selected fill (was pure white) */
+  --accent-foreground: 0 0% 98%;
+  /* Two-tier borders (dark): hairline ~1.7:1 on card, control border ~2.5:1. */
+  --border: 0 0% 100% / 0.16;
+  --input: 0 0% 100% / 0.28;
+  --sidebar-background: 0 0% 6%;
+  --sidebar-accent: 0 0% 14%;
+  --sidebar-border: 0 0% 100% / 0.14;
+}
+
+/* ============================================================================
+   ELEVATION (light admin) — the Stripe/Notion treatment: white cards float on
+   the paper page with a soft two-layer shadow instead of relying on a border
+   alone. Scoped to .shadow-sm (the Card primitive's resting elevation) so form
+   controls — which carry no shadow-sm — stay flat with their crisp border.
+   Dark mode intentionally skips this (shadows are invisible on near-black;
+   separation comes from the lighter card + hairline).
+   ============================================================================ */
+.desk-root.theme-light .shadow-sm,
+html.desk-portal-light .shadow-sm {
+  box-shadow: 0 1px 2px rgb(25 25 23 / 0.07), 0 2px 8px rgb(25 25 23 / 0.05);
+}
+/* glass-card is a public-site effect (black glass) — give it a light-admin skin */
+.desk-root.theme-light .glass-card {
+  background: hsl(var(--card) / 0.75);
+  border-color: hsl(var(--border));
+}
+
+/* ============================================================================
+   TABLES (both admin themes) — header row separates with the STRONG border tier
+   + muted label colour; body rows keep the hairline via border-border.
+   ============================================================================ */
+.desk-root thead tr { border-bottom: 1px solid hsl(var(--input)); }
+.desk-root thead th { color: hsl(var(--muted-foreground)); }
+
+/* ============================================================================
+   INTERACTION POLISH (both admin themes)
+   - Shared 150ms ease-out transition on interactive elements that declare no
+     Tailwind transition of their own (the :not guard preserves explicit
+     transition-* utilities, e.g. transforms on drag handles).
+   - prefers-reduced-motion collapses admin transitions/animations.
+   ============================================================================ */
+.desk-root :is(a, button, [role="button"], input, select, textarea, summary, tr):not([class^="transition"], [class*=" transition"]) {
+  transition: background-color 150ms ease-out, border-color 150ms ease-out,
+    color 150ms ease-out, opacity 150ms ease-out, box-shadow 150ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .desk-root *, .desk-root *::before, .desk-root *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* ============================================================================
+   LIGHT-MODE ACCENT REMAP — status colours as TEXT.
+   Status badge/pill class strings are PERSISTED IN THE DATABASE
+   (status_overrides.color_class et al) and hardcoded in shared constants
+   (NOTE_CATEGORIES, internalStatusConfig, statusTracks, lane accents), all
+   authored for the dark theme: text-*-300/400 measures 1.5–2.9:1 on white.
+   They cannot be batch-edited, so the light theme remaps each family to its
+   readable deep tone (all measured ≥4.5:1 on white — see the -700/600 tiers).
+   Fill (-bg) and border remaps follow the recipe: keep a soft tint for the
+   fill, strengthen the border, darken the text — never pale-on-pale.
+   The destructive-toast context is untouched: its red-300 classes are emitted
+   as `group-[.destructive]:*` variants, distinct class names not matched here.
+   Hover variants are remapped alongside base classes where pairs exist.
+   ============================================================================ */
+.desk-root.theme-light, html.desk-portal-light {
+  --sx-emerald: 163 94% 24%;  /* #047857  emerald-700  5.5:1 */
+  --sx-green:   142 72% 29%;  /* #15803d  green-700 */
+  --sx-red:     0 72% 51%;    /* #dc2626  red-600    4.8:1 */
+  --sx-rose:    343 80% 41%;  /* #be123c  rose-700 */
+  --sx-amber:   26 90% 37%;   /* #b45309  amber-700  5.0:1 */
+  --sx-yellow:  28 73% 26%;   /* #713f12  yellow-800 */
+  --sx-orange:  17 88% 40%;   /* #c2410c  orange-700 5.2:1 */
+  --sx-blue:    224 76% 48%;  /* #1d4ed8  blue-700   6.7:1 */
+  --sx-sky:     201 96% 32%;  /* #0369a1  sky-700 */
+  --sx-cyan:    193 82% 31%;  /* #0e7490  cyan-700   5.4:1 */
+  --sx-teal:    175 77% 26%;  /* #0f766e  teal-700 */
+  --sx-purple:  273 67% 47%;  /* #7e22ce  purple-700 7.0:1 */
+  --sx-violet:  263 70% 50%;  /* #6d28d9  violet-700 */
+  --sx-indigo:  244 55% 41%;  /* #3730a3  indigo-800 */
+  --sx-pink:    336 74% 42%;  /* #be185d  pink-700 */
+  --sx-lime:    86 78% 27%;   /* #4d7c0f  lime-700 */
+}
+/* --- text: 300/400/500 tiers (incl. alpha-suffixed emissions) → deep tones --- */
+.desk-root.theme-light :is(.text-emerald-300, .text-emerald-400, .text-emerald-500, .text-emerald-200, .text-emerald-300\/80, .text-emerald-400\/70, .text-emerald-400\/80, .text-emerald-400\/90, .text-emerald-500\/60, .hover\:text-emerald-300:hover, .hover\:text-emerald-400:hover),
+html.desk-portal-light :is(.text-emerald-300, .text-emerald-400, .text-emerald-500, .text-emerald-300\/80, .text-emerald-400\/80, .text-emerald-500\/60) { color: hsl(var(--sx-emerald)); }
+.desk-root.theme-light :is(.text-green-300, .text-green-400, .text-green-500, .text-green-500\/50, .hover\:text-green-400:hover),
+html.desk-portal-light :is(.text-green-300, .text-green-400, .text-green-500) { color: hsl(var(--sx-green)); }
+.desk-root.theme-light :is(.text-red-200, .text-red-300, .text-red-400, .text-red-500, .text-red-300\/60, .text-red-300\/80, .hover\:text-red-300:hover, .hover\:text-red-400:hover),
+html.desk-portal-light :is(.text-red-300, .text-red-400, .text-red-500, .text-red-300\/80) { color: hsl(var(--sx-red)); }
+.desk-root.theme-light :is(.text-rose-300, .text-rose-400, .text-rose-300\/80),
+html.desk-portal-light :is(.text-rose-300, .text-rose-400) { color: hsl(var(--sx-rose)); }
+.desk-root.theme-light :is(.text-amber-200, .text-amber-300, .text-amber-400, .text-amber-500, .text-amber-300\/80, .text-amber-400\/80, .text-amber-500\/50, .text-amber-500\/80, .hover\:text-amber-300:hover, .hover\:text-amber-400:hover),
+html.desk-portal-light :is(.text-amber-300, .text-amber-400, .text-amber-500, .text-amber-400\/80) { color: hsl(var(--sx-amber)); }
+.desk-root.theme-light :is(.text-yellow-300, .text-yellow-400, .text-yellow-500),
+html.desk-portal-light :is(.text-yellow-300, .text-yellow-400, .text-yellow-500) { color: hsl(var(--sx-yellow)); }
+.desk-root.theme-light :is(.text-orange-300, .text-orange-400, .text-orange-500),
+html.desk-portal-light :is(.text-orange-300, .text-orange-400, .text-orange-500) { color: hsl(var(--sx-orange)); }
+.desk-root.theme-light :is(.text-blue-300, .text-blue-400, .text-blue-500, .text-blue-400\/70, .text-blue-500\/50, .hover\:text-blue-400:hover),
+html.desk-portal-light :is(.text-blue-300, .text-blue-400, .text-blue-500) { color: hsl(var(--sx-blue)); }
+.desk-root.theme-light :is(.text-sky-300, .text-sky-400, .text-sky-500, .text-sky-300\/80, .text-sky-500\/60, .hover\:text-sky-300:hover),
+html.desk-portal-light :is(.text-sky-300, .text-sky-400, .text-sky-500) { color: hsl(var(--sx-sky)); }
+.desk-root.theme-light :is(.text-cyan-300, .text-cyan-400, .text-cyan-500),
+html.desk-portal-light :is(.text-cyan-300, .text-cyan-400, .text-cyan-500) { color: hsl(var(--sx-cyan)); }
+.desk-root.theme-light :is(.text-teal-300, .text-teal-400),
+html.desk-portal-light :is(.text-teal-300, .text-teal-400) { color: hsl(var(--sx-teal)); }
+.desk-root.theme-light :is(.text-purple-200, .text-purple-300, .text-purple-400, .text-purple-500, .text-purple-500\/50),
+html.desk-portal-light :is(.text-purple-300, .text-purple-400, .text-purple-500) { color: hsl(var(--sx-purple)); }
+.desk-root.theme-light :is(.text-violet-300, .text-violet-400),
+html.desk-portal-light :is(.text-violet-300, .text-violet-400) { color: hsl(var(--sx-violet)); }
+.desk-root.theme-light :is(.text-indigo-300, .text-indigo-400),
+html.desk-portal-light :is(.text-indigo-300, .text-indigo-400) { color: hsl(var(--sx-indigo)); }
+.desk-root.theme-light :is(.text-pink-300, .text-pink-400, .text-pink-500),
+html.desk-portal-light :is(.text-pink-300, .text-pink-400, .text-pink-500) { color: hsl(var(--sx-pink)); }
+.desk-root.theme-light :is(.text-lime-300, .text-lime-400),
+html.desk-portal-light :is(.text-lime-300, .text-lime-400) { color: hsl(var(--sx-lime)); }
+/* neutral grays used as text on badges → token muted text */
+.desk-root.theme-light :is(.text-zinc-300, .text-zinc-400, .text-zinc-500, .text-zinc-600, .text-gray-300, .text-gray-400, .text-gray-500, .hover\:text-zinc-300:hover),
+html.desk-portal-light :is(.text-zinc-300, .text-zinc-400, .text-gray-300, .text-gray-400, .text-gray-500) { color: hsl(var(--muted-foreground)); }
+/* --- dark-only FILLS (…-900/…-950/zinc-800 panels read as mud on paper) → soft tints --- */
+.desk-root.theme-light :is([class^="bg-emerald-900"], [class*=" bg-emerald-900"], [class^="bg-emerald-950"], [class*=" bg-emerald-950"], [class^="bg-green-900"], [class*=" bg-green-900"], [class^="bg-green-950"], [class*=" bg-green-950"]),
+html.desk-portal-light :is([class^="bg-emerald-900"], [class*=" bg-emerald-900"], [class^="bg-emerald-950"], [class*=" bg-emerald-950"]) { background-color: hsl(var(--sx-emerald) / 0.10); }
+.desk-root.theme-light :is([class^="bg-red-900"], [class*=" bg-red-900"], [class^="bg-red-950"], [class*=" bg-red-950"], [class^="bg-rose-950"], [class*=" bg-rose-950"]),
+html.desk-portal-light :is([class^="bg-red-900"], [class*=" bg-red-900"], [class^="bg-red-950"], [class*=" bg-red-950"]) { background-color: hsl(var(--sx-red) / 0.09); }
+.desk-root.theme-light :is([class^="bg-amber-950"], [class*=" bg-amber-950"], [class^="bg-yellow-950"], [class*=" bg-yellow-950"], [class^="bg-orange-950"], [class*=" bg-orange-950"]),
+html.desk-portal-light :is([class^="bg-amber-950"], [class*=" bg-amber-950"]) { background-color: hsl(var(--sx-amber) / 0.10); }
+.desk-root.theme-light :is([class^="bg-blue-900"], [class*=" bg-blue-900"], [class^="bg-blue-950"], [class*=" bg-blue-950"], [class^="bg-sky-950"], [class*=" bg-sky-950"], [class^="bg-indigo-950"], [class*=" bg-indigo-950"]),
+html.desk-portal-light :is([class^="bg-blue-950"], [class*=" bg-blue-950"], [class^="bg-sky-950"], [class*=" bg-sky-950"]) { background-color: hsl(var(--sx-blue) / 0.08); }
+.desk-root.theme-light :is([class^="bg-purple-900"], [class*=" bg-purple-900"], [class^="bg-purple-950"], [class*=" bg-purple-950"]),
+html.desk-portal-light :is([class^="bg-purple-900"], [class*=" bg-purple-900"]) { background-color: hsl(var(--sx-purple) / 0.09); }
+.desk-root.theme-light :is([class^="bg-zinc-800"], [class*=" bg-zinc-800"], [class^="bg-zinc-900"], [class*=" bg-zinc-900"], [class^="bg-zinc-950"], [class*=" bg-zinc-950"], [class^="bg-neutral-900"], [class*=" bg-neutral-900"]),
+html.desk-portal-light :is([class^="bg-zinc-800"], [class*=" bg-zinc-800"], [class^="bg-zinc-900"], [class*=" bg-zinc-900"], [class^="bg-zinc-950"], [class*=" bg-zinc-950"]) { background-color: hsl(var(--muted)); }
+/* remaining dark-fill hues (Lead Cockpit source map et al) */
+.desk-root.theme-light :is([class^="bg-cyan-900"], [class*=" bg-cyan-900"], [class^="bg-cyan-950"], [class*=" bg-cyan-950"], [class^="bg-teal-900"], [class*=" bg-teal-900"]),
+html.desk-portal-light :is([class^="bg-cyan-900"], [class*=" bg-cyan-900"], [class^="bg-cyan-950"], [class*=" bg-cyan-950"]) { background-color: hsl(var(--sx-cyan) / 0.09); }
+.desk-root.theme-light :is([class^="bg-orange-900"], [class*=" bg-orange-900"], [class^="bg-yellow-900"], [class*=" bg-yellow-900"]),
+html.desk-portal-light :is([class^="bg-orange-900"], [class*=" bg-orange-900"], [class^="bg-yellow-900"], [class*=" bg-yellow-900"]) { background-color: hsl(var(--sx-amber) / 0.10); }
+.desk-root.theme-light :is([class^="bg-indigo-900"], [class*=" bg-indigo-900"], [class^="bg-violet-900"], [class*=" bg-violet-900"]),
+html.desk-portal-light :is([class^="bg-indigo-900"], [class*=" bg-indigo-900"]) { background-color: hsl(var(--sx-indigo) / 0.08); }
+/* --- faint tinted borders (…-500/20-30 measure ~1.3:1 on white) → 45% deep tone --- */
+.desk-root.theme-light :is([class^="border-emerald-500/2"], [class*=" border-emerald-500/2"], [class^="border-emerald-500/3"], [class*=" border-emerald-500/3"], [class^="border-emerald-400/3"], [class*=" border-emerald-400/3"]),
+html.desk-portal-light :is([class^="border-emerald-500/2"], [class*=" border-emerald-500/2"], [class^="border-emerald-500/3"], [class*=" border-emerald-500/3"]) { border-color: hsl(var(--sx-emerald) / 0.45); }
+.desk-root.theme-light :is([class^="border-red-500/2"], [class*=" border-red-500/2"], [class^="border-red-500/3"], [class*=" border-red-500/3"], [class^="border-red-800"], [class*=" border-red-800"]),
+html.desk-portal-light :is([class^="border-red-500/2"], [class*=" border-red-500/2"], [class^="border-red-500/3"], [class*=" border-red-500/3"]) { border-color: hsl(var(--sx-red) / 0.45); }
+.desk-root.theme-light :is([class^="border-amber-500/2"], [class*=" border-amber-500/2"], [class^="border-amber-500/3"], [class*=" border-amber-500/3"], [class^="border-amber-400/3"], [class*=" border-amber-400/3"], [class^="border-amber-400/4"], [class*=" border-amber-400/4"], [class^="border-amber-800"], [class*=" border-amber-800"], [class^="border-yellow-500/2"], [class*=" border-yellow-500/2"], [class^="border-yellow-500/3"], [class*=" border-yellow-500/3"]),
+html.desk-portal-light :is([class^="border-amber-500/2"], [class*=" border-amber-500/2"], [class^="border-amber-500/3"], [class*=" border-amber-500/3"]) { border-color: hsl(var(--sx-amber) / 0.45); }
+.desk-root.theme-light :is([class^="border-blue-500/2"], [class*=" border-blue-500/2"], [class^="border-blue-500/3"], [class*=" border-blue-500/3"], [class^="border-sky-800"], [class*=" border-sky-800"], [class^="border-sky-500/2"], [class*=" border-sky-500/2"], [class^="border-sky-500/3"], [class*=" border-sky-500/3"]),
+html.desk-portal-light :is([class^="border-blue-500/2"], [class*=" border-blue-500/2"], [class^="border-blue-500/3"], [class*=" border-blue-500/3"]) { border-color: hsl(var(--sx-blue) / 0.45); }
+.desk-root.theme-light :is([class^="border-purple-500/2"], [class*=" border-purple-500/2"], [class^="border-purple-500/3"], [class*=" border-purple-500/3"]),
+html.desk-portal-light :is([class^="border-purple-500/2"], [class*=" border-purple-500/2"], [class^="border-purple-500/3"], [class*=" border-purple-500/3"]) { border-color: hsl(var(--sx-purple) / 0.45); }
+.desk-root.theme-light :is([class^="border-cyan-500/2"], [class*=" border-cyan-500/2"], [class^="border-cyan-500/3"], [class*=" border-cyan-500/3"]),
+html.desk-portal-light :is([class^="border-cyan-500/2"], [class*=" border-cyan-500/2"], [class^="border-cyan-500/3"], [class*=" border-cyan-500/3"]) { border-color: hsl(var(--sx-cyan) / 0.45); }
+.desk-root.theme-light :is([class^="border-teal-500/2"], [class*=" border-teal-500/2"], [class^="border-teal-500/3"], [class*=" border-teal-500/3"]),
+html.desk-portal-light :is([class^="border-teal-500/2"], [class*=" border-teal-500/2"], [class^="border-teal-500/3"], [class*=" border-teal-500/3"]) { border-color: hsl(var(--sx-teal) / 0.45); }
+.desk-root.theme-light :is([class^="border-indigo-500/2"], [class*=" border-indigo-500/2"], [class^="border-indigo-500/3"], [class*=" border-indigo-500/3"]),
+html.desk-portal-light :is([class^="border-indigo-500/2"], [class*=" border-indigo-500/2"], [class^="border-indigo-500/3"], [class*=" border-indigo-500/3"]) { border-color: hsl(var(--sx-indigo) / 0.45); }
+.desk-root.theme-light :is([class^="border-rose-500/2"], [class*=" border-rose-500/2"], [class^="border-rose-500/3"], [class*=" border-rose-500/3"], [class^="border-rose-800"], [class*=" border-rose-800"]),
+html.desk-portal-light :is([class^="border-rose-500/2"], [class*=" border-rose-500/2"], [class^="border-rose-500/3"], [class*=" border-rose-500/3"]) { border-color: hsl(var(--sx-rose) / 0.45); }
+.desk-root.theme-light :is([class^="border-pink-500/2"], [class*=" border-pink-500/2"], [class^="border-pink-500/3"], [class*=" border-pink-500/3"]),
+html.desk-portal-light :is([class^="border-pink-500/2"], [class*=" border-pink-500/2"], [class^="border-pink-500/3"], [class*=" border-pink-500/3"]) { border-color: hsl(var(--sx-pink) / 0.45); }
+.desk-root.theme-light :is([class^="border-orange-500/2"], [class*=" border-orange-500/2"], [class^="border-orange-500/3"], [class*=" border-orange-500/3"]),
+html.desk-portal-light :is([class^="border-orange-500/2"], [class*=" border-orange-500/2"], [class^="border-orange-500/3"], [class*=" border-orange-500/3"]) { border-color: hsl(var(--sx-orange) / 0.45); }
+.desk-root.theme-light :is([class^="border-violet-500/2"], [class*=" border-violet-500/2"], [class^="border-violet-500/3"], [class*=" border-violet-500/3"]),
+html.desk-portal-light :is([class^="border-violet-500/2"], [class*=" border-violet-500/2"], [class^="border-violet-500/3"], [class*=" border-violet-500/3"]) { border-color: hsl(var(--sx-violet) / 0.45); }
+/* neutral zinc borders on chips → hairline token */
+.desk-root.theme-light :is([class^="border-zinc-400"], [class*=" border-zinc-400"], [class^="border-zinc-500"], [class*=" border-zinc-500"], [class^="border-zinc-600"], [class*=" border-zinc-600"], [class^="border-zinc-700"], [class*=" border-zinc-700"], [class^="border-zinc-800"], [class*=" border-zinc-800"], [class^="border-gray-500/3"], [class*=" border-gray-500/3"]),
+html.desk-portal-light :is([class^="border-zinc-600"], [class*=" border-zinc-600"], [class^="border-zinc-700"], [class*=" border-zinc-700"], [class^="border-zinc-800"], [class*=" border-zinc-800"]) { border-color: hsl(var(--border)); }
 
 /* Pipeline v2 table — tighten row vertical padding a notch (denser scan) while
    keeping the horizontal rhythm. Higher specificity than the density `tbody td`

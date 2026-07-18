@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import { isToday } from 'date-fns';
-import { Search, MessageCircle, ExternalLink, Trash2, Archive, UserPlus, User, Copy, Link, ClipboardList, Banknote, Calculator, MailWarning, MessageSquare, Globe, FileText, Mail, FileX, BarChart3 } from 'lucide-react';
+import { Search, MessageCircle, ExternalLink, Trash2, Archive, UserPlus, User, Copy, Link, ClipboardList, Banknote, Calculator, MailWarning, MessageSquare, Globe, FileText, Mail, FileX, BarChart3, Flame, AlertTriangle, StickyNote, Check, Phone, Ban, CheckCircle2, Landmark, ArrowUp, Undo2 } from 'lucide-react';
 import WhatsAppParserModal from '@/components/admin/WhatsAppParserModal';
 import AddManualEntryModal from '@/components/admin/AddManualEntryModal';
 import BankReferenceModal from '@/components/admin/BankReferenceModal';
@@ -835,9 +835,9 @@ const AdminFinance = () => {
             )}
             {/* Secondary indicators */}
             <div className="flex items-center gap-1.5 flex-wrap">
-              {isNew && <span className={`${indicatorBase} font-bold border-emerald-500/30 bg-emerald-500/10 text-emerald-400`}>🔥 NEW</span>}
+              {isNew && <span className={`${indicatorBase} font-bold border-emerald-500/30 bg-emerald-500/10 text-emerald-400`}><Flame className="h-3.5 w-3.5" /> NEW</span>}
               {isStagnant && !isNew && <span className={`${indicatorBase} font-bold border-orange-500/30 bg-orange-500/10 text-orange-400`}>⏳ STALE</span>}
-              {riskReason && <span className={`${indicatorBase} font-bold border-red-500/30 bg-red-500/10 text-red-400`} title={riskReason}>⚠ {riskReason}</span>}
+              {riskReason && <span className={`${indicatorBase} font-bold border-red-500/30 bg-red-500/10 text-red-400`} title={riskReason}><AlertTriangle className="h-3.5 w-3.5" /> {riskReason}</span>}
               <span className={`${iconTileBase} border-border bg-muted/40 text-muted-foreground`} title={`Source: ${srcLabel}`} aria-label={`Source: ${srcLabel}`}>{srcIcon}</span>
               {hasDocs ? (
                 <span className={`${iconTileBase} border-border bg-muted/40 text-muted-foreground`} title={`Docs received via ${[dEmail && 'Email', dWa && 'WhatsApp'].filter(Boolean).join(' & ')}`}>
@@ -904,7 +904,7 @@ const AdminFinance = () => {
               }}
               className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded border border-border bg-muted/40 text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors"
               title={hasNotes ? 'View Notes' : 'Add Note'}>
-              <span className="text-xs leading-none">📝</span>
+              <StickyNote className="h-3.5 w-3.5" />
               {showDot && <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-background" />}
             </button>
           </div>
@@ -952,7 +952,7 @@ const AdminFinance = () => {
                   onClick={() => openOutcome('passed')}
                   title="Credit check passed — attach the report & pick the next status"
                 >
-                  ✓ Passed
+                  <Check className="h-3.5 w-3.5" /> Passed
                 </Button>
                 <Button
                   size="sm"
@@ -961,7 +961,7 @@ const AdminFinance = () => {
                   onClick={() => openOutcome('failed')}
                   title="Credit check failed — attach the report & pick the next status"
                 >
-                  ✗ Failed
+                  <X className="h-3.5 w-3.5" /> Failed
                 </Button>
               </>
             )}
@@ -1163,7 +1163,7 @@ const AdminFinance = () => {
               className={`text-[11px] px-3 py-1 rounded-md transition-colors border ${
                 effectiveView === key
                   ? activeCls
-                  : 'bg-transparent text-zinc-500 border-zinc-800 hover:text-zinc-300'
+                  : 'bg-transparent text-muted-foreground border-border hover:text-foreground'
               }`}
             >
               {label}
@@ -1173,18 +1173,18 @@ const AdminFinance = () => {
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="w-full bg-[#1A1A1A] border border-zinc-800 rounded-lg p-4 mb-6 flex flex-col gap-2"
+              className="w-full bg-card border border-border rounded-lg p-4 mb-6 flex flex-col gap-2"
             >
               {canToggle && (
-                <div className="flex items-center gap-2 pb-2 mb-1 border-b border-zinc-800/80">
-                  <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 mr-1">View</span>
+                <div className="flex items-center gap-2 pb-2 mb-1 border-b border-border">
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mr-1">View</span>
                   {toggleBtn('admin', 'Admin', 'bg-red-900/40 text-red-400 border-red-500/50')}
                   {toggleBtn('senior', 'Senior F&I', 'bg-purple-900/40 text-purple-400 border-purple-500/50')}
                   {toggleBtn('f_and_i', 'F&I Team', 'bg-emerald-900/40 text-emerald-400 border-emerald-500/50')}
                 </div>
               )}
               {feed.length === 0 ? (
-                <p className="text-[11px] text-zinc-500 py-2">No items in this feed.</p>
+                <p className="text-[11px] text-muted-foreground py-2">No items in this feed.</p>
               ) : (
               <>
               <div className="flex items-center justify-between">
@@ -1192,7 +1192,7 @@ const AdminFinance = () => {
                   <MailWarning className="w-3.5 h-3.5" />
                   {headerLabel}
                 </p>
-                <span className="text-[10px] text-zinc-500">
+                <span className="text-[10px] text-muted-foreground">
                   {feed.length} ready for review
                 </span>
               </div>
@@ -1224,21 +1224,21 @@ const AdminFinance = () => {
                     <button
                       key={app.id}
                       onClick={() => focusApplicationRow(app)}
-                      className={`group grid grid-cols-[1fr_auto_auto] md:grid-cols-3 items-center gap-3 px-3 py-2 rounded-md bg-zinc-900/60 border text-left transition-colors ${containerClass}`}
+                      className={`group grid grid-cols-[1fr_auto_auto] md:grid-cols-3 items-center gap-3 px-3 py-2 rounded-md bg-muted/60 border text-left transition-colors ${containerClass}`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0 justify-self-start">
                         <span className={`w-1.5 h-1.5 rounded-full ${dotClass} animate-pulse shrink-0`} />
-                        <span className={`text-sm text-zinc-200 truncate ${textHover}`}>
+                        <span className={`text-sm text-foreground truncate ${textHover}`}>
                           {app.first_name} {app.last_name}
                         </span>
-                        <span className="text-[11px] text-zinc-500 truncate hidden sm:inline">
+                        <span className="text-[11px] text-muted-foreground truncate hidden sm:inline">
                           {subLabel}
                         </span>
                       </div>
-                      <div className="hidden md:flex justify-center text-[11px] text-zinc-500 font-mono tracking-wide whitespace-nowrap">
+                      <div className="hidden md:flex justify-center text-[11px] text-muted-foreground font-mono tracking-wide whitespace-nowrap">
                         {formattedDate}
                       </div>
-                      <span className="text-[10px] uppercase tracking-wider text-zinc-500 shrink-0 justify-self-end whitespace-nowrap">
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0 justify-self-end whitespace-nowrap">
                         {ADMIN_STATUS_LABELS[app.status] || app.status} →
                       </span>
                     </button>
@@ -1248,7 +1248,7 @@ const AdminFinance = () => {
                   <button
                     type="button"
                     onClick={() => setFeedExpanded((e) => !e)}
-                    className="text-[11px] text-zinc-500 hover:text-zinc-300 py-1 text-left transition-colors"
+                    className="text-[11px] text-muted-foreground hover:text-foreground py-1 text-left transition-colors"
                   >
                     {feedExpanded ? '▲ Show fewer' : `▼ Show all ${feed.length}`}
                   </button>
@@ -1373,7 +1373,7 @@ const AdminFinance = () => {
 
         {/* Bulk bar — appears while rows are selected */}
         {selectedIds.size > 0 && (
-          <div className="sticky top-2 z-20 flex flex-wrap items-center gap-2 mb-3 px-3 py-2 rounded-lg border border-amber-500/40 bg-[#1A1A1A]/95 shadow-lg">
+          <div className="sticky top-2 z-20 flex flex-wrap items-center gap-2 mb-3 px-3 py-2 rounded-lg border border-amber-500/40 bg-card/95 shadow-lg">
             <ListChecks className="w-4 h-4 text-amber-400" />
             <span className="text-sm text-foreground tabular-nums">{selectedIds.size} selected</span>
             <Button size="sm" variant="outline" className="h-7" disabled={bulkBusy} onClick={() => setBulkStatusOpen(true)}>
@@ -1491,6 +1491,8 @@ const AdminFinance = () => {
                 </div>
                 {pendingApp?.phone && (
                   <span
+                    role="button"
+                    tabIndex={0}
                     onClick={async () => {
                       try {
                         await navigator.clipboard.writeText(pendingApp.phone);
@@ -1499,10 +1501,19 @@ const AdminFinance = () => {
                         toast({ title: 'Copy failed', variant: 'destructive' });
                       }
                     }}
-                    className="text-base text-foreground hover:text-foreground cursor-pointer transition-colors font-normal whitespace-nowrap self-center"
+                    onKeyDown={async (e) => {
+                      if (e.key !== 'Enter') return;
+                      try {
+                        await navigator.clipboard.writeText(pendingApp.phone);
+                        toast({ title: 'Number copied' });
+                      } catch {
+                        toast({ title: 'Copy failed', variant: 'destructive' });
+                      }
+                    }}
+                    className="inline-flex items-center gap-1 text-base text-foreground hover:text-foreground cursor-pointer transition-colors font-normal whitespace-nowrap self-center focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/60"
                     title="Click to copy"
                   >
-                    📞 {pendingApp.phone}
+                    <Phone className="h-4 w-4" /> {pendingApp.phone}
                   </span>
                 )}
                 <div className="flex items-center gap-2 self-center">
@@ -1569,7 +1580,7 @@ const AdminFinance = () => {
                     }}
                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                   >
-                    ✓ Mark as Attended (Clear Note)
+                    <Check className="h-4 w-4" /> Mark as Attended (Clear Note)
                   </Button>
                   <Button
                     onClick={async () => {
@@ -1595,9 +1606,9 @@ const AdminFinance = () => {
                         toast({ title: 'Failed to cancel', description: e?.message, variant: 'destructive' });
                       }
                     }}
-                    className="w-full bg-zinc-700 hover:bg-zinc-600 text-white border border-zinc-500"
+                    className="w-full bg-secondary hover:bg-muted text-foreground border border-input"
                   >
-                    🚫 Cancel / Ghost (Clear Note)
+                    <Ban className="h-4 w-4" /> Cancel / Ghost (Clear Note)
                   </Button>
                 </div>
               );
@@ -1674,16 +1685,16 @@ const AdminFinance = () => {
                   <button
                     type="button"
                     onClick={() => handleFinalize('ready_to_submit', { label: 'Ready to Submit', auditVerb: 'Marked Ready to Submit.' })}
-                    className="w-full bg-emerald-900/30 text-emerald-300 border border-emerald-500/50 hover:bg-emerald-800/40 transition-colors font-medium px-4 py-3 rounded-md"
+                    className="w-full inline-flex items-center justify-center gap-1 bg-emerald-900/30 text-emerald-300 border border-emerald-500/50 hover:bg-emerald-800/40 transition-colors font-medium px-4 py-3 rounded-md"
                   >
-                    ✅ Ready to Submit
+                    <CheckCircle2 className="h-4 w-4" /> Ready to Submit
                   </button>
                   <button
                     type="button"
                     onClick={() => handleFinalize('sent_to_banks', { label: 'Sent to Banks', auditVerb: 'Updated and sent to bank.' })}
-                    className="w-full bg-yellow-500 text-black font-semibold px-4 py-3 rounded-md hover:bg-yellow-400 transition-colors"
+                    className="w-full inline-flex items-center justify-center gap-1 bg-yellow-500 text-black font-semibold px-4 py-3 rounded-md hover:bg-yellow-400 transition-colors"
                   >
-                    🏦 Finalize: Send to Banks
+                    <Landmark className="h-4 w-4" /> Finalize: Send to Banks
                   </button>
                 </div>
               );
@@ -1710,11 +1721,11 @@ const AdminFinance = () => {
                         const tag = m?.[1] || null;
                         const roleStyle =
                           tag === 'ADMIN'
-                            ? { border: 'border-[#ff2d55]', text: 'text-[#ff5c7a]', shadow: 'shadow-[0_0_8px_rgba(255,45,85,0.45)]', label: 'Admin' }
+                            ? { border: 'border-rose-500', text: 'text-rose-400', shadow: 'shadow-[0_0_8px_rgba(244,63,94,0.45)]', label: 'Admin' }
                           : tag === 'SALES'
-                            ? { border: 'border-[#38bdf8]', text: 'text-[#7dd3fc]', shadow: 'shadow-[0_0_8px_rgba(56,189,248,0.45)]', label: 'Sales' }
+                            ? { border: 'border-sky-400', text: 'text-sky-300', shadow: 'shadow-[0_0_8px_rgba(56,189,248,0.45)]', label: 'Sales' }
                           : tag === 'FNI'
-                            ? { border: 'border-[#ff2bd6]', text: 'text-[#ff7ae6]', shadow: 'shadow-[0_0_8px_rgba(255,43,214,0.45)]', label: 'F&I' }
+                            ? { border: 'border-fuchsia-500', text: 'text-fuchsia-400', shadow: 'shadow-[0_0_8px_rgba(217,70,239,0.45)]', label: 'F&I' }
                             : null;
                         const cleaned = entry.replace(/«(ADMIN|SALES|FNI|STAFF)»\s?/, '');
                         const isNewest = idx === 0;
@@ -1723,7 +1734,7 @@ const AdminFinance = () => {
                             key={idx}
                             className={[
                               'p-2.5 rounded-sm font-mono text-xs whitespace-pre-wrap border-l-4',
-                              roleStyle ? `${roleStyle.border} ${roleStyle.shadow}` : 'border-border/60',
+                              roleStyle ? `${roleStyle.border} ${roleStyle.shadow}` : 'border-border',
                               isNewest ? 'bg-yellow-500/10 text-yellow-100' : 'text-muted-foreground bg-background/40',
                             ].join(' ')}
                           >
@@ -1804,7 +1815,7 @@ const AdminFinance = () => {
                     onClick={() => confirmStatusUpdate('note_to_senior_f_and_i')}
                     className="flex-1 border-purple-500/50 text-purple-300 hover:bg-purple-900/30"
                   >
-                    ⬆ Send note to Senior F&amp;I
+                    <ArrowUp className="h-4 w-4" /> Send note to Senior F&amp;I
                   </Button>
                 )}
                 {(role === 'senior_f_and_i' || role === 'super_admin') && (
@@ -1814,7 +1825,7 @@ const AdminFinance = () => {
                     onClick={() => confirmStatusUpdate('note_to_f_and_i')}
                     className="flex-1 border-emerald-500/50 text-emerald-300 hover:bg-emerald-900/30"
                   >
-                    ↩ Save &amp; send update back to F&amp;I
+                    <Undo2 className="h-4 w-4" /> Save &amp; send update back to F&amp;I
                   </Button>
                 )}
               </div>

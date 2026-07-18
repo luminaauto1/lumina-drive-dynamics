@@ -17,11 +17,12 @@
 import { useState, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Package, Calendar, AlertCircle, Loader2, MessageCircle, Edit2, Save, X,
+  Package, Calendar, AlertCircle, AlertTriangle, Loader2, MessageCircle, Edit2, Save, X,
   Eye, Undo2, TrendingUp, DollarSign, Users, Plus, Receipt, Wrench,
   FileText, FolderOpen, Settings, Calculator,
   Lock, Unlock, Download
 } from 'lucide-react';
+import ConfirmDialog from '@/components/admin/ConfirmDialog';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -939,6 +940,7 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
   const [pdfDeal, setPdfDeal] = useState<DealRecord | null>(null);
   const [pdfExpenses, setPdfExpenses] = useState<{ description: string; amount: number; category: string }[]>([]);
   const [isReportPreviewOpen, setIsReportPreviewOpen] = useState(false);
+  const [confirmLock, setConfirmLock] = useState<null | { deal: DealRecord; mode: 'lock' | 'unlock' }>(null);
   const reportRef = useRef<HTMLDivElement>(null);
 
   // --- PDF GENERATION ENGINE ---
@@ -1017,22 +1019,13 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
   };
 
   // Lock/Unlock handlers — locking just prevents accidental editing; no PIN required.
-  const handleToggleLock = async (deal: DealRecord) => {
-    if (deal.is_closed) {
-      // Unlock for editing (no PIN).
-      if (confirm('Unlock this deal for editing?')) {
-        await supabase.from('deal_records').update({ is_closed: false } as any).eq('id', deal.id);
-        toast.success('Deal unlocked for editing.');
-        queryClient.invalidateQueries({ queryKey: ['deal-records'] });
-      }
-    } else {
-      // Lock it.
-      if (confirm('Lock this deal? This prevents accidental editing — you can unlock it again anytime.')) {
-        await supabase.from('deal_records').update({ is_closed: true } as any).eq('id', deal.id);
-        toast.success('Deal locked.');
-        queryClient.invalidateQueries({ queryKey: ['deal-records'] });
-      }
-    }
+  const handleToggleLock = (deal: DealRecord) => {
+    setConfirmLock({ deal, mode: deal.is_closed ? 'unlock' : 'lock' });
+  };
+  const applyToggleLock = async (deal: DealRecord, mode: 'lock' | 'unlock') => {
+    await supabase.from('deal_records').update({ is_closed: mode === 'lock' } as any).eq('id', deal.id);
+    toast.success(mode === 'lock' ? 'Deal locked.' : 'Deal unlocked for editing.');
+    queryClient.invalidateQueries({ queryKey: ['deal-records'] });
   };
 
   // === GROUP DEALS BY MONTH ===
@@ -1494,8 +1487,17 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
                     return (
                       <TableRow
                         key={deal.id}
-                        className={`border-border hover:bg-muted/30 cursor-pointer ${serviceDue.isDue ? 'bg-red-500/5' : ''} ${isLocked ? 'opacity-80' : ''}`}
+                        tabIndex={0}
+                        className={`border-border hover:bg-muted/30 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/60 ${serviceDue.isDue ? 'bg-red-500/5' : ''} ${isLocked ? 'opacity-80' : ''}`}
                         onClick={() => {
+                          if (isLocked) {
+                            toast.info('This deal is locked. Unlock it first to edit.');
+                          } else {
+                            setEditDeal(deal);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key !== 'Enter') return;
                           if (isLocked) {
                             toast.info('This deal is locked. Unlock it first to edit.');
                           } else {
@@ -1546,7 +1548,7 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
                               {formatPrice(netProfit)}
                             </p>
                             {hasZeroCost && (
-                              <p className="text-xs text-yellow-500">⚠ No cost recorded</p>
+                              <p className="text-xs text-yellow-500 inline-flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> No cost recorded</p>
                             )}
                             {deal.sales_rep_commission && deal.sales_rep_commission > 0 && (
                               <p className="text-xs text-muted-foreground">
@@ -1919,6 +1921,21 @@ const AftersalesLedger = ({ view }: AftersalesLedgerProps) => {
           </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!confirmLock}
+        title={confirmLock?.mode === 'unlock' ? 'Unlock deal?' : 'Lock deal?'}
+        description={confirmLock?.mode === 'unlock'
+          ? 'Unlock this deal for editing?'
+          : 'Lock this deal? This prevents accidental editing — you can unlock it again anytime.'}
+        confirmLabel={confirmLock?.mode === 'unlock' ? 'Unlock' : 'Lock'}
+        destructive={false}
+        onConfirm={() => {
+          if (confirmLock) void applyToggleLock(confirmLock.deal, confirmLock.mode);
+          setConfirmLock(null);
+        }}
+        onCancel={() => setConfirmLock(null)}
+      />
     </div>
   );
 };

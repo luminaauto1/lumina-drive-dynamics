@@ -91,7 +91,12 @@ const LeadEditModal = ({ lead, open, onOpenChange, onSaved }: LeadEditModalProps
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {PIPELINE_COLUMNS.map(col => (
-                  <SelectItem key={col.id} value={col.id}>{col.title}</SelectItem>
+                  <SelectItem key={col.id} value={col.id}>
+                    <span className="inline-flex items-center gap-1.5">
+                      <col.icon className="h-4 w-4" />
+                      {col.title}
+                    </span>
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { UserPlus, Loader2, Mail, Shield, Trash2, Copy, Check, KeyRound, Building2, Eye } from 'lucide-react';
+import { UserPlus, Loader2, Mail, Shield, Trash2, Copy, Check, KeyRound, Building2, Eye, X } from 'lucide-react';
+import ConfirmDialog from '@/components/admin/ConfirmDialog';
 import { sendClientEmail } from '@/lib/clientEmail';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -202,8 +203,15 @@ const TeamManagementTab = () => {
     }
   };
 
+  const [confirmState, setConfirmState] = useState<null | {
+    title: string;
+    description?: string;
+    confirmLabel?: string;
+    destructive?: boolean;
+    action: () => void;
+  }>(null);
+
   const handleRevoke = async (userId: string, label: string, roleKind: StaffRoleKind) => {
-    if (!confirm(`Revoke ${ROLE_LABELS[roleKind]} access for ${label}?`)) return;
     // Senior F&I and Accountant were granted alongside the base f_and_i role — revoke all related roles.
     const rolesToRevoke: string[] = roleKind === 'senior_f_and_i'
       ? ['senior_f_and_i', 'f_and_i']
@@ -235,7 +243,6 @@ const TeamManagementTab = () => {
 
   const handleChangeRole = async (userId: string, label: string, newRole: StaffRoleKind, currentRole: StaffRoleKind) => {
     if (newRole === currentRole) return;
-    if (!confirm(`Change ${label}'s role to ${ROLE_LABELS[newRole]}?`)) return;
     // Clear existing staff roles (never touches the admin role), then grant the new role + implied combo.
     const { error: delErr } = await supabase.from('user_roles').delete().eq('user_id', userId).in('role', ALL_STAFF_ROLES as any);
     if (delErr) { toast.error(delErr.message); return; }
@@ -427,14 +434,14 @@ const TeamManagementTab = () => {
                             const current = rule.can_archive != null ? rule.can_archive : roleDefault;
                             upsertVisibility.mutate({ ...rule, can_archive: !current } as any);
                           }}
-                          className={`h-8 px-2 rounded border text-[11px] whitespace-nowrap transition-colors ${
+                          className={`h-8 px-2 rounded border text-[11px] whitespace-nowrap transition-colors inline-flex items-center gap-1 ${
                             (rule.can_archive != null ? rule.can_archive : (a.role === 'senior_f_and_i' || a.role === 'accountant'))
                               ? 'border-amber-500/40 text-amber-400 bg-amber-500/10'
                               : 'border-border text-muted-foreground'
                           }`}
                           title="Toggle whether this user may archive applications (default: only admins + Senior F&I)"
                         >
-                          Archive {(rule.can_archive != null ? rule.can_archive : (a.role === 'senior_f_and_i' || a.role === 'accountant')) ? '✓' : '✕'}
+                          Archive {(rule.can_archive != null ? rule.can_archive : (a.role === 'senior_f_and_i' || a.role === 'accountant')) ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
                         </button>
                         {rule.mode === 'custom' && (
                           <Popover>
@@ -491,7 +498,17 @@ const TeamManagementTab = () => {
                       </SelectContent>
                     </Select>
                   )}
-                  <Select value={a.role} onValueChange={(v) => handleChangeRole(a.user_id, a.full_name || a.email || 'this user', v as StaffRoleKind, a.role)}>
+                  <Select value={a.role} onValueChange={(v) => {
+                    if (v === a.role) return;
+                    const label = a.full_name || a.email || 'this user';
+                    setConfirmState({
+                      title: 'Change role?',
+                      description: `Change ${label}'s role to ${ROLE_LABELS[v as StaffRoleKind]}?`,
+                      confirmLabel: 'Change role',
+                      destructive: false,
+                      action: () => void handleChangeRole(a.user_id, label, v as StaffRoleKind, a.role),
+                    });
+                  }}>
                     <SelectTrigger className="h-8 w-[150px] text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="sales_agent">Salesperson</SelectItem>
@@ -504,7 +521,12 @@ const TeamManagementTab = () => {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    onClick={() => handleRevoke(a.user_id, a.email || 'this user', a.role)}
+                    onClick={() => setConfirmState({
+                      title: 'Revoke access?',
+                      description: `Revoke ${ROLE_LABELS[a.role]} access for ${a.email || 'this user'}?`,
+                      confirmLabel: 'Revoke',
+                      action: () => void handleRevoke(a.user_id, a.email || 'this user', a.role),
+                    })}
                     className="text-destructive hover:text-destructive"
                     title="Revoke all access"
                   >
@@ -516,6 +538,15 @@ const TeamManagementTab = () => {
           </div>
         )}
       </div>
+      <ConfirmDialog
+        open={!!confirmState}
+        title={confirmState?.title ?? ''}
+        description={confirmState?.description}
+        confirmLabel={confirmState?.confirmLabel}
+        destructive={confirmState?.destructive}
+        onConfirm={() => { confirmState?.action(); setConfirmState(null); }}
+        onCancel={() => setConfirmState(null)}
+      />
     </motion.div>
   );
 };

@@ -150,7 +150,9 @@ const AdminVendors = () => {
                     </TableCell></TableRow>
                   )}
                   {filtered.map((v) => (
-                    <TableRow key={v.id} className="cursor-pointer hover:bg-muted/30" onClick={() => setEditing(v)}>
+                    <TableRow key={v.id} tabIndex={0} className="cursor-pointer hover:bg-muted/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/60"
+                      onClick={() => setEditing(v)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') setEditing(v); }}>
                       <TableCell>
                         <div className="font-medium flex items-center gap-2">
                           {v.name}

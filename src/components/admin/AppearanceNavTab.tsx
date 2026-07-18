@@ -202,7 +202,7 @@ const AppearanceNavTab = () => {
             </div>
             <div className="space-y-1 pl-6">
               {s.items.map((it, ii) => (
-                <div key={it.id} className={'flex items-center gap-2 rounded border border-border/60 px-2 py-1 ' + (it.hidden ? 'opacity-50' : '')}>
+                <div key={it.id} className={'flex items-center gap-2 rounded border border-border px-2 py-1 ' + (it.hidden ? 'opacity-50' : '')}>
                   <div className="flex flex-col">
                     <button type="button" onClick={() => moveItem(si, ii, -1)} disabled={ii === 0}
                       className="text-muted-foreground hover:text-foreground disabled:opacity-30" title="Move up">

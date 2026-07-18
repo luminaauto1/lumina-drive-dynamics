@@ -125,7 +125,7 @@ const AdminLeadsCycle = () => {
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         ) : isError ? (
-          <div className="glass-card rounded-xl border border-border/60 p-10 text-center space-y-3">
+          <div className="glass-card rounded-xl border border-border p-10 text-center space-y-3">
             <AlertTriangle className="w-6 h-6 mx-auto text-destructive" />
             <p className="text-sm text-muted-foreground">
               Couldn't load lead stats — check your connection and try again.
@@ -151,7 +151,7 @@ const KpiCard = ({ icon: Icon, label, value, accent }: { icon: any; label: strin
   <motion.div
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
-    className="glass-card rounded-xl p-5 border border-border/60"
+    className="glass-card rounded-xl p-5 border border-border"
   >
     <div className="flex items-start justify-between">
       <div>

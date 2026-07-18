@@ -125,8 +125,16 @@ const AdminLeadAnalytics = () => {
           return (
             <li
               key={entry.dataKey}
+              role="button"
+              tabIndex={0}
               onClick={() => toggleSeries(entry.dataKey)}
-              className="cursor-pointer flex items-center gap-1.5 select-none transition-opacity"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  toggleSeries(entry.dataKey);
+                }
+              }}
+              className="cursor-pointer flex items-center gap-1.5 select-none transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               style={{
                 opacity: hidden ? 0.35 : 1,
                 textDecoration: hidden ? 'line-through' : 'none',
@@ -799,14 +807,14 @@ const AdminLeadAnalytics = () => {
   // Force light text on dark background — Recharts default tooltip text inherits
   // OS color and renders unreadable against the dark admin theme.
   const tooltipStyle = {
-    backgroundColor: '#111111',
-    border: '1px solid #333333',
+    backgroundColor: 'hsl(var(--card))',
+    border: '1px solid hsl(var(--border))',
     borderRadius: 8,
-    color: '#ffffff',
+    color: 'hsl(var(--foreground))',
     fontSize: 12,
   };
-  const tooltipItemStyle = { color: '#ffffff' };
-  const tooltipLabelStyle = { color: '#aaaaaa', marginBottom: 4 };
+  const tooltipItemStyle = { color: 'hsl(var(--foreground))' };
+  const tooltipLabelStyle = { color: 'hsl(var(--muted-foreground))', marginBottom: 4 };
 
   return (
     <AdminLayout>
@@ -896,12 +904,12 @@ const AdminLeadAnalytics = () => {
                 ].map((m) => (
                   <div
                     key={m.label}
-                    className="rounded-xl bg-black/40 border border-white/10 p-5 backdrop-blur-sm hover:border-white/20 transition-colors"
+                    className="rounded-xl bg-card border border-border p-5 backdrop-blur-sm hover:border-foreground/20 transition-colors"
                   >
                     <p className="text-[11px] uppercase tracking-wider text-white/60">
                       {m.label}
                     </p>
-                    <p className="text-3xl font-semibold text-white mt-2 tabular-nums [text-shadow:0_0_24px_rgba(255,255,255,0.15)]">
+                    <p className="text-3xl font-semibold text-foreground mt-2 tabular-nums">
                       {m.value}
                     </p>
                   </div>
@@ -921,7 +929,7 @@ const AdminLeadAnalytics = () => {
                   ].map((m) => (
                     <div
                       key={m.label}
-                      className="rounded-xl bg-black/40 border border-white/10 p-4 backdrop-blur-sm"
+                      className="rounded-xl bg-card border border-border p-4 backdrop-blur-sm"
                     >
                       <p className="text-[11px] uppercase tracking-wider text-white/60">
                         {m.label}
@@ -968,7 +976,7 @@ const AdminLeadAnalytics = () => {
                         </div>
                       );
                     })}
-                    <div className="pt-2 mt-2 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
+                    <div className="pt-2 mt-2 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
                       <span>Total tracked</span>
                       <span className="font-mono text-foreground">{appOutcomeStats.total.toLocaleString()}</span>
                     </div>
@@ -1015,7 +1023,7 @@ const AdminLeadAnalytics = () => {
                               )}
                             </span>
                           </div>
-                          <div className="h-7 w-full rounded-md bg-muted/30 overflow-hidden border border-border/50">
+                          <div className="h-7 w-full rounded-md bg-muted/30 overflow-hidden border border-border">
                             <div
                               className="h-full rounded-md transition-all"
                               style={{
@@ -1075,12 +1083,12 @@ const AdminLeadAnalytics = () => {
               ).length;
               return (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-1">
-                  <div className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4">
+                  <div className="rounded-xl border border-border bg-card backdrop-blur p-4">
                     <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Landings</div>
                     <div className="mt-1 text-2xl font-bold text-foreground">{totalLandings.toLocaleString()}</div>
                     <div className="text-[11px] text-muted-foreground mt-0.5">All form page views</div>
                   </div>
-                  <div className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4">
+                  <div className="rounded-xl border border-border bg-card backdrop-blur p-4">
                     <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Apps Started</div>
                     <div className="mt-1 text-2xl font-bold text-foreground">{totalStarted.toLocaleString()}</div>
                     <div className="text-[11px] text-muted-foreground mt-0.5">Submitted + drafts</div>
@@ -1090,7 +1098,7 @@ const AdminLeadAnalytics = () => {
                     <div className="mt-1 text-2xl font-bold text-emerald-400">{totalSubmitted.toLocaleString()}</div>
                     <div className="text-[11px] text-muted-foreground mt-0.5">Finalized applications</div>
                   </div>
-                  <div className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4">
+                  <div className="rounded-xl border border-border bg-card backdrop-blur p-4">
                     <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Abandoned</div>
                     <div className="mt-1 text-2xl font-bold text-foreground">{totalDrafts.toLocaleString()}</div>
                     <div className="text-[11px] text-muted-foreground mt-0.5">{completionRate.toFixed(1)}% completion</div>
@@ -1100,7 +1108,7 @@ const AdminLeadAnalytics = () => {
                     <div className="mt-1 text-2xl font-bold text-rose-400">{unqualifiedDropoffs.toLocaleString()}</div>
                     <div className="text-[11px] text-muted-foreground mt-0.5">Negative flag triggered</div>
                   </div>
-                  <div className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4">
+                  <div className="rounded-xl border border-border bg-card backdrop-blur p-4">
                     <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Engagement Rate</div>
                     <div className="mt-1 text-2xl font-bold text-foreground">{engagementRate.toFixed(1)}%</div>
                     <div className="text-[11px] text-muted-foreground mt-0.5">{landedOnly.toLocaleString()} landed only</div>
@@ -1338,7 +1346,7 @@ const AdminLeadAnalytics = () => {
                 {statusTransitionStats.map((row) => (
                   <div
                     key={row.key}
-                    className="rounded-xl border border-border/60 bg-zinc-950/60 backdrop-blur p-4"
+                    className="rounded-xl border border-border bg-card backdrop-blur p-4"
                   >
                     <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
                       {row.label}
@@ -1391,7 +1399,7 @@ const KpiCard = ({ icon: Icon, label, value, accent }: { icon: any; label: strin
   <motion.div
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
-    className="glass-card rounded-xl p-5 border border-border/60"
+    className="glass-card rounded-xl p-5 border border-border"
   >
     <div className="flex items-start justify-between">
       <div>
@@ -1409,7 +1417,7 @@ const ChartCard = ({ icon: Icon, title, subtitle, children }: { icon: any; title
   <motion.div
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
-    className="glass-card rounded-xl p-5 border border-border/60"
+    className="glass-card rounded-xl p-5 border border-border"
   >
     <div className="flex items-center gap-3 mb-4">
       <div className="w-9 h-9 rounded-lg bg-muted/40 flex items-center justify-center text-muted-foreground">

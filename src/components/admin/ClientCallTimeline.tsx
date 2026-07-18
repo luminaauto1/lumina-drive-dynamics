@@ -70,7 +70,7 @@ export default function ClientCallTimeline({ clientEmail, clientPhone, clientNam
           <p className="text-xs text-muted-foreground italic">No notes yet. Recorded calls will appear here.</p>
         ) : (
           entries.map((e) => (
-            <div key={e.id} className="relative pl-4 border-l border-zinc-700/60">
+            <div key={e.id} className="relative pl-4 border-l border-border">
               <div className="absolute -left-1.5 top-1.5 w-2.5 h-2.5 rounded-full bg-primary" />
               <div className="flex items-center gap-2 text-[10px] text-muted-foreground mb-1">
                 <Clock className="w-3 h-3" />

@@ -564,7 +564,7 @@ const AdminInventoryPage = () => {
       reserved: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
       sold: 'bg-red-500/20 text-red-400 border-red-500/30',
       sourcing: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-      hidden: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+      hidden: 'bg-muted text-muted-foreground border-border',
       incoming: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
     };
 
@@ -674,7 +674,7 @@ const AdminInventoryPage = () => {
             <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="border-white/10 hover:bg-white/5">
+                <TableRow className="border-border hover:bg-muted/50">
                   <TableHead className="text-muted-foreground">Image</TableHead>
                   <TableHead className="text-muted-foreground">Stock #</TableHead>
                   <TableHead className="text-muted-foreground">Vehicle</TableHead>
@@ -699,7 +699,7 @@ const AdminInventoryPage = () => {
                   const dealInfo = dealMap[vehicle.id];
                   const isSoldLocked = vehicle.status === 'sold' && !!dealInfo;
                   return (
-                    <TableRow key={vehicle.id} className={`border-white/10 hover:bg-white/5 ${isHidden ? 'opacity-50' : ''}`}>
+                    <TableRow key={vehicle.id} className={`border-border hover:bg-muted/50 ${isHidden ? 'opacity-50' : ''}`}>
                       <TableCell>
                         {vehicle.images && vehicle.images[0] ? (
                           <img
@@ -748,7 +748,7 @@ const AdminInventoryPage = () => {
                         <div className="flex items-center gap-2">
                           {getStatusBadge(vehicle.status)}
                           {isHidden && (
-                            <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider rounded bg-gray-500/30 text-gray-400 border border-gray-500/30">
+                            <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider rounded bg-muted text-muted-foreground border border-border">
                               HIDDEN
                             </span>
                           )}
@@ -844,7 +844,7 @@ const AdminInventoryPage = () => {
                               variant="ghost"
                               size="icon"
                               onClick={() => handleToggleVisibility(vehicle)}
-                              className={isHidden ? 'text-gray-400 hover:text-gray-300' : 'text-muted-foreground hover:text-gray-400'}
+                              className="text-muted-foreground hover:text-foreground"
                               title={isHidden ? 'Unhide from public' : 'Hide from public'}
                             >
                               {isHidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
