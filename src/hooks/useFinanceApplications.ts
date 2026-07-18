@@ -680,15 +680,17 @@ export const useUpdateClientStatus = () => {
       // Lightweight audit trail only — never a status_change dispatch.
       void logActivity({ actionType: 'other', note: `Client status → ${client_status}`, applicationId: id });
 
-      // Auto-note (owner 2026-07-17): picking a client status stamps a note
-      // with its label ("No Answer", "Call Back", …) so yesterday's call
-      // outcome survives the DAILY client-status reset in the notes history
-      // and in the pipeline's newest-note column. Clearing a status adds none.
+      // Auto-note (owner 2026-07-17): picking a client status stamps an EVENT
+      // note ("Client status → No Answer", …) so yesterday's call outcome
+      // survives the DAILY client-status reset in the notes history. Category
+      // 'status_change' = system note (owner 2026-07-18: it must NOT surface in
+      // the pipeline table's Notes column — that column is for user-written
+      // notes; see SYSTEM_NOTE_CATEGORIES). Clearing a status adds none.
       if (client_status && String(client_status).trim()) {
         try {
           // Label from the caller when available; otherwise humanize the slug
           // (client_no_answer → "No Answer").
-          const noteBody = (label && label.trim())
+          const statusLabel = (label && label.trim())
             || String(client_status).replace(/^client_/, '').replace(/_/g, ' ')
                  .replace(/\b\w/g, (c) => c.toUpperCase());
           const { data: { user: actor } } = await supabase.auth.getUser();
@@ -696,8 +698,8 @@ export const useUpdateClientStatus = () => {
             || actor?.email?.split('@')[0] || 'Staff';
           const { addPipelineNote } = await import('@/lib/pipelinev2/notes');
           await addPipelineNote({ id, pipeline_notes: (data as any)?.pipeline_notes }, {
-            body: noteBody,
-            category: 'note',
+            body: `Client status → ${statusLabel}`,
+            category: 'status_change',
             author_id: actor?.id ?? null,
             author_name: authorName,
           });

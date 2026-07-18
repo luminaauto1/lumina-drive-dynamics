@@ -15,7 +15,7 @@ import { formatCurrencyR, formatDate, formatTime, formatPhone, relativeTime } fr
 import { CreditScanButton } from '@/components/finance/CreditScanButton';
 import { TABLE_COLUMNS, columnClass, type TableConfig } from '@/lib/pipelinev2/columns';
 import { sourceLabel } from '@/lib/pipelinev2/source';
-import { latestAnyNote, noteCategory } from '@/lib/pipelinev2/notes';
+import { latestUserNote } from '@/lib/pipelinev2/notes';
 
 interface Busy { userId: string; name: string; color: string }
 
@@ -468,23 +468,19 @@ function renderCell(
       );
     }
     case 'internal': {
-      // The single NEWEST note across BOTH systems (structured pipeline notes
-      // + the Finance CRM popup's legacy blob) — owner rule 2026-07-17: one
-      // note per client, and blob-only notes must not vanish. Falls back to
-      // the directed internal-status label, then to nothing.
-      const latest = latestAnyNote(a);
+      // The single NEWEST USER note across BOTH systems (structured pipeline
+      // notes + the Finance CRM popup's legacy blob) — owner rule 2026-07-17:
+      // one note per client, and blob-only notes must not vanish. System/event
+      // notes (client-status auto-notes, WhatsApp-send logs — see
+      // SYSTEM_NOTE_CATEGORIES) are skipped and NO category chips render here
+      // (owner 2026-07-18: "Notes are for the notes left by the user"; chips
+      // read like client statuses — fix/client-status-note-trap). The drawer
+      // feed still shows every note with its tag. Falls back to the directed
+      // internal-status label, then to nothing.
+      const latest = latestUserNote(a);
       if (latest) {
-        const cat = noteCategory(latest.category);
         return (
           <div className="space-y-0.5">
-            {/* Chip WHITELIST — only genuine event tags. The other categories
-                (actioned, callback, … + legacy values) looked like client
-                statuses here, so no chip for them (fix/client-status-note-trap). */}
-            {(latest.category === 'status_change' || latest.category === 'client_whatsapp') && (
-              <span className={'inline-flex items-center rounded border px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide ' + cat.color}>
-                {cat.label}{cat.emoji ? ` ${cat.emoji}` : ''}
-              </span>
-            )}
             <div className="line-clamp-2 text-xs text-foreground">{latest.body}</div>
             <div className="text-[10px] text-muted-foreground">
               {latest.author_name || 'Unknown'}
