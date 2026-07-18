@@ -78,7 +78,7 @@ export function fromDealRecord(row: any): Deal {
 export const DEAL_DESK_SELECT = `
   id, application_id, vehicle_id, sale_date, sold_price, cost_price, gross_profit,
   recon_cost, dic_amount, addons_data, aftersales_expenses, delivery_date, is_closed,
-  post_deal_notes, natis_sent_at, natis_window_days, deal_stage,
+  post_deal_notes, natis_sent_at, natis_window_days, deal_stage, created_at,
   vehicle:vehicles(make, model, variant, year, vin, stock_number),
   application:finance_applications(first_name, last_name, full_name, id_number, phone, email, status)
 `;
