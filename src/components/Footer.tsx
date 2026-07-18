@@ -92,7 +92,6 @@ const Footer = () => {
               {[
                 { label: 'Inventory', path: '/inventory' },
                 { label: 'Calculator', path: '/calculator' },
-                { label: 'Sell Your Car', path: '/sell-your-car' },
                 { label: 'About Us', path: '/about' },
                 { label: 'Contact', path: '/contact' },
               ].map((link) => (

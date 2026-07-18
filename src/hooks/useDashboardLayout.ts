@@ -37,7 +37,6 @@ export const DEFAULT_WIDGETS: DashboardWidget[] = [
   { id: "total_units", size: "small", visible: true },
   { id: "new_apps_today", size: "small", visible: true },
   { id: "approvals", size: "small", visible: true },
-  { id: "valuations", size: "small", visible: true },
   { id: "deposits", size: "small", visible: true },
   { id: "closed_deals", size: "small", visible: true },
   { id: "pending_apps", size: "small", visible: true },

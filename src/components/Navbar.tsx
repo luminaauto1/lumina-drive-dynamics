@@ -37,7 +37,6 @@ const Navbar = () => {
     { path: '/', label: 'Home' },
     { path: '/inventory', label: 'Inventory' },
     { path: '/calculator', label: 'Calculator' },
-    { path: '/sell-your-car', label: 'Sell Your Car' },
     { path: '/about', label: 'About' },
     { path: '/contact', label: 'Contact' },
     ...(showFinanceTab ? [{ path: '/finance-application', label: 'Apply for Finance' }] : []),

@@ -27,7 +27,6 @@ export const ADMIN_ROUTES = {
   invoices: "/admin/invoices",
   aftersales: "/admin/aftersales",
   extraIncomes: "/admin/extra-incomes",
-  carsToBuy: "/admin/cars-to-buy",
   partnerPayout: "/admin/reports/partner-payout",
 
   // Insights
@@ -77,7 +76,6 @@ export const ADMIN_NAV_ENTRIES: AdminNavEntry[] = [
   { key: 'invoices', path: ADMIN_ROUTES.invoices, label: 'Invoices', section: 'Money' },
   // Deal Ledger / Aftersales folded into Deal Desk — no standalone palette entry.
   { key: 'extraIncomes', path: ADMIN_ROUTES.extraIncomes, label: 'Extra Incomes', section: 'Money' },
-  { key: 'carsToBuy', path: ADMIN_ROUTES.carsToBuy, label: 'Cars to Buy', section: 'Money' },
   { key: 'reports', path: ADMIN_ROUTES.reports, label: 'Reports', section: 'Insights' },
   { key: 'leadAnalytics', path: ADMIN_ROUTES.leadAnalytics, label: 'Lead Analytics', section: 'Insights' },
   { key: 'analytics', path: ADMIN_ROUTES.analytics, label: 'Analytics', section: 'Insights' },
