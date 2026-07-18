@@ -1,12 +1,12 @@
 import { useMemo, useRef, useState } from 'react';
-import { Search, ClipboardList } from 'lucide-react';
+import { Search, ClipboardList, MessageCircle, Phone } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import type { Deal } from '@/lib/dealdesk/types';
 import { DEAL_STAGE_LABEL } from '@/lib/dealdesk/types';
 import { natisStatus } from '@/lib/dealdesk/natis';
-import { formatRand, formatDate, monthKey, formatMonth } from '@/lib/dealdesk/format';
+import { formatRand, formatDate, monthKey, formatMonth, daysBetween, sastToday } from '@/lib/dealdesk/format';
 import { StatusBadge, NatisChip } from './badges';
 import { StatusBadge as FinanceStatusBadge } from '@/components/admin/StatusBadge';
 import { useStatusConfig } from '@/hooks/useZtcSettings';
@@ -247,12 +247,56 @@ function renderDealCell(
       return <span className="text-xs">{DEAL_STAGE_LABEL[d.deal_stage] ?? '—'}</span>;
     case 'natis':
       return <NatisChip status={natisStatus(d, ctx.settings)} />;
+    case 'delivery': {
+      if (!d.delivery_date) return <span className="text-xs text-muted-foreground/50">—</span>;
+      const days = daysBetween(d.delivery_date, sastToday());
+      return (
+        <>
+          <span className="text-xs whitespace-nowrap">{formatDate(d.delivery_date)}</span>
+          <div className="text-[10px] text-muted-foreground">{days <= 0 ? 'today' : `${days}d ago`}</div>
+        </>
+      );
+    }
+    case 'next_action': {
+      // The aftersales "what do I do with this deal next" cell — the reason to
+      // open this page. Derived display-only from existing fields.
+      if (d.is_closed) return <span className="text-xs text-muted-foreground">Done ✓</span>;
+      if (isAwaitingFinalize(d)) return <span className="text-xs font-medium text-amber-400">Finalize deal</span>;
+      const st = natisStatus(d, ctx.settings);
+      if (st.expired) return <span className="text-xs font-semibold text-red-400">NATIS overdue — {Math.abs(st.daysLeft ?? 0)}d</span>;
+      if (st.active) {
+        const cls = st.tone === 'red' ? 'text-red-400 font-semibold' : st.tone === 'amber' ? 'text-amber-400 font-medium' : 'text-muted-foreground';
+        return <span className={'text-xs ' + cls}>Send NATIS — {st.daysLeft}d left</span>;
+      }
+      if (st.tone === 'cleared') return <span className="text-xs text-emerald-400">Ready to close</span>;
+      return <span className="text-xs text-muted-foreground/50">—</span>;
+    }
     case 'sale_date':
       return <span className="text-xs text-muted-foreground whitespace-nowrap">{formatDate(d.sale_date) || '—'}</span>;
     case 'sold_price':
       return <span className="font-medium">{d.sold_price != null ? formatRand(d.sold_price) : '—'}</span>;
     case 'gp':
       return <span className="font-medium text-emerald-400">{formatRand(d.gross_profit)}</span>;
+    case 'actions': {
+      // Quick contact actions — stopPropagation so the row's open-deal click
+      // doesn't fire. Phone normalised to the wa.me digits form (0… → 27…).
+      const waDigits = (d.client_phone || '').replace(/\D/g, '').replace(/^0/, '27');
+      if (!d.client_phone) return null;
+      return (
+        <div className="flex items-center justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
+          {waDigits.length >= 8 && (
+            <a href={`https://wa.me/${waDigits}`} target="_blank" rel="noreferrer" title="WhatsApp client"
+              className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-emerald-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <MessageCircle className="h-4 w-4" />
+            </a>
+          )}
+          <a href={`tel:${d.client_phone}`} title="Call client"
+            className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <Phone className="h-4 w-4" />
+          </a>
+        </div>
+      );
+    }
     default:
       return null;
   }
