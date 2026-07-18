@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -10,10 +10,9 @@ import { Download, FileText, Save } from 'lucide-react';
 import { useDocumentSettings } from '@/hooks/useDocumentSettings';
 import { toast } from 'sonner';
 import { blankOtp } from '@/features/otp/blank';
-import { OtpDocument } from '@/features/otp/OtpDocument';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { OtpData, OtpLineToggles, FinanceMethod } from '@/features/otp/types';
-import { downloadPdfFromPages, pdfFilename } from '@/lib/domToPdf';
+import { pdfFilename } from '@/lib/domToPdf';
 
 interface OTPModalProps {
   open: boolean;
@@ -87,7 +86,6 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
   const [deposit, setDeposit] = useState<number>(0);
 
   const quoteRef = `OTP-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9999)).padStart(4, '0')}`;
-  const today = new Date().toLocaleDateString('en-ZA');
 
   // Persist the form so entered data survives closing/reopening (keyed per deal, else per client).
   const draftKey = `lumina:otp-draft:${dealId || applicationData?.idNumber || 'default'}`;
@@ -188,15 +186,12 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
   const balancePayable = totalPrice - deposit;
 
   const fmt = (n: number) => `R ${n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const vatRegistered = docSettings?.vatRegistered ?? false;
 
-  // The popup now downloads the SAME designed 5-sheet legal document as the
-  // OTP Generator page (owner 2026-07-17: the old text-PDF put signature blocks
-  // wherever the flow landed — 11 loose pages). We build a full OtpData from
-  // the modal fields, render the OtpDocument off-screen, and save each A4 sheet
-  // as one PDF page — signature blocks exactly where the template puts them.
-  const [pdfData, setPdfData] = useState<OtpData | null>(null);
+  // The popup downloads the SAME designed 5-sheet legal document as the OTP
+  // Generator page, rendered as a real-text vector PDF (owner 2026-07-18:
+  // print-engine crispness, no raster capture).
   const [downloading, setDownloading] = useState(false);
-  const pdfRef = useRef<HTMLDivElement>(null);
 
   const handleDownload = async () => {
     if (!docSettings) { toast.error('Document settings not loaded yet'); return; }
@@ -219,10 +214,12 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
       finance: {
         ...base.finance,
         method: financeMethod,
-        financed_by: financedBy,
-        bank_branch: bankBranch,
-        branch_phone: branchPhone,
-        branch_contact: branchContact,
+        // Bank details only print on Bank Finance — a Cash deal must never
+        // carry stale "Financed By" values left in state from an earlier pick.
+        financed_by: financeMethod === 'Bank Finance' ? financedBy : '',
+        bank_branch: financeMethod === 'Bank Finance' ? bankBranch : '',
+        branch_phone: financeMethod === 'Bank Finance' ? branchPhone : '',
+        branch_contact: financeMethod === 'Bank Finance' ? branchContact : '',
       },
       financials: {
         ...base.financials,
@@ -239,22 +236,18 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
     };
 
     setDownloading(true);
-    setPdfData(data);
     try {
-      // Let React mount the off-screen document and fonts settle before capture.
-      await new Promise((r) => setTimeout(r, 150));
-      await (document as any).fonts?.ready?.catch?.(() => {});
-      const root = pdfRef.current;
-      if (!root) throw new Error('document did not render');
-      const pages = Array.from(root.querySelectorAll<HTMLElement>('.page'));
-      await downloadPdfFromPages(pages.length ? pages : [root], pdfFilename('OTP', quoteRef, clientName || 'client'));
+      // Real-text vector PDF (crisp Montserrat, ~130KB — print-engine quality),
+      // no off-screen DOM capture. Lazy import keeps the renderer chunk out of
+      // the main bundle.
+      const { downloadOtpPdf } = await import('@/features/otp/pdf/download');
+      await downloadOtpPdf(data, pdfFilename('OTP', quoteRef, clientName || 'client'));
       toast.success('OTP PDF downloaded');
       onOpenChange(false);
     } catch (e: any) {
       toast.error('PDF download failed: ' + (e?.message || e));
     } finally {
       setDownloading(false);
-      setPdfData(null);
     }
   };
 
@@ -413,14 +406,22 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
                 <p className="mt-1.5 text-[11px] text-muted-foreground">Unticked lines are left off the OTP and excluded from its totals.</p>
               </div>
 
+              {/* Summary mirrors what the PDF prints: VAT breakdown only when
+                  the company is VAT-registered in Document Settings. */}
               <div className="mt-4 p-4 bg-muted/60 border border-border rounded-lg space-y-2">
-                <div className="flex justify-between text-sm text-muted-foreground"><span>Subtotal (excl. VAT)</span><span className="font-mono text-foreground">{fmt(vatableSubtotal)}</span></div>
-                <div className="flex justify-between text-sm text-muted-foreground"><span>VAT (15%) included</span><span className="font-mono text-foreground">{fmt(vatAmount)}</span></div>
+                {vatRegistered ? (
+                  <>
+                    <div className="flex justify-between text-sm text-muted-foreground"><span>Subtotal (excl. VAT)</span><span className="font-mono text-foreground">{fmt(vatableSubtotal)}</span></div>
+                    <div className="flex justify-between text-sm text-muted-foreground"><span>VAT (15%) included</span><span className="font-mono text-foreground">{fmt(vatAmount)}</span></div>
+                  </>
+                ) : (
+                  <div className="flex justify-between text-sm text-muted-foreground"><span>VAT</span><span className="font-mono text-foreground">n/a — not VAT registered</span></div>
+                )}
                 <div className="flex justify-between text-sm text-muted-foreground"><span>Lic &amp; Reg (no VAT)</span><span className="font-mono text-foreground">{fmt(effLicReg)}</span></div>
-                <div className="flex justify-between text-sm text-muted-foreground"><span>Total Price (incl. VAT)</span><span className="font-mono text-foreground">{fmt(totalPrice)}</span></div>
+                <div className="flex justify-between text-sm text-muted-foreground"><span>{vatRegistered ? 'Total Price (incl. VAT)' : 'Total Price'}</span><span className="font-mono text-foreground">{fmt(totalPrice)}</span></div>
                 <div className="flex justify-between text-sm text-muted-foreground"><span>Less: Deposit</span><span className="font-mono text-foreground">- {fmt(deposit)}</span></div>
                 <Separator className="bg-border my-2"/>
-                <div className="flex justify-between items-center"><span className="font-semibold text-foreground">Balance Payable (incl. VAT)</span><span className="text-xl font-bold text-amber-400 font-mono">{fmt(balancePayable)}</span></div>
+                <div className="flex justify-between items-center"><span className="font-semibold text-foreground">{vatRegistered ? 'Balance Payable (incl. VAT)' : 'Balance Payable'}</span><span className="text-xl font-bold text-amber-400 font-mono">{fmt(balancePayable)}</span></div>
               </div>
             </div>
           </div>
@@ -436,15 +437,6 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
           </Button>
         </DialogFooter>
       </DialogContent>
-      {/* Off-screen render of the designed 5-sheet OTP document for the PDF
-          capture — signature blocks land exactly where the template puts them. */}
-      {pdfData && (
-        <div style={{ position: 'fixed', left: '-9999px', top: 0, width: '210mm', zIndex: -1 }} aria-hidden>
-          <div ref={pdfRef}>
-            <OtpDocument data={pdfData} />
-          </div>
-        </div>
-      )}
     </Dialog>
   );
 };
