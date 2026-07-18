@@ -11,7 +11,8 @@ import { useDocumentSettings } from '@/hooks/useDocumentSettings';
 import { toast } from 'sonner';
 import { blankOtp } from '@/features/otp/blank';
 import { OtpDocument } from '@/features/otp/OtpDocument';
-import type { OtpData } from '@/features/otp/types';
+import { Checkbox } from '@/components/ui/checkbox';
+import type { OtpData, OtpLineToggles, FinanceMethod } from '@/features/otp/types';
 import { downloadPdfFromPages, pdfFilename } from '@/lib/domToPdf';
 
 interface OTPModalProps {
@@ -63,6 +64,17 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
   const [stockNo, setStockNo] = useState('');
   const [orderType, setOrderType] = useState<'Used' | 'New' | 'Demo'>('Used');
 
+  // Finance section (owner 2026-07-18: the popup had no finance selection).
+  const [financeMethod, setFinanceMethod] = useState<FinanceMethod>('Bank Finance');
+  const [financedBy, setFinancedBy] = useState('');
+  const [bankBranch, setBankBranch] = useState('');
+  const [branchPhone, setBranchPhone] = useState('');
+  const [branchContact, setBranchContact] = useState('');
+  // Which fee lines print on the document (defaults from Document Settings).
+  const [lineToggles, setLineToggles] = useState<OtpLineToggles>({
+    extras: true, vap: true, admin_fee: true, delivery_fee: true, licensing: true,
+  });
+
   // Financial
   const [basePrice, setBasePrice] = useState<number>(0);
   // Extras are LINE ITEMS (owner 2026-07-17); extrasPrice = their sum.
@@ -84,6 +96,7 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
     clientName, idNumber, address, email, cellPhone, salesExecutive, signedPlace,
     make, model, regNo, year, colorVal, vin, engineNo, mileage,
     mmCode, trim, stockNo, orderType,
+    financeMethod, financedBy, bankBranch, branchPhone, branchContact, lineToggles,
     basePrice, extrasPrice, extrasItems, vapPrice, adminFee, deliveryFee, licReg, deposit,
   });
 
@@ -95,6 +108,10 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
     setColorVal(d.colorVal ?? ''); setVin(d.vin ?? ''); setEngineNo(d.engineNo ?? ''); setMileage(d.mileage ?? '');
     setMmCode((d as any).mmCode ?? ''); setTrim((d as any).trim ?? ''); setStockNo((d as any).stockNo ?? '');
     setOrderType(((d as any).orderType as 'Used' | 'New' | 'Demo') ?? 'Used');
+    setFinanceMethod(((d as any).financeMethod as FinanceMethod) ?? 'Bank Finance');
+    setFinancedBy((d as any).financedBy ?? ''); setBankBranch((d as any).bankBranch ?? '');
+    setBranchPhone((d as any).branchPhone ?? ''); setBranchContact((d as any).branchContact ?? '');
+    if ((d as any).lineToggles) setLineToggles((d as any).lineToggles);
     setBasePrice(d.basePrice ?? 0);
     // Old drafts carry a single extrasPrice number — surface it as one item.
     setExtrasItems(Array.isArray(d.extrasItems) && d.extrasItems.length
@@ -120,6 +137,7 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
     // Don't override a saved draft with the company defaults.
     try { if (localStorage.getItem(draftKey)) return; } catch { /* ignore */ }
     setAdminFee(docSettings.defaultAdminFee ?? 2500);
+    if (docSettings.otpLines) setLineToggles(docSettings.otpLines);
     if (docSettings.companyTradingName) {
       setSignedPlace(`${docSettings.companyTradingName}${docSettings.companyAddress ? `, ${docSettings.companyAddress}` : ''}`);
     }
@@ -156,10 +174,17 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
 
   // Base, extras, VAP, admin fee and delivery fee are VAT-inclusive.
   // Lic & Reg is a non-VATable statutory disbursement (excluded from the VAT calc).
-  const vatInclusiveTotal = basePrice + extrasPrice + vapPrice + adminFee + deliveryFee;
+  // Untoggled lines are excluded here exactly as calcOtp excludes them on the
+  // printed document, so this summary always matches the PDF.
+  const effLicReg = lineToggles.licensing ? licReg : 0;
+  const vatInclusiveTotal = basePrice
+    + (lineToggles.extras ? extrasPrice : 0)
+    + (lineToggles.vap ? vapPrice : 0)
+    + (lineToggles.admin_fee ? adminFee : 0)
+    + (lineToggles.delivery_fee ? deliveryFee : 0);
   const vatAmount = vatInclusiveTotal * (15 / 115);
   const vatableSubtotal = vatInclusiveTotal - vatAmount;
-  const totalPrice = vatInclusiveTotal + licReg;
+  const totalPrice = vatInclusiveTotal + effLicReg;
   const balancePayable = totalPrice - deposit;
 
   const fmt = (n: number) => `R ${n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -191,6 +216,14 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
         vin, engine_no: engineNo, mileage,
         mm_code: mmCode, trim, stock_no: stockNo, order_type: orderType,
       },
+      finance: {
+        ...base.finance,
+        method: financeMethod,
+        financed_by: financedBy,
+        bank_branch: bankBranch,
+        branch_phone: branchPhone,
+        branch_contact: branchContact,
+      },
       financials: {
         ...base.financials,
         base_price: basePrice,
@@ -202,6 +235,7 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
         licensing: licReg,
         deposit,
       },
+      lines: lineToggles,
     };
 
     setDownloading(true);
@@ -286,9 +320,37 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
 
             <Separator className="bg-border" />
 
+            {/* Finance / payment method */}
+            <div>
+              <h3 className="font-semibold text-xs uppercase tracking-wider text-amber-400 mb-3">3. Finance</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Payment Method</Label>
+                  <Select value={financeMethod} onValueChange={(v) => setFinanceMethod(v as FinanceMethod)}>
+                    <SelectTrigger className="bg-background border-input"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Bank Finance">Bank Finance</SelectItem>
+                      <SelectItem value="Cash">Cash</SelectItem>
+                      <SelectItem value="Unspecified">Unspecified</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {financeMethod === 'Bank Finance' && (
+                  <>
+                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Financed By (Bank)</Label><Input value={financedBy} onChange={e=>setFinancedBy(e.target.value)} placeholder="e.g. WesBank" className="bg-background border-input"/></div>
+                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Bank / Branch</Label><Input value={bankBranch} onChange={e=>setBankBranch(e.target.value)} className="bg-background border-input"/></div>
+                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Branch Phone</Label><Input value={branchPhone} onChange={e=>setBranchPhone(e.target.value)} className="bg-background border-input"/></div>
+                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Branch Contact Person</Label><Input value={branchContact} onChange={e=>setBranchContact(e.target.value)} className="bg-background border-input"/></div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <Separator className="bg-border" />
+
             {/* Financial */}
             <div>
-              <h3 className="font-semibold text-xs uppercase tracking-wider text-amber-400 mb-3">3. Pricing (VAT-inclusive inputs)</h3>
+              <h3 className="font-semibold text-xs uppercase tracking-wider text-amber-400 mb-3">4. Pricing (VAT-inclusive inputs)</h3>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Base Vehicle Price</Label><Input type="number" value={basePrice} onChange={e=>setBasePrice(parseFloat(e.target.value)||0)} className="bg-background border-input"/></div>
                 <div className="space-y-1.5 col-span-2">
@@ -331,10 +393,30 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
                 <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Deposit</Label><Input type="number" value={deposit} onChange={e=>setDeposit(parseFloat(e.target.value)||0)} className="bg-background border-input"/></div>
               </div>
 
+              {/* Which fee lines print on the document */}
+              <div className="mt-4">
+                <Label className="text-xs text-muted-foreground">Show on OTP as line items</Label>
+                <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2">
+                  {([
+                    ['extras', 'Extras'],
+                    ['vap', 'Value Added Products'],
+                    ['admin_fee', 'Admin Fee'],
+                    ['delivery_fee', 'Delivery Fee'],
+                    ['licensing', 'Lic & Reg'],
+                  ] as Array<[keyof OtpLineToggles, string]>).map(([k, lbl]) => (
+                    <label key={k} className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                      <Checkbox checked={lineToggles[k]} onCheckedChange={(c) => setLineToggles((prev) => ({ ...prev, [k]: !!c }))} />
+                      {lbl}
+                    </label>
+                  ))}
+                </div>
+                <p className="mt-1.5 text-[11px] text-muted-foreground">Unticked lines are left off the OTP and excluded from its totals.</p>
+              </div>
+
               <div className="mt-4 p-4 bg-muted/60 border border-border rounded-lg space-y-2">
                 <div className="flex justify-between text-sm text-muted-foreground"><span>Subtotal (excl. VAT)</span><span className="font-mono text-foreground">{fmt(vatableSubtotal)}</span></div>
                 <div className="flex justify-between text-sm text-muted-foreground"><span>VAT (15%) included</span><span className="font-mono text-foreground">{fmt(vatAmount)}</span></div>
-                <div className="flex justify-between text-sm text-muted-foreground"><span>Lic &amp; Reg (no VAT)</span><span className="font-mono text-foreground">{fmt(licReg)}</span></div>
+                <div className="flex justify-between text-sm text-muted-foreground"><span>Lic &amp; Reg (no VAT)</span><span className="font-mono text-foreground">{fmt(effLicReg)}</span></div>
                 <div className="flex justify-between text-sm text-muted-foreground"><span>Total Price (incl. VAT)</span><span className="font-mono text-foreground">{fmt(totalPrice)}</span></div>
                 <div className="flex justify-between text-sm text-muted-foreground"><span>Less: Deposit</span><span className="font-mono text-foreground">- {fmt(deposit)}</span></div>
                 <Separator className="bg-border my-2"/>
