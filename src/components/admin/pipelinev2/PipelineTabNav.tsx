@@ -1,5 +1,5 @@
 import { usePipelineLanes } from '@/hooks/usePipelineLanes';
-import { readableTextOn } from '@/lib/pipelinev2/color';
+import { hexTint, readableTextOn } from '@/lib/pipelinev2/color';
 import { cn } from '@/lib/utils';
 
 export function PipelineTabNav({
@@ -21,6 +21,11 @@ export function PipelineTabNav({
         const count = counts[t.key] ?? 0;
         // Override hex (inline) wins; otherwise the default gold desk-accent.
         const accent = t.color || 'hsl(var(--desk-accent))';
+        // Translucent lane tint for the ACTIVE tab body. Hex override => 8-digit
+        // hex inline (the JIT can't see runtime hexes); default => the accent-var
+        // class below at the same ~12% alpha. Label stays text-foreground — the
+        // tint is deliberately subtle in both admin themes.
+        const tint = t.color ? hexTint(t.color) : null;
         return (
           <button
             key={t.key}
@@ -29,12 +34,19 @@ export function PipelineTabNav({
             className={cn(
               'flex items-center gap-2 rounded-t-md px-3 py-2 text-sm transition border-b-2 -mb-px',
               active
-                // Active: bright full-foreground label + 2px accent underline.
-                ? 'bg-muted/40 text-foreground font-semibold'
+                // Active: full-foreground label + lane tint + accent underline.
+                ? cn('text-foreground font-semibold', !tint && 'bg-[hsl(var(--desk-accent)/0.12)]')
                 // Inactive: muted label, transparent border.
                 : 'text-muted-foreground hover:text-foreground border-transparent font-medium',
             )}
-            style={active ? { borderBottomColor: accent } : undefined}
+            style={active ? {
+              borderBottomColor: accent,
+              // +1px inset accent shadow under the 2px border => a slightly
+              // stronger 3px-reading underline with zero layout shift (a real
+              // 3px border would nudge the -mb-px alignment).
+              boxShadow: `inset 0 -1px 0 ${accent}`,
+              ...(tint ? { backgroundColor: tint } : null),
+            } : undefined}
           >
             {t.label}
             {/* Active count chip = accent fill. A hex override is applied inline (text

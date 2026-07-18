@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Loader2, Save, RotateCcw, Check, Info } from 'lucide-react';
-import { readableTextOn } from '@/lib/pipelinev2/color';
+import { hexTint, readableTextOn } from '@/lib/pipelinev2/color';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -82,10 +82,19 @@ const LaneRow = ({ lane }: { lane: EffectivePipelineLane }) => {
         <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
           {lane.key}
         </code>
-        {/* Live preview: the active-tab caption + accent underline + count chip. */}
+        {/* Live preview: the active-tab caption + translucent lane tint + accent
+            underline (2px border + 1px inset shadow) + count chip — mirrors the
+            active treatment in PipelineTabNav exactly. */}
         <span
-          className="inline-flex items-center gap-2 rounded-t-md border-b-2 px-2.5 py-1 text-sm font-semibold text-foreground"
-          style={{ borderBottomColor: previewColor }}
+          className={
+            'inline-flex items-center gap-2 rounded-t-md border-b-2 px-2.5 py-1 text-sm font-semibold text-foreground' +
+            (hasOverride ? '' : ' bg-[hsl(var(--desk-accent)/0.12)]')
+          }
+          style={{
+            borderBottomColor: previewColor,
+            boxShadow: `inset 0 -1px 0 ${previewColor}`,
+            ...(hasOverride ? { backgroundColor: hexTint(trimmedColor) ?? undefined } : null),
+          }}
         >
           {trimmedLabel || lane.label}
           {/* Count chip: default (no override) uses the `desk-accent-fill` utility
