@@ -17,6 +17,7 @@ import { validateSaId, isSaIdInvalid } from '@/lib/saIdValidation';
 import { NotesFeed } from './NotesFeed';
 import { HistoryFeed } from './HistoryFeed';
 import { CreditCheckAttachment } from './CreditCheckAttachment';
+import { SegmentedToggle } from './SegmentedToggle';
 
 const appName = (a: FinanceApplication) =>
   (a as any).full_name || [(a as any).first_name, (a as any).last_name].filter(Boolean).join(' ') || 'Applicant';
@@ -158,15 +159,13 @@ export function ApplicationDrawer({
 
         <Separator className="my-4" />
 
-        <div className="flex gap-1 mb-3">
-          {(['notes', 'history'] as const).map((t) => (
-            <button key={t} type="button" onClick={() => setFeed(t)}
-              className={'rounded-md px-3 py-1.5 text-sm font-medium transition ' +
-                (feed === t ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground')}>
-              {t === 'notes' ? 'Notes' : 'History'}
-            </button>
-          ))}
-        </div>
+        <SegmentedToggle
+          options={[['notes', 'Notes'], ['history', 'History']] as const}
+          value={feed}
+          onChange={setFeed}
+          className="mb-3 inline-grid text-sm"
+          buttonClassName="px-3 py-1.5"
+        />
 
         {feed === 'notes' ? <NotesFeed app={app} /> : <HistoryFeed app={app} />}
       </SheetContent>
