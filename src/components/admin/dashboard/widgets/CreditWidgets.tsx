@@ -63,7 +63,7 @@ const CREDIT_COLORS = {
   failed: 'hsl(0 70% 55%)',
 } as const;
 
-interface CreditCounts {
+export interface CreditCounts {
   /** passed with a completion stamp inside [since, until) */
   passed: number;
   /** failed with a completion stamp inside [since, until) */
@@ -74,7 +74,8 @@ interface CreditCounts {
   notRunNow: number;
 }
 
-async function fetchCreditCounts(since: string, until: string): Promise<CreditCounts> {
+/** Exported for the Command Center's period-scoped credit widget. */
+export async function fetchCreditCounts(since: string, until: string): Promise<CreditCounts> {
   const table = () => supabase.from('finance_applications');
   // Cheap HEAD count queries (no rows returned) — sidesteps the 1000-row cap
   // entirely. Passed/Failed are scoped to the completion window; the two backlog

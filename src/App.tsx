@@ -123,7 +123,8 @@ const AppLayout = () => {
             <Route path="/handover/:dealId" element={<ClientHandover />} />
             <Route path="/juristic/:token" element={<JuristicCapture />} />
             {/* Admin Routes */}
-            <Route path="/admin" element={<ProtectedRoute requireSuperAdmin><AdminDashboard /></ProtectedRoute>} />
+            {/* Command Center: section-gated (all staff roles hold 'dashboard') — no longer super-admin-only. */}
+            <Route path="/admin" element={<ProtectedRoute section="dashboard"><AdminDashboard /></ProtectedRoute>} />
             <Route path="/admin/inventory" element={<ProtectedRoute section="inventory"><AdminInventoryPage /></ProtectedRoute>} />
             {/* Pipeline + CRM Sheet replaced by the unified CRM. Old paths still
                 resolve (login landing + existing links) and render the new CRM. */}

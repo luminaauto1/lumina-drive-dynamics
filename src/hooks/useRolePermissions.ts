@@ -67,6 +67,11 @@ export const useMyAllowedSections = () => {
     // lack and ProtectedRoute bounces them away (and for a crm-first role can
     // ping-pong between /admin/crm and /admin/pipeline-v2). Treat crm ⇒ pipeline_v2.
     if (set.has('crm')) set.add('pipeline_v2');
+    // The Command Center (/admin) is every staff member's shared home/landing
+    // page — force-grant it for any resolved staff role. This also covers
+    // role_section_access rows saved BEFORE the dashboard section existed
+    // (they override DEFAULT_ROLE_SECTIONS and would otherwise lock staff out).
+    set.add('dashboard');
     return set;
   }, [effective, map]);
 
