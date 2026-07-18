@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -57,6 +58,10 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
   const [vin, setVin] = useState('');
   const [engineNo, setEngineNo] = useState('');
   const [mileage, setMileage] = useState('');
+  const [mmCode, setMmCode] = useState('');
+  const [trim, setTrim] = useState('');
+  const [stockNo, setStockNo] = useState('');
+  const [orderType, setOrderType] = useState<'Used' | 'New' | 'Demo'>('Used');
 
   // Financial
   const [basePrice, setBasePrice] = useState<number>(0);
@@ -78,6 +83,7 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
   const collectDraft = () => ({
     clientName, idNumber, address, email, cellPhone, salesExecutive, signedPlace,
     make, model, regNo, year, colorVal, vin, engineNo, mileage,
+    mmCode, trim, stockNo, orderType,
     basePrice, extrasPrice, extrasItems, vapPrice, adminFee, deliveryFee, licReg, deposit,
   });
 
@@ -87,6 +93,8 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
     setSignedPlace(d.signedPlace ?? 'Lumina Auto, Pretoria');
     setMake(d.make ?? ''); setModel(d.model ?? ''); setRegNo(d.regNo ?? ''); setYear(d.year ?? '');
     setColorVal(d.colorVal ?? ''); setVin(d.vin ?? ''); setEngineNo(d.engineNo ?? ''); setMileage(d.mileage ?? '');
+    setMmCode((d as any).mmCode ?? ''); setTrim((d as any).trim ?? ''); setStockNo((d as any).stockNo ?? '');
+    setOrderType(((d as any).orderType as 'Used' | 'New' | 'Demo') ?? 'Used');
     setBasePrice(d.basePrice ?? 0);
     // Old drafts carry a single extrasPrice number — surface it as one item.
     setExtrasItems(Array.isArray(d.extrasItems) && d.extrasItems.length
@@ -140,6 +148,7 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
       setEngineNo(vehicleData.engineCode || '');
       setMileage(vehicleData.mileage ? `${vehicleData.mileage.toLocaleString()} km` : '');
       setColorVal(vehicleData.color || '');
+      setStockNo(vehicleData.stockNumber || '');
       setBasePrice(vehicleData.price || 0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -180,6 +189,7 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
         ...base.vehicle,
         make, model, year, reg_no: regNo, colour: colorVal,
         vin, engine_no: engineNo, mileage,
+        mm_code: mmCode, trim, stock_no: stockNo, order_type: orderType,
       },
       financials: {
         ...base.financials,
@@ -257,6 +267,20 @@ const OTPModal = ({ open, onOpenChange, applicationData, vehicleData, dealId }: 
                 <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">VIN No</Label><Input value={vin} onChange={e=>setVin(e.target.value)} className="bg-background border-input"/></div>
                 <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Engine No</Label><Input value={engineNo} onChange={e=>setEngineNo(e.target.value)} className="bg-background border-input"/></div>
                 <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Mileage</Label><Input value={mileage} onChange={e=>setMileage(e.target.value)} className="bg-background border-input"/></div>
+                <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">M&amp;M Code</Label><Input value={mmCode} onChange={e=>setMmCode(e.target.value)} className="bg-background border-input"/></div>
+                <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Trim</Label><Input value={trim} onChange={e=>setTrim(e.target.value)} className="bg-background border-input"/></div>
+                <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Stock No</Label><Input value={stockNo} onChange={e=>setStockNo(e.target.value)} className="bg-background border-input"/></div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Order Type</Label>
+                  <Select value={orderType} onValueChange={(v) => setOrderType(v as 'Used' | 'New' | 'Demo')}>
+                    <SelectTrigger className="bg-background border-input"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Used">Used</SelectItem>
+                      <SelectItem value="New">New</SelectItem>
+                      <SelectItem value="Demo">Demo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
 
