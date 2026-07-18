@@ -121,7 +121,7 @@ Row counts compared old→new (all matched exactly, 0 mismatches):
 ```
 src/
   pages/admin/         CRM sheet, leads, finance, expenses, reports, settings, deal room
-  pages/               public site: showroom, sell-your-car, finance application, juristic
+  pages/               public site: showroom, finance application, juristic
   integrations/supabase/client.ts   env-driven Supabase client (reads VITE_* with validation)
   lib/publicApi.ts     LUMINA_PUBLIC_KEY shared secret for public edge endpoints
 supabase/

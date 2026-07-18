@@ -42,7 +42,7 @@ they are inlined into the public JS bundle.
 
 ```
 src/pages/admin/        CRM sheet, leads, finance, expenses, reports, settings
-src/pages/              public site: showroom, sell-your-car, finance application
+src/pages/              public site: showroom, finance application
 src/integrations/supabase/  typed Supabase client (connection module)
 supabase/functions/     Deno edge functions (notifications, webhooks, AI tools)
 supabase/migrations/    SQL schema history

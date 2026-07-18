@@ -21,7 +21,6 @@ import { usePixelPageView } from "@/hooks/usePixelPageView";
 // admin/finance/PDF/signature/chart code only downloads when that page opens.
 const Inventory = lazy(() => import("./pages/Inventory"));
 const VehicleDetail = lazy(() => import("./pages/VehicleDetail"));
-const SellYourCar = lazy(() => import("./pages/SellYourCar"));
 const Wishlist = lazy(() => import("./pages/Wishlist"));
 const Compare = lazy(() => import("./pages/Compare"));
 const Auth = lazy(() => import("./pages/Auth"));
@@ -56,7 +55,6 @@ const AdminReports = lazy(() => import("./pages/admin/AdminReports"));
 const AdminLeadAnalytics = lazy(() => import("./pages/admin/AdminLeadAnalytics"));
 const AdminLeadsCycle = lazy(() => import("./pages/admin/AdminLeadsCycle"));
 const AdminExtraIncomes = lazy(() => import("./pages/admin/AdminExtraIncomes"));
-const AdminCarsToBuy = lazy(() => import("./pages/admin/AdminCarsToBuy"));
 const AdminPartnerPayout = lazy(() => import("./pages/admin/AdminPartnerPayout"));
 const AdminNetwork = lazy(() => import("./pages/admin/AdminNetwork"));
 const AdminContacts = lazy(() => import("./pages/admin/AdminContacts"));
@@ -107,7 +105,6 @@ const AppLayout = () => {
             <Route path="/" element={<Index />} />
             <Route path="/inventory" element={<Inventory />} />
             <Route path="/vehicle/:id" element={<VehicleDetail />} />
-            <Route path="/sell-your-car" element={<SellYourCar />} />
             <Route path="/wishlist" element={<Wishlist />} />
             <Route path="/compare" element={<Compare />} />
             <Route path="/auth" element={<Auth />} />
@@ -152,7 +149,6 @@ const AppLayout = () => {
             <Route path="/admin/reports/lead-analytics" element={<ProtectedRoute section="reports"><AdminLeadAnalytics /></ProtectedRoute>} />
             <Route path="/admin/lead-cycle" element={<ProtectedRoute section="leads_cycle"><AdminLeadsCycle /></ProtectedRoute>} />
             <Route path="/admin/extra-incomes" element={<ProtectedRoute section="extra_incomes"><AdminExtraIncomes /></ProtectedRoute>} />
-            <Route path="/admin/cars-to-buy" element={<ProtectedRoute section="cars_to_buy"><AdminCarsToBuy /></ProtectedRoute>} />
             <Route path="/admin/analytics" element={<ProtectedRoute section="analytics"><AdminAnalytics /></ProtectedRoute>} />
             <Route path="/admin/export" element={<ProtectedRoute section="export"><AdminExport /></ProtectedRoute>} />
             {/* Deal Desk is now the single home for the old Deal Ledger too, so

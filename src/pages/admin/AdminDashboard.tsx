@@ -39,7 +39,6 @@ import {
   GripVertical,
   RotateCcw,
   CheckCircle2,
-  ClipboardCheck,
   Banknote,
   PackageCheck,
   Clock,
@@ -124,7 +123,6 @@ interface PeriodMetrics {
   grossProfit: number;
   totalUnits: number;
   approvals: number;
-  valuations: number;
   deposits: number;
   closedDeals: number;
   pendingApps: number;
@@ -136,7 +134,6 @@ const EMPTY_METRICS: PeriodMetrics = {
   grossProfit: 0,
   totalUnits: 0,
   approvals: 0,
-  valuations: 0,
   deposits: 0,
   closedDeals: 0,
   pendingApps: 0,
@@ -266,7 +263,6 @@ const AdminDashboard = () => {
   // Raw datasets (fetched once; KPIs recompute client-side per period).
   const [deals, setDeals] = useState<any[]>([]);
   const [apps, setApps] = useState<any[]>([]);
-  const [valuationDates, setValuationDates] = useState<string[]>([]);
   const [target, setTarget] = useState(10);
 
   // "New apps today" is always today's count, independent of the period.
@@ -292,7 +288,6 @@ const AdminDashboard = () => {
         { data: settings },
         { data: dealRows },
         { data: appRows },
-        { data: valRows },
         { count: appsTodayCount },
         { count: leadsToday },
         { count: draftsToday },
@@ -309,11 +304,6 @@ const AdminDashboard = () => {
           .from("finance_applications")
           .select("id, status, created_at, status_updated_at")
           .limit(20000),
-        // Valuations done = sell-car (trade-in valuation) requests, bucketed by date.
-        supabase
-          .from("sell_car_requests")
-          .select("created_at")
-          .limit(20000),
         // "New apps today" — always today's finance applications.
         supabase.from("finance_applications").select("id", { count: "exact", head: true })
           .gte("created_at", dayStart).lte("created_at", dayEnd),
@@ -327,7 +317,6 @@ const AdminDashboard = () => {
       setTarget((settings as any)?.monthly_sales_target || 10);
       setDeals(dealRows || []);
       setApps(appRows || []);
-      setValuationDates((valRows || []).map((r: any) => r.created_at));
       setNewAppsToday(appsTodayCount ?? 0);
       setActivityToday({
         totalVolume: (leadsToday ?? 0) + (draftsToday ?? 0),
@@ -373,8 +362,6 @@ const AdminDashboard = () => {
       if (PENDING_STATUSES.has(a.status) && inPeriod(a.created_at, period)) pendingApps += 1;
     });
 
-    const valuations = valuationDates.filter((d) => inPeriod(d, period)).length;
-
     return {
       grossProfit,
       turnover,
@@ -383,10 +370,9 @@ const AdminDashboard = () => {
       closedDeals,
       approvals,
       pendingApps,
-      valuations,
       avgYield: totalUnits > 0 ? grossProfit / totalUnits : 0,
     };
-  }, [period, deals, apps, valuationDates]);
+  }, [period, deals, apps]);
 
   const fmt = (val: number) =>
     `R ${val.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
@@ -440,18 +426,6 @@ const AdminDashboard = () => {
           value={<span className="text-green-400">{num(metrics.approvals)}</span>}
           hint="Pre-approved / bank-approved"
           onClick={() => navigate(ADMIN_ROUTES.finance)}
-        />
-      ),
-    },
-    valuations: {
-      label: "Valuations Done",
-      render: () => (
-        <StatTile
-          icon={<ClipboardCheck className="text-cyan-400" />}
-          label="Valuations Done"
-          value={<span className="text-cyan-400">{num(metrics.valuations)}</span>}
-          hint="Trade-in requests"
-          onClick={() => navigate(ADMIN_ROUTES.carsToBuy)}
         />
       ),
     },

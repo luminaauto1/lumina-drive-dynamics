@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, TableProperties, CreditCard, ClipboardList, Car,
-  Calculator, FileSignature, FolderOpen, Building2, ShoppingCart,
+  Calculator, FileSignature, FolderOpen, Building2,
   Receipt, Coins, Truck, FileBarChart, BarChart3, LineChart, Download,
   Briefcase, Gift, Contact, Settings, ChevronLeft, ChevronRight, Home, Users,
   MessageCircle,
@@ -48,7 +48,6 @@ export const NAV_SECTIONS: NavSection[] = [
       { title: 'OTP Generator', icon: FileSignature, path: '/admin/otp' },
       { title: 'Documents Hub', icon: FolderOpen, path: '/admin/documents' },
       { title: 'Juristic Capture', icon: Building2, path: '/admin/juristic' },
-      { title: 'Cars to Buy', icon: ShoppingCart, path: '/admin/cars-to-buy' },
     ],
   },
   {
