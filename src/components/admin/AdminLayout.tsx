@@ -22,20 +22,24 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   const [collapsed, setCollapsed] = useState(false);
 
   // Radix overlays (Dialog/Sheet/Popover/DropdownMenu/Select/Tooltip/etc.) portal
-  // into document.body, OUTSIDE the .desk-root.theme-light wrapper, so they inherit
-  // the default dark :root tokens. Mark <html> with `desk-portal-light` in admin
-  // light mode so portaled overlay content can re-scope to the light palette.
-  // Always cleared on cleanup / when theme flips to dark, so the public site
-  // (which never mounts AdminLayout) is never affected.
+  // into document.body, OUTSIDE the .desk-root wrapper, so they inherit the default
+  // :root tokens. Mark <html> with `desk-portal-light` / `desk-portal-dark` so
+  // portaled overlay content re-scopes to the ADMIN palette for the active theme
+  // (dark admin retunes card/border/muted/accent vs the public :root — see
+  // index.css "ADMIN DARK SURFACES"). Both are cleared on cleanup / theme flips,
+  // so the public site (which never mounts AdminLayout) is never affected.
   useEffect(() => {
     const root = document.documentElement;
     if (theme === 'light') {
       root.classList.add('desk-portal-light');
+      root.classList.remove('desk-portal-dark');
     } else {
+      root.classList.add('desk-portal-dark');
       root.classList.remove('desk-portal-light');
     }
     return () => {
       root.classList.remove('desk-portal-light');
+      root.classList.remove('desk-portal-dark');
     };
   }, [theme]);
 

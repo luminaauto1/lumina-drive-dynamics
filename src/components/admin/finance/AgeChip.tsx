@@ -7,7 +7,7 @@ export function AgeChip({ app }: { app: any }) {
   const slaH = slaHoursFor(app?.status);
   const slaMs = slaH != null ? slaH * 3600_000 : null;
 
-  let cls = 'bg-zinc-800/60 text-zinc-400 border-zinc-700/60';
+  let cls = 'bg-muted/60 text-muted-foreground border-border';
   let label = formatAge(ageMs);
   if (slaMs != null) {
     if (ageMs > slaMs) {

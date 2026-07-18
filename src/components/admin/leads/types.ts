@@ -1,3 +1,5 @@
+import { Inbox, MessageSquare, FileText, CheckCircle2, Snowflake, type LucideIcon } from 'lucide-react';
+
 export interface Lead {
   id: string;
   source: string;
@@ -23,11 +25,11 @@ export interface Lead {
 }
 
 export const PIPELINE_COLUMNS = [
-  { id: 'new', title: '📥 NEW / INBOX', color: 'border-t-red-500', headerBg: 'bg-red-500/10 text-red-400' },
-  { id: 'contacted', title: '🗣️ CONTACTED', color: 'border-t-blue-500', headerBg: 'bg-blue-500/10 text-blue-400' },
-  { id: 'finance', title: '📝 APPLIED / FINANCE', color: 'border-t-purple-500', headerBg: 'bg-purple-500/10 text-purple-400' },
-  { id: 'approved', title: '✅ APPROVED / CLOSING', color: 'border-t-emerald-500', headerBg: 'bg-emerald-500/10 text-emerald-400' },
-  { id: 'cold', title: '❄️ COLD / FUTURE', color: 'border-t-gray-500', headerBg: 'bg-gray-500/10 text-gray-400' },
-] as const;
+  { id: 'new', title: 'NEW / INBOX', icon: Inbox, color: 'border-t-red-500', headerBg: 'bg-red-500/10 text-red-400' },
+  { id: 'contacted', title: 'CONTACTED', icon: MessageSquare, color: 'border-t-blue-500', headerBg: 'bg-blue-500/10 text-blue-400' },
+  { id: 'finance', title: 'APPLIED / FINANCE', icon: FileText, color: 'border-t-purple-500', headerBg: 'bg-purple-500/10 text-purple-400' },
+  { id: 'approved', title: 'APPROVED / CLOSING', icon: CheckCircle2, color: 'border-t-emerald-500', headerBg: 'bg-emerald-500/10 text-emerald-400' },
+  { id: 'cold', title: 'COLD / FUTURE', icon: Snowflake, color: 'border-t-muted-foreground/60', headerBg: 'bg-muted/40 text-muted-foreground' },
+] as const satisfies readonly { id: string; title: string; icon: LucideIcon; color: string; headerBg: string }[];
 
 export type PipelineStage = typeof PIPELINE_COLUMNS[number]['id'];

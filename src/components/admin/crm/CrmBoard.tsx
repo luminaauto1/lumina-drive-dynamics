@@ -67,8 +67,16 @@ const CrmBoard = ({ records, onMove, onOpen, selectedIds, onToggleSelect, canSel
                               <Card
                                 ref={prov.innerRef}
                                 {...prov.draggableProps}
+                                role="button"
+                                tabIndex={0}
                                 onClick={() => onOpen(rec)}
-                                className={`p-3 relative group transition-all cursor-pointer border-l-4 ${stage.color.replace('border-', 'border-l-')} bg-card hover:bg-muted/50 ${snap.isDragging ? 'shadow-lg ring-2 ring-primary/30' : ''}`}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    onOpen(rec);
+                                  }
+                                }}
+                                className={`p-3 relative group transition-all cursor-pointer border-l-4 ${stage.color.replace('border-', 'border-l-')} bg-card hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${snap.isDragging ? 'shadow-lg ring-2 ring-primary/30' : ''}`}
                               >
                                 <div {...prov.dragHandleProps} className="absolute top-2 left-1 opacity-0 group-hover:opacity-50 transition-opacity">
                                   <GripVertical className="w-3.5 h-3.5 text-muted-foreground" />
@@ -76,7 +84,7 @@ const CrmBoard = ({ records, onMove, onOpen, selectedIds, onToggleSelect, canSel
 
                                 {canSelect && !rec.isVirtual && (
                                   <div
-                                    className={`absolute top-2 right-2 transition-opacity ${selectedIds.has(rec.id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                                    className={`absolute top-2 right-2 transition-opacity cursor-pointer ${selectedIds.has(rec.id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
                                     onClick={(e) => { e.stopPropagation(); onToggleSelect(rec.id); }}
                                   >
                                     <Checkbox checked={selectedIds.has(rec.id)} onCheckedChange={() => onToggleSelect(rec.id)} className="h-4 w-4" />

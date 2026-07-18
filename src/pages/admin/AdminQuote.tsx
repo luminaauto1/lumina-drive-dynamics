@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { FileText, Plus, Printer, Save, ArrowLeft, Pencil, Trash2, Upload, ImageOff, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import ConfirmDialog from '@/components/admin/ConfirmDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useDocumentSettings, consumeQuoteNumber } from '@/hooks/useDocumentSettings';
 import type { DocumentSettings } from '@/hooks/useDocumentSettings';
@@ -269,8 +270,8 @@ const AdminQuote = () => {
     }
   };
 
+  const [confirmDelete, setConfirmDelete] = useState<QuoteRecord | null>(null);
   const handleDelete = async (rec: QuoteRecord) => {
-    if (!window.confirm(`Delete quote ${rec.ref}? This cannot be undone.`)) return;
     await deleteQuote.mutateAsync(rec.id);
     toast.success('Quote deleted');
   };
@@ -363,7 +364,7 @@ const AdminQuote = () => {
                       <td className="p-3">{new Date(rec.created_at).toLocaleDateString('en-ZA')}</td>
                       <td className="p-3 text-right whitespace-nowrap">
                         <Button variant="ghost" size="sm" onClick={() => startEdit(rec)} className="gap-1"><Pencil className="w-3.5 h-3.5" /> Edit</Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(rec)} className="gap-1 text-destructive"><Trash2 className="w-3.5 h-3.5" /></Button>
+                        <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(rec)} className="gap-1 text-destructive"><Trash2 className="w-3.5 h-3.5" /></Button>
                       </td>
                     </tr>
                   ))}
@@ -372,6 +373,13 @@ const AdminQuote = () => {
             </CardContent>
           </Card>
         </div>
+        <ConfirmDialog
+          open={!!confirmDelete}
+          title="Delete quote?"
+          description={confirmDelete ? `Delete quote ${confirmDelete.ref}? This cannot be undone.` : undefined}
+          onConfirm={() => { if (confirmDelete) void handleDelete(confirmDelete); setConfirmDelete(null); }}
+          onCancel={() => setConfirmDelete(null)}
+        />
       </AdminLayout>
     );
   }

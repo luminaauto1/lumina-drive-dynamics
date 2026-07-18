@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import ConfirmDialog from '@/components/admin/ConfirmDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
@@ -104,6 +105,7 @@ const SalaryCalculatorTab = () => {
   });
 
   const [draft, setDraft] = useState<Partial<StaffSalary> | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<StaffSalary | null>(null);
 
   const visible = rows.filter((r) => showInactive || r.active);
   const payroll = visible.filter((r) => r.active).map((r) => ({
@@ -237,7 +239,7 @@ const SalaryCalculatorTab = () => {
                 <tbody>
                   {payroll.map(({ row, calc }) => (
                     <>
-                      <tr key={row.id} className="border-b border-border/50">
+                      <tr key={row.id} className="border-b border-border">
                         <td className="py-1.5 pr-2">
                           <div className="font-medium">{row.employee_name}</div>
                           <div className="text-[11px] text-muted-foreground">{row.role_title || '—'} · {AGE_LABEL[row.age_band]}</div>
@@ -258,13 +260,13 @@ const SalaryCalculatorTab = () => {
                             {expanded === row.id ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                           </Button>
                           <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                            onClick={() => { if (confirm(`Remove ${row.employee_name} from the salary register?`)) remove.mutate(row.id); }}>
+                            onClick={() => setConfirmRemove(row)}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </td>
                       </tr>
                       {expanded === row.id && (
-                        <tr key={row.id + '-x'} className="border-b border-border/50 bg-muted/20">
+                        <tr key={row.id + '-x'} className="border-b border-border bg-muted/20">
                           <td colSpan={8} className="py-2 px-2">
                             <EmployeeEditor row={row} onSave={(patch) => upsert.mutate({ id: row.id, ...patch })} saving={upsert.isPending} />
                           </td>
@@ -313,6 +315,15 @@ const SalaryCalculatorTab = () => {
           </CardContent>
         )}
       </Card>
+
+      <ConfirmDialog
+        open={!!confirmRemove}
+        title="Remove employee?"
+        description={confirmRemove ? `Remove ${confirmRemove.employee_name} from the salary register?` : undefined}
+        confirmLabel="Remove"
+        onConfirm={() => { if (confirmRemove) remove.mutate(confirmRemove.id); setConfirmRemove(null); }}
+        onCancel={() => setConfirmRemove(null)}
+      />
     </div>
   );
 };

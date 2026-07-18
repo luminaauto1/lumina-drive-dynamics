@@ -32,6 +32,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Loader2, Save, Trash2, Check, ChevronDown, ArrowRight, X, Info } from 'lucide-react';
+import ConfirmDialog from '@/components/admin/ConfirmDialog';
 import { getStatusDispatchInfo } from '@/lib/statusDispatchInfo';
 import {
   useStatusConfig,
@@ -462,9 +463,9 @@ export function StatusEditModal({
     }
   };
 
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const remove = async () => {
     if (!slug || type !== 'client') return;
-    if (!window.confirm(`Delete client status "${label || slug}"? Applications keeping this value will show it until reassigned.`)) return;
     try {
       await del.mutateAsync(slug);
       onClose();
@@ -1032,7 +1033,7 @@ export function StatusEditModal({
           <div className="flex items-center justify-between gap-2 pt-2 pb-6">
             <div>
               {type === 'client' && slug && (
-                <Button variant="ghost" onClick={remove} disabled={del.isPending} className="text-red-400 hover:text-red-300 gap-1">
+                <Button variant="ghost" onClick={() => setConfirmDeleteOpen(true)} disabled={del.isPending} className="text-red-400 hover:text-red-300 gap-1">
                   {del.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />} Delete
                 </Button>
               )}
@@ -1045,6 +1046,13 @@ export function StatusEditModal({
             </div>
           </div>
         </div>
+        <ConfirmDialog
+          open={confirmDeleteOpen}
+          title="Delete client status?"
+          description={`Delete client status "${label || slug}"? Applications keeping this value will show it until reassigned.`}
+          onConfirm={() => { setConfirmDeleteOpen(false); void remove(); }}
+          onCancel={() => setConfirmDeleteOpen(false)}
+        />
       </SheetContent>
     </Sheet>
   );

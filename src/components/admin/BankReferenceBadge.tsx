@@ -12,13 +12,7 @@ const BankReferenceBadge = ({ reference, className = '', onEdit }: BankReference
     e.stopPropagation();
     try {
       await navigator.clipboard.writeText(reference);
-      toast('Reference copied', {
-        style: {
-          background: '#0a0a0a',
-          color: '#fff',
-          border: '1px solid rgba(255,255,255,0.1)',
-        },
-      });
+      toast('Reference copied');
     } catch {
       toast.error('Copy failed');
     }

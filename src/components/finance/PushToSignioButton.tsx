@@ -22,6 +22,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useSignioLinks } from '@/hooks/useZtcSettings';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 // The Signio portal link(s) are CONFIGURABLE in Admin → Settings → Signio Links
 // (integration_settings key 'signio'): each link carries the URL plus which fill
@@ -200,9 +201,9 @@ export function PushToSignioButton({ application }: { application: any }) {
     );
 
   const openSignio = () => {
-    if (!chosenLink) { alert('No Signio link configured — add one in Settings → Signio Links.'); return; }
+    if (!chosenLink) { toast.error('No Signio link configured — add one in Settings → Signio Links.'); return; }
     const win = window.open('about:blank', '_blank');
-    if (!win) { alert('Allow pop-ups for Lumina so it can open Signio.'); return; }
+    if (!win) { toast.error('Allow pop-ups for Lumina so it can open Signio.'); return; }
     // The declared per-link system rides along so the fill engine locks on instantly
     // (it still auto-detects the form as a fallback if the declaration is wrong).
     // Google-resolved employer details fill any gaps the application row has.

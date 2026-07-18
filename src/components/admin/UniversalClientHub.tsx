@@ -522,7 +522,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
                 <div className="space-y-2">
                   <div className="text-[10px] text-amber-500/80 mb-2 font-mono uppercase tracking-wider">Total Vehicles Bought: {pastDeals.length}</div>
                   {pastDeals.map(deal => (
-                    <div key={deal.id} className="bg-gradient-to-r from-amber-950/30 to-black border border-amber-500/20 p-3 rounded-md flex justify-between items-center shadow-[0_0_15px_rgba(245,158,11,0.05)]">
+                    <div key={deal.id} className="bg-gradient-to-r from-amber-500/10 to-card border border-amber-500/20 p-3 rounded-md flex justify-between items-center shadow-[0_0_15px_rgba(245,158,11,0.05)]">
                       <div>
                         <p className="text-sm font-bold text-amber-400">{deal.preferred_vehicle_text || deal.full_name || 'Unknown Vehicle'}</p>
                         <p className="text-[10px] text-muted-foreground font-mono mt-0.5">App ID: {deal.id.slice(0,8)}</p>

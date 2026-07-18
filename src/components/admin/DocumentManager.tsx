@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import ConfirmDialog from '@/components/admin/ConfirmDialog';
 import { formatBytes } from '@/lib/compressFile';
 import {
   useDocuments, useUploadDocument, useDeleteDocument, getDocumentUrl,
@@ -88,10 +89,7 @@ const DocumentManager = ({
     if (url) window.open(url, '_blank', 'noopener,noreferrer');
   };
 
-  const handleDelete = (doc: DocRecord) => {
-    if (!window.confirm(`Delete "${doc.title}"? This cannot be undone.`)) return;
-    deleteDoc.mutate(doc);
-  };
+  const [confirmDelete, setConfirmDelete] = useState<DocRecord | null>(null);
 
   return (
     <div className="space-y-3">
@@ -165,7 +163,7 @@ const DocumentManager = ({
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 shrink-0 text-destructive hover:text-destructive"
-                    onClick={() => handleDelete(doc)}
+                    onClick={() => setConfirmDelete(doc)}
                     title="Delete"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -176,6 +174,13 @@ const DocumentManager = ({
           })}
         </div>
       )}
+      <ConfirmDialog
+        open={!!confirmDelete}
+        title="Delete document?"
+        description={confirmDelete ? `Delete "${confirmDelete.title}"? This cannot be undone.` : undefined}
+        onConfirm={() => { if (confirmDelete) deleteDoc.mutate(confirmDelete); setConfirmDelete(null); }}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </div>
   );
 };

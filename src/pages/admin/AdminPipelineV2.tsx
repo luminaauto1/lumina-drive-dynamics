@@ -106,7 +106,7 @@ const AdminPipelineV2 = () => {
 
   // ---- Realtime presence: "who is viewing which profile" -------------------
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  const myColor = user ? colorForUser(user.id) : '#888';
+  const myColor = user ? colorForUser(user.id) : 'hsl(var(--muted-foreground))';
   const myName = user?.email?.split('@')[0] || 'Someone';
 
   useEffect(() => {

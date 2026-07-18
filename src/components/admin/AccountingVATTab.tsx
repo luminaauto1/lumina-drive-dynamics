@@ -451,7 +451,9 @@ const AccountingVATTab = () => {
                       const financeVendor = d.finance_house_vendor_id ? vendorMap.get(d.finance_house_vendor_id) : undefined;
                       const netProfit = dealNetProfit(d);
                       return (
-                        <TableRow key={d.id} onClick={() => setActiveDeal(d)} className={cn('cursor-pointer transition-colors hover:bg-muted', d.application?.is_invoiced && 'opacity-50 text-muted-foreground')}>
+                        <TableRow key={d.id} tabIndex={0} onClick={() => setActiveDeal(d)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') setActiveDeal(d); }}
+                          className={cn('cursor-pointer transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/60', d.application?.is_invoiced && 'opacity-50 text-muted-foreground')}>
                           <TableCell onClick={(e) => e.stopPropagation()}>
                             <Checkbox checked={!!d.application?.is_invoiced} disabled={!d.application?.id || toggleInvoiced.isPending}
                               onCheckedChange={(checked) => { if (d.application?.id) toggleInvoiced.mutate({ appId: d.application.id, value: checked === true }); }} aria-label="Mark as invoiced" />

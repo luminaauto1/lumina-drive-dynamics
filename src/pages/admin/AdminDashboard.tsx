@@ -682,7 +682,7 @@ const AdminDashboard = () => {
             <div className="grid grid-cols-3 gap-3">
               <button
                 onClick={() => navigate("/admin/reports/lead-analytics")}
-                className="text-left p-4 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors border border-border/50"
+                className="text-left p-4 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors border border-border"
               >
                 <div className="flex items-center gap-2 mb-2 text-emerald-400">
                   <BarChart3 className="w-4 h-4" />
@@ -693,7 +693,7 @@ const AdminDashboard = () => {
 
               <button
                 onClick={() => navigate(ADMIN_ROUTES.pipelineV2)}
-                className="text-left p-4 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors border border-border/50"
+                className="text-left p-4 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors border border-border"
               >
                 <div className="flex items-center gap-2 mb-2 text-blue-400">
                   <UserPlus className="w-4 h-4" />
@@ -704,7 +704,7 @@ const AdminDashboard = () => {
 
               <button
                 onClick={() => navigate("/admin/finance")}
-                className="text-left p-4 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors border border-border/50"
+                className="text-left p-4 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors border border-border"
               >
                 <div className="flex items-center gap-2 mb-2 text-amber-400">
                   <FileCheck2 className="w-4 h-4" />
@@ -714,7 +714,7 @@ const AdminDashboard = () => {
               </button>
             </div>
 
-            <div className="mt-4 pt-4 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
+            <div className="mt-4 pt-4 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
               <span>Top-of-funnel volume from WhatsApp + web</span>
               <button
                 onClick={() => navigate("/admin/reports/lead-analytics")}

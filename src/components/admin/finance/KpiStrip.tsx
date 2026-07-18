@@ -68,11 +68,12 @@ export function KpiStrip({
         onClick={() => onBucketClick(key)}
         title={active ? 'Click to clear this filter' : `Show only ${label}`}
         className={[
-          'flex flex-col items-start px-3 py-2 rounded-md border bg-[#161616] text-left transition-all',
+          'flex flex-col items-start px-3 py-2 rounded-md border bg-secondary text-left transition-all',
+          'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
           colorCls,
           active
-            ? 'ring-2 ring-amber-300/60 bg-zinc-800/80'
-            : 'hover:bg-zinc-800/60',
+            ? 'ring-2 ring-ring/60 bg-muted/80'
+            : 'hover:bg-muted/60',
         ].join(' ')}
       >
         <span className="text-[10px] uppercase tracking-wider truncate w-full flex items-center gap-1">
@@ -81,7 +82,7 @@ export function KpiStrip({
         </span>
         <span className="text-lg font-semibold tabular-nums leading-tight">{count}</span>
         {!isStalledTile && (
-          <span className={`text-[10px] ${todayN > 0 ? 'opacity-70' : 'text-zinc-600'}`}>+{todayN} today</span>
+          <span className={`text-[10px] ${todayN > 0 ? 'opacity-70' : 'text-muted-foreground'}`}>+{todayN} today</span>
         )}
       </button>
     );
@@ -91,13 +92,13 @@ export function KpiStrip({
     <motion.div
       initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
-      className="w-full bg-[#1A1A1A] border border-zinc-800 rounded-lg p-3 mb-4"
+      className="w-full bg-card border border-border rounded-lg p-3 mb-4"
     >
       <div className="flex items-center justify-between mb-2">
-        <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-500 font-medium">
+        <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-medium">
           Pipeline Overview — click a tile to filter
         </p>
-        <span className="text-[10px] text-zinc-500">
+        <span className="text-[10px] text-muted-foreground">
           {activeApps.length} active app{activeApps.length === 1 ? '' : 's'}
         </span>
       </div>

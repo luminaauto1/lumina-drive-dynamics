@@ -24,7 +24,7 @@ interface PageHeaderProps {
 const PageHeader = ({ title, subtitle, icon, actions, className }: PageHeaderProps) => (
   <div
     className={cn(
-      "flex flex-col gap-3 border-b border-border/60 px-4 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4",
+      "flex flex-col gap-3 border-b border-border px-4 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4",
       className,
     )}
   >

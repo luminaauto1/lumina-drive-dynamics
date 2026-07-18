@@ -586,24 +586,24 @@ export const useUpdateFinanceApplication = () => {
           console.log('[easysocial-tag-sync] response', { tagData, tagErr });
           if (tagErr) {
             toast.error(`EasySocial sync failed: ${tagErr.message || 'unknown error'}`, {
-              style: { background: '#1A1A1A', color: '#fca5a5', border: '1px solid #7f1d1d' },
+              style: { background: 'hsl(var(--card))', color: 'hsl(var(--foreground))', border: '1px solid hsl(var(--border))' },
             });
           } else if (tagData?.ok === false) {
             const detail = tagData?.upstream?.body?.message || tagData?.error || tagData?.detail || `status ${tagData?.upstream?.status ?? '?'}`;
             toast.error(`EasySocial sync failed: ${detail}`, {
-              style: { background: '#1A1A1A', color: '#fca5a5', border: '1px solid #7f1d1d' },
+              style: { background: 'hsl(var(--card))', color: 'hsl(var(--foreground))', border: '1px solid hsl(var(--border))' },
             });
           } else if (tagData?.skipped) {
             // No mapping for this status — informational only, no toast needed.
           } else {
             toast.success('EasySocial tags updated', {
-              style: { background: '#1A1A1A', color: '#86efac', border: '1px solid #14532d' },
+              style: { background: 'hsl(var(--card))', color: 'hsl(var(--foreground))', border: '1px solid hsl(var(--border))' },
             });
           }
         } catch (tagEx: any) {
           console.error('[easysocial-tag-sync] failed to invoke:', tagEx);
           toast.error(`EasySocial sync failed: ${tagEx?.message || tagEx}`, {
-            style: { background: '#1A1A1A', color: '#fca5a5', border: '1px solid #7f1d1d' },
+            style: { background: 'hsl(var(--card))', color: 'hsl(var(--foreground))', border: '1px solid hsl(var(--border))' },
           });
         }
       }

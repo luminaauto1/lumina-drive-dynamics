@@ -139,7 +139,7 @@ export function HistoryFeed({ app }: { app: FinanceApplication }) {
         return (
           <li key={item.id} className="flex items-start gap-2.5">
             <Icon className={'mt-0.5 h-4 w-4 shrink-0 ' + color} />
-            <div className="min-w-0 flex-1 border-b border-border/40 pb-3 last:border-0">
+            <div className="min-w-0 flex-1 border-b border-border pb-3 last:border-0">
               <div className="text-sm font-medium text-foreground">{item.title}</div>
               {item.detail && (
                 <p className="mt-0.5 line-clamp-2 whitespace-pre-wrap text-xs text-muted-foreground">{item.detail}</p>
