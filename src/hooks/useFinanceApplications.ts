@@ -674,11 +674,55 @@ export const useUpdateClientStatus = () => {
         .from('finance_applications')
         .update({ client_status } as any)
         .eq('id', id)
-        .select('phone, pipeline_notes')
+        .select('phone, pipeline_notes, vehicle_id')
         .maybeSingle();
       if (error) throw error;
       // Lightweight audit trail only — never a status_change dispatch.
       void logActivity({ actionType: 'other', note: `Client status → ${client_status}`, applicationId: id });
+
+      // ── Client "Contract Signed 🎉" → Deal Desk draft ──────────────────────
+      // Mirrors the finance-status auto-create in useUpdateFinanceApplication
+      // (same site_settings flag, same existing-deal idempotency guard — which
+      // also makes the nightly client_status reset → re-set cycle safe; the
+      // unique application_id index backstops races). Deliberate differences:
+      // NO vehicle_id requirement (client-track apps often lack a car — every
+      // deal_records column is nullable/defaulted and the Finalize modal picks
+      // the vehicle later) and EXPLICIT sale_date: null so the draft reads as
+      // awaiting-finalize, never a phantom invoiced deal.
+      if (client_status === 'client_contract_signed') {
+        try {
+          const docSettings = queryClient.getQueryData<DocumentSettings>(['document-settings']);
+          if (docSettings?.autoCreateDealOnContractSigned === true) {
+            const { data: existingDeal } = await (supabase as any)
+              .from('deal_records').select('id').eq('application_id', id).maybeSingle();
+            if (!existingDeal) {
+              const appVehicleId = (data as any)?.vehicle_id ?? null;
+              let soldPrice = 0;
+              if (appVehicleId) {
+                const { data: veh } = await supabase
+                  .from('vehicles').select('price').eq('id', appVehicleId).maybeSingle();
+                soldPrice = Number((veh as any)?.price) || 0;
+              }
+              const { error: draftErr } = await (supabase as any).from('deal_records').insert({
+                application_id: id,
+                vehicle_id: appVehicleId,
+                sold_price: soldPrice,
+                sale_date: null,
+                cost_price: 0, gross_profit: 0, recon_cost: 0, discount_amount: 0,
+                dealer_deposit_contribution: 0, external_admin_fee: 0, bank_initiation_fee: 0,
+                total_financed_amount: 0, client_deposit: 0, dic_amount: 0,
+                sales_rep_commission: 0, referral_commission_amount: 0, referral_income_amount: 0,
+                partner_capital_contribution: 0, is_shared_capital: false, is_closed: false,
+                addons_data: [], aftersales_expenses: [],
+              });
+              if (draftErr) console.error('[deal-draft/client] insert failed (non-fatal):', draftErr);
+              else console.log('[deal-draft/client] draft created for application', id);
+            }
+          }
+        } catch (ex) {
+          console.error('[deal-draft/client] failed (non-fatal):', ex);
+        }
+      }
 
       // Auto-note (owner 2026-07-17): picking a client status stamps an EVENT
       // note ("Client status → No Answer", …) so yesterday's call outcome
