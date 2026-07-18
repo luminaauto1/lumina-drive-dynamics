@@ -30,6 +30,11 @@ export interface NoteCategoryDef {
 
 // Workflow-relevant tags an F&I/admin reaches for, in roughly pipeline order.
 // `note` is the neutral default (no coloured badge).
+// NOTE: the Notes composer no longer OFFERS the status-lookalike categories
+// (actioned, callback, docs_received, vals_*, contract_signed, follow_up) —
+// they duplicated the client-status vocabulary and staff picked them believing
+// they set the client status (see fix/client-status-note-trap). They remain
+// here ONLY so old notes still resolve a label/colour via noteCategory().
 export const NOTE_CATEGORIES: NoteCategoryDef[] = [
   { key: 'note',            label: 'Note',            color: 'bg-muted text-muted-foreground border-border' },
   { key: 'actioned',        label: 'Actioned',        color: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },

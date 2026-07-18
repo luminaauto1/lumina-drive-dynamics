@@ -477,7 +477,10 @@ function renderCell(
         const cat = noteCategory(latest.category);
         return (
           <div className="space-y-0.5">
-            {latest.category !== 'note' && (
+            {/* Chip WHITELIST — only genuine event tags. The other categories
+                (actioned, callback, … + legacy values) looked like client
+                statuses here, so no chip for them (fix/client-status-note-trap). */}
+            {(latest.category === 'status_change' || latest.category === 'client_whatsapp') && (
               <span className={'inline-flex items-center rounded border px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide ' + cat.color}>
                 {cat.label}{cat.emoji ? ` ${cat.emoji}` : ''}
               </span>
