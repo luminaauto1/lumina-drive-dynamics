@@ -131,7 +131,8 @@ export interface Deal {
   sale_date: string | null;
   delivery_date: string | null;     // SAST YYYY-MM-DD (coerced in the adapter)
   delivery_date_raw: string | null;  // original timestamptz, for display
-  /** Financing bank (finance_applications.contract_bank_name, falling back to bank_name). */
+  /** Financing bank (finance_applications.contract_bank_name — set by the Send Contract
+   *  flow; the applicant's personal bank_name is deliberately NOT used here). */
   bank: string | null;
   /** Natis sent? Derived from deal_records.natis_sent_at != null. */
   natis_sent: boolean;

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { CheckCircle2, ChevronDown, Download, Loader2, Upload } from 'lucide-react';
+import { Banknote, CheckCircle2, ChevronDown, Download, Loader2, Truck, Upload, Wrench, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -22,6 +22,11 @@ const STEP_DOT: Record<ChecklistStep, string> = {
   done: 'bg-emerald-400', not_applicable: 'bg-muted-foreground/30',
 };
 
+/** Leading icon per checklist section — makes the header band read as a heading. */
+const SECTION_ICON: Record<DealChecklistSectionKey, LucideIcon> = {
+  car_prep: Wrench, delivery_prep: Truck, payout: Banknote,
+};
+
 /** 'done' and 'N/A' both count as complete for the section progress chip. */
 const isComplete = (s: ChecklistStep) => s === 'done' || s === 'not_applicable';
 
@@ -38,6 +43,7 @@ function ItemRow({ dealId, section, item, doc }: {
 
   const status: ChecklistStep = doc?.status ?? 'not_started';
   const busy = upsert.isPending || upload.isPending;
+  const missingDoc = status === 'done' && !doc?.file_path;
 
   const handleFile = (files: FileList | null) => {
     const file = files?.[0];
@@ -78,10 +84,12 @@ function ItemRow({ dealId, section, item, doc }: {
             {opening ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
           </Button>
         )}
+        {/* 'Done' with no file is a red flag — the paper trail is missing. */}
         <Button
-          variant="outline" size="sm" className="h-8 gap-1"
+          variant="outline" size="sm"
+          className={cn('h-8 gap-1', missingDoc && 'border-red-500/40 text-red-400 hover:bg-red-500/10')}
           onClick={() => fileInputRef.current?.click()} disabled={busy}
-          title={doc?.file_path ? 'Replace file' : 'Upload file'}
+          title={missingDoc ? 'Marked done but no document uploaded' : doc?.file_path ? 'Replace file' : 'Upload file'}
         >
           {upload.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
           <span className="hidden sm:inline">{doc?.file_path ? 'Replace' : 'Upload'}</span>
@@ -116,7 +124,7 @@ export function ChecklistTab({ deal }: { deal: Deal }) {
   const config = resolveDealChecklistConfig(settings?.dealChecklistConfig);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-5">
       {DEAL_CHECKLIST_SECTIONS.map((sec) => {
         const items = config[sec.key];
         const done = items.filter((it) => {
@@ -124,19 +132,28 @@ export function ChecklistTab({ deal }: { deal: Deal }) {
           return d ? isComplete(d.status) : false;
         }).length;
         const complete = items.length > 0 && done === items.length;
+        const SectionIcon = SECTION_ICON[sec.key];
 
         return (
           <Collapsible key={sec.key} open={open[sec.key]} onOpenChange={(v) => setOpen((p) => ({ ...p, [sec.key]: v }))}>
             <div className="rounded-lg border border-border">
               <CollapsibleTrigger asChild>
-                <button type="button" className="flex w-full items-center gap-2 px-3 py-2.5 text-left">
+                {/* Header BAND, not a row: tinted background + icon + uppercase title. */}
+                <button
+                  type="button"
+                  className={cn(
+                    'flex w-full items-center gap-2.5 bg-muted/40 px-3 py-3 text-left',
+                    open[sec.key] ? 'rounded-t-lg' : 'rounded-lg',
+                  )}
+                >
                   <ChevronDown className={cn('w-4 h-4 text-muted-foreground transition-transform', !open[sec.key] && '-rotate-90')} />
-                  <span className="text-sm font-medium flex-1">{sec.label}</span>
+                  <SectionIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="flex-1 text-sm font-semibold uppercase tracking-wide">{sec.label}</span>
                   <span className={cn(
-                    'rounded-full border px-2 py-0.5 text-[11px] font-medium',
+                    'rounded-full border px-2.5 py-0.5 text-xs font-semibold tabular-nums',
                     complete
-                      ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-400'
-                      : 'border-border bg-muted text-muted-foreground',
+                      ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-400'
+                      : 'border-border bg-background text-muted-foreground',
                   )}>
                     {done}/{items.length}
                   </span>
