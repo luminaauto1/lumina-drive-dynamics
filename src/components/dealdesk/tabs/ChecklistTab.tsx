@@ -10,7 +10,7 @@ import { CHECKLIST_STEP_LABEL, CHECKLIST_STEP_OPTIONS } from '@/lib/dealdesk/typ
 import { useDealChecklist, useSaveChecklist } from '@/hooks/dealdesk/useDealDesk';
 import {
   useDocumentSettings, resolveDealChecklistConfig,
-  DEAL_CHECKLIST_SECTIONS, type DealChecklistItem, type DealChecklistSectionKey,
+  DEAL_CHECKLIST_SECTIONS, type ResolvedDealChecklistItem, type DealChecklistSectionKey,
 } from '@/hooks/useDocumentSettings';
 import {
   useDealChecklistDocs, useUpsertDealChecklistDoc, useUploadDealChecklistDoc,
@@ -33,7 +33,7 @@ const isComplete = (s: ChecklistStep) => s === 'done' || s === 'not_applicable';
 function ItemRow({ dealId, section, item, doc }: {
   dealId: string;
   section: DealChecklistSectionKey;
-  item: DealChecklistItem;
+  item: ResolvedDealChecklistItem;
   doc: DealChecklistDoc | undefined;
 }) {
   const upsert = useUpsertDealChecklistDoc();
@@ -43,7 +43,10 @@ function ItemRow({ dealId, section, item, doc }: {
 
   const status: ChecklistStep = doc?.status ?? 'not_started';
   const busy = upsert.isPending || upload.isPending;
-  const missingDoc = status === 'done' && !doc?.file_path;
+  // Items configured as "no document needed" (Settings → Deal Checklist) are
+  // status-only: no upload/replace/view controls and never a missing-doc flag.
+  const requiresDoc = item.requiresDoc;
+  const missingDoc = requiresDoc && status === 'done' && !doc?.file_path;
 
   const handleFile = (files: FileList | null) => {
     const file = files?.[0];
@@ -66,34 +69,38 @@ function ItemRow({ dealId, section, item, doc }: {
         <span className="flex items-center gap-2 text-sm">
           <span className={cn('h-2 w-2 rounded-full shrink-0', STEP_DOT[status])} /> {item.label}
         </span>
-        {doc?.file_name && (
+        {requiresDoc && doc?.file_name && (
           <p className="text-[11px] text-muted-foreground truncate pl-4">{doc.file_name}</p>
         )}
       </div>
 
       <div className="flex items-center gap-1.5 shrink-0">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
-          className="hidden"
-          onChange={(e) => handleFile(e.target.files)}
-        />
-        {doc?.file_path && (
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleOpen} title="View / download">
-            {opening ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-          </Button>
+        {requiresDoc && (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
+              className="hidden"
+              onChange={(e) => handleFile(e.target.files)}
+            />
+            {doc?.file_path && (
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleOpen} title="View / download">
+                {opening ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              </Button>
+            )}
+            {/* 'Done' with no file is a red flag — the paper trail is missing. */}
+            <Button
+              variant="outline" size="sm"
+              className={cn('h-8 gap-1', missingDoc && 'border-red-500/40 text-red-400 hover:bg-red-500/10')}
+              onClick={() => fileInputRef.current?.click()} disabled={busy}
+              title={missingDoc ? 'Marked done but no document uploaded' : doc?.file_path ? 'Replace file' : 'Upload file'}
+            >
+              {upload.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{doc?.file_path ? 'Replace' : 'Upload'}</span>
+            </Button>
+          </>
         )}
-        {/* 'Done' with no file is a red flag — the paper trail is missing. */}
-        <Button
-          variant="outline" size="sm"
-          className={cn('h-8 gap-1', missingDoc && 'border-red-500/40 text-red-400 hover:bg-red-500/10')}
-          onClick={() => fileInputRef.current?.click()} disabled={busy}
-          title={missingDoc ? 'Marked done but no document uploaded' : doc?.file_path ? 'Replace file' : 'Upload file'}
-        >
-          {upload.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-          <span className="hidden sm:inline">{doc?.file_path ? 'Replace' : 'Upload'}</span>
-        </Button>
         <Select
           value={status}
           onValueChange={(v) => upsert.mutate({ dealId, section, itemKey: item.key, status: v as ChecklistStep })}
