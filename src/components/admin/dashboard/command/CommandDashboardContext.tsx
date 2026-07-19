@@ -116,14 +116,8 @@ async function fetchCommandCore(): Promise<CommandCoreData> {
   const dayStart = startOfDayLocal.toISOString();
   const dayEnd = endOfDayLocal.toISOString();
 
-  const [
-    { data: settings },
-    { data: dealRows },
-    { data: appRows },
-    { count: appsTodayCount },
-    { count: leadsToday },
-    { count: draftsToday },
-  ] = await Promise.all([
+  const [settingsRes, dealsRes, appsRes, appsTodayRes, leadsTodayRes, draftsTodayRes] =
+    await Promise.all([
     supabase.from('site_settings').select('monthly_sales_target').single(),
     // Deal records — keep the full finalized set; bucket per selected period
     // client-side. Only the columns the KPI maths actually reads.
@@ -153,17 +147,26 @@ async function fetchCommandCore(): Promise<CommandCoreData> {
       .select('id', { count: 'exact', head: true })
       .gte('updated_at', dayStart)
       .lte('updated_at', dayEnd),
-  ]);
+    ]);
+
+  // RLS-restricted roles legitimately see zero rows WITHOUT an error — that
+  // stays a graceful empty dashboard. A real query failure must not render as
+  // fake zeros: throw so react-query flips isError and widgets show their error
+  // state. (site_settings is exempt: its .single() errors when the row isn't
+  // visible to this role — fall back to the default target instead.)
+  for (const r of [dealsRes, appsRes, appsTodayRes, leadsTodayRes, draftsTodayRes]) {
+    if (r.error) throw r.error;
+  }
 
   return {
-    target: (settings as any)?.monthly_sales_target || 10,
-    deals: dealRows || [],
-    apps: appRows || [],
-    newAppsToday: appsTodayCount ?? 0,
+    target: (settingsRes.data as any)?.monthly_sales_target || 10,
+    deals: dealsRes.data || [],
+    apps: appsRes.data || [],
+    newAppsToday: appsTodayRes.count ?? 0,
     activityToday: {
-      totalVolume: (leadsToday ?? 0) + (draftsToday ?? 0),
-      leads: leadsToday ?? 0,
-      apps: appsTodayCount ?? 0,
+      totalVolume: (leadsTodayRes.count ?? 0) + (draftsTodayRes.count ?? 0),
+      leads: leadsTodayRes.count ?? 0,
+      apps: appsTodayRes.count ?? 0,
     },
   };
 }

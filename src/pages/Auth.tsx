@@ -38,15 +38,16 @@ const Auth = () => {
   // sign-in succeeds — wait for roleResolved before choosing: staff land on the
   // Command Center (/admin — ProtectedRoute re-routes them to their first
   // allowed section if the dashboard were ever revoked), customers land on the
-  // public home. With an explicit returnTo we don't need the role and can
-  // navigate immediately.
+  // public home. The wait applies to the explicit returnTo too: ProtectedRoute
+  // reads roles synchronously and AuthContext.loading is already false during an
+  // in-page re-sign-in, so entering a guarded route before the role resolves
+  // would bounce staff to the public home.
   useEffect(() => {
-    if (!user) return;
+    if (!user || !roleResolved) return;
     if (explicitReturnTo) {
       navigate(explicitReturnTo, { replace: true });
       return;
     }
-    if (!roleResolved) return;
     navigate(isStaff ? '/admin' : '/', { replace: true });
   }, [user, roleResolved, isStaff, explicitReturnTo, navigate]);
 
