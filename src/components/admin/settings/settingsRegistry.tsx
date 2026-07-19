@@ -20,6 +20,7 @@ import AppearanceNavTab from '@/components/admin/AppearanceNavTab';
 import DealChecklistTab from '@/components/admin/settings/DealChecklistTab';
 import { NatisSettings } from '@/components/dealdesk/NatisSettings';
 import { FinanceBody, SalesBody, ContactBody, LocationBody, FeaturesBody } from './SettingsFormBodies';
+import type { SettingsPageWidth } from './SettingsPageLayout';
 
 /**
  * Single source of truth for the routed Settings hub.
@@ -37,6 +38,12 @@ export interface SettingDef {
   icon: LucideIcon;
   /** When true, only super-admins see the link AND can open the route. */
   requireSuperAdmin?: boolean;
+  /**
+   * Content width for this setting's page (see `SettingsPageLayout`). Omit for
+   * the default reading column; set `'wide'` for settings whose body is a grid,
+   * table or multi-column editor that needs the extra room.
+   */
+  width?: SettingsPageWidth;
   /** Page body. */
   body: React.ReactNode;
 }
@@ -71,8 +78,8 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
   {
     label: 'Pipeline',
     items: [
-      { key: 'lanes', title: 'Pipeline Lanes', description: 'Rename and recolour the pipeline lane tabs (New Applications, Submitted, …).', icon: Columns3, requireSuperAdmin: true, body: <PipelineLanesTab /> },
-      { key: 'statuses', title: 'Statuses', description: 'Rename, recolour, reorder and message statuses for the finance pipeline.', icon: ListChecks, requireSuperAdmin: true, body: <StatusesTab /> },
+      { key: 'lanes', title: 'Pipeline Lanes', description: 'Rename and recolour the pipeline lane tabs (New Applications, Submitted, …).', icon: Columns3, requireSuperAdmin: true, width: 'wide', body: <PipelineLanesTab /> },
+      { key: 'statuses', title: 'Statuses', description: 'Rename, recolour, reorder and message statuses for the finance pipeline.', icon: ListChecks, requireSuperAdmin: true, width: 'wide', body: <StatusesTab /> },
       { key: 'email', title: 'Email Templates', description: 'Status-driven client email templates (subject, heading, body, CTA).', icon: Mail, requireSuperAdmin: true, body: <EmailTemplatesTab /> },
       { key: 'whatsapp', title: 'WhatsApp Templates', description: 'Reusable WhatsApp message bodies used by click-to-chat links.', icon: MessageCircle, requireSuperAdmin: true, body: <WhatsAppTemplatesTab /> },
       { key: 'easysocial', title: 'EasySocial', description: 'EasySocial integration key and per-status tag overrides.', icon: Plug, requireSuperAdmin: true, body: <EasySocialTab /> },
@@ -82,18 +89,18 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
     label: 'Deal Desk',
     items: [
       { key: 'dealdesk', title: 'Deal Desk', description: 'Natis window and urgency-warning thresholds for the Deal Desk.', icon: ClipboardList, requireSuperAdmin: true, body: <DealDeskBody /> },
-      { key: 'dealchecklist', title: 'Deal Checklist', description: 'Configure the Car Preparation, Delivery Preparation and Payout checklist items shown on every deal.', icon: ListTodo, requireSuperAdmin: true, body: <DealChecklistTab /> },
+      { key: 'dealchecklist', title: 'Deal Checklist', description: 'Configure the Car Preparation, Delivery Preparation and Payout checklist items shown on every deal.', icon: ListTodo, requireSuperAdmin: true, width: 'wide', body: <DealChecklistTab /> },
       { key: 'sales', title: 'Sales Team & Target', description: 'Monthly sales target and the sales reps used when finalizing deals.', icon: Users, body: <SalesBody /> },
     ],
   },
   {
     label: 'Operational',
     items: [
-      { key: 'banks', title: 'Banks', description: 'Finance partner banks and their application links.', icon: Building2, body: <BankIntegrationsTab /> },
+      { key: 'banks', title: 'Banks', description: 'Finance partner banks and their application links.', icon: Building2, width: 'wide', body: <BankIntegrationsTab /> },
       { key: 'signio', title: 'Signio Links', description: 'Signio portal links used by Push to Signio, and which fill system each form uses.', icon: Send, requireSuperAdmin: true, body: <SignioLinksTab /> },
-      { key: 'salaries', title: 'Salary Calculator', description: 'Admin-only staff payroll: PAYE/UIF calculations, employee register and monthly net pay.', icon: Calculator, requireSuperAdmin: true, body: <SalaryCalculatorTab /> },
-      { key: 'branches', title: 'Bank Branch Codes', description: 'Universal branch codes printed on finance-application PDFs by client bank.', icon: Landmark, requireSuperAdmin: true, body: <BankBranchCodesTab /> },
-      { key: 'documents', title: 'Documents', description: 'Company, banking and VAT details printed on invoices and offers to purchase.', icon: FileText, requireSuperAdmin: true, body: <DocumentsBody /> },
+      { key: 'salaries', title: 'Salary Calculator', description: 'Admin-only staff payroll: PAYE/UIF calculations, employee register and monthly net pay.', icon: Calculator, requireSuperAdmin: true, width: 'wide', body: <SalaryCalculatorTab /> },
+      { key: 'branches', title: 'Bank Branch Codes', description: 'Universal branch codes printed on finance-application PDFs by client bank.', icon: Landmark, requireSuperAdmin: true, width: 'wide', body: <BankBranchCodesTab /> },
+      { key: 'documents', title: 'Documents', description: 'Company, banking and VAT details printed on invoices and offers to purchase.', icon: FileText, requireSuperAdmin: true, width: 'wide', body: <DocumentsBody /> },
     ],
   },
   {
@@ -103,8 +110,8 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
       { key: 'location', title: 'Location', description: 'Show or hide the dealership address and map on the Contact page.', icon: MapPin, body: <LocationBody /> },
       { key: 'finance', title: 'Finance Calculator', description: 'Interest, deposit and balloon defaults and slider ranges for the public calculator.', icon: DollarSign, body: <FinanceBody /> },
       { key: 'features', title: 'Features & Diagnostics', description: 'Toggle storefront features (finance tab, trade-in, signature) and test email.', icon: CreditCard, body: <FeaturesBody /> },
-      { key: 'appearance', title: 'Appearance & Navigation', description: 'Hide, show and reorder the admin sidebar sections and items.', icon: LayoutDashboard, requireSuperAdmin: true, body: <AppearanceNavTab /> },
-      { key: 'team', title: 'Team & Permissions', description: 'Invite staff, set roles, and control which sections each role can access.', icon: Shield, requireSuperAdmin: true, body: <TeamBody /> },
+      { key: 'appearance', title: 'Appearance & Navigation', description: 'Hide, show and reorder the admin sidebar sections and items.', icon: LayoutDashboard, requireSuperAdmin: true, width: 'wide', body: <AppearanceNavTab /> },
+      { key: 'team', title: 'Team & Permissions', description: 'Invite staff, set roles, and control which sections each role can access.', icon: Shield, requireSuperAdmin: true, width: 'wide', body: <TeamBody /> },
     ],
   },
 ];

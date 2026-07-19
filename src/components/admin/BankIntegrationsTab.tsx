@@ -59,17 +59,13 @@ const BankIntegrationsTab = () => {
       animate={{ opacity: 1, y: 0 }}
       className="glass-card rounded-xl p-6 space-y-6"
     >
-      <div className="flex items-center gap-3 mb-4">
-        <Building2 className="w-5 h-5 text-primary" />
-        <h2 className="text-lg font-semibold">Bank Integrations</h2>
-      </div>
       <p className="text-sm text-muted-foreground">
         Configure financing banks and their default contract signing links.
       </p>
 
       {/* Add New Bank */}
-      <div className="p-4 bg-muted/30 rounded-lg space-y-4">
-        <Label className="font-medium">Add New Bank</Label>
+      <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-4">
+        <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Add new bank</Label>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
             <Label htmlFor="bank-name" className="text-xs text-muted-foreground">Bank Name *</Label>
@@ -105,17 +101,18 @@ const BankIntegrationsTab = () => {
 
       {/* Existing Banks */}
       {isLoading ? (
-        <p className="text-center text-muted-foreground py-8">Loading banks...</p>
+        <p className="py-8 text-center text-sm text-muted-foreground">Loading banks…</p>
       ) : banks.length === 0 ? (
-        <p className="text-center text-muted-foreground py-8">
-          No banks configured yet. Add your first bank above.
-        </p>
+        <div className="rounded-lg border border-dashed border-border py-10 text-center">
+          <p className="text-sm text-muted-foreground">No banks configured yet.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Add your first bank above to make it selectable on deals.</p>
+        </div>
       ) : (
         <div className="space-y-2">
           {banks.map((bank) => (
-            <div 
-              key={bank.id} 
-              className="flex items-center justify-between p-3 bg-muted/20 rounded-lg"
+            <div
+              key={bank.id}
+              className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 p-3"
             >
               {editingBank?.id === bank.id ? (
                 // Edit Mode

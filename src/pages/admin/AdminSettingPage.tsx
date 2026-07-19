@@ -30,7 +30,12 @@ const AdminSettingPage = () => {
         <title>{setting.title} · Settings | Lumina Auto Admin</title>
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
-      <SettingsPageLayout title={setting.title} description={setting.description} icon={<Icon />}>
+      <SettingsPageLayout
+        title={setting.title}
+        description={setting.description}
+        icon={<Icon />}
+        width={setting.width}
+      >
         {setting.body}
       </SettingsPageLayout>
     </AdminLayout>

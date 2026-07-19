@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
-import { DollarSign, Phone, Loader2, MapPin, CreditCard, Users, Target, TestTube } from 'lucide-react';
+import { Phone, Loader2, MapPin, CreditCard, Target, TestTube } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -24,10 +24,12 @@ import { TestEmailButton } from './TestEmailButton';
 
 type SettingsFormData = Omit<SiteSettings, 'id' | 'created_at' | 'updated_at'> & { tiktok_url: string };
 
-// Shared sticky save bar so every form body saves the same way.
+// Shared save row so every form body saves the same way: a bordered footer with
+// the action right-aligned (full-width on phones where a right-hugging button is
+// awkward to reach).
 const SaveBar = ({ pending }: { pending: boolean }) => (
-  <div className="mt-8">
-    <Button type="submit" size="lg" disabled={pending} className="w-full sm:w-auto">
+  <div className="mt-6 flex justify-end border-t border-border pt-4">
+    <Button type="submit" disabled={pending} className="w-full sm:w-auto">
       {pending ? (
         <>
           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -37,6 +39,32 @@ const SaveBar = ({ pending }: { pending: boolean }) => (
         'Save changes'
       )}
     </Button>
+  </div>
+);
+
+// Shared section label — same treatment across every settings body.
+const SectionTitle = ({ children }: { children: ReactNode }) => (
+  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{children}</h3>
+);
+
+// Shared row for a labelled switch, so the toggle rows line up everywhere.
+const ToggleRow = ({
+  label,
+  hint,
+  checked,
+  onCheckedChange,
+}: {
+  label: ReactNode;
+  hint: ReactNode;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) => (
+  <div className="flex items-start justify-between gap-4 rounded-lg border border-border bg-muted/30 p-4">
+    <div className="min-w-0 space-y-1">
+      <Label className="text-sm font-medium">{label}</Label>
+      <p className="text-xs text-muted-foreground">{hint}</p>
+    </div>
+    <Switch checked={checked} onCheckedChange={onCheckedChange} className="mt-0.5 shrink-0" />
   </div>
 );
 
@@ -91,33 +119,28 @@ export const FinanceBody = () => {
         animate={{ opacity: 1, y: 0 }}
         className="glass-card rounded-xl p-6 space-y-6"
       >
-        <div className="flex items-center gap-3 mb-2">
-          <DollarSign className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-semibold">Finance Calculator Defaults</h2>
-        </div>
         <p className="text-sm text-muted-foreground">
           These values drive the public finance calculator and the sourcing/quote tools. The min/max
           pairs set the slider bounds; the defaults set where each slider starts.
         </p>
 
-        <div className="grid gap-6">
-          <div className="space-y-2">
-            <Label htmlFor="default_interest_rate">Default Interest Rate (%)</Label>
-            <Input
-              id="default_interest_rate"
-              type="number"
-              step="0.01"
-              min="0"
-              max="50"
-              {...register('default_interest_rate', { valueAsNumber: true })}
-              className="max-w-xs"
-            />
-            <p className="text-xs text-muted-foreground">
-              Starting rate shown in calculators (typically Prime + margin).
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 max-w-md">
+        <section className="space-y-4">
+          <SectionTitle>Interest</SectionTitle>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="default_interest_rate">Default Interest Rate (%)</Label>
+              <Input
+                id="default_interest_rate"
+                type="number"
+                step="0.01"
+                min="0"
+                max="50"
+                {...register('default_interest_rate', { valueAsNumber: true })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Starting rate shown in calculators (typically Prime + margin).
+              </p>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="min_interest">Min Interest Rate (%)</Label>
               <Input id="min_interest" type="number" step="0.25" min="0" max="50" {...register('min_interest', { valueAsNumber: true })} />
@@ -129,14 +152,16 @@ export const FinanceBody = () => {
               <p className="text-xs text-muted-foreground">Slider maximum.</p>
             </div>
           </div>
+        </section>
 
-          <div className="space-y-2">
-            <Label htmlFor="min_deposit_percent">Min Deposit (%)</Label>
-            <Input id="min_deposit_percent" type="number" min="0" max="100" {...register('min_deposit_percent', { valueAsNumber: true })} className="max-w-xs" />
-            <p className="text-xs text-muted-foreground">Minimum deposit percentage the calculator allows.</p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 max-w-md">
+        <section className="space-y-4 border-t border-border pt-6">
+          <SectionTitle>Deposit &amp; balloon</SectionTitle>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="min_deposit_percent">Min Deposit (%)</Label>
+              <Input id="min_deposit_percent" type="number" min="0" max="100" {...register('min_deposit_percent', { valueAsNumber: true })} />
+              <p className="text-xs text-muted-foreground">Minimum deposit percentage the calculator allows.</p>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="min_balloon_percent">Min Balloon (%)</Label>
               <Input id="min_balloon_percent" type="number" min="0" max="100" {...register('min_balloon_percent', { valueAsNumber: true })} />
@@ -147,16 +172,15 @@ export const FinanceBody = () => {
               <Input id="max_balloon_percent" type="number" min="0" max="100" {...register('max_balloon_percent', { valueAsNumber: true })} />
               <p className="text-xs text-muted-foreground">Slider maximum on the calculator.</p>
             </div>
+            <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+              <Label htmlFor="default_balloon_percent">Default Balloon (%) — sourcing cards</Label>
+              <Input id="default_balloon_percent" type="number" min="0" max="50" {...register('default_balloon_percent', { valueAsNumber: true })} />
+              <p className="text-xs text-muted-foreground">
+                Balloon used for sourcing vehicle-card monthly estimates (makes advertised payments look lower).
+              </p>
+            </div>
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="default_balloon_percent">Default Balloon (%) — sourcing cards</Label>
-            <Input id="default_balloon_percent" type="number" min="0" max="50" {...register('default_balloon_percent', { valueAsNumber: true })} className="max-w-xs" />
-            <p className="text-xs text-muted-foreground">
-              Balloon used for sourcing vehicle-card monthly estimates (makes advertised payments look lower).
-            </p>
-          </div>
-        </div>
+        </section>
       </motion.div>
       <SaveBar pending={updateSettings.isPending} />
     </form>
@@ -185,14 +209,14 @@ export const SalesBody = () => {
   return (
     <div className="space-y-6">
       <form onSubmit={handleSubmit(onSubmit)}>
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <Target className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold">Sales Target</h2>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <Target className="w-4 h-4 text-primary" />
+            <SectionTitle>Sales target</SectionTitle>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2 sm:max-w-xs">
             <Label htmlFor="monthly_sales_target">Monthly Sales Target (Units)</Label>
-            <Input id="monthly_sales_target" type="number" min="1" max="100" {...register('monthly_sales_target', { valueAsNumber: true })} className="max-w-xs" />
+            <Input id="monthly_sales_target" type="number" min="1" max="100" {...register('monthly_sales_target', { valueAsNumber: true })} />
             <p className="text-xs text-muted-foreground">
               Target units to sell per month — drives the dashboard velocity / pace tracker.
             </p>
@@ -254,17 +278,17 @@ export const ContactBody = () => {
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-6 space-y-6">
-        <div className="flex items-center gap-3 mb-2">
-          <Phone className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-semibold">Contact Details &amp; Social Links</h2>
-        </div>
         <p className="text-sm text-muted-foreground">
           Phone numbers and emails shown across the public site; the review/social links appear on the
           Client Handover page and in the footer.
         </p>
 
-        <div className="grid gap-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Phone className="w-4 h-4 text-primary" />
+            <SectionTitle>Contact details</SectionTitle>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="primary_phone">Primary Phone *</Label>
               <Input id="primary_phone" placeholder="+27 68 601 7462" {...register('primary_phone')} />
@@ -273,9 +297,6 @@ export const ContactBody = () => {
               <Label htmlFor="secondary_phone">Secondary Phone (optional)</Label>
               <Input id="secondary_phone" placeholder="+27 11 000 1234" {...register('secondary_phone')} />
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="primary_email">Primary Email *</Label>
               <Input id="primary_email" type="email" placeholder="hello@luminaauto.co.za" {...register('primary_email')} />
@@ -285,51 +306,50 @@ export const ContactBody = () => {
               <Input id="finance_email" type="email" placeholder="finance@luminaauto.co.za" {...register('finance_email')} />
               <p className="text-xs text-muted-foreground">Where finance-application alerts are sent.</p>
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="whatsapp_number">WhatsApp Number</Label>
-            <Input id="whatsapp_number" placeholder="27686017462" {...register('whatsapp_number')} className="max-w-md" />
-            <p className="text-xs text-muted-foreground">
-              Country code + number, no “+” or spaces (used by every WhatsApp click-to-chat link).
-            </p>
-          </div>
-
-          <div className="border-t border-border pt-6">
-            <h3 className="font-medium mb-1">Review &amp; Social Links</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Shown on the Client Handover page and across the site. Leave a field blank to hide that link.
-            </p>
-            <div className="grid gap-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="google_review_url">Google Review URL</Label>
-                  <Input id="google_review_url" placeholder="https://g.page/r/..." {...register('google_review_url' as any)} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="hellopeter_url">HelloPeter URL</Label>
-                  <Input id="hellopeter_url" placeholder="https://www.hellopeter.com/..." {...register('hellopeter_url' as any)} />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="facebook_url">Facebook URL</Label>
-                <Input id="facebook_url" placeholder="https://www.facebook.com/..." {...register('facebook_url')} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="instagram_url">Instagram URL</Label>
-                <Input id="instagram_url" placeholder="https://www.instagram.com/..." {...register('instagram_url')} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="tiktok_url">TikTok URL</Label>
-                <Input id="tiktok_url" placeholder="https://www.tiktok.com/@..." {...register('tiktok_url')} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="trustpilot_url">Trustpilot URL</Label>
-                <Input id="trustpilot_url" placeholder="https://www.trustpilot.com/review/..." {...register('trustpilot_url' as any)} />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="whatsapp_number">WhatsApp Number</Label>
+              <Input id="whatsapp_number" placeholder="27686017462" {...register('whatsapp_number')} />
+              <p className="text-xs text-muted-foreground">
+                Country code + number, no “+” or spaces (used by every WhatsApp click-to-chat link).
+              </p>
             </div>
           </div>
-        </div>
+        </section>
+
+        <section className="space-y-4 border-t border-border pt-6">
+          <div className="space-y-1">
+            <SectionTitle>Review &amp; social links</SectionTitle>
+            <p className="text-sm text-muted-foreground">
+              Shown on the Client Handover page and across the site. Leave a field blank to hide that link.
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="google_review_url">Google Review URL</Label>
+              <Input id="google_review_url" placeholder="https://g.page/r/..." {...register('google_review_url' as any)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="hellopeter_url">HelloPeter URL</Label>
+              <Input id="hellopeter_url" placeholder="https://www.hellopeter.com/..." {...register('hellopeter_url' as any)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="trustpilot_url">Trustpilot URL</Label>
+              <Input id="trustpilot_url" placeholder="https://www.trustpilot.com/review/..." {...register('trustpilot_url' as any)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="facebook_url">Facebook URL</Label>
+              <Input id="facebook_url" placeholder="https://www.facebook.com/..." {...register('facebook_url')} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="instagram_url">Instagram URL</Label>
+              <Input id="instagram_url" placeholder="https://www.instagram.com/..." {...register('instagram_url')} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="tiktok_url">TikTok URL</Label>
+              <Input id="tiktok_url" placeholder="https://www.tiktok.com/@..." {...register('tiktok_url')} />
+            </div>
+          </div>
+        </section>
       </motion.div>
       <SaveBar pending={updateSettings.isPending} />
     </form>
@@ -366,19 +386,18 @@ export const LocationBody = () => {
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-6 space-y-6">
-        <div className="flex items-center gap-3 mb-2">
-          <MapPin className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-semibold">Physical Location</h2>
+        <div className="flex items-center gap-2">
+          <MapPin className="w-4 h-4 text-primary" />
+          <SectionTitle>Physical location</SectionTitle>
         </div>
 
-        <div className="grid gap-6">
-          <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-            <div>
-              <Label>Show Physical Location</Label>
-              <p className="text-sm text-muted-foreground">Display the address &amp; map on the Contact page.</p>
-            </div>
-            <Switch checked={!!show} onCheckedChange={(checked) => setValue('show_physical_location', checked, { shouldDirty: true })} />
-          </div>
+        <div className="space-y-4">
+          <ToggleRow
+            label="Show Physical Location"
+            hint="Display the address & map on the Contact page."
+            checked={!!show}
+            onCheckedChange={(checked) => setValue('show_physical_location', checked, { shouldDirty: true })}
+          />
 
           {show && (
             <div className="space-y-2">
@@ -427,46 +446,43 @@ export const FeaturesBody = () => {
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-6 space-y-6">
-        <div className="flex items-center gap-3 mb-2">
-          <CreditCard className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-semibold">Feature Toggles</h2>
+        <div className="flex items-center gap-2">
+          <CreditCard className="w-4 h-4 text-primary" />
+          <SectionTitle>Feature toggles</SectionTitle>
         </div>
         <p className="text-sm text-muted-foreground">Turn storefront features on or off without a code change.</p>
 
-        <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-          <div>
-            <Label>Show “Apply for Finance” Tab</Label>
-            <p className="text-sm text-muted-foreground">Display the finance-application link in the public navigation.</p>
-          </div>
-          <Switch checked={!!showFinanceTab} onCheckedChange={(checked) => setValue('show_finance_tab', checked, { shouldDirty: true })} />
-        </div>
-
-        <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-          <div>
-            <Label>Show “Trade-In Experts” Section</Label>
-            <p className="text-sm text-muted-foreground">Toggle the trade-in feature card on the homepage.</p>
-          </div>
-          <Switch checked={!!showTradeIn} onCheckedChange={(checked) => setValue('show_trade_in' as any, checked, { shouldDirty: true })} />
-        </div>
-
-        <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-          <div>
-            <Label>Require Client Signature on Finance Apps</Label>
-            <p className="text-sm text-muted-foreground">When off, applicants can submit without a digital signature.</p>
-          </div>
-          <Switch checked={!!requireSignature} onCheckedChange={(checked) => setValue('require_application_signature' as any, checked, { shouldDirty: true })} />
+        <div className="grid gap-3 lg:grid-cols-2">
+          <ToggleRow
+            label="Show “Apply for Finance” Tab"
+            hint="Display the finance-application link in the public navigation."
+            checked={!!showFinanceTab}
+            onCheckedChange={(checked) => setValue('show_finance_tab', checked, { shouldDirty: true })}
+          />
+          <ToggleRow
+            label="Show “Trade-In Experts” Section"
+            hint="Toggle the trade-in feature card on the homepage."
+            checked={!!showTradeIn}
+            onCheckedChange={(checked) => setValue('show_trade_in' as any, checked, { shouldDirty: true })}
+          />
+          <ToggleRow
+            label="Require Client Signature on Finance Apps"
+            hint="When off, applicants can submit without a digital signature."
+            checked={!!requireSignature}
+            onCheckedChange={(checked) => setValue('require_application_signature' as any, checked, { shouldDirty: true })}
+          />
         </div>
 
         <SaveBar pending={updateSettings.isPending} />
 
         {/* System diagnostics — self-contained, no form binding. */}
-        <div className="border-t border-border pt-6 mt-2">
-          <div className="flex items-center gap-3 mb-4">
-            <TestTube className="w-5 h-5 text-amber-500" />
-            <h3 className="text-lg font-semibold">System Diagnostics</h3>
+        <section className="space-y-4 border-t border-border pt-6">
+          <div className="flex items-center gap-2">
+            <TestTube className="w-4 h-4 text-amber-500" />
+            <SectionTitle>System diagnostics</SectionTitle>
           </div>
           <TestEmailButton />
-        </div>
+        </section>
       </motion.div>
     </form>
   );

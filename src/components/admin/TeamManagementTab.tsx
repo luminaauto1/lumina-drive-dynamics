@@ -278,7 +278,7 @@ const TeamManagementTab = () => {
         </div>
       </div>
 
-      <div className="p-4 bg-muted/30 rounded-lg space-y-4">
+      <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-4">
         <Tabs value={mode} onValueChange={(v) => setMode(v as any)}>
           <TabsList className="grid grid-cols-2 w-full max-w-md">
             <TabsTrigger value="invite" className="gap-2"><Mail className="w-4 h-4" /> Email Invite</TabsTrigger>
@@ -352,8 +352,8 @@ const TeamManagementTab = () => {
 
         </div>
 
-        <div className="flex justify-end">
-          <Button type="button" onClick={handleSubmit} disabled={inviting || !email.trim()} className="gap-2">
+        <div className="flex justify-end border-t border-border pt-4">
+          <Button type="button" onClick={handleSubmit} disabled={inviting || !email.trim()} className="w-full gap-2 sm:w-auto">
             {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
             {mode === 'manual' ? 'Create Agent' : 'Send Invite'}
           </Button>
@@ -378,16 +378,19 @@ const TeamManagementTab = () => {
         )}
       </div>
 
-      <div className="space-y-2">
-        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Active Team Members ({agents.length})</h3>
+      <div className="space-y-3 border-t border-border pt-5">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Active team members ({agents.length})</h3>
         {loading ? (
           <div className="text-center py-6 text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin inline" /></div>
         ) : agents.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-6 text-center">No sales agents yet. Invite one above.</p>
+          <div className="rounded-lg border border-dashed border-border py-10 text-center">
+            <p className="text-sm text-muted-foreground">No sales agents yet.</p>
+            <p className="mt-1 text-xs text-muted-foreground">Invite one above to give them access.</p>
+          </div>
         ) : (
           <div className="space-y-2">
             {agents.map((a) => (
-              <div key={a.user_id} className="flex items-center justify-between p-3 bg-muted/20 rounded-lg">
+              <div key={a.user_id} className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 p-3">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
                     <Mail className="w-4 h-4 text-primary" />

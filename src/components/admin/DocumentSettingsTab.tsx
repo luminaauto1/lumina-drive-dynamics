@@ -50,18 +50,15 @@ const DocumentSettingsTab = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <FileText className="w-5 h-5 text-primary" />
-        <div>
-          <h3 className="font-semibold">Documents</h3>
-          <p className="text-xs text-muted-foreground">Company details used on Invoices and Offers to Purchase (OTP).</p>
-        </div>
+      <div className="flex items-start gap-2">
+        <FileText className="mt-0.5 w-4 h-4 shrink-0 text-primary" />
+        <p className="text-sm text-muted-foreground">Company details used on Invoices and Offers to Purchase (OTP).</p>
       </div>
 
       {/* Company */}
       <section className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium"><Building2 className="w-4 h-4 text-muted-foreground" /> Company</div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><Building2 className="w-4 h-4 text-muted-foreground" /> Company</h3>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
           <Field label="Trading name" value={form.companyTradingName} onChange={(v) => set('companyTradingName', v)} />
           <Field label="Legal entity name" value={form.companyLegalName} onChange={(v) => set('companyLegalName', v)} />
           <Field label="Phone" value={form.companyPhone} onChange={(v) => set('companyPhone', v)} />
@@ -73,9 +70,9 @@ const DocumentSettingsTab = () => {
       </section>
 
       {/* Banking */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium"><Banknote className="w-4 h-4 text-muted-foreground" /> Banking (shown on invoices)</div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <section className="space-y-3 border-t border-border pt-5">
+        <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><Banknote className="w-4 h-4 text-muted-foreground" /> Banking (shown on invoices)</h3>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
           <Field label="Account name" value={form.bankAccountName} onChange={(v) => set('bankAccountName', v)} />
           <Field label="Bank" value={form.bankName} onChange={(v) => set('bankName', v)} />
           <Field label="Account number" value={form.bankAccountNumber} onChange={(v) => set('bankAccountNumber', v)} />
@@ -85,8 +82,8 @@ const DocumentSettingsTab = () => {
       </section>
 
       {/* Invoice */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium"><Receipt className="w-4 h-4 text-muted-foreground" /> Invoice</div>
+      <section className="space-y-3 border-t border-border pt-5">
+        <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><Receipt className="w-4 h-4 text-muted-foreground" /> Invoice</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Field label="Number prefix" value={form.invoicePrefix} onChange={(v) => set('invoicePrefix', v)} placeholder="INV-" />
           <Field label="Next number" type="number" value={form.invoiceNextNumber} onChange={(v) => set('invoiceNextNumber', v)} />
@@ -117,8 +114,8 @@ const DocumentSettingsTab = () => {
       </section>
 
       {/* OTP */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium"><FileText className="w-4 h-4 text-muted-foreground" /> Offer to Purchase (OTP)</div>
+      <section className="space-y-3 border-t border-border pt-5">
+        <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><FileText className="w-4 h-4 text-muted-foreground" /> Offer to Purchase (OTP)</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Field label="Ref prefix" value={form.otpPrefix} onChange={(v) => set('otpPrefix', v)} placeholder="OTP-" />
           <Field label="Next number" type="number" value={form.otpNextNumber} onChange={(v) => set('otpNextNumber', v)} />
@@ -152,8 +149,8 @@ const DocumentSettingsTab = () => {
       </section>
 
       {/* Deals automation */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium"><ClipboardList className="w-4 h-4 text-muted-foreground" /> Deals</div>
+      <section className="space-y-3 border-t border-border pt-5">
+        <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><ClipboardList className="w-4 h-4 text-muted-foreground" /> Deals</h3>
         <label className="flex items-start gap-2 rounded-lg border border-border bg-muted/20 p-3 cursor-pointer">
           <Checkbox
             className="mt-0.5"
@@ -187,8 +184,8 @@ const DocumentSettingsTab = () => {
         </label>
       </section>
 
-      <div className="flex justify-end">
-        <Button type="button" onClick={() => update.mutate(form)} disabled={update.isPending}>
+      <div className="flex justify-end border-t border-border pt-4">
+        <Button type="button" onClick={() => update.mutate(form)} disabled={update.isPending} className="w-full sm:w-auto">
           {update.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
           Save document settings
         </Button>

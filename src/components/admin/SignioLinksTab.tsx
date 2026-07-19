@@ -5,7 +5,7 @@
 // auto-fill engine (which still auto-detects the form as a fallback, so a wrong
 // choice degrades to a slower fill — never a broken one).
 import { useEffect, useState } from 'react';
-import { Loader2, Save, Plus, Trash2, Send } from 'lucide-react';
+import { Loader2, Save, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -76,12 +76,8 @@ const SignioLinksTab = () => {
   }
 
   return (
-    <div className="space-y-5 max-w-3xl">
-      <div className="flex items-center gap-2">
-        <Send className="w-4 h-4 text-emerald-400" />
-        <h2 className="text-lg font-semibold">Signio Portal Links</h2>
-      </div>
-
+    // Width comes from the page shell (SettingsPageLayout).
+    <div className="space-y-5">
       <p className="text-sm text-muted-foreground">
         The Deal Room's <strong>Push to Signio</strong> button opens the <strong>default</strong> link below.
         Each link declares which <strong>system</strong> its form uses so the ⚡ Fill Signio bookmark fills it the right
@@ -93,12 +89,13 @@ const SignioLinksTab = () => {
         <CardContent className="py-4 space-y-4">
           {rows.map((r, i) => (
             <div key={r.id} className="rounded-lg border border-border p-3 space-y-3">
-              <div className="flex flex-wrap items-end gap-3">
-                <div className="flex-1 min-w-[180px] space-y-1">
+              {/* Grid (not flex-wrap) so every row's columns line up. */}
+              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_14rem_auto_auto] sm:items-end">
+                <div className="space-y-1">
                   <Label className="text-xs">Label</Label>
                   <Input value={r.label} placeholder="e.g. AA Money portal" onChange={(e) => setRow(i, { label: e.target.value })} />
                 </div>
-                <div className="w-[210px] space-y-1">
+                <div className="space-y-1">
                   <Label className="text-xs">Fill system</Label>
                   <Select value={r.system} onValueChange={(v) => setRow(i, { system: v as SignioSystem })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -109,7 +106,7 @@ const SignioLinksTab = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex items-center gap-2 pb-2">
+                <div className="flex items-center gap-2 sm:pb-2.5">
                   <input
                     type="radio"
                     id={`signio-default-${r.id}`}
@@ -123,7 +120,7 @@ const SignioLinksTab = () => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-muted-foreground hover:text-destructive"
+                  className="justify-self-start text-muted-foreground hover:text-destructive sm:justify-self-center"
                   onClick={() => removeRow(i)}
                   disabled={rows.length <= 1}
                   title={rows.length <= 1 ? 'At least one link is required' : 'Remove this link'}

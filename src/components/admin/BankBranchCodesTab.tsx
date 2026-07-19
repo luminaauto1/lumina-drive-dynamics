@@ -37,15 +37,12 @@ const BankBranchCodesTab = () => {
       animate={{ opacity: 1, y: 0 }}
       className="glass-card rounded-xl p-6 space-y-5"
     >
-      <div className="flex items-center gap-3">
-        <Landmark className="w-5 h-5 text-primary" />
-        <div>
-          <h2 className="text-lg font-semibold">Bank Branch Codes</h2>
-          <p className="text-sm text-muted-foreground">
-            Branch name &amp; code printed on the finance application PDF, matched to the client's bank.
-            Pre-filled with South African universal branch codes — edit to suit.
-          </p>
-        </div>
+      <div className="flex items-start gap-2">
+        <Landmark className="mt-0.5 w-4 h-4 shrink-0 text-primary" />
+        <p className="text-sm text-muted-foreground">
+          Branch name &amp; code printed on the finance application PDF, matched to the client's bank.
+          Pre-filled with South African universal branch codes — edit to suit.
+        </p>
       </div>
 
       {isLoading ? (
@@ -66,7 +63,7 @@ const BankBranchCodesTab = () => {
             </div>
           ))}
 
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
             <div className="flex gap-2">
               <Button type="button" variant="outline" size="sm" onClick={addRow}>
                 <Plus className="w-4 h-4 mr-1" /> Add bank
