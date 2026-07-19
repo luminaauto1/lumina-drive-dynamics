@@ -53,7 +53,9 @@ const AdminSettings = () => {
       <PageHeader title="Settings" subtitle="Configure your dealership — pick a setting to open its page" />
 
       <div className="p-4 sm:p-6">
-        <div className="max-w-5xl space-y-8">
+        {/* Centered to match the per-setting pages (SettingsPageLayout), which
+            are also `mx-auto` — previously both hugged the left edge. */}
+        <div className="mx-auto w-full max-w-6xl space-y-8">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -91,7 +93,7 @@ const AdminSettings = () => {
                       {group.items.length} {group.items.length === 1 ? 'setting' : 'settings'}
                     </span>
                   </div>
-                  <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {group.items.map((item) => {
                       const Icon = item.icon;
                       return (
@@ -99,10 +101,11 @@ const AdminSettings = () => {
                           key={item.key}
                           initial={{ opacity: 0, y: 8 }}
                           animate={{ opacity: 1, y: 0 }}
+                          className="h-full"
                         >
                           <Link
                             to={`/admin/settings/${item.key}`}
-                            className="group flex items-start gap-3 rounded-xl border border-border bg-card/40 p-4 transition-colors hover:border-foreground/20 hover:bg-card/70"
+                            className="group flex h-full items-start gap-3 rounded-xl border border-border bg-card/40 p-4 transition-colors hover:border-foreground/20 hover:bg-card/70"
                           >
                             <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                               <Icon className="h-4 w-4" />

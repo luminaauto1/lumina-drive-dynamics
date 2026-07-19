@@ -80,10 +80,12 @@ const EasySocialTab = () => {
   if (isLoading) return <div className="py-8 text-center text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin inline" /></div>;
 
   return (
-    <div className="space-y-5 max-w-2xl">
+    // Width comes from the page shell (SettingsPageLayout) — no inner cap, or the
+    // body would be pinned left inside the centered column.
+    <div className="space-y-5">
       <div className="flex items-center gap-2">
         <Plug className="w-4 h-4 text-emerald-400" />
-        <h2 className="text-lg font-semibold">EasySocial CRM Sync</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">CRM sync</h2>
       </div>
 
       <Card>
@@ -162,16 +164,16 @@ const EasySocialTab = () => {
           <p className="text-[11px] text-muted-foreground">Optional. Remap which EasySocial tag is <em>added</em> for a given status. Leave empty to use the built-in mapping.</p>
           {overrides.length === 0 && <p className="text-xs text-muted-foreground py-2">No overrides — using the default tag flow.</p>}
           {overrides.map((o, i) => (
-            <div key={i} className="flex items-center gap-2">
+            <div key={i} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:grid-cols-[14rem_minmax(0,1fr)_auto]">
               <Select value={o.status} onValueChange={(v) => setOverrides((p) => p.map((x, idx) => idx === i ? { ...x, status: v } : x))}>
-                <SelectTrigger className="h-8 w-56"><SelectValue placeholder="Status…" /></SelectTrigger>
+                <SelectTrigger className="h-8 col-span-2 sm:col-span-1"><SelectValue placeholder="Status…" /></SelectTrigger>
                 <SelectContent>{STATUS_OPTIONS.map((s: any) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
               </Select>
               <Input
                 value={o.tag}
                 onChange={(e) => setOverrides((p) => p.map((x, idx) => idx === i ? { ...x, tag: e.target.value } : x))}
                 placeholder="EasySocial tag name"
-                className="h-8 flex-1"
+                className="h-8"
                 list={cachedTags.length > 0 ? TAG_DATALIST_ID : undefined}
               />
               <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setOverrides((p) => p.filter((_, idx) => idx !== i))}><Trash2 className="w-3.5 h-3.5" /></Button>

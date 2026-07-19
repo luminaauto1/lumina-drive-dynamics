@@ -19,23 +19,27 @@ export function NatisSettings({ canEdit }: { canEdit: boolean }) {
   if (isLoading) return <div className="py-8 text-center text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin inline" /></div>;
 
   return (
-    <Card className="max-w-md">
+    <Card>
       <CardHeader className="py-3"><CardTitle className="text-base">Natis settings</CardTitle></CardHeader>
       <CardContent className="space-y-4">
-        <div>
-          <Label className="text-xs">Natis window (days)</Label>
-          <Input type="number" value={windowDays} disabled={!canEdit} onChange={(e) => setWindowDays(Number(e.target.value) || 0)} className="mt-1" />
-          <p className="text-[11px] text-muted-foreground mt-1">Days allowed from delivery before Natis is overdue. Default 21.</p>
-        </div>
-        <div>
-          <Label className="text-xs">Warn within (days)</Label>
-          <Input type="number" value={warnDays} disabled={!canEdit} onChange={(e) => setWarnDays(Number(e.target.value) || 0)} className="mt-1" />
-          <p className="text-[11px] text-muted-foreground mt-1">Flag a deal as urgent when this many days or fewer remain. Default 5.</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Natis window (days)</Label>
+            <Input type="number" value={windowDays} disabled={!canEdit} onChange={(e) => setWindowDays(Number(e.target.value) || 0)} />
+            <p className="text-[11px] text-muted-foreground">Days allowed from delivery before Natis is overdue. Default 21.</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Warn within (days)</Label>
+            <Input type="number" value={warnDays} disabled={!canEdit} onChange={(e) => setWarnDays(Number(e.target.value) || 0)} />
+            <p className="text-[11px] text-muted-foreground">Flag a deal as urgent when this many days or fewer remain. Default 5.</p>
+          </div>
         </div>
         {canEdit ? (
-          <Button onClick={() => save.mutate({ natis_window_days: windowDays, natis_warn_days: warnDays })} disabled={save.isPending} className="gap-2">
-            {save.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save settings
-          </Button>
+          <div className="flex justify-end border-t border-border pt-4">
+            <Button onClick={() => save.mutate({ natis_window_days: windowDays, natis_warn_days: warnDays })} disabled={save.isPending} className="w-full gap-2 sm:w-auto">
+              {save.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save settings
+            </Button>
+          </div>
         ) : (
           <p className="text-xs text-muted-foreground">Only an admin can change these.</p>
         )}

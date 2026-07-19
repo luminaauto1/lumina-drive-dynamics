@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Mail, Save, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Mail, Save, ToggleLeft, ToggleRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -83,27 +83,31 @@ const EmailTemplatesTab = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      <div>
-        <div className="flex items-center gap-2">
-          <Mail className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold">Email Automation Templates</h2>
-        </div>
-        <p className="text-muted-foreground mt-1 text-sm">
+    // Width comes from the page shell (SettingsPageLayout).
+    <div className="space-y-6">
+      <div className="flex items-start gap-2">
+        <Mail className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+        <p className="text-muted-foreground text-sm">
           Configure automated messages sent to clients on status changes. Use{' '}
           <code className="bg-muted px-1.5 py-0.5 rounded text-xs">{'{{clientName}}'}</code> to inject the client's name.
         </p>
       </div>
 
       {loading ? (
-        <p className="text-muted-foreground">Loading templates...</p>
+        <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" /> Loading templates…
+        </div>
+      ) : templates.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
+          No email templates found.
+        </div>
       ) : (
         <div className="grid gap-4">
           {templates.map((tpl) => (
             <Card key={tpl.id} className={!tpl.is_active ? 'opacity-60' : ''}>
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg capitalize flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <CardTitle className="text-base capitalize flex flex-wrap items-center gap-2">
                     {STATUS_LABELS[tpl.status_key] || tpl.status_key.replace(/_/g, ' ')}
                     <Badge variant={tpl.is_active ? 'default' : 'secondary'}>
                       {tpl.is_active ? 'Active' : 'Disabled'}
@@ -120,21 +124,23 @@ const EmailTemplatesTab = () => {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div>
-                  <Label>Subject Line</Label>
-                  <Input value={tpl.subject} onChange={(e) => updateField(tpl.id, 'subject', e.target.value)} />
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Subject Line</Label>
+                    <Input value={tpl.subject} onChange={(e) => updateField(tpl.id, 'subject', e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Heading</Label>
+                    <Input value={tpl.heading} onChange={(e) => updateField(tpl.id, 'heading', e.target.value)} />
+                  </div>
                 </div>
-                <div>
-                  <Label>Heading</Label>
-                  <Input value={tpl.heading} onChange={(e) => updateField(tpl.id, 'heading', e.target.value)} />
-                </div>
-                <div>
+                <div className="space-y-2">
                   <Label>Body Content</Label>
                   <Textarea rows={4} value={tpl.body_content} onChange={(e) => updateField(tpl.id, 'body_content', e.target.value)} />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
                     <Label>CTA Button Text</Label>
                     <Input
                       value={tpl.cta_text || ''}
@@ -142,7 +148,7 @@ const EmailTemplatesTab = () => {
                       onChange={(e) => updateField(tpl.id, 'cta_text', e.target.value || null)}
                     />
                   </div>
-                  <div>
+                  <div className="space-y-2">
                     <Label>CTA URL</Label>
                     <Input
                       value={tpl.cta_url || ''}

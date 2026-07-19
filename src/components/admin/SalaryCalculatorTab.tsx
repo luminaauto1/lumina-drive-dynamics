@@ -145,12 +145,12 @@ const SalaryCalculatorTab = () => {
   );
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      <div className="flex items-center gap-2">
-        <Calculator className="w-4 h-4 text-emerald-400" />
-        <h2 className="text-lg font-semibold">Salary Calculator</h2>
-        <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400/90 border border-emerald-500/30 rounded px-1.5 py-0.5">
-          <ShieldCheck className="w-3 h-3" /> Admin-only — data locked by row-level security
+    // Width comes from the page shell (SettingsPageLayout) — this page is 'wide'.
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center gap-2">
+        <Calculator className="w-4 h-4 shrink-0 text-emerald-400" />
+        <span className="inline-flex items-center gap-1 rounded border border-emerald-500/30 px-1.5 py-0.5 text-[11px] text-emerald-400/90">
+          <ShieldCheck className="w-3 h-3 shrink-0" /> Admin-only — data locked by row-level security
         </span>
       </div>
 
@@ -184,9 +184,9 @@ const SalaryCalculatorTab = () => {
 
       {/* Employee register + payroll */}
       <Card>
-        <CardHeader className="pb-2 flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 pb-2">
           <CardTitle className="text-sm">Employees & monthly payroll</CardTitle>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-1.5 text-xs text-muted-foreground"><Switch checked={showInactive} onCheckedChange={setShowInactive} /> show inactive</label>
             <Button size="sm" variant="outline" className="gap-1" onClick={() => setDraft({ employee_name: '', gross_basic: 0, fixed_allowances: 0, pension_percent: 0, age_band: 'under_65', custom_deductions: [], active: true })}>
               <Plus className="w-4 h-4" /> Add employee

@@ -102,7 +102,7 @@ const RolePermissionsTab = () => {
                   </Button>
                 </div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-2">
                 {APP_SECTIONS.map((s) => (
                   <label key={s.key} className="flex items-start gap-2 cursor-pointer py-0.5">
                     <Checkbox

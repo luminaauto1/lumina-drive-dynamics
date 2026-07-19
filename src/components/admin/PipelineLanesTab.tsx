@@ -217,7 +217,7 @@ export default function PipelineLanesTab() {
           <Loader2 className="h-4 w-4 animate-spin" /> Loading lanes…
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {/* key+statuses come from the hardcoded default; only label/colour are
               seeded from overrides, so each row is keyed by the stable lane key. */}
           {lanes.map((lane) => (

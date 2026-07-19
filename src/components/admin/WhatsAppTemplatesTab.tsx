@@ -376,12 +376,11 @@ const PreApprovalRecipientsCard = () => {
 const WhatsAppTemplatesTab = () => {
   const { data: templates = [], isLoading } = useWhatsAppTemplates();
   return (
-    <div className="space-y-4 max-w-2xl">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <MessageCircle className="w-4 h-4 text-emerald-400" />
-          <h2 className="text-lg font-semibold">WhatsApp Notifications</h2>
-        </div>
+    // Width comes from the page shell (SettingsPageLayout).
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <MessageCircle className="w-4 h-4 text-emerald-400" />
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notifications</h2>
       </div>
       <PreApprovalRecipientsCard />
       <div className="flex items-start gap-2 rounded-md border border-blue-500/30 bg-blue-500/5 p-2.5 text-xs text-blue-300">
