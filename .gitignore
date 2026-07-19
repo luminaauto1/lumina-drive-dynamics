@@ -41,3 +41,6 @@ backup/
 
 # chat brain test-harness build output
 lumina-chat/engine/.test-build/
+
+# Local dev-server launchers created per worktree (never part of the app)
+preview.cmd
