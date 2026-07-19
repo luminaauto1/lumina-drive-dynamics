@@ -133,7 +133,9 @@ export function DecisionsDailyWidget() {
               />
               <YAxis stroke="hsl(var(--muted-foreground))" allowDecimals={false} />
               <Tooltip contentStyle={TOOLTIP_STYLE} />
-              <Bar dataKey="approved" stackId="d" fill="hsl(var(--platinum))" />
+              {/* Green = approved, red = declined (matches CreditWidgets' pass/fail
+                  pair and the Command Center's copy of this chart). */}
+              <Bar dataKey="approved" stackId="d" fill="hsl(160 70% 45%)" />
               <Bar dataKey="declined" stackId="d" fill="hsl(0 70% 55%)" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
