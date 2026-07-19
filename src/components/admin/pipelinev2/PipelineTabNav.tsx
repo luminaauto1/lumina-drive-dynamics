@@ -11,21 +11,24 @@ export function PipelineTabNav({
 }) {
   // Effective lanes = hardcoded PIPELINE_TABS (key + routing) with label/colour
   // overrides applied. key + statuses are unchanged, so counts (keyed by lane id)
-  // stay correct; only the caption + accent colour reflect overrides. Empty/missing
-  // overrides => byte-for-byte the previous behaviour (default label, gold accent).
+  // stay correct; only the caption + accent colour reflect overrides.
   const lanes = usePipelineLanes();
   return (
     <div className="flex flex-wrap gap-1 border-b border-border">
       {lanes.map((t) => {
         const active = t.key === activeKey;
         const count = counts[t.key] ?? 0;
-        // Override hex (inline) wins; otherwise the default gold desk-accent.
-        const accent = t.color || 'hsl(var(--desk-accent))';
-        // Translucent lane tint for the ACTIVE tab body. Hex override => 8-digit
-        // hex inline (the JIT can't see runtime hexes); default => the accent-var
-        // class below at the same ~12% alpha. Label stays text-foreground — the
-        // tint is deliberately subtle in both admin themes.
-        const tint = t.color ? hexTint(t.color) : null;
+        // Lane colour precedence: Settings override > the lane's own semantic
+        // defaultColor (emerald = credit passed, blue = at the banks, red =
+        // declined…) > gold. The default matters: with no overrides saved,
+        // every tab used to tint the same gold, so the lanes weren't actually
+        // colour-coded.
+        const laneColor = t.color || t.defaultColor || null;
+        const accent = laneColor || 'hsl(var(--desk-accent))';
+        // Translucent lane tint for the ACTIVE tab body — 8-digit hex applied
+        // inline (the JIT can't see runtime hexes). Label stays text-foreground:
+        // the tint is deliberately subtle in both admin themes.
+        const tint = laneColor ? hexTint(laneColor) : null;
         return (
           <button
             key={t.key}
@@ -49,14 +52,15 @@ export function PipelineTabNav({
             } : undefined}
           >
             {t.label}
-            {/* Active count chip = accent fill. A hex override is applied inline (text
-                colour computed from the hex via luminance for contrast); with no override
-                we keep the `desk-accent-fill` utility class (default gold + dark text,
-                correct in both themes). Inactive = quiet muted chip, unchanged. */}
+            {/* Active count chip = lane-colour fill (text colour computed from the
+                hex via luminance so it stays legible on any lane colour); falls back
+                to the `desk-accent-fill` utility (gold + dark text, correct in both
+                themes) only if a lane somehow has no colour at all. Inactive =
+                quiet muted chip, unchanged. */}
             <span
               className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums',
-                active ? (t.color ? '' : 'desk-accent-fill') : 'bg-muted text-muted-foreground')}
-              style={active && t.color ? { backgroundColor: t.color, color: readableTextOn(t.color) } : undefined}
+                active ? (laneColor ? '' : 'desk-accent-fill') : 'bg-muted text-muted-foreground')}
+              style={active && laneColor ? { backgroundColor: laneColor, color: readableTextOn(laneColor) } : undefined}
             >
               {count.toLocaleString()}
             </span>

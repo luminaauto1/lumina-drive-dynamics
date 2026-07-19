@@ -7,6 +7,12 @@ export interface PipelineTabDef {
   label: string;
   statuses: string[];
   accent: string; // tailwind text colour for the active underline/count
+  /** Default lane colour (hex) used to tint the ACTIVE tab + fill its count chip,
+   *  chosen to match the finance statuses the lane groups (emerald = credit passed,
+   *  blue = at the banks, red = declined…). Mirrors `accent`, but as a hex because
+   *  the tint/underline are applied inline (Tailwind's JIT can't see runtime
+   *  values). A per-lane colour saved in Settings → Pipeline Lanes overrides it. */
+  defaultColor: string;
 }
 
 export const PIPELINE_TABS: PipelineTabDef[] = [
@@ -15,25 +21,25 @@ export const PIPELINE_TABS: PipelineTabDef[] = [
   // application — including unknown statuses — to exactly one real lane ('intake'
   // by default). statusToTab/resolveStatusTab/inTab still handle 'all' harmlessly
   // (inTab's 'all' branch is simply unused now).
-  { key: 'intake',     label: 'New Applications', statuses: ['pending', 'draft', 'needs_revision', 'revision_submitted'], accent: 'text-gray-300' },
+  { key: 'intake',     label: 'New Applications', statuses: ['pending', 'draft', 'needs_revision', 'revision_submitted'], accent: 'text-gray-300', defaultColor: '#a1a1aa' },
   // Credit check PASSED and the F&I outcome was set to "Ready to Load" (the
   // application_submitted slug, relabelled). Its own lane between New Applications
   // and Submitted so these leads don't sit in the bank-submission column.
   // application_submitted lives ONLY here now (removed from 'submitted') so
   // statusToTab routes it to this lane, not the later 'submitted' one.
-  { key: 'credit_passed', label: 'Credit Check Passed', statuses: ['application_submitted'], accent: 'text-emerald-400' },
-  { key: 'submitted',  label: 'Submitted',   statuses: ['ready_to_submit', 'sent_to_banks'], accent: 'text-blue-400' },
-  { key: 'approved',   label: 'Approved',    statuses: ['pre_approved', 'documents_received', 'approved', 'vehicle_selected'], accent: 'text-yellow-400' },
+  { key: 'credit_passed', label: 'Credit Check Passed', statuses: ['application_submitted'], accent: 'text-emerald-400', defaultColor: '#34d399' },
+  { key: 'submitted',  label: 'Submitted',   statuses: ['ready_to_submit', 'sent_to_banks'], accent: 'text-blue-400', defaultColor: '#60a5fa' },
+  { key: 'approved',   label: 'Approved',    statuses: ['pre_approved', 'documents_received', 'approved', 'vehicle_selected'], accent: 'text-yellow-400', defaultColor: '#facc15' },
   // Flexi = the non-traditional finance partner's track (owner, 2026-07-14).
-  { key: 'flexi',      label: 'Flexi',       statuses: ['pre_approved_flexi', 'vals_submitted_flexi', 'validated_flexi'], accent: 'text-teal-400' },
+  { key: 'flexi',      label: 'Flexi',       statuses: ['pre_approved_flexi', 'vals_submitted_flexi', 'validated_flexi'], accent: 'text-teal-400', defaultColor: '#2dd4bf' },
   // Contract lane removed: contract-signed deals stay grouped under Validations
   // ("Vals Done") rather than splitting into their own column. contract_sent /
   // contract_signed are VIEW-grouped here only — the status enum is unchanged so
   // OTP / mailer / deal-desk logic that depends on those slugs is unaffected.
-  { key: 'validations', label: 'Validations', statuses: ['validations_pending', 'validations_complete', 'contract_sent', 'contract_signed'], accent: 'text-green-400' },
-  { key: 'delivered',  label: 'Delivered',   statuses: ['vehicle_delivered', 'finalized'], accent: 'text-amber-400' },
-  { key: 'declined',   label: 'Declined',    statuses: ['declined', 'declined_conditional', 'blacklisted'], accent: 'text-red-400' },
-  { key: 'closed',     label: 'Closed',      statuses: ['archived', 'client_cancelled'], accent: 'text-gray-500' },
+  { key: 'validations', label: 'Validations', statuses: ['validations_pending', 'validations_complete', 'contract_sent', 'contract_signed'], accent: 'text-green-400', defaultColor: '#4ade80' },
+  { key: 'delivered',  label: 'Delivered',   statuses: ['vehicle_delivered', 'finalized'], accent: 'text-amber-400', defaultColor: '#fbbf24' },
+  { key: 'declined',   label: 'Declined',    statuses: ['declined', 'declined_conditional', 'blacklisted'], accent: 'text-red-400', defaultColor: '#f87171' },
+  { key: 'closed',     label: 'Closed',      statuses: ['archived', 'client_cancelled'], accent: 'text-gray-500', defaultColor: '#71717a' },
 ];
 
 // status slug -> lane key (exhaustive; unknown slugs fall to 'intake').
