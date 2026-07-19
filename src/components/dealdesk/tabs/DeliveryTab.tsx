@@ -23,8 +23,10 @@ import type { Deal, NatisLocation, NatisStage } from '@/lib/dealdesk/types';
 import { CONDITION_LABEL, NATIS_LOCATION_LABEL, NATIS_STEPS } from '@/lib/dealdesk/types';
 import { natisStatus } from '@/lib/dealdesk/natis';
 import { formatDate, formatDateTime } from '@/lib/dealdesk/format';
+import { relativeTime } from '@/lib/pipelinev2/format';
 import { cn } from '@/lib/utils';
 import { NatisChip } from '../badges';
+import { SegmentedToggle } from '@/components/admin/pipelinev2/SegmentedToggle';
 import {
   getNatisDocUrl, useAddNatisNote, useDealEvents, useDeskSettings, useMarkNatisSent,
   useSaveNatisFields, useSetNatisStage, useUploadNatisDoc,
@@ -42,8 +44,8 @@ function Info({ label, value, mono }: { label: string; value?: string | null; mo
   const empty = value == null || value === '';
   return (
     <div className="min-w-0 space-y-0.5">
-      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className={cn('truncate text-sm', mono && 'font-mono text-xs', empty && 'text-muted-foreground/50')} title={value ?? undefined}>
+      <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={cn('truncate text-sm font-medium', mono && 'font-mono text-xs', empty && 'font-normal text-muted-foreground/50')} title={value ?? undefined}>
         {empty ? '—' : value}
       </div>
     </div>
@@ -152,10 +154,12 @@ export function DeliveryTab({ deal }: { deal: Deal }) {
 
   return (
     <div className="space-y-4">
-      {/* ── header strip ─────────────────────────────────────────────── */}
-      <section className="rounded-lg border border-border bg-card p-4">
+      {/* ── header strip (tinted summary card) ───────────────────────── */}
+      <section className="rounded-lg border border-border bg-muted/30 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className="flex items-center gap-2 text-sm font-semibold"><Truck className="h-4 w-4" /> NATIS</span>
+          <span className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide">
+            <Truck className="h-4 w-4 text-muted-foreground" /> NATIS
+          </span>
           <NatisChip status={natis} />
         </div>
         <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -195,13 +199,13 @@ export function DeliveryTab({ deal }: { deal: Deal }) {
                   <div className="flex w-16 shrink-0 flex-col items-center gap-1.5 text-center">
                     <span
                       className={cn(
-                        'flex h-7 w-7 items-center justify-center rounded-full border text-xs font-bold',
-                        done && 'border-emerald-500 bg-emerald-500 text-white',
-                        current && 'border-transparent bg-muted text-foreground ring-2 ring-[hsl(var(--desk-accent))] ring-offset-2 ring-offset-background',
+                        'flex h-8 w-8 items-center justify-center rounded-full border text-xs font-bold',
+                        done && 'border-emerald-500/40 bg-emerald-500/15 text-emerald-400',
+                        current && 'border-transparent bg-muted text-[hsl(var(--desk-accent))] ring-2 ring-[hsl(var(--desk-accent))] ring-offset-2 ring-offset-background',
                         !done && !current && 'border-border bg-muted/30 text-muted-foreground',
                       )}
                     >
-                      {done ? <Check className="h-3.5 w-3.5" /> : idx + 1}
+                      {done ? <Check className="h-4 w-4 text-emerald-400" /> : idx + 1}
                     </span>
                     <span className={cn(
                       'text-[10px] leading-tight',
@@ -211,7 +215,10 @@ export function DeliveryTab({ deal }: { deal: Deal }) {
                     </span>
                   </div>
                   {idx < NATIS_STEPS.length - 1 && (
-                    <span className={cn('mt-3.5 h-px min-w-3 flex-1', done ? 'bg-emerald-500/40' : 'bg-border')} aria-hidden />
+                    <span
+                      className={cn('mt-[15px] h-0.5 min-w-3 flex-1 rounded-full', done ? 'bg-emerald-500' : 'bg-border')}
+                      aria-hidden
+                    />
                   )}
                 </li>
               );
@@ -242,27 +249,20 @@ export function DeliveryTab({ deal }: { deal: Deal }) {
 
       {/* ── location & plates ────────────────────────────────────────── */}
       <section className="rounded-lg border border-border p-4 space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium"><MapPin className="h-4 w-4" /> Location &amp; plates</div>
+        <div className="flex items-center gap-2 text-sm font-semibold"><MapPin className="h-4 w-4 text-muted-foreground" /> Location &amp; plates</div>
 
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {(Object.keys(NATIS_LOCATION_LABEL) as NatisLocation[]).map((loc) => {
-            const selected = deal.natis_location === loc;
-            return (
-              <button
-                key={loc} type="button" onClick={() => setLocation(loc)} disabled={saveFields.isPending}
-                aria-pressed={selected}
-                className={cn(
-                  'rounded-md border px-3 py-2 text-left text-xs transition-colors',
-                  selected
-                    ? 'border-[hsl(var(--desk-accent))] bg-[hsl(var(--desk-accent)/0.08)] font-semibold text-foreground'
-                    : 'border-input text-muted-foreground hover:bg-muted/50',
-                )}
-              >
-                {NATIS_LOCATION_LABEL[loc]}
-              </button>
-            );
-          })}
-        </div>
+        {/* Same segmented control as the pipeline scope toggle (desk-accent fill
+            on the active option); value stays null until a location is chosen. */}
+        <SegmentedToggle<NatisLocation>
+          options={(Object.keys(NATIS_LOCATION_LABEL) as NatisLocation[]).map(
+            (loc) => [loc, NATIS_LOCATION_LABEL[loc]] as const,
+          )}
+          value={deal.natis_location}
+          onChange={setLocation}
+          disabled={saveFields.isPending}
+          buttonClassName="px-3 py-2 text-xs"
+          title="Natis location"
+        />
 
         <label className="flex cursor-pointer items-center gap-2.5 text-sm">
           <Checkbox checked={deal.natis_whatsapp_on_done} disabled={saveFields.isPending}
@@ -286,7 +286,7 @@ export function DeliveryTab({ deal }: { deal: Deal }) {
 
       {/* ── NATIS document ───────────────────────────────────────────── */}
       <section className="rounded-lg border border-border p-4 space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium"><FileText className="h-4 w-4" /> Natis document</div>
+        <div className="flex items-center gap-2 text-sm font-semibold"><FileText className="h-4 w-4 text-muted-foreground" /> Natis document</div>
 
         {deal.natis_doc_path ? (
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -317,7 +317,7 @@ export function DeliveryTab({ deal }: { deal: Deal }) {
 
       {/* ── update log ───────────────────────────────────────────────── */}
       <section className="rounded-lg border border-border p-4 space-y-3">
-        <div className="text-sm font-medium">Update log</div>
+        <div className="text-sm font-semibold">Update log</div>
         <form onSubmit={submitNote} className="flex items-center gap-2">
           <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a Natis update…"
             className="h-8 text-sm" maxLength={500} />
@@ -329,13 +329,14 @@ export function DeliveryTab({ deal }: { deal: Deal }) {
         {natisEvents.length === 0 ? (
           <p className="text-xs text-muted-foreground">No Natis updates logged yet.</p>
         ) : (
-          <ul className="max-h-48 space-y-2 overflow-y-auto pr-1">
+          <ul className="max-h-48 space-y-2.5 overflow-y-auto pr-1">
             {natisEvents.map((e) => (
-              <li key={e.id} className="flex items-start gap-2.5">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[hsl(var(--desk-accent))]" />
+              <li key={e.id} className="border-l-2 border-[hsl(var(--desk-accent)/0.5)] pl-3">
                 <div className="min-w-0">
                   <div className="text-sm break-words">{e.summary}</div>
-                  <div className="text-[11px] text-muted-foreground">{formatDateTime(e.created_at)}</div>
+                  <div className="text-[11px] text-muted-foreground" title={formatDateTime(e.created_at)}>
+                    {formatDateTime(e.created_at)} · {relativeTime(e.created_at)}
+                  </div>
                 </div>
               </li>
             ))}
@@ -345,17 +346,18 @@ export function DeliveryTab({ deal }: { deal: Deal }) {
 
       {/* ── change history (stage transitions) ───────────────────────── */}
       <section className="rounded-lg border border-border p-4 space-y-3">
-        <div className="text-sm font-medium">Change history</div>
+        <div className="text-sm font-semibold">Change history</div>
         {stageEvents.length === 0 ? (
           <p className="text-xs text-muted-foreground">No stage changes yet.</p>
         ) : (
-          <ul className="max-h-48 space-y-2 overflow-y-auto pr-1">
+          <ul className="max-h-48 space-y-2.5 overflow-y-auto pr-1">
             {stageEvents.map((e) => (
-              <li key={e.id} className="flex items-start gap-2.5">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-border" />
+              <li key={e.id} className="border-l-2 border-border pl-3">
                 <div className="min-w-0">
                   <div className="text-sm break-words">{e.summary}</div>
-                  <div className="text-[11px] text-muted-foreground">{formatDateTime(e.created_at)}</div>
+                  <div className="text-[11px] text-muted-foreground" title={formatDateTime(e.created_at)}>
+                    {formatDateTime(e.created_at)} · {relativeTime(e.created_at)}
+                  </div>
                 </div>
               </li>
             ))}

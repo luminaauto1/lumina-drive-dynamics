@@ -83,28 +83,36 @@ function usePdfDocument(url: string | null | undefined, enabled: boolean) {
   return { doc, error, retry };
 }
 
-/** One PDF page → canvas at fit-to-width scale, devicePixelRatio-aware (the
- *  canvas backing store is scaled by dpr, then squeezed back to CSS pixels) so
- *  text stays sharp on hiDPI screens. Cancels any in-flight render when the
- *  page or document changes, and RE-RENDERS when the container width changes
- *  (window resize / rotation) — the canvas carries a fixed px width, so a
- *  narrower dialog would otherwise clip it with no horizontal scroll. */
+/** One PDF page → canvas, devicePixelRatio-aware (the canvas backing store is
+ *  scaled by dpr, then squeezed back to CSS pixels) so text stays sharp on
+ *  hiDPI screens. Two fit modes:
+ *
+ *  - default (dialog): fit-to-WIDTH — measures the container (ResizeObserver)
+ *    and RE-RENDERS when its width changes, since the canvas carries fixed px.
+ *  - `fitHeight` (compact preview): the scale comes from a FIXED CSS height so
+ *    the ENTIRE page is always visible as a portrait thumbnail (width follows
+ *    the page's aspect ratio; no container measuring needed).
+ *
+ *  Cancels any in-flight render when the page or document changes. */
 function PdfPageCanvas({
-  doc, pageNum, onRenderState, canvasClassName,
+  doc, pageNum, onRenderState, canvasClassName, fitHeight,
 }: {
   doc: PDFDocumentProxy;
   pageNum: number;
   onRenderState?: (s: RenderState) => void;
   canvasClassName?: string;
+  /** CSS px height to fit the whole page into (switches to fit-to-height mode). */
+  fitHeight?: number;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // Container width, measured before first paint then tracked via
   // ResizeObserver. The >1px guard swallows scrollbar/rounding jitter so a
-  // settled layout can't re-render in a loop.
+  // settled layout can't re-render in a loop. Unused in fitHeight mode.
   const [width, setWidth] = useState(0);
 
   useLayoutEffect(() => {
+    if (fitHeight) return; // fit-to-height needs no container measuring
     const wrap = wrapRef.current;
     if (!wrap) return;
     const measure = () =>
@@ -116,10 +124,10 @@ function PdfPageCanvas({
     const ro = new ResizeObserver(measure);
     ro.observe(wrap);
     return () => ro.disconnect();
-  }, []);
+  }, [fitHeight]);
 
   useEffect(() => {
-    if (!width) return; // container not laid out yet
+    if (!fitHeight && !width) return; // container not laid out yet
     let cancelled = false;
     let renderTask: { promise: Promise<unknown>; cancel: () => void } | null = null;
     onRenderState?.('rendering');
@@ -129,15 +137,22 @@ function PdfPageCanvas({
         const canvas = canvasRef.current;
         if (cancelled || !canvas) return;
         const base = page.getViewport({ scale: 1 });
-        const cssWidth = Math.max(1, width);
         const dpr = Math.max(1, window.devicePixelRatio || 1);
-        const viewport = page.getViewport({ scale: (cssWidth / base.width) * dpr });
+        // Scale from the fixed height (whole-page thumbnail) or the measured width.
+        const viewport = fitHeight
+          ? page.getViewport({ scale: (Math.max(1, fitHeight) / base.height) * dpr })
+          : page.getViewport({ scale: (Math.max(1, width) / base.width) * dpr });
         const ctx = canvas.getContext('2d');
         if (!ctx) throw new Error('no 2d context');
         canvas.width = Math.max(1, Math.floor(viewport.width));
         canvas.height = Math.max(1, Math.floor(viewport.height));
-        canvas.style.width = `${cssWidth}px`;
-        canvas.style.height = `${Math.floor(viewport.height / dpr)}px`;
+        if (fitHeight) {
+          canvas.style.height = `${Math.max(1, fitHeight)}px`;
+          canvas.style.width = `${Math.floor(viewport.width / dpr)}px`;
+        } else {
+          canvas.style.width = `${Math.max(1, width)}px`;
+          canvas.style.height = `${Math.floor(viewport.height / dpr)}px`;
+        }
         // White matte so transparent regions read as paper (as pdfCompression does).
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -155,18 +170,24 @@ function PdfPageCanvas({
       cancelled = true;
       renderTask?.cancel();
     };
-  }, [doc, pageNum, width, onRenderState]);
+  }, [doc, pageNum, width, fitHeight, onRenderState]);
 
   return (
-    <div ref={wrapRef} className="w-full">
+    <div ref={wrapRef} className={cn('w-full', fitHeight && 'flex justify-center')}>
       <canvas ref={canvasRef} className={cn('block bg-white', canvasClassName)} />
     </div>
   );
 }
 
-/** Compact drawer preview: the FIRST PDF page rendered to a canvas (fit to the
- *  drawer width, clipped to a fixed max height) that opens the full paginated
- *  viewer on click. Replaces the old cut-off h-64 iframe. */
+/** Height of the compact preview strip; the page canvas fits INSIDE it (minus
+ *  padding) so the whole first page is always visible — nothing is clipped. */
+const PREVIEW_HEIGHT = 380;
+const PREVIEW_PAGE_HEIGHT = PREVIEW_HEIGHT - 32; // py-4 top+bottom
+
+/** Compact drawer preview: the ENTIRE first PDF page rendered as a portrait
+ *  thumbnail — scale computed from a fixed ~380px height (not the drawer
+ *  width), so the full page is visible without any inner scrolling/clipping.
+ *  Click opens the full paginated viewer. */
 export function PdfFirstPagePreview({
   url, onExpand, onRetry,
 }: {
@@ -198,20 +219,24 @@ export function PdfFirstPagePreview({
       title="Open the full paginated viewer"
       className="group relative block w-full cursor-zoom-in overflow-hidden rounded border border-border bg-muted/30 text-left"
     >
-      <div className="max-h-64 overflow-hidden">
+      <div className="flex h-[380px] max-h-[380px] items-center justify-center py-4">
         {doc ? (
-          <PdfPageCanvas doc={doc} pageNum={1} onRenderState={onRenderState} />
+          <PdfPageCanvas
+            doc={doc}
+            pageNum={1}
+            fitHeight={PREVIEW_PAGE_HEIGHT}
+            onRenderState={onRenderState}
+            canvasClassName="rounded border border-border shadow-sm"
+          />
         ) : (
-          <div className="flex h-40 items-center justify-center">
-            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-          </div>
-        )}
-        {doc && state === 'error' && (
-          <div className="p-3 text-sm text-muted-foreground">Couldn't render the preview.</div>
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
         )}
       </div>
-      {/* Bottom fade + expand hint (the preview clips the page at max-h-64). */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex h-10 items-end justify-center bg-gradient-to-t from-background/90 to-transparent pb-1.5">
+      {doc && state === 'error' && (
+        <div className="p-3 pt-0 text-sm text-muted-foreground">Couldn't render the preview.</div>
+      )}
+      {/* Expand hint — the whole page is visible, so no clipping fade needed. */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-1.5 flex justify-center">
         <span className="flex items-center gap-1 rounded-full border border-border bg-background/90 px-2 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors group-hover:text-foreground">
           <Maximize2 className="w-3 h-3" /> View full document
         </span>

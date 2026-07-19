@@ -68,7 +68,9 @@ export function fromDealRecord(row: any): Deal {
     sale_date: row.sale_date ?? null,
     delivery_date: toSastDateString(row.delivery_date),
     delivery_date_raw: row.delivery_date ?? null,
-    bank: app.contract_bank_name || app.bank_name || null,
+    // Financing bank ONLY (set by the ContractSentModal bank-ref flow). bank_name
+    // is the APPLICANT'S personal bank from the finance form — never show it here.
+    bank: app.contract_bank_name ?? null,
     natis_sent: !!row.natis_sent_at,
     natis_sent_at: row.natis_sent_at ?? null,
     natis_window_days: row.natis_window_days ?? null,
@@ -90,5 +92,5 @@ export const DEAL_DESK_SELECT = `
   post_deal_notes, natis_sent_at, natis_window_days, deal_stage, created_at,
   natis_stage, natis_location, natis_plates_disc_done, natis_whatsapp_on_done, natis_doc_path,
   vehicle:vehicles(make, model, variant, year, vin, stock_number),
-  application:finance_applications(first_name, last_name, full_name, id_number, phone, email, status, contract_bank_name, bank_name)
+  application:finance_applications(first_name, last_name, full_name, id_number, phone, email, status, contract_bank_name)
 `;

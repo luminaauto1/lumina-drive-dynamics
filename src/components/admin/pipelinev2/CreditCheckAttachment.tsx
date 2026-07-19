@@ -142,8 +142,8 @@ export function CreditCheckAttachment({ app }: { app: any }) {
         ) : signedUrl ? (
           <div className="space-y-2">
             {isPdf ? (
-              // First page rendered via pdf.js (sharp, no inner scrollbar) — the
-              // old h-64 iframe cut pages off. Click opens the paginated viewer.
+              // ENTIRE first page via pdf.js as a ~380px portrait thumbnail
+              // (fit-to-height, nothing clipped). Click opens the paginated viewer.
               <PdfFirstPagePreview
                 url={signedUrl}
                 onExpand={() => setViewerOpen(true)}
@@ -154,12 +154,12 @@ export function CreditCheckAttachment({ app }: { app: any }) {
                 type="button"
                 onClick={() => setViewerOpen(true)}
                 title="Open full size"
-                className="block cursor-zoom-in"
+                className="flex w-full cursor-zoom-in items-center justify-center rounded border border-border bg-muted/30 p-2"
               >
                 <img
                   src={signedUrl}
                   alt="Credit check"
-                  className="max-h-64 w-auto rounded border border-border object-contain"
+                  className="max-h-[380px] w-auto rounded object-contain"
                 />
               </button>
             ) : (

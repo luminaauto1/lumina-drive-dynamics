@@ -17,17 +17,19 @@ import { cn } from '@/lib/utils';
  * themes via the html.desk-portal-light/dark token blocks in index.css.
  */
 export function SegmentedToggle<T extends string>({
-  options, value, onChange, className, buttonClassName, title,
+  options, value, onChange, className, buttonClassName, title, disabled,
 }: {
   options: ReadonlyArray<readonly [T, string]>;
-  value: T;
+  /** `null` = nothing selected yet: the highlight is hidden until a choice is made. */
+  value: T | null;
   onChange: (value: T) => void;
   className?: string;
   /** Per-button padding/size overrides (default `px-2.5 py-1`). */
   buttonClassName?: string;
   title?: string;
+  disabled?: boolean;
 }) {
-  const idx = Math.max(0, options.findIndex(([v]) => v === value));
+  const idx = options.findIndex(([v]) => v === value);
   const n = options.length;
   return (
     <div
@@ -39,12 +41,14 @@ export function SegmentedToggle<T extends string>({
     >
       {/* Sliding highlight: exactly one column wide (padding box minus the 2px
           p-0.5 on each side, split n ways), so translateX in own-width units
-          lands dead on each column. */}
-      <div
-        aria-hidden
-        className="absolute bottom-0.5 top-0.5 rounded bg-[hsl(var(--desk-accent))] shadow-sm transition-transform duration-200 ease-out motion-reduce:transition-none"
-        style={{ left: 2, width: `calc((100% - 4px) / ${n})`, transform: `translateX(${idx * 100}%)` }}
-      />
+          lands dead on each column. Hidden while nothing is selected. */}
+      {idx >= 0 && (
+        <div
+          aria-hidden
+          className="absolute bottom-0.5 top-0.5 rounded bg-[hsl(var(--desk-accent))] shadow-sm transition-transform duration-200 ease-out motion-reduce:transition-none"
+          style={{ left: 2, width: `calc((100% - 4px) / ${n})`, transform: `translateX(${idx * 100}%)` }}
+        />
+      )}
       {options.map(([val, label]) => {
         const active = val === value;
         return (
@@ -53,8 +57,9 @@ export function SegmentedToggle<T extends string>({
             type="button"
             aria-pressed={active}
             onClick={() => onChange(val)}
+            disabled={disabled}
             className={cn(
-              'relative z-[1] rounded px-2.5 py-1 text-center transition-colors duration-200',
+              'relative z-[1] rounded px-2.5 py-1 text-center transition-colors duration-200 disabled:opacity-60',
               active
                 ? 'font-semibold text-[hsl(var(--desk-accent-foreground))]'
                 : 'font-medium text-muted-foreground hover:text-foreground',
