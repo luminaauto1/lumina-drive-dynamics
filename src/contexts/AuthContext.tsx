@@ -25,6 +25,13 @@ interface AuthContextType {
   isStaff: boolean;
   /** Normalized role label, or null if not staff. */
   role: StaffRole;
+  /**
+   * True once the CURRENT session's role fetch has settled (also true when signed
+   * out). Unlike `loading`, this flips false again while a fresh sign-in's role is
+   * being fetched — Auth.tsx waits on it to pick the right post-login landing
+   * (staff → /admin, customers → /) instead of guessing before roles are known.
+   */
+  roleResolved: boolean;
   signUp: (email: string, password: string, fullName?: string, phone?: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -39,6 +46,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<StaffRole>(null);
   const [isAccountant, setIsAccountant] = useState(false);
+  const [roleResolved, setRoleResolved] = useState(false);
 
 
   useEffect(() => {
@@ -62,6 +70,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // is resolved (fetchRole flips it off) so route guards don't bounce
         // admins to the homepage before their roles have loaded.
         if (session?.user) {
+          // Role is about to be (re)fetched for this session.
+          setRoleResolved(false);
           // Use setTimeout to avoid potential deadlock with Supabase client
           setTimeout(() => {
             if (mounted) {
@@ -71,6 +81,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } else {
           setRole(null);
           setIsAccountant(false);
+          setRoleResolved(true);
           setLoading(false);
         }
       }
@@ -93,12 +104,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             // fetchRole flips `loading` off once the role is known.
             fetchRole(session.user.id);
           } else {
+            setRoleResolved(true);
             setLoading(false);
           }
         }
       } catch (err) {
         console.error('Auth initialization error:', err);
         if (mounted) {
+          setRoleResolved(true);
           setLoading(false);
         }
       }
@@ -139,6 +152,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setRole(null);
     } finally {
       // Auth is only fully resolved once the role is known — release route guards now.
+      setRoleResolved(true);
       setLoading(false);
     }
   };
@@ -185,7 +199,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isAdmin = isSuperAdmin;
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isAdmin, isSuperAdmin, isSalesAgent, isFAndI, isSeniorFAndI, isAccountant, isStaff, role, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, isAdmin, isSuperAdmin, isSalesAgent, isFAndI, isSeniorFAndI, isAccountant, isStaff, role, roleResolved, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

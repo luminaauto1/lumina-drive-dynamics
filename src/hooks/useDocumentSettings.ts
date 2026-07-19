@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { OtpLineToggles, DEFAULT_LINE_TOGGLES } from '@/features/otp/types';
+import type { DashboardPersistedState } from '@/components/admin/dashboard/types';
 
 /** Customizable company / invoice / OTP document settings (stored as one JSON
  *  blob on site_settings.document_settings). Read directly from site_settings
@@ -63,6 +64,11 @@ export interface DocumentSettings {
   // nav sections and items. ABSENT/empty => AdminSidebar falls back to its code
   // defaults; role filtering still applies on top of this regardless.
   navConfig?: NavConfig;
+  /** Command Center (/admin) shared widget layout — ONE global layout for every
+   *  staff member; only super-admins edit it (saved from the dashboard itself via
+   *  useGlobalDashboardAdapter, not from a Settings page). ABSENT => the registry
+   *  default layout. */
+  commandDashboardLayout?: DashboardPersistedState;
   // Deal Desk checklist — the configurable items shown in the 3-section deal
   // Checklist tab (Car Preparation / Delivery Preparation / Payout). Per-deal
   // state + uploads live in deal_checklist_docs keyed by (section, item.key);

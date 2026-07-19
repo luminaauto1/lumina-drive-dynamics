@@ -1,8 +1,10 @@
 import { useMemo } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
+import { EyeOff } from 'lucide-react';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { getWidget } from './widgetRegistry';
+import { WIDGET_REGISTRY } from './widgetRegistry';
+import type { WidgetDef } from './types';
 
 const RGL = WidthProvider(Responsive);
 
@@ -19,19 +21,34 @@ export interface DashboardGridProps {
   editMode: boolean;
   /** Persist layout changes (wire to useDashboardLayout().setLayout). */
   onLayoutChange: (next: Layout[]) => void;
+  /** Widget registry backing the tiles. Default: the analytics WIDGET_REGISTRY. */
+  registry?: WidgetDef[];
+  /**
+   * When provided, each edit-mode tile header gets a hide button (except pinned
+   * widgets). Wire to useDashboardLayout().toggleVisible.
+   */
+  onHideWidget?: (id: string) => void;
 }
 
 /**
  * The customizable widget grid. Renders each visible widget inside a themed card
  * container and wires react-grid-layout drag/resize to `editMode`.
  */
-export function DashboardGrid({ layout, visibleIds, editMode, onLayoutChange }: DashboardGridProps) {
+export function DashboardGrid({
+  layout,
+  visibleIds,
+  editMode,
+  onLayoutChange,
+  registry = WIDGET_REGISTRY,
+  onHideWidget,
+}: DashboardGridProps) {
+  const byId = useMemo(() => new Map(registry.map((d) => [d.id, d])), [registry]);
   const visibleSet = useMemo(() => new Set(visibleIds), [visibleIds]);
 
   // Only lay out + render tiles that are both visible and backed by a real widget.
   const visibleLayout = useMemo(
-    () => layout.filter((l) => visibleSet.has(l.i) && getWidget(l.i)),
-    [layout, visibleSet],
+    () => layout.filter((l) => visibleSet.has(l.i) && byId.has(l.i)),
+    [layout, visibleSet, byId],
   );
 
   const layouts = useMemo(
@@ -52,6 +69,8 @@ export function DashboardGrid({ layout, visibleIds, editMode, onLayoutChange }: 
       isResizable={editMode}
       // Only drag from the header handle so text/controls inside widgets stay usable.
       draggableHandle=".widget-drag-handle"
+      // The hide button sits INSIDE the drag handle — exempt it from drag starts.
+      draggableCancel=".widget-no-drag"
       // Persist ONLY while the user is actively editing. RGL also fires this on
       // mount, window resize, and responsive breakpoint reflows — persisting those
       // would let a narrow-screen reflow clobber the saved `lg` geometry. When we
@@ -65,7 +84,7 @@ export function DashboardGrid({ layout, visibleIds, editMode, onLayoutChange }: 
       useCSSTransforms
     >
       {visibleLayout.map((item) => {
-        const def = getWidget(item.i)!;
+        const def = byId.get(item.i)!;
         const Body = def.Component;
         return (
           <div
@@ -75,7 +94,18 @@ export function DashboardGrid({ layout, visibleIds, editMode, onLayoutChange }: 
             {editMode && (
               <div className="widget-drag-handle flex cursor-move items-center gap-2 border-b border-border bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground">
                 <span className="select-none">⠿</span>
-                <span className="truncate">{def.title}</span>
+                <span className="min-w-0 flex-1 truncate">{def.title}</span>
+                {onHideWidget && !def.pinned && (
+                  <button
+                    type="button"
+                    onClick={() => onHideWidget(def.id)}
+                    title={`Hide ${def.title}`}
+                    aria-label={`Hide ${def.title}`}
+                    className="widget-no-drag shrink-0 cursor-pointer rounded p-0.5 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+                  >
+                    <EyeOff className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
             )}
             <div className="min-h-0 flex-1 overflow-auto p-4">

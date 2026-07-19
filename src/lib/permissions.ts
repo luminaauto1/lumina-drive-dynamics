@@ -19,10 +19,19 @@ export interface AppSection {
   paths: string[];
   /** Primary landing path used when redirecting a user into this section. */
   home: string;
+  /**
+   * Match this section's paths EXACTLY only (no sub-path prefixing). Used by the
+   * dashboard section — its '/admin' path would otherwise prefix-match every
+   * admin route and leak nav visibility for non-section-gated pages.
+   */
+  exact?: boolean;
 }
 
-// Every section an admin can grant/revoke per role. Order = display order.
+// Every section an admin can grant/revoke per role. Order = display order, and
+// landingPathForSections prefers earlier entries — dashboard first makes the
+// Command Center the staff landing page.
 export const APP_SECTIONS: AppSection[] = [
+  { key: 'dashboard',     label: 'Dashboard',        description: 'Command Center — the shared staff landing dashboard', paths: ['/admin'], home: '/admin', exact: true },
   { key: 'finance',       label: 'Finance',          description: 'Finance applications & deal room', paths: ['/admin/finance'], home: '/admin/finance' },
   { key: 'pipeline_v2',   label: 'Pipeline',         description: 'New pipeline view of finance applications (same data, fires same notifications)', paths: ['/admin/pipeline-v2'], home: '/admin/pipeline-v2' },
   { key: 'crm',           label: 'CRM / Leads',      description: 'Pipeline, leads and client management', paths: ['/admin/crm'], home: '/admin/crm' },
@@ -51,10 +60,10 @@ export const SECTION_KEYS = APP_SECTIONS.map((s) => s.key);
 // Defaults per role — mirror the access the app shipped with, so nothing changes
 // until an admin edits the matrix. Admin (super) is implicitly "all".
 export const DEFAULT_ROLE_SECTIONS: Record<ConfigurableRole, string[]> = {
-  sales_agent:    ['inventory', 'crm', 'finance', 'quotes'],
-  f_and_i:        ['finance'],
-  senior_f_and_i: ['finance', 'pipeline_v2', 'crm', 'quotes', 'deal_desk'],
-  accountant:     ['reports', 'vendors', 'invoices'],
+  sales_agent:    ['dashboard', 'inventory', 'crm', 'finance', 'quotes'],
+  f_and_i:        ['dashboard', 'finance'],
+  senior_f_and_i: ['dashboard', 'finance', 'pipeline_v2', 'crm', 'quotes', 'deal_desk'],
+  accountant:     ['dashboard', 'reports', 'vendors', 'invoices'],
 };
 
 export const ROLE_LABELS: Record<ConfigurableRole, string> = {
@@ -67,10 +76,12 @@ export const ROLE_LABELS: Record<ConfigurableRole, string> = {
 /** The section key that governs a given admin route path (or null if not section-gated). */
 export const sectionForPath = (pathname: string): string | null => {
   // Longest-prefix wins so e.g. /admin/finance/create resolves to "finance".
+  // `exact` sections (dashboard's '/admin') only ever match their path verbatim.
   let best: { key: string; len: number } | null = null;
   for (const s of APP_SECTIONS) {
     for (const p of s.paths) {
-      if (pathname === p || pathname.startsWith(p + '/')) {
+      const matches = s.exact ? pathname === p : pathname === p || pathname.startsWith(p + '/');
+      if (matches) {
         if (!best || p.length > best.len) best = { key: s.key, len: p.length };
       }
     }

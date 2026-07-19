@@ -26,16 +26,30 @@ const Auth = () => {
   // Inline validation errors for the sign-up form
   const [fieldErrors, setFieldErrors] = useState<{ firstName?: string; surname?: string; mobileNumber?: string }>({});
 
-  const { user, signIn, signUp } = useAuth();
+  const { user, isStaff, roleResolved, signIn, signUp } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const returnTo = (location.state as { returnTo?: string })?.returnTo || '/';
+  // Explicit returnTo (set by ProtectedRoute when bouncing an unauthenticated
+  // visitor here) always wins. Without one, the landing depends on the role.
+  const explicitReturnTo = (location.state as { returnTo?: string })?.returnTo;
 
+  // Post-login landing. Roles load asynchronously AFTER the session appears
+  // (AuthContext.fetchRole), so `isStaff` is not yet trustworthy the moment
+  // sign-in succeeds — wait for roleResolved before choosing: staff land on the
+  // Command Center (/admin — ProtectedRoute re-routes them to their first
+  // allowed section if the dashboard were ever revoked), customers land on the
+  // public home. The wait applies to the explicit returnTo too: ProtectedRoute
+  // reads roles synchronously and AuthContext.loading is already false during an
+  // in-page re-sign-in, so entering a guarded route before the role resolves
+  // would bounce staff to the public home.
   useEffect(() => {
-    if (user) {
-      navigate(returnTo);
+    if (!user || !roleResolved) return;
+    if (explicitReturnTo) {
+      navigate(explicitReturnTo, { replace: true });
+      return;
     }
-  }, [user, navigate, returnTo]);
+    navigate(isStaff ? '/admin' : '/', { replace: true });
+  }, [user, roleResolved, isStaff, explicitReturnTo, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,7 +68,8 @@ const Auth = () => {
         } else {
           setFailedAttempts(0);
           toast.success('Welcome back!');
-          navigate(returnTo);
+          // Navigation happens in the effect above once the role has resolved
+          // (staff → /admin, customers → /, explicit returnTo immediately).
         }
       } else {
         // Inline 'required' validation for sign-up fields
@@ -90,7 +105,11 @@ const Auth = () => {
           }
         } else {
           toast.success('Account created successfully!');
-          navigate(returnTo);
+          // If sign-up produced a session, the effect above routes by role once
+          // resolved. With email-confirmation flows (no session yet), fall back
+          // to the pre-existing behaviour: land on the public home.
+          if (!explicitReturnTo) navigate('/');
+          else navigate(explicitReturnTo);
         }
       }
     } catch (error: any) {

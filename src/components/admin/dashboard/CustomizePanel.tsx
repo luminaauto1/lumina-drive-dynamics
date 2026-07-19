@@ -17,6 +17,10 @@ import type { DashboardLayoutApi } from './useDashboardLayout';
 
 export interface CustomizePanelProps {
   api: DashboardLayoutApi;
+  /** Widget registry backing the library list. Default: the analytics WIDGET_REGISTRY. */
+  registry?: WidgetDef[];
+  /** Sheet description line. Default matches the per-browser (localStorage) dashboards. */
+  description?: string;
 }
 
 function groupByCategory(defs: WidgetDef[]): [string, WidgetDef[]][] {
@@ -39,10 +43,14 @@ function groupByCategory(defs: WidgetDef[]): [string, WidgetDef[]][] {
  * Semantic tokens only; safe in dark + light. Avoids bg-accent on subtle surfaces
  * (uses bg-muted) since --accent is pure white in this admin's dark theme.
  */
-export function CustomizePanel({ api }: CustomizePanelProps) {
+export function CustomizePanel({
+  api,
+  registry = WIDGET_REGISTRY,
+  description = 'Toggle widgets, rearrange the layout, or reset to the default view. Changes are saved in this browser.',
+}: CustomizePanelProps) {
   const { visibleIds, editMode, toggleVisible, showAll, resetToDefault, setEditMode } = api;
   const visibleSet = new Set(visibleIds);
-  const groups = groupByCategory(WIDGET_REGISTRY);
+  const groups = groupByCategory(registry);
 
   return (
     <Sheet>
@@ -55,10 +63,7 @@ export function CustomizePanel({ api }: CustomizePanelProps) {
       <SheetContent side="right" className="flex w-full flex-col gap-0 sm:max-w-md">
         <SheetHeader className="space-y-1">
           <SheetTitle>Customize dashboard</SheetTitle>
-          <SheetDescription>
-            Toggle widgets, rearrange the layout, or reset to the default view. Changes are saved in
-            this browser.
-          </SheetDescription>
+          <SheetDescription>{description}</SheetDescription>
         </SheetHeader>
 
         {/* Edit-layout toggle */}
