@@ -142,8 +142,9 @@ export function CreditCheckAttachment({ app }: { app: any }) {
         ) : signedUrl ? (
           <div className="space-y-2">
             {isPdf ? (
-              // ENTIRE first page via pdf.js as a ~380px portrait thumbnail
-              // (fit-to-height, nothing clipped). Click opens the paginated viewer.
+              // ENTIRE first page via pdf.js, rendered ~560px tall (capped to the
+              // available width, nothing clipped) in a frame that hugs the page.
+              // Click opens the paginated viewer.
               <PdfFirstPagePreview
                 url={signedUrl}
                 onExpand={() => setViewerOpen(true)}
@@ -154,12 +155,15 @@ export function CreditCheckAttachment({ app }: { app: any }) {
                 type="button"
                 onClick={() => setViewerOpen(true)}
                 title="Open full size"
-                className="flex w-full cursor-zoom-in items-center justify-center rounded border border-border bg-muted/30 p-2"
+                className="block w-full cursor-zoom-in text-left"
               >
+                {/* Border sits on the IMG so the frame shrinks to the picture —
+                    a w-fit wrapper would size to the image's INTRINSIC width and
+                    leave the same dead space we're removing. */}
                 <img
                   src={signedUrl}
                   alt="Credit check"
-                  className="max-h-[380px] w-auto rounded object-contain"
+                  className="mx-auto block max-h-[560px] w-auto max-w-full rounded-md border border-border bg-muted/30 object-contain p-1.5 shadow-sm"
                 />
               </button>
             ) : (
