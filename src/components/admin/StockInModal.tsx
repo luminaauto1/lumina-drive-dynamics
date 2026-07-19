@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { PackageCheck, FileText, DollarSign, HeartPulse, Key, Calendar, Gauge, AlertTriangle, ImagePlus, X, GripVertical, EyeOff, FileCheck2 } from 'lucide-react';
+import { PackageCheck, FileText, DollarSign, HeartPulse, Key, AlertTriangle, ImagePlus, X, GripVertical, EyeOff, FileCheck2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -70,10 +70,6 @@ const StockInModal = ({ vehicle, isOpen, onClose }: StockInModalProps) => {
   const sourceVendors = vendors.filter((v) => v.vendor_type === 'supplier' || v.vendor_type === 'both');
   
   // Vehicle Health (DNA)
-  const [lastServiceDate, setLastServiceDate] = useState('');
-  const [lastServiceKm, setLastServiceKm] = useState<number | ''>('');
-  const [nextServiceDate, setNextServiceDate] = useState('');
-  const [nextServiceKm, setNextServiceKm] = useState<number | ''>('');
   const [warrantyExpiry, setWarrantyExpiry] = useState('');
   const [servicePlanExpiry, setServicePlanExpiry] = useState('');
   const [spareKeys, setSpareKeys] = useState(false);
@@ -98,10 +94,6 @@ const StockInModal = ({ vehicle, isOpen, onClose }: StockInModalProps) => {
       setCostPrice((vehicle as any).cost_price || (vehicle as any).purchase_price || 0);
       setReconCost((vehicle as any).reconditioning_cost || 0);
       setRegistrationNumber((vehicle as any).registration_number || '');
-      setLastServiceDate((vehicle as any).last_service_date || '');
-      setLastServiceKm((vehicle as any).last_service_km || '');
-      setNextServiceDate((vehicle as any).next_service_date || '');
-      setNextServiceKm((vehicle as any).next_service_km || '');
       setWarrantyExpiry((vehicle as any).warranty_expiry_date || '');
       setServicePlanExpiry((vehicle as any).service_plan_expiry_date || '');
       setSpareKeys((vehicle as any).spare_keys || false);
@@ -253,10 +245,6 @@ const StockInModal = ({ vehicle, isOpen, onClose }: StockInModalProps) => {
         reconditioning_cost: reconCost,
         source_vendor_id: sourceVendorId || null, // where the car was bought (Vendors)
         // NOTE: Do NOT include estimated_profit - it may be a generated column
-        last_service_date: lastServiceDate || null,
-        last_service_km: lastServiceKm || null,
-        next_service_date: nextServiceDate || null,
-        next_service_km: nextServiceKm || null,
         warranty_expiry_date: warrantyExpiry || null,
         service_plan_expiry_date: servicePlanExpiry || null,
         spare_keys: spareKeys,
@@ -560,57 +548,7 @@ const StockInModal = ({ vehicle, isOpen, onClose }: StockInModalProps) => {
             </div>
             
             <Separator />
-            
-            {/* Last Service */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  Last Service Date
-                </Label>
-                <Input
-                  type="date"
-                  value={lastServiceDate}
-                  onChange={(e) => setLastServiceDate(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Gauge className="w-4 h-4" />
-                  Last Service KM
-                </Label>
-                <Input
-                  type="number"
-                  placeholder="e.g., 85000"
-                  value={lastServiceKm}
-                  onChange={(e) => setLastServiceKm(e.target.value ? parseInt(e.target.value) : '')}
-                />
-              </div>
-            </div>
-            
-            {/* Next Service */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Next Service Date</Label>
-                <Input
-                  type="date"
-                  value={nextServiceDate}
-                  onChange={(e) => setNextServiceDate(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Next Service KM</Label>
-                <Input
-                  type="number"
-                  placeholder="e.g., 100000"
-                  value={nextServiceKm}
-                  onChange={(e) => setNextServiceKm(e.target.value ? parseInt(e.target.value) : '')}
-                />
-              </div>
-            </div>
-            
-            <Separator />
-            
+
             {/* Warranty & Service Plan */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

@@ -45,6 +45,17 @@ export function accessoryProfit(line: Pick<AccessoryLine, 'retail' | 'cost'>): n
   return r2((Number(line.retail) || 0) - (Number(line.cost) || 0));
 }
 
+/**
+ * DIC ("Dealer Incentive Commission") F&I lines are PURE PROFIT: the amount
+ * entered counts straight into profit with no cost deducted. The UI collapses
+ * retail/cost/override into a single Amount input for these rows and stores the
+ * amount as `profit_override` with retail/cost 0 — so `fniProfit` needs no
+ * special case and existing saved data computes identically. (ZTC parity.)
+ */
+export function isDicLine(detail: string | null | undefined): boolean {
+  return (detail ?? '').trim().toUpperCase() === 'DIC';
+}
+
 /** Profit on a single F&I line: profit_override when set, else Retail − Cost. */
 export function fniProfit(line: Pick<FniLine, 'retail' | 'cost' | 'profit_override'>): number {
   if (line.profit_override != null && (line.profit_override as unknown) !== '') {

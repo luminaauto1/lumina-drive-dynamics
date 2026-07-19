@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Loader2, Download, ExternalLink, FileText } from 'lucide-react';
+import { Loader2, Download, ExternalLink, FileText, Maximize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { DocumentViewerDialog, PdfFirstPagePreview } from './DocumentViewerDialog';
 
 export function CreditCheckAttachment({ app }: { app: any }) {
   const path: string | undefined | null = app?.status_screenshot_url;
@@ -11,6 +12,10 @@ export function CreditCheckAttachment({ app }: { app: any }) {
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [errored, setErrored] = useState<boolean>(false);
+  const [viewerOpen, setViewerOpen] = useState<boolean>(false);
+  // Bumped to mint a FRESH signed URL (the 1h signature can expire while the
+  // drawer sits open) — wired to the viewer/preview Retry buttons.
+  const [urlNonce, setUrlNonce] = useState(0);
 
   useEffect(() => {
     if (!path) return;
@@ -33,7 +38,9 @@ export function CreditCheckAttachment({ app }: { app: any }) {
     return () => {
       cancelled = true;
     };
-  }, [path]);
+  }, [path, urlNonce]);
+
+  const refreshSignedUrl = () => setUrlNonce((n) => n + 1);
 
   if (!path) return null;
 
@@ -59,11 +66,29 @@ export function CreditCheckAttachment({ app }: { app: any }) {
     '.' +
     (ext || 'pdf');
 
+  // res.ok is checked because an EXPIRED signed URL answers 400 with a JSON
+  // error body — without the check that JSON used to be saved as a corrupt
+  // "document" under a success toast. On failure we mint a fresh signed URL and
+  // retry once (state is left alone so an open viewer isn't disturbed).
+  const fetchBlob = async (url: string) => {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.blob();
+  };
+
   const handleDownload = async () => {
-    if (!signedUrl) return;
+    if (!signedUrl || !path) return;
     try {
-      const res = await fetch(signedUrl);
-      const blob = await res.blob();
+      let blob: Blob;
+      try {
+        blob = await fetchBlob(signedUrl);
+      } catch {
+        const { data, error } = await supabase.storage
+          .from('credit-check-screenshots')
+          .createSignedUrl(path, 3600);
+        if (error || !data?.signedUrl) throw error ?? new Error('no signed url');
+        blob = await fetchBlob(data.signedUrl);
+      }
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -117,17 +142,26 @@ export function CreditCheckAttachment({ app }: { app: any }) {
         ) : signedUrl ? (
           <div className="space-y-2">
             {isPdf ? (
-              <iframe
-                src={signedUrl}
-                title="Credit check"
-                className="w-full h-64 rounded border border-border bg-muted/30"
+              // First page rendered via pdf.js (sharp, no inner scrollbar) — the
+              // old h-64 iframe cut pages off. Click opens the paginated viewer.
+              <PdfFirstPagePreview
+                url={signedUrl}
+                onExpand={() => setViewerOpen(true)}
+                onRetry={refreshSignedUrl}
               />
             ) : isImage ? (
-              <img
-                src={signedUrl}
-                alt="Credit check"
-                className="max-h-64 w-auto rounded border border-border object-contain"
-              />
+              <button
+                type="button"
+                onClick={() => setViewerOpen(true)}
+                title="Open full size"
+                className="block cursor-zoom-in"
+              >
+                <img
+                  src={signedUrl}
+                  alt="Credit check"
+                  className="max-h-64 w-auto rounded border border-border object-contain"
+                />
+              </button>
             ) : (
               <div className="flex items-center gap-2 rounded border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
                 <FileText className="w-4 h-4 shrink-0" />
@@ -135,6 +169,11 @@ export function CreditCheckAttachment({ app }: { app: any }) {
               </div>
             )}
             <div className="flex items-center gap-2">
+              {(isPdf || isImage) && (
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setViewerOpen(true)}>
+                  <Maximize2 className="w-3.5 h-3.5" /> View full
+                </Button>
+              )}
               <Button size="sm" variant="outline" className="gap-1.5" onClick={handleDownload}>
                 <Download className="w-3.5 h-3.5" /> Download
               </Button>
@@ -150,6 +189,18 @@ export function CreditCheckAttachment({ app }: { app: any }) {
           </div>
         ) : null}
       </div>
+
+      {(isPdf || isImage) && (
+        <DocumentViewerDialog
+          open={viewerOpen}
+          onOpenChange={setViewerOpen}
+          url={signedUrl}
+          kind={isPdf ? 'pdf' : 'image'}
+          filename={filename}
+          onDownload={handleDownload}
+          onRetry={refreshSignedUrl}
+        />
+      )}
     </>
   );
 }

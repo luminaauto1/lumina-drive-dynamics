@@ -19,6 +19,7 @@ import {
   activeColumnFilterCount, type FilterLabelMaps,
 } from '@/lib/pipelinev2/filters';
 import { PipelineTabNav } from '@/components/admin/pipelinev2/PipelineTabNav';
+import { SegmentedToggle } from '@/components/admin/pipelinev2/SegmentedToggle';
 import { ApplicationTable } from '@/components/admin/pipelinev2/ApplicationTable';
 import { ColumnsPicker } from '@/components/admin/pipelinev2/ColumnsPicker';
 import { ApplicationDrawer } from '@/components/admin/pipelinev2/ApplicationDrawer';
@@ -260,15 +261,13 @@ const AdminPipelineV2 = () => {
             <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, email, phone, ID, bank ref…" className="pl-8 h-9" />
           </div>
           {/* Search scope: limit matches to the current lane, or sweep every lane. */}
-          <div className="inline-flex h-9 items-center rounded-md border border-border bg-background p-0.5 text-xs" title="Choose whether search looks only inside the current tab or across all tabs">
-            {([['tab', 'This tab'], ['all', 'All tabs']] as const).map(([val, label]) => (
-              <button key={val} type="button" onClick={() => setSearchScope(val)}
-                className={'rounded px-2.5 py-1 font-medium transition ' +
-                  (searchScope === val ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground')}>
-                {label}
-              </button>
-            ))}
-          </div>
+          <SegmentedToggle
+            options={[['tab', 'This tab'], ['all', 'All tabs']] as const}
+            value={searchScope}
+            onChange={setSearchScope}
+            className="h-9 text-xs"
+            title="Choose whether search looks only inside the current tab or across all tabs"
+          />
           {showFniFilter && (
             <Select value={fniFilter} onValueChange={(v) => setFniFilter(v as FniFilter)}>
               <SelectTrigger className="h-9 w-[150px]"><SelectValue /></SelectTrigger>

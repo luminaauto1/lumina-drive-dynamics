@@ -69,7 +69,60 @@ export interface DocumentSettings {
    *  useGlobalDashboardAdapter, not from a Settings page). ABSENT => the registry
    *  default layout. */
   commandDashboardLayout?: DashboardPersistedState;
+  // Deal Desk checklist — the configurable items shown in the 3-section deal
+  // Checklist tab (Car Preparation / Delivery Preparation / Payout). Per-deal
+  // state + uploads live in deal_checklist_docs keyed by (section, item.key);
+  // renaming a label keeps the key so history and files stay attached.
+  dealChecklistConfig?: DealChecklistConfig;
 }
+
+// ---- Deal Desk checklist config ---------------------------------------------
+
+export type DealChecklistSectionKey = 'car_prep' | 'delivery_prep' | 'payout';
+export interface DealChecklistItem { key: string; label: string }
+export type DealChecklistConfig = Record<DealChecklistSectionKey, DealChecklistItem[]>;
+
+/** The three fixed checklist sections, in display order. */
+export const DEAL_CHECKLIST_SECTIONS: { key: DealChecklistSectionKey; label: string }[] = [
+  { key: 'car_prep', label: 'Car Preparation' },
+  { key: 'delivery_prep', label: 'Delivery Preparation' },
+  { key: 'payout', label: 'Payout' },
+];
+
+// Defaults seeded from the previous fixed 8-step checklist (+ new payout steps).
+export const DEFAULT_DEAL_CHECKLIST_CONFIG: DealChecklistConfig = {
+  car_prep: [
+    { key: 'recon', label: 'Recon' },
+    { key: 'dekra', label: 'Dekra' },
+    { key: 'eighty_point', label: '80-point inspection' },
+    { key: 'fitments', label: 'Fitments' },
+    { key: 'valet', label: 'Valet' },
+  ],
+  delivery_prep: [
+    { key: 'fica', label: 'FICA' },
+    { key: 'insurance', label: 'Insurance' },
+    { key: 'fuel_keys_permit', label: 'Fuel, keys & permit' },
+    { key: 'delivery_note', label: 'Delivery note' },
+    { key: 'delivery_photos', label: 'Delivery photos' },
+  ],
+  payout: [
+    { key: 'settlement_letter', label: 'Settlement letter' },
+    { key: 'invoice_to_bank', label: 'Invoice to bank' },
+    { key: 'proof_of_payment', label: 'Proof of payment' },
+    { key: 'commission_sheet', label: 'Commission sheet' },
+  ],
+};
+
+/** Stored config → full 3-section config. A section absent from the stored blob
+ *  falls back to its defaults; a present-but-emptied section stays empty (the
+ *  owner deliberately cleared it). */
+export const resolveDealChecklistConfig = (
+  cfg?: Partial<DealChecklistConfig> | null,
+): DealChecklistConfig => ({
+  car_prep: cfg?.car_prep ?? DEFAULT_DEAL_CHECKLIST_CONFIG.car_prep,
+  delivery_prep: cfg?.delivery_prep ?? DEFAULT_DEAL_CHECKLIST_CONFIG.delivery_prep,
+  payout: cfg?.payout ?? DEFAULT_DEAL_CHECKLIST_CONFIG.payout,
+});
 
 // Per-section / per-item nav overrides keyed by stable ids (see lib/navDefaults).
 export interface NavItemOverride { hidden?: boolean }
@@ -151,6 +204,7 @@ export const DEFAULT_DOCUMENT_SETTINGS: DocumentSettings = {
   creditScanAutoSubmit: false,
   bankBranches: DEFAULT_BANK_BRANCHES,
   navConfig: {},
+  dealChecklistConfig: DEFAULT_DEAL_CHECKLIST_CONFIG,
 };
 
 export const useDocumentSettings = () => {

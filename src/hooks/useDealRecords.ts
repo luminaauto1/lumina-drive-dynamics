@@ -22,8 +22,6 @@ export interface DealRecordInsert {
   salesRepCommission: number;
   soldPrice: number;
   soldMileage: number;
-  nextServiceDate?: string;
-  nextServiceKm?: number;
   deliveryAddress: string;
   deliveryDate: string;
   aftersalesExpenses: AftersalesExpense[];
@@ -90,8 +88,6 @@ export const useCreateDealRecord = () => {
           sales_rep_commission: record.salesRepCommission,
           sold_price: record.soldPrice,
           sold_mileage: record.soldMileage,
-          next_service_date: record.nextServiceDate || null,
-          next_service_km: record.nextServiceKm || null,
           delivery_address: record.deliveryAddress,
           delivery_date: record.deliveryDate,
           aftersales_expenses: record.aftersalesExpenses,
@@ -211,8 +207,6 @@ export const useUpdateDealRecord = () => {
           sales_rep_commission: record.salesRepCommission,
           sold_price: record.soldPrice,
           sold_mileage: record.soldMileage,
-          next_service_date: record.nextServiceDate || null,
-          next_service_km: record.nextServiceKm || null,
           delivery_address: record.deliveryAddress,
           delivery_date: record.deliveryDate,
           aftersales_expenses: record.aftersalesExpenses,
