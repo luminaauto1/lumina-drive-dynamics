@@ -79,8 +79,25 @@ export interface DocumentSettings {
 // ---- Deal Desk checklist config ---------------------------------------------
 
 export type DealChecklistSectionKey = 'car_prep' | 'delivery_prep' | 'payout';
-export interface DealChecklistItem { key: string; label: string }
+
+/** A configured checklist item AS STORED. `requiresDoc` is optional on purpose:
+ *  every item written before the toggle existed offered a document upload, so an
+ *  ABSENT value must keep meaning "yes, ask for a document". Only an explicit
+ *  `false` turns the upload affordance off. Normalise with
+ *  `resolveDealChecklistConfig` (or `normalizeDealChecklistItem`) before reading it. */
+export interface DealChecklistItem { key: string; label: string; requiresDoc?: boolean }
 export type DealChecklistConfig = Record<DealChecklistSectionKey, DealChecklistItem[]>;
+
+/** Post-normalisation item — `requiresDoc` is always a concrete boolean, so UI
+ *  code never has to re-apply the undefined-means-true rule. */
+export type ResolvedDealChecklistItem = DealChecklistItem & { requiresDoc: boolean };
+export type ResolvedDealChecklistConfig = Record<DealChecklistSectionKey, ResolvedDealChecklistItem[]>;
+
+/** undefined / missing => true (backward compatible); only explicit false is off. */
+export const normalizeDealChecklistItem = (it: DealChecklistItem): ResolvedDealChecklistItem => ({
+  ...it,
+  requiresDoc: it.requiresDoc !== false,
+});
 
 /** The three fixed checklist sections, in display order. */
 export const DEAL_CHECKLIST_SECTIONS: { key: DealChecklistSectionKey; label: string }[] = [
@@ -90,38 +107,46 @@ export const DEAL_CHECKLIST_SECTIONS: { key: DealChecklistSectionKey; label: str
 ];
 
 // Defaults seeded from the previous fixed 8-step checklist (+ new payout steps).
-export const DEFAULT_DEAL_CHECKLIST_CONFIG: DealChecklistConfig = {
+// `requiresDoc: false` = a physical prep task with no paperwork to attach.
+export const DEFAULT_DEAL_CHECKLIST_CONFIG: ResolvedDealChecklistConfig = {
   car_prep: [
-    { key: 'recon', label: 'Recon' },
-    { key: 'dekra', label: 'Dekra' },
-    { key: 'eighty_point', label: '80-point inspection' },
-    { key: 'fitments', label: 'Fitments' },
-    { key: 'valet', label: 'Valet' },
+    { key: 'recon', label: 'Recon', requiresDoc: true },
+    { key: 'dekra', label: 'Dekra', requiresDoc: true },
+    { key: 'eighty_point', label: '80-point inspection', requiresDoc: true },
+    { key: 'fitments', label: 'Fitments', requiresDoc: true },
+    { key: 'valet', label: 'Valet', requiresDoc: false },
   ],
   delivery_prep: [
-    { key: 'fica', label: 'FICA' },
-    { key: 'insurance', label: 'Insurance' },
-    { key: 'fuel_keys_permit', label: 'Fuel, keys & permit' },
-    { key: 'delivery_note', label: 'Delivery note' },
-    { key: 'delivery_photos', label: 'Delivery photos' },
+    { key: 'fica', label: 'FICA', requiresDoc: true },
+    { key: 'insurance', label: 'Insurance', requiresDoc: true },
+    { key: 'fuel_keys_permit', label: 'Fuel, keys & permit', requiresDoc: false },
+    { key: 'delivery_note', label: 'Delivery note', requiresDoc: true },
+    { key: 'delivery_photos', label: 'Delivery photos', requiresDoc: true },
   ],
   payout: [
-    { key: 'settlement_letter', label: 'Settlement letter' },
-    { key: 'invoice_to_bank', label: 'Invoice to bank' },
-    { key: 'proof_of_payment', label: 'Proof of payment' },
-    { key: 'commission_sheet', label: 'Commission sheet' },
+    { key: 'settlement_letter', label: 'Settlement letter', requiresDoc: true },
+    { key: 'invoice_to_bank', label: 'Invoice to bank', requiresDoc: true },
+    { key: 'proof_of_payment', label: 'Proof of payment', requiresDoc: true },
+    { key: 'commission_sheet', label: 'Commission sheet', requiresDoc: true },
   ],
 };
 
-/** Stored config → full 3-section config. A section absent from the stored blob
- *  falls back to its defaults; a present-but-emptied section stays empty (the
- *  owner deliberately cleared it). */
+/** A stored section => normalised item-for-item; an ABSENT section => defaults.
+ *  A present-but-emptied array stays empty (the owner deliberately cleared it). */
+const resolveSection = (
+  items: DealChecklistItem[] | null | undefined,
+  fallback: ResolvedDealChecklistItem[],
+): ResolvedDealChecklistItem[] =>
+  Array.isArray(items) ? items.map(normalizeDealChecklistItem) : fallback;
+
+/** Stored config → full 3-section config with every item normalised, so all
+ *  consumers get a concrete `requiresDoc` boolean. */
 export const resolveDealChecklistConfig = (
   cfg?: Partial<DealChecklistConfig> | null,
-): DealChecklistConfig => ({
-  car_prep: cfg?.car_prep ?? DEFAULT_DEAL_CHECKLIST_CONFIG.car_prep,
-  delivery_prep: cfg?.delivery_prep ?? DEFAULT_DEAL_CHECKLIST_CONFIG.delivery_prep,
-  payout: cfg?.payout ?? DEFAULT_DEAL_CHECKLIST_CONFIG.payout,
+): ResolvedDealChecklistConfig => ({
+  car_prep: resolveSection(cfg?.car_prep, DEFAULT_DEAL_CHECKLIST_CONFIG.car_prep),
+  delivery_prep: resolveSection(cfg?.delivery_prep, DEFAULT_DEAL_CHECKLIST_CONFIG.delivery_prep),
+  payout: resolveSection(cfg?.payout, DEFAULT_DEAL_CHECKLIST_CONFIG.payout),
 });
 
 // Per-section / per-item nav overrides keyed by stable ids (see lib/navDefaults).
