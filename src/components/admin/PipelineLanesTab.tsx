@@ -70,11 +70,13 @@ const LaneRow = ({ lane }: { lane: EffectivePipelineLane }) => {
     setColor('');
   };
 
-  // Whether a valid user hex override is in effect (vs. falling back to default gold).
+  // Whether a valid user hex override is in effect (vs. the lane's own default).
   const hasOverride = !!trimmedColor && isValidHex(trimmedColor);
-  // The colour actually shown in the preview chip/underline: the chosen hex, or
-  // the CSS desk-accent (the default active-lane gold) when none is set.
-  const previewColor = hasOverride ? trimmedColor : 'hsl(var(--desk-accent))';
+  // The colour actually shown in the preview chip/underline. Precedence mirrors
+  // PipelineTabNav exactly: chosen hex > the lane's semantic defaultColor > gold.
+  const effectiveColor = hasOverride ? trimmedColor : (lane.defaultColor || '');
+  const previewColor = effectiveColor || 'hsl(var(--desk-accent))';
+  const previewTint = effectiveColor ? hexTint(effectiveColor) : null;
 
   return (
     <div className="rounded-xl border border-border bg-card/40 p-4 space-y-3">
@@ -88,24 +90,24 @@ const LaneRow = ({ lane }: { lane: EffectivePipelineLane }) => {
         <span
           className={
             'inline-flex items-center gap-2 rounded-t-md border-b-2 px-2.5 py-1 text-sm font-semibold text-foreground' +
-            (hasOverride ? '' : ' bg-[hsl(var(--desk-accent)/0.12)]')
+            (previewTint ? '' : ' bg-[hsl(var(--desk-accent)/0.12)]')
           }
           style={{
             borderBottomColor: previewColor,
             boxShadow: `inset 0 -1px 0 ${previewColor}`,
-            ...(hasOverride ? { backgroundColor: hexTint(trimmedColor) ?? undefined } : null),
+            ...(previewTint ? { backgroundColor: previewTint } : null),
           }}
         >
           {trimmedLabel || lane.label}
-          {/* Count chip: default (no override) uses the `desk-accent-fill` utility
-              (gold + correct dark text, matching PipelineTabNav); a valid hex override
-              fills inline with text colour computed from the hex via luminance. */}
+          {/* Count chip: filled with the effective lane colour (text colour computed
+              from the hex via luminance); falls back to the `desk-accent-fill`
+              utility only when a lane has no colour at all. Matches PipelineTabNav. */}
           <span
             className={
               'rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums ' +
-              (hasOverride ? '' : 'desk-accent-fill')
+              (effectiveColor ? '' : 'desk-accent-fill')
             }
-            style={hasOverride ? { backgroundColor: trimmedColor, color: readableTextOn(trimmedColor) } : undefined}
+            style={effectiveColor ? { backgroundColor: effectiveColor, color: readableTextOn(effectiveColor) } : undefined}
           >
             0
           </span>
@@ -170,7 +172,7 @@ const LaneRow = ({ lane }: { lane: EffectivePipelineLane }) => {
             />
           )}
           <span className="text-[11px] text-muted-foreground">
-            {color.trim() === '' ? 'Empty = default accent.' : colorValid ? '' : 'Enter a hex like #3b82f6.'}
+            {color.trim() === '' ? `Empty = this lane's default (${lane.defaultColor}).` : colorValid ? '' : 'Enter a hex like #3b82f6.'}
           </span>
         </div>
       </div>
