@@ -483,7 +483,11 @@ export function CommandDecisionsWidget() {
               />
               <YAxis stroke="hsl(var(--muted-foreground))" allowDecimals={false} />
               <Tooltip contentStyle={TOOLTIP_STYLE} />
-              <Bar dataKey="approved" stackId="d" fill="hsl(var(--platinum))" />
+              {/* Green = approved, red = declined — the same pair CreditWidgets
+                  uses for pass/fail. Both read correctly in dark and light admin
+                  (chart fills are inline, so the light-theme class remap can't
+                  reach them — these mid-lightness values are chosen to suit both). */}
+              <Bar dataKey="approved" stackId="d" fill="hsl(160 70% 45%)" />
               <Bar dataKey="declined" stackId="d" fill="hsl(0 70% 55%)" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
