@@ -217,7 +217,22 @@ export async function addPipelineNote(
     author_name: input.author_name || 'Unknown',
     created_at: new Date().toISOString(),
   };
-  const next = [note, ...readPipelineNotes(app)];
+  // Prepend onto the notes as they are IN THE DB right now, not onto the caller's
+  // copy of the row. The write replaces the whole jsonb array, so building it from
+  // a row fetched earlier silently erases anything written in between — e.g. a
+  // client-status change stamps its "Client status → X" note, then the comment
+  // typed in the same modal submit wiped it (owner-visible: the status record
+  // vanished from the history). Re-reading here fixes that for every caller at
+  // once. If the read fails we fall back to the passed row, so a note is never
+  // lost to a transient error. Residual: two clients writing a note to the SAME
+  // application within the same instant can still race — that needs a server-side
+  // jsonb append (RPC) and is out of scope for this fix.
+  const { data: fresh } = await supabase
+    .from('finance_applications')
+    .select('pipeline_notes')
+    .eq('id', app.id)
+    .maybeSingle();
+  const next = [note, ...readPipelineNotes(fresh ?? app)];
   const { error } = await supabase
     .from('finance_applications')
     .update({ pipeline_notes: next } as any)
