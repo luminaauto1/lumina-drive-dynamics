@@ -11,7 +11,7 @@ import { useFAndIUsers } from '@/hooks/useFAndIUsers';
 import { canSeeApplication } from '@/lib/finance/shared';
 import { useMyAppVisibility } from '@/hooks/useAppVisibility';
 import { useStatusConfig } from '@/hooks/useZtcSettings';
-import { PIPELINE_TABS, inTab } from '@/lib/pipelinev2/tabs';
+import { PIPELINE_TABS, appInTab } from '@/lib/pipelinev2/tabs';
 import { colorForUser } from '@/lib/pipelinev2/presence';
 import { loadConfig, type TableConfig } from '@/lib/pipelinev2/columns';
 import {
@@ -54,7 +54,7 @@ const AdminPipelineV2 = () => {
   const { data: fniUsers = [] } = useFAndIUsers();
   const myVisibility = useMyAppVisibility();
   const updateApplication = useUpdateFinanceApplication();
-  const { labels: statusLabels, styles: statusStyles, financeLaneOverrides, clientLabels } = useStatusConfig();
+  const { labels: statusLabels, styles: statusStyles, financeLaneOverrides, clientLaneOverrides, clientLabels } = useStatusConfig();
 
   // 'all' tab was removed — default to the first real lane (New Applications).
   const [activeTab, setActiveTab] = useState('intake');
@@ -179,10 +179,10 @@ const AdminPipelineV2 = () => {
     const c: Record<string, number> = {};
     for (const t of PIPELINE_TABS) c[t.key] = 0;
     for (const a of baseFiltered) {
-      for (const t of PIPELINE_TABS) if (inTab(t.key, (a as any).status, financeLaneOverrides)) c[t.key] += 1;
+      for (const t of PIPELINE_TABS) if (appInTab(t.key, a as any, financeLaneOverrides, clientLaneOverrides)) c[t.key] += 1;
     }
     return c;
-  }, [baseFiltered, financeLaneOverrides]);
+  }, [baseFiltered, financeLaneOverrides, clientLaneOverrides]);
 
   // When searching with scope = 'all', results span every lane (the active-tab
   // filter is bypassed); otherwise rows stay scoped to the active tab.
@@ -195,8 +195,8 @@ const AdminPipelineV2 = () => {
     () =>
       searchingAllTabs
         ? baseFiltered
-        : baseFiltered.filter((a) => inTab(activeTab, (a as any).status, financeLaneOverrides)),
-    [baseFiltered, activeTab, searchingAllTabs, financeLaneOverrides],
+        : baseFiltered.filter((a) => appInTab(activeTab, a as any, financeLaneOverrides, clientLaneOverrides)),
+    [baseFiltered, activeTab, searchingAllTabs, financeLaneOverrides, clientLaneOverrides],
   );
 
   const filterMaps: FilterLabelMaps = useMemo(

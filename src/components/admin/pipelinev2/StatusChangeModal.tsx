@@ -9,6 +9,7 @@ import type { useUpdateFinanceApplication } from '@/hooks/useFinanceApplications
 import { useUpdateClientStatus } from '@/hooks/useFinanceApplications';
 import { StatusSelect } from '@/components/admin/StatusSelect';
 import { useStatusConfig } from '@/hooks/useZtcSettings';
+import { usePipelineLanes } from '@/hooks/usePipelineLanes';
 import { useAuth } from '@/contexts/AuthContext';
 import { addPipelineNote } from '@/lib/pipelinev2/notes';
 import { supabase } from '@/integrations/supabase/client';
@@ -42,7 +43,11 @@ export function StatusChangeModal({
   const {
     labels: financeLabels, clientStatuses, clientLabels, commentRequiredFor, commentPromptFor,
     waClientInfoEnabledFor, waClientInfoRequiredFor, waClientInfoPromptFor,
+    clientLaneOverrides,
   } = useStatusConfig();
+  // Effective lane labels (Settings → Pipeline Lanes renames included), so the
+  // hint below names the lane the way the tab bar does.
+  const lanes = usePipelineLanes();
   const updateClientStatus = useUpdateClientStatus();
   const { user } = useAuth();
 
@@ -72,6 +77,14 @@ export function StatusChangeModal({
   const waInfoMissing = waInfoRequired && !waClientInfo.trim();
   // Prompt label: prefer the finance status's prompt, else the client status's.
   const waInfoStatus = financeWantsInfo ? status : clientWantsInfo ? clientStatus : '';
+
+  // A client status may carry its own destination lane (status_overrides.lane),
+  // which OUTRANKS the finance lane — so the track hint can't claim client
+  // statuses never move tabs. Resolved for the status currently picked below.
+  const clientLaneKey = clientStatus ? clientLaneOverrides[clientStatus] : undefined;
+  const clientLaneLabel = clientLaneKey
+    ? lanes.find((l) => l.key === clientLaneKey)?.label
+    : undefined;
 
   const submit = async () => {
     setError('');
@@ -166,7 +179,9 @@ export function StatusChangeModal({
             <p className="text-[11px] text-muted-foreground">
               {track === 'finance'
                 ? 'Main pipeline status — moves the row to the matching tab and sends notifications.'
-                : 'Working status — does not move tabs and sends no notifications.'}
+                : clientLaneLabel
+                  ? `Working status — this one moves the row to ${clientLaneLabel}, overriding the finance status's tab.`
+                  : 'Working status — leaves the row in the tab its finance status puts it in.'}
             </p>
           </div>
 

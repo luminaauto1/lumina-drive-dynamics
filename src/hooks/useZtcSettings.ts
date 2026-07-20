@@ -234,9 +234,10 @@ export interface StatusOverride {
   is_internal: boolean;            // skips config-driven CRM + WhatsApp auto-send (wired in ZTC-parity)
   easysocial_tag_to_add: string | null; // legacy single add NAME, mirrored into integration_settings.config.tag_add_overrides
   easysocial_tags_to_add: string[];      // multi add tag NAMES; when non-empty supersedes the single add in easysocial-tag-sync
-  // Editable destination-tab routing (FINANCE only). NULL => fall back to the
-  // hardcoded slug→lane map (statusToTab); see src/lib/pipelinev2/tabs.ts.
-  lane: string | null;             // chosen PIPELINE_TABS id for this finance slug
+  // Editable destination-tab routing, BOTH tracks. On a finance row NULL => fall
+  // back to the hardcoded slug→lane map (statusToTab); on a client row NULL =>
+  // the status does not move the lead at all. See src/lib/pipelinev2/tabs.ts.
+  lane: string | null;             // chosen PIPELINE_TABS id for this slug
   // ── ZTC-parity status-apply config (additive; defaults preserve behaviour) ──
   // Read server-side by easysocial-tag-sync (CRM) + wa-status-send (WhatsApp).
   easysocial_client_status: string | null;   // lead_data.client_status text (NULL => not written)
@@ -378,7 +379,8 @@ export const useStatusConfig = () => {
   /* ---------------- Finance destination-tab (lane) overrides ----------------
      Per-finance-slug Pipeline v2 tab routing. Built from rows that are finance
      (status_type='finance' OR legacy rows with no type) AND have a non-null lane.
-     Client rows are excluded — they never move pipeline lanes. Empty map =>
+     Client rows are excluded here — they are collected separately into
+     clientLaneOverrides below and resolved with HIGHER precedence. Empty map =>
      resolveStatusTab falls back to statusToTab everywhere (current behaviour).
      The lane id is validated against PIPELINE_TABS inside resolveStatusTab. */
   const financeLaneOverrides: Record<string, string> = {};
@@ -389,6 +391,17 @@ export const useStatusConfig = () => {
   // Effective lane resolver for a finance slug (override ?? hardcoded default),
   // for editor defaults / display.
   const laneFor = (slug: string) => financeLaneOverrides[slug];
+
+  /* ---------------- Client destination-tab (lane) overrides -----------------
+     Client statuses can OPTIONALLY move a lead to a lane (owner 2026-07-20):
+     "Wrong Info" routes to the Wrong Info tab, while "Actioned"/"No Answer"
+     carry no lane and leave the lead where its finance status puts it. Same
+     `lane` column, read from client rows; resolveAppTab gives these precedence
+     over the finance lane. Empty map => byte-for-byte the previous behaviour. */
+  const clientLaneOverrides: Record<string, string> = {};
+  for (const o of overrides) {
+    if (o.status_type === 'client' && o.lane) clientLaneOverrides[o.slug] = o.lane;
+  }
 
   // Per-status SLA overrides (hours) — finance track; the Finance page feeds
   // these into lib/finance/sla.ts (setSlaOverrides). Absent/0 = built-in default.
@@ -403,6 +416,6 @@ export const useStatusConfig = () => {
     clientStatuses, allClientStatuses, clientLabels, clientStyles,
     commentRequiredFor, commentPromptFor,
     waClientInfoEnabledFor, waClientInfoRequiredFor, waClientInfoPromptFor,
-    financeLaneOverrides, laneFor, slaHoursMap,
+    financeLaneOverrides, clientLaneOverrides, laneFor, slaHoursMap,
   };
 };

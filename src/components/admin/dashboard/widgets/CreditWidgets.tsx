@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { sourceLabel } from '@/lib/pipelinev2/source';
-import { PIPELINE_TABS, resolveStatusTab } from '@/lib/pipelinev2/tabs';
+import { PIPELINE_TABS, resolveAppTab } from '@/lib/pipelinev2/tabs';
 import { useStatusConfig } from '@/hooks/useZtcSettings';
 import { computeRange } from '@/hooks/useAnalyticsDashboard';
 import { useDashboardRange } from './DashboardContext';
@@ -29,6 +29,9 @@ import {
 interface AppField {
   submission_source: string | null;
   status: string | null;
+  // Needed by the lane widget: a client status may carry its own lane override,
+  // which takes precedence over the finance lane (see resolveAppTab).
+  client_status: string | null;
   credit_check_status: string | null;
 }
 
@@ -38,7 +41,7 @@ async function fetchAppFields(): Promise<AppField[]> {
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await supabase
       .from('finance_applications')
-      .select('submission_source, status, credit_check_status')
+      .select('submission_source, status, client_status, credit_check_status')
       .range(from, from + PAGE - 1);
     if (error) throw error;
     if (!data || data.length === 0) break;
@@ -233,14 +236,15 @@ export function SourceBreakdownWidget() {
 // ── Pipeline v2 lane counts ─────────────────────────────────────────────────────
 export function LaneCountsWidget() {
   const { data, isLoading, isError } = useAppFields();
-  // Bucket with the SAME editable per-slug lane routing the Pipeline v2 page uses
-  // (status_overrides.lane via useStatusConfig), so lane counts here match the
-  // live pipeline column counts instead of the hardcoded statusToTab default.
-  const { financeLaneOverrides } = useStatusConfig();
+  // Bucket with the SAME resolver the Pipeline v2 page uses (resolveAppTab over
+  // BOTH lane override maps from useStatusConfig), so lane counts here match the
+  // live pipeline column counts. Finance-only bucketing would drift the moment a
+  // client status carries a lane, since that takes precedence over the finance one.
+  const { financeLaneOverrides, clientLaneOverrides } = useStatusConfig();
   const rows = useMemo(() => {
     const tally = new Map<string, number>();
     for (const r of data ?? []) {
-      const tab = resolveStatusTab(r.status, financeLaneOverrides);
+      const tab = resolveAppTab(r, financeLaneOverrides, clientLaneOverrides);
       tally.set(tab, (tally.get(tab) ?? 0) + 1);
     }
     // Registry order (excluding the 'all' pseudo-tab), only lanes with content.
@@ -250,7 +254,7 @@ export function LaneCountsWidget() {
       accent: t.accent,
       count: tally.get(t.key) ?? 0,
     }));
-  }, [data, financeLaneOverrides]);
+  }, [data, financeLaneOverrides, clientLaneOverrides]);
 
   if (isLoading) return <WidgetLoading />;
   if (isError) return <WidgetError />;
