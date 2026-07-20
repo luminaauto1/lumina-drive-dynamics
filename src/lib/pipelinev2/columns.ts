@@ -53,6 +53,9 @@ const GLOBAL_DEFAULT_VISIBLE = TABLE_COLUMNS.filter((c) => c.defaultVisible).map
 const LANE_DEFAULT_VISIBLE: Record<string, string[]> = {
   // Fresh leads: who/what + latest note + how to reach them + where they came from.
   intake:      ['applicant', 'status', 'client_status', 'internal', 'phone', 'vehicle', 'source', 'created'],
+  // Wrong Info: you are chasing the client to correct their details, so phone +
+  // the latest note carry the work (same shape as intake).
+  wrong_info:  ['applicant', 'status', 'client_status', 'internal', 'phone', 'vehicle', 'source', 'created'],
   // Credit check passed / ready to load: who + how to reach them + F&I owner.
   credit_passed: ['applicant', 'status', 'client_status', 'internal', 'phone', 'vehicle', 'fni', 'source', 'created'],
   // Submitted to banks: add the bank in play.
