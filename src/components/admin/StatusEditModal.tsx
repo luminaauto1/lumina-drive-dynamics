@@ -3,7 +3,7 @@
 //
 //  • finance mode — slug is LOCKED (wired into the pipeline/mailer/notify-*). Only
 //    presentation + rules (label, colour, visibility, comment gate, internal flag,
-//    WhatsApp message, EasySocial tag) are editable.
+//    EasySocial tag, WhatsApp auto-send template) are editable.
 //  • client mode — full ZTC CRUD: free-form label, generated 'client_*' slug on
 //    first save, plus Delete for existing rows.
 //
@@ -15,7 +15,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -25,14 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Loader2, Save, Trash2, Check, ChevronDown, ArrowRight, X, Info } from 'lucide-react';
-import { toast } from 'sonner';
+import { Loader2, Save, Trash2, Check, ArrowRight, X, Info } from 'lucide-react';
 import ConfirmDialog from '@/components/admin/ConfirmDialog';
 import { getStatusDispatchInfo } from '@/lib/statusDispatchInfo';
 import {
@@ -44,7 +36,7 @@ import {
   useUpdateEasySocialSettings,
   useWhatsAppTemplates,
 } from '@/hooks/useZtcSettings';
-import { getWhatsAppMessage, STATUS_OPTIONS } from '@/lib/statusConfig';
+import { STATUS_OPTIONS } from '@/lib/statusConfig';
 import { statusToTab, resolveStatusTab, PIPELINE_TABS } from '@/lib/pipelinev2/tabs';
 
 // Expanded palette (the 7 from the inline StatusesTab editor + 5 more).
@@ -219,7 +211,6 @@ export function StatusEditModal({
   // Day-to-day working statuses (No Answer, Actioned) reset; milestones
   // (Validations Submitted, Contract Signed) must persist. Default OFF.
   const [resetsDaily, setResetsDaily] = useState(!!existing?.resets_daily);
-  const [waMessage, setWaMessage] = useState(existing?.whatsapp_message ?? '');
   const [tag, setTag] = useState(existing?.easysocial_tag_to_add ?? '');
   // Multi tag-to-ADD (NAMES). When non-empty this is what the edge fn ADDs ALL of,
   // superseding the single `tag` override; empty => exactly today's single-tag path.
@@ -305,7 +296,6 @@ export function StatusEditModal({
   const effectiveSlug = type === 'finance' ? (slug ?? '') : (slug ?? slugifyClientLabel(label));
   const previewClass = cls || FALLBACK_CLASS;
   const previewLabel = label || effectiveSlug || 'Preview';
-  const builtInWaPreview = type === 'finance' && slug ? getWhatsAppMessage(slug, '{name}') : '';
 
   // Read-only "what fires" descriptor for the edited FINANCE status (hand-maintained
   // in statusDispatchInfo.ts, kept in sync with the real dispatch + planForStatus).
@@ -421,8 +411,10 @@ export function StatusEditModal({
         color_class: cls,
         sort_order: sortOrder,
         is_hidden: hidden,
-        // Empty => NULL so the built-in default is used (current behaviour preserved).
-        whatsapp_message: waMessage.trim() ? waMessage : null,
+        // whatsapp_message (the tap-to-chat pre-fill) is deliberately NOT in this
+        // payload. Its editor was removed (owner 2026-07-20 — it kept being read as
+        // the auto-send template picker); the partial upsert leaves the column
+        // untouched, so tap-to-chat keeps using existing values / built-in defaults.
         comment_required: commentRequired,
         comment_prompt: commentPrompt.trim() ? commentPrompt.trim() : null,
         // WhatsApp To Client Info — dedicated per-status message box. When disabled,
@@ -772,94 +764,13 @@ export function StatusEditModal({
             <p className="text-[11px] text-muted-foreground pl-6">Skips the config-driven EasySocial CRM write and WhatsApp auto-send (the built-in tag plan still runs).</p>
           </div>
 
-          {/* WhatsApp message (the click-to-chat body) */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between gap-2">
-              <Label className="text-sm">WhatsApp message</Label>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  {/* "Load from template" read as "attach a template to this status",
-                      which is the WhatsApp auto-send picker further down, not this.
-                      This button only copies wording into the free-text box beside
-                      it — name it after what it does so the two stop competing. */}
-                  <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" disabled={waTemplates.length === 0}>
-                    Copy wording from template <ChevronDown className="h-3.5 w-3.5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="max-h-72 w-[19rem] overflow-y-auto">
-                  {waTemplates.length === 0 ? (
-                    <DropdownMenuItem disabled className="text-xs">No saved templates</DropdownMenuItem>
-                  ) : (
-                    <>
-                      {/* Every template lacking wording is the CURRENT state of this
-                          install, so an all-grey menu is what most people will open.
-                          Without this header that reads as a dead button — say up
-                          front what is missing and exactly where to add it. */}
-                      {waTemplates.every((t) => !(t.preview_text ?? '').trim()) && (
-                        <p className="mb-1 border-b border-border px-2 pb-2 pt-1 text-[11px] leading-snug text-muted-foreground">
-                          Nothing to copy — <span className="font-medium text-foreground">Preview text</span> is blank on every
-                          template. That is cosmetic: the templates still send perfectly, driven by their send URL.
-                          Fill it in under Settings → WhatsApp Templates only if you want their wording copyable here.
-                          <br />
-                          <span className="font-medium text-foreground">To make this status send a template automatically,
-                          use “WhatsApp auto-send” below</span> — that needs no Preview text.
-                        </p>
-                      )}
-                      {waTemplates.map((tpl) => {
-                      // ONLY preview_text. It used to fall back to tpl.body, which
-                      // silently defeated the whole "no message text yet" state below:
-                      // body is NOT NULL on every row, so nothing was ever greyed out
-                      // and every template loaded something. The trouble is that body
-                      // is the "Reference note (what this message says)" field — an
-                      // internal description like "Sent when an application is
-                      // hard-declined" — not the wording the client receives. These
-                      // are provider-approved templates; their real text lives at
-                      // EasySocial behind send_url, and preview_text is the only place
-                      // that wording is mirrored for the admin UI. Loading from body
-                      // pasted a description into the click-to-chat box, which saved
-                      // correctly and therefore read back as "it didn't save properly".
-                      const text = (tpl.preview_text ?? '').trim();
-                      return (
-                        <DropdownMenuItem
-                          key={tpl.key}
-                          // Deliberately NOT disabled when there is no wording. A
-                          // disabled item swallows the click and the menu just closes,
-                          // which is indistinguishable from a broken button — the exact
-                          // complaint this replaces ("nothing happens"). Keep it
-                          // clickable and answer with a toast that names the template
-                          // and where to fix it.
-                          onSelect={() => {
-                            if (text) { setWaMessage(text); return; }
-                            toast.info(`Nothing to copy from "${tpl.title || tpl.key}"`, {
-                              description: 'Its Preview text is blank. That does not stop it sending — to auto-send it on this status, attach it under "WhatsApp auto-send" below instead.',
-                            });
-                          }}
-                          className={'text-xs' + (text ? '' : ' text-muted-foreground')}
-                        >
-                          {tpl.title || tpl.key}
-                          {!text && (
-                            <span className="ml-1.5 text-muted-foreground">— no message text yet</span>
-                          )}
-                        </DropdownMenuItem>
-                      );
-                      })}
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-            <Textarea
-              value={waMessage}
-              onChange={(e) => setWaMessage(e.target.value)}
-              rows={2}
-              placeholder={builtInWaPreview || 'Blank uses the built-in default; {name} = client first name'}
-              className="text-sm"
-            />
-            <p className="text-[11px] text-muted-foreground">
-              This is the click-to-chat message body (what the dealer's WhatsApp opens pre-filled) — distinct from the auto-notification templates.
-              Blank uses the built-in default. <code className="font-mono">{'{name}'}</code> = client first name. Type it directly — the Copy-wording button is only a shortcut, and it does <span className="font-medium">not</span> make this status auto-send anything.
-            </p>
-          </div>
+          {/* The "WhatsApp message" tap-to-chat editor that lived here is GONE
+              (owner 2026-07-20). Whatever it was named, everyone read it as "the
+              template this status sends" — the actual sender is the WhatsApp
+              auto-send section below, and two template-ish controls in one editor
+              meant the wrong one got used every time. The column stays in the DB
+              (tap-to-chat links still use saved values / built-in defaults); there
+              is simply no editor for it any more. */}
 
           {/* EasySocial tags-to-add — MULTI-SELECT over the synced tag dictionary
               (config.tags_cache); free-text fallback so a tag can be added even when

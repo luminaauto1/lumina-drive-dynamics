@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { Loader2, Save, ListChecks, Info, Eye, EyeOff, MessageCircle, SlidersHorizontal, Plus, Pencil, Trash2, UserCheck, Search, X } from 'lucide-react';
+import { Loader2, Save, ListChecks, Info, Eye, EyeOff, SlidersHorizontal, Plus, Pencil, Trash2, UserCheck, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -13,7 +12,6 @@ import {
   type MergedStatus,
   type ClientStatus,
 } from '@/hooks/useZtcSettings';
-import { getWhatsAppMessage } from '@/lib/statusConfig';
 import { StatusEditModal } from '@/components/admin/StatusEditModal';
 import ConfirmDialog from '@/components/admin/ConfirmDialog';
 
@@ -28,24 +26,25 @@ const COLOR_PRESETS: { label: string; cls: string }[] = [
   { label: 'Red', cls: 'bg-red-500/20 text-red-400 border-red-500/30' },
 ];
 
-// Finance row — keeps the inline quick-edit of label/colour/order/visibility/WA,
+// Finance row — keeps the inline quick-edit of label/colour/order/visibility,
 // and an "Edit…" affordance that opens the rich modal (comment gate, internal
-// flag, EasySocial tag — slug stays read-only).
+// flag, EasySocial tag, WhatsApp auto-send — slug stays read-only).
+// The inline "WhatsApp message" textarea is GONE (owner 2026-07-20): it edited
+// the tap-to-chat pre-fill but read as the auto-send template, and its one-shot
+// state made this Row's Save clobber modal saves. whatsapp_message is not in
+// the payload, so the partial upsert leaves the column untouched.
 const Row = ({ s, order, onEdit }: { s: MergedStatus; order: number; onEdit: (slug: string) => void }) => {
   const upsert = useUpsertStatusOverride();
   const [label, setLabel] = useState(s.label);
   const [cls, setCls] = useState(s.colorClass);
   const [sortOrder, setSortOrder] = useState(order);
   const [hidden, setHidden] = useState(s.hidden);
-  const [waMessage, setWaMessage] = useState(s.whatsappMessage);
   // Re-seed the inline editors when the SERVER value changes — chiefly after the
   // rich modal saves this same slug. This Row has a stable key={s.value} and the
-  // file uses no effects, so its state is otherwise frozen at mount: the WhatsApp
-  // box would still read blank after the modal saved a message, and this Row's own
-  // Save (right next to the "Edit…" that opened the modal) would then write that
-  // stale blank back as NULL, destroying it. The snapshot is built from PROPS
+  // file uses no effects, so its state is otherwise frozen at mount and this
+  // Row's Save would write stale values back. The snapshot is built from PROPS
   // only, so it can never fire off a local edit and clobber in-progress typing.
-  const serverSnapshot = JSON.stringify([s.label, s.colorClass, order, s.hidden, s.whatsappMessage]);
+  const serverSnapshot = JSON.stringify([s.label, s.colorClass, order, s.hidden]);
   const [seed, setSeed] = useState(serverSnapshot);
   if (seed !== serverSnapshot) {
     setSeed(serverSnapshot);
@@ -53,10 +52,7 @@ const Row = ({ s, order, onEdit }: { s: MergedStatus; order: number; onEdit: (sl
     setCls(s.colorClass);
     setSortOrder(order);
     setHidden(s.hidden);
-    setWaMessage(s.whatsappMessage);
   }
-  // The built-in copy this status would send if the custom body is left blank.
-  const builtInPreview = getWhatsAppMessage(s.value, '{name}');
   const save = () =>
     upsert.mutate({
       slug: s.value,
@@ -64,8 +60,6 @@ const Row = ({ s, order, onEdit }: { s: MergedStatus; order: number; onEdit: (sl
       color_class: cls,
       sort_order: sortOrder,
       is_hidden: hidden,
-      // Empty => NULL so the built-in default is used (current behaviour preserved).
-      whatsapp_message: waMessage.trim() ? waMessage : null,
     });
   return (
     <Card>
@@ -96,19 +90,6 @@ const Row = ({ s, order, onEdit }: { s: MergedStatus; order: number; onEdit: (sl
               {hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
             </button>
           </div>
-        </div>
-        <div className="mt-2">
-          <div className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-400 mb-1">
-            <MessageCircle className="w-3.5 h-3.5" /> WhatsApp message
-            <span className="text-muted-foreground font-normal">— blank uses the built-in default; <code className="font-mono">{'{name}'}</code> = client first name</span>
-          </div>
-          <Textarea
-            value={waMessage}
-            onChange={(e) => setWaMessage(e.target.value)}
-            rows={2}
-            className="text-sm"
-            placeholder={builtInPreview}
-          />
         </div>
       </CardContent>
     </Card>
