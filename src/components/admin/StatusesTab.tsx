@@ -159,8 +159,8 @@ const StatusesTab = () => {
         <span>
           <strong>Finance statuses</strong> have fixed keys (wired into the auto-mailer, WhatsApp notifications and pipeline lanes), but their
           presentation <em>and</em> rules — label, colour, order, visibility, WhatsApp message, comment gate, internal flag, EasySocial tag — are
-          editable. <strong>Client statuses</strong> are free-form: add, rename, recolour and delete them freely; they never move pipeline lanes
-          and never fire client notifications.
+          editable. <strong>Client statuses</strong> are free-form: add, rename, recolour and delete them freely; by default they leave the application
+          in whatever lane its finance status puts it, but each one can optionally be pointed at a pipeline lane of its own.
         </span>
       </div>
 

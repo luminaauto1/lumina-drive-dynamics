@@ -91,3 +91,37 @@ export const inTab = (
   overrides?: Record<string, string>,
 ): boolean =>
   tabKey === 'all' ? true : resolveStatusTab(status, overrides) === tabKey;
+
+/**
+ * THE lane an application actually sits in — the single resolver the pipeline
+ * uses for both the tab counts and the row filter, so those two can never drift.
+ *
+ * Precedence (owner 2026-07-20: "if I select Wrong Info in client status it moves
+ * the lead to the Wrong Info tab, but if I select Actioned nothing happens"):
+ *   1. the CLIENT status's lane override, when that status has one
+ *   2. the FINANCE status's lane override
+ *   3. the hardcoded statusToTab default
+ * A client status with no lane set (Actioned, No Answer, …) contributes nothing,
+ * so the application stays exactly where its finance status puts it.
+ *
+ * Each application still resolves to EXACTLY ONE lane, so no row is double-counted.
+ */
+export const resolveAppTab = (
+  app: { status?: string | null; client_status?: string | null } | null | undefined,
+  financeLaneOverrides?: Record<string, string>,
+  clientLaneOverrides?: Record<string, string>,
+): string => {
+  const cs = app?.client_status;
+  const clientLane = cs ? clientLaneOverrides?.[cs] : undefined;
+  if (clientLane && VALID_TAB_KEYS.has(clientLane)) return clientLane;
+  return resolveStatusTab(app?.status, financeLaneOverrides);
+};
+
+/** Whether an application belongs in the given lane, honouring BOTH tracks. */
+export const appInTab = (
+  tabKey: string,
+  app: { status?: string | null; client_status?: string | null } | null | undefined,
+  financeLaneOverrides?: Record<string, string>,
+  clientLaneOverrides?: Record<string, string>,
+): boolean =>
+  tabKey === 'all' ? true : resolveAppTab(app, financeLaneOverrides, clientLaneOverrides) === tabKey;

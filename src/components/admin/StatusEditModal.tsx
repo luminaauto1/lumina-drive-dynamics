@@ -99,6 +99,10 @@ const BODY_SOURCE_OPTIONS: { value: string; label: string }[] = [
 // Sentinel value for the "no template" option in the auto-send picker (Radix
 // Select forbids an empty-string item value).
 const NO_TEMPLATE = '__none__';
+// Sentinel for a CLIENT status that must not move the lead between pipeline tabs
+// (Radix Select forbids an empty-string item value, so the "stay put" choice
+// needs a real value; it is stored as NULL in status_overrides.lane).
+const NO_LANE = '__stay__';
 
 // Split a stored body-source ("static:Foo" | "first_name" | null) into the select
 // value (the kind) + the static literal (only meaningful when kind === 'static').
@@ -234,10 +238,14 @@ export function StatusEditModal({
   // FINANCE destination tab (lane). Defaults to the resolved tab: a saved lane
   // override if present, else the hardcoded statusToTab default. Editing this only
   // changes which Pipeline v2 tab the app is shown/counted in — never the status
-  // value, dispatch, slugs, or the client track. Inert for client statuses.
-  const [lane, setLane] = useState<string>(() =>
-    slug ? resolveStatusTab(slug, existing?.lane ? { [slug]: existing.lane } : undefined) : 'intake',
-  );
+  // value, dispatch or slugs.
+  // CLIENT statuses may now ALSO route (owner 2026-07-20): "Wrong Info" can move
+  // the lead to the Wrong Info tab while "Actioned" leaves it where it is. Their
+  // neutral value is NO_LANE (stay put) rather than a built-in destination.
+  const [lane, setLane] = useState<string>(() => {
+    if (type === 'client') return existing?.lane || NO_LANE;
+    return slug ? resolveStatusTab(slug, existing?.lane ? { [slug]: existing.lane } : undefined) : 'intake';
+  });
   const [tagSeeded, setTagSeeded] = useState(false);
   const [error, setError] = useState('');
 
@@ -430,10 +438,14 @@ export function StatusEditModal({
         easysocial_tag_to_add: legacySingleTag ? legacySingleTag : null,
         easysocial_tags_to_add: cleanTagsToAdd,
         status_type: type,
-        // Destination-tab routing: FINANCE only. Store NULL when the chosen lane
-        // equals the hardcoded default (empty override = exact current behaviour,
-        // fully reversible). Client statuses never route lanes => always NULL.
-        lane: type === 'finance' && lane && lane !== defaultLaneKey ? lane : null,
+        // Destination-tab routing — BOTH tracks, but with different neutral values,
+        // so the neutral choice always stores NULL (empty override = fully reversible).
+        // FINANCE: picking the built-in destination clears the override.
+        // CLIENT: no built-in destination exists — NO_LANE ("stay in the current
+        // tab") is the neutral choice, so anything else is a real override.
+        lane: type === 'client'
+          ? (lane && lane !== NO_LANE ? lane : null)
+          : (type === 'finance' && lane && lane !== defaultLaneKey ? lane : null),
         // ── ZTC-parity status-apply config — BOTH tracks since 2026-07-14:
         //    client-status applies now run the tag sync too (config-driven).
         //    Empty => NULL / 'none' / [] so an unconfigured status behaves as today. ──
@@ -604,8 +616,31 @@ export function StatusEditModal({
               </p>
             </div>
           )}
+          {/* Client statuses may optionally route to a pipeline tab. Default is
+              NO_LANE = stay put, which is how every existing client status behaves. */}
           {type === 'client' && (
-            <p className="text-[11px] text-muted-foreground">Does not move pipeline tabs.</p>
+            <div className="space-y-1.5">
+              <Label className="text-sm">Moves the lead to</Label>
+              <div className="flex items-center gap-1.5">
+                <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                <Select value={lane} onValueChange={setLane}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="Stay in the current tab" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_LANE} className="text-sm">Stay in the current tab</SelectItem>
+                    {PIPELINE_TABS.filter((t) => t.key !== 'all').map((t) => (
+                      <SelectItem key={t.key} value={t.key} className="text-sm">{t.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {lane && lane !== NO_LANE
+                  ? 'Setting this client status moves the lead into that tab (and its count), overriding where its finance status would put it. Clearing the client status returns it to the finance tab.'
+                  : 'Setting this client status leaves the lead where its finance status puts it — the badge changes, the tab does not.'}
+              </p>
+            </div>
           )}
 
           {/* Overnight reset (client track only). The `client-status-daily-reset`
