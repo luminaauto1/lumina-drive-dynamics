@@ -793,8 +793,15 @@ export function StatusEditModal({
                           disabled={!text}
                           onSelect={() => { if (text) setWaMessage(text); }}
                           className="text-xs"
+                          // Say WHY it's greyed. A template added by pasting a send
+                          // URL starts with no wording, so there is nothing to load
+                          // into the message box — without this it just looks broken.
+                          title={text ? undefined : 'This template has no message text yet — add it in Settings → WhatsApp Templates'}
                         >
                           {tpl.title || tpl.key}
+                          {!text && (
+                            <span className="ml-1.5 text-muted-foreground">— no message text yet</span>
+                          )}
                         </DropdownMenuItem>
                       );
                     })
