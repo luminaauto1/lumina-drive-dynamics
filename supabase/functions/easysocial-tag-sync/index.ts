@@ -19,12 +19,16 @@
 // All optional & fallback-safe: no row / empty config = current behaviour.
 
 import { fetchTagDictionary, resolveEasySocialSettings, resolveStatusApplyConfig, ES_LEAD_UPDATE } from "../_shared/easysocialTags.ts";
+import { buildCorsHeaders } from "../_shared/publicGuard.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-lumina-key, x-supabase-api-version, x-region',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+// CORS is built PER REQUEST (see inside Deno.serve). This function used to carry
+// its own frozen Access-Control-Allow-Headers list — the one thing every other
+// edge function here moved off, because a supabase-js release adding a header the
+// list doesn't name makes the browser reject a 200 preflight and silently drop
+// the POST (the function never logs it; the caller sees "failed to send a
+// request to the Edge Function"). buildCorsHeaders echoes back exactly what the
+// browser asked for and sets Max-Age, so preflights are also cached instead of
+// re-sent on every single invoke.
 
 // Permanent tags that must NEVER be removed (traffic sources, ops markers).
 const SAFE_TAG_NAMES = [
@@ -168,6 +172,10 @@ const planForStatus = (status: string): PlanStep => {
 // so easysocial-list-tags can reuse it verbatim. Behaviour is unchanged.
 
 Deno.serve(async (req) => {
+  const corsHeaders = buildCorsHeaders(
+    req.headers.get('origin'),
+    req.headers.get('access-control-request-headers'),
+  );
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'method_not_allowed' }), {

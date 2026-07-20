@@ -758,43 +758,72 @@ export const useUpdateClientStatus = () => {
       // EasySocial tags for the CLIENT track (2026-07-14): the edge function reads
       // this status's config (tags to add / remove-mode) server-side and NO-OPS
       // when nothing is configured — so an unconfigured client status stays as
-      // silent as before. Fire-and-forget; still no notify-* / auto-mailer.
+      // silent as before. Still no notify-* / auto-mailer.
+      //
+      // AWAITED, not fire-and-forget (2026-07-20). Both dispatches used to be
+      // dangling promises launched as the mutation resolved — which means React
+      // Query's onSuccess (invalidate + refetch) and the modal's unmount raced
+      // them, and a call that never left the browser left NO trace anywhere: no
+      // console line, no toast, no edge-function log. That is exactly the hole
+      // "the tag didn't update and I saw nothing" fell through. The finance path
+      // above already awaits + toasts for this reason; the client path now
+      // matches it, so an unconfigured status says so and a broken one shouts.
       const phone = (data as any)?.phone;
       if (phone) {
-        supabase.functions
-          .invoke('easysocial-tag-sync', { body: { phone_number: phone, new_status: client_status } })
-          .then(({ data: tagData, error: tagErr }) => {
-            if (tagErr || tagData?.ok === false) {
-              const detail = tagErr?.message || tagData?.error || tagData?.detail || 'unknown error';
-              toast.error(`EasySocial sync failed: ${detail}`);
-            }
-          }, () => {});
+        try {
+          console.log('[easysocial-tag-sync] client invoking', { phone, new_status: client_status });
+          const { data: tagData, error: tagErr } = await supabase.functions
+            .invoke('easysocial-tag-sync', { body: { phone_number: phone, new_status: client_status } });
+          console.log('[easysocial-tag-sync] client response', { tagData, tagErr });
+          if (tagErr || (tagData as any)?.ok === false) {
+            const detail = tagErr?.message
+              || (tagData as any)?.upstream?.body?.message
+              || (tagData as any)?.error
+              || (tagData as any)?.detail
+              || 'unknown error';
+            toast.error(`EasySocial sync failed: ${detail}`);
+          } else if ((tagData as any)?.skipped) {
+            // No tag plan configured for this client status — informational only.
+            console.log('[easysocial-tag-sync] client skipped:', (tagData as any).skipped);
+          } else {
+            toast.success('EasySocial tags updated');
+          }
+        } catch (tagEx: any) {
+          console.error('[easysocial-tag-sync] client failed to invoke:', tagEx);
+          toast.error(`EasySocial sync failed: ${tagEx?.message || tagEx}`);
+        }
 
         // Opt-in client-status WhatsApp auto-send. Self-gates to skipped:'no_template'
         // unless THIS client slug has a curated template attached (status editor →
-        // WhatsApp auto-send), so it's silent for every existing client status. Fires
-        // fire-and-forget with the SAME x-lumina-key auth as the finance path
-        // (checkInternalKey fails closed without it). Non-fatal; NO toast on failure
-        // (the easysocial toast above is the only client-status toast).
-        (async () => {
-          try {
-            const { publicApiHeaders } = await import('@/lib/publicApi');
-            supabase.functions.invoke('wa-status-send', {
-              headers: publicApiHeaders(),
-              body: {
-                application_id: id,
-                new_status: client_status,
-                wa_client_info: wa_client_info?.trim() || undefined,
-              },
-            }).then(({ data: waData, error: waErr }) => {
-              if (waErr) console.error('[wa-status-send] client error:', waErr);
-              else if ((waData as any)?.skipped) console.log('[wa-status-send] client skipped:', (waData as any).skipped);
-              else console.log('[wa-status-send] client dispatched for application', id, waData);
-            });
-          } catch (waEx) {
-            console.error('[wa-status-send] client failed to invoke:', waEx);
+        // WhatsApp auto-send), so it's silent for every existing client status. Uses
+        // the SAME x-lumina-key auth as the finance path (checkInternalKey fails
+        // closed without it). Non-fatal: a send failure never fails the status write.
+        try {
+          const { publicApiHeaders } = await import('@/lib/publicApi');
+          const { data: waData, error: waErr } = await supabase.functions.invoke('wa-status-send', {
+            headers: publicApiHeaders(),
+            body: {
+              application_id: id,
+              new_status: client_status,
+              wa_client_info: wa_client_info?.trim() || undefined,
+            },
+          });
+          if (waErr) {
+            console.error('[wa-status-send] client error:', waErr);
+            toast.error(`WhatsApp send failed: ${waErr.message || 'unknown error'}`);
+          } else if ((waData as any)?.skipped) {
+            // 'no_template' is the everyday case: this status has no WhatsApp
+            // template attached, so nothing was meant to go out. Say so quietly
+            // rather than leaving the user to guess whether a send failed.
+            console.log('[wa-status-send] client skipped:', (waData as any).skipped);
+          } else {
+            console.log('[wa-status-send] client dispatched for application', id, waData);
+            toast.success('WhatsApp message sent');
           }
-        })();
+        } catch (waEx: any) {
+          console.error('[wa-status-send] client failed to invoke:', waEx);
+          toast.error(`WhatsApp send failed: ${waEx?.message || waEx}`);
+        }
       }
     },
     onSuccess: () => {
