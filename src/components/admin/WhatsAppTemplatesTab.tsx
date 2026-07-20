@@ -231,9 +231,13 @@ const Row = ({ t }: { t: WhatsAppTemplate }) => {
             </p>
 
             <div>
-              <Label className="text-xs text-muted-foreground">Preview text</Label>
+              <Label className="text-xs text-muted-foreground">Preview text <span className="font-normal">(optional)</span></Label>
               <Textarea value={preview} onChange={(e) => setPreview(e.target.value)} rows={2} className="mt-1 text-sm"
                 placeholder="How the rendered message reads, with the body vars filled in…" />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Reference only — sending is driven entirely by the send URL above, so leaving this blank changes nothing about
+                what goes out. Its one use is letting the status editor copy this wording into a click-to-chat message box.
+              </p>
             </div>
 
             {/* Test send — explicit phone box (no more window.prompt). Uses the
