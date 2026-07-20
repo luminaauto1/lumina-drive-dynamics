@@ -123,7 +123,11 @@ export interface WhatsAppTemplate {
   active: boolean;
   // ZTC-parity curated-template fields (additive; may be null/undefined on old rows).
   send_url: string | null;       // EasySocial hosted send URL (the credential) — owner-pasted, NOT seeded.
-  body1_source: string | null;   // which source field fills {body1} (curated mapping note).
+  // LIVE body mapping read by wa-status-send (a per-status wa_bodyN_source override
+  // wins when set). Vocabulary: applicant_full_name|applicant_first_name|
+  // applicant_mobile|vehicle|wa_client_info|dealership_name|reference|agent_name|
+  // custom:<text>|none.
+  body1_source: string | null;
   body2_source: string | null;
   body3_source: string | null;
   preview_text: string | null;   // rendered preview of the message wording.
@@ -244,7 +248,9 @@ export interface StatusOverride {
   tag_remove_mode: string;                    // 'none' | 'specific' | 'all_except'
   easysocial_tags_to_remove: string[];        // tag IDs as text[], interpreted per tag_remove_mode
   whatsapp_template_key: string | null;       // FK-by-convention to whatsapp_templates.key (auto-send)
-  wa_body1_source: string | null;             // BodySource for {body1} (full_name|first_name|comment|vehicle|email|phone|bank|wa_client_info|static:…|none)
+  // Per-status OVERRIDE for {body1}; NULL = inherit whatsapp_templates.body1_source.
+  // Vocabulary: full_name|first_name|comment|vehicle|email|phone|bank|wa_client_info|static:…|none
+  wa_body1_source: string | null;
   wa_body2_source: string | null;
   wa_body3_source: string | null;
   sla_hours: number | null;                   // per-status SLA (hours); NULL = built-in default (finance track)

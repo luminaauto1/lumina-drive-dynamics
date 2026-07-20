@@ -1085,7 +1085,9 @@ export function StatusEditModal({
                           </div>
                         ))}
                         <p className="text-[11px] text-muted-foreground">
-                          Each body var fills a placeholder in the template. "Status comment" uses the comment entered at apply time; unused vars are omitted.
+                          These are <span className="font-medium text-foreground">overrides</span>. Leave a slot on "Not used" to inherit the template's own
+                          body mapping from Settings → WhatsApp Templates; pick anything here and it wins for this status only.
+                          "Status comment" uses the comment entered at apply time; slots that resolve to nothing are omitted.
                         </p>
                       </div>
                     )}
