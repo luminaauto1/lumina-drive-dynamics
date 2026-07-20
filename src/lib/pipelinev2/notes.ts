@@ -44,20 +44,48 @@ export const NOTE_CATEGORIES: NoteCategoryDef[] = [
   { key: 'vals_done',       label: 'Vals Done',       color: 'bg-green-500/10 text-green-400 border-green-500/20' },
   { key: 'contract_signed', label: 'Contract Signed', emoji: '🎉', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
   { key: 'follow_up',       label: 'Follow Up',       color: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' },
-  // Gated comments captured when a status with comment_required is applied.
+  // A comment a PERSON typed while changing a status (the comment gate, the
+  // change-status modal, bulk apply, Finance/Deal Room/CRM). User content — it
+  // shows in the table's Notes column like any other note.
   { key: 'status_change',   label: 'Status Change',   color: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' },
   // WhatsApp To Client Info text captured when a status with wa_client_info_enabled is applied.
   { key: 'client_whatsapp', label: 'WhatsApp to client', emoji: '💬', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
+  // The AUTO-STAMP written by useUpdateClientStatus ("Client status → X") so the
+  // day's outcome survives the nightly client_status reset. System-generated —
+  // never typed by a person, so it stays out of the Notes column.
+  { key: 'client_status_set', label: 'Client status', color: 'bg-muted text-muted-foreground border-border' },
 ];
 
 export const noteCategory = (key: string | undefined | null): NoteCategoryDef =>
   NOTE_CATEGORIES.find((c) => c.key === key) || NOTE_CATEGORIES[0];
 
-// System/event notes — auto-logged by status changes (status_change) and
-// WhatsApp-to-client sends (client_whatsapp), not typed by a person. Excluded
-// from the pipeline table's Notes column (owner 2026-07-18: "Notes are for the
-// notes left by the user"); still visible with their tags in the drawer feed.
-export const SYSTEM_NOTE_CATEGORIES = new Set(['status_change', 'client_whatsapp']);
+// System/event notes — written by the app itself, never typed by a person.
+// Excluded from the pipeline table's Notes column (owner 2026-07-18: "Notes are
+// for the notes left by the user"); still visible with their tags in the drawer
+// feed and history.
+//
+// NOTE: 'status_change' is deliberately NOT here. It is the category SIX
+// user-facing surfaces use for the comment a person types while changing a
+// status (change-status modal, bulk apply, comment gate, Finance, Deal Room,
+// CRM). Treating it as system hid those real comments from the Notes column
+// (owner report 2026-07-20: "I changed a client's status and also left a note
+// but the note is not showing"). Only the auto-stamp is system.
+export const SYSTEM_NOTE_CATEGORIES = new Set(['client_status_set', 'client_whatsapp']);
+
+/** Body written by the client-status auto-stamp; used for the legacy guard below. */
+const LEGACY_AUTO_STAMP = /^Client status\s*→/;
+
+/**
+ * Is this note machine-written (so it must not occupy the Notes column)?
+ * Category is the source of truth going forward. The regex is a LEGACY guard:
+ * auto-stamps written between 2026-07-18 and 2026-07-20 used 'status_change'
+ * (the same category as user comments), so they can only be told apart by their
+ * generated body. Cheap, exact, and self-retiring as those notes age out.
+ */
+export function isSystemNote(n: Pick<PipelineNote, 'category' | 'body'>): boolean {
+  if (SYSTEM_NOTE_CATEGORIES.has(n.category)) return true;
+  return n.category === 'status_change' && LEGACY_AUTO_STAMP.test(n.body ?? '');
+}
 
 /** Structured notes stored on the app row (newest-first). Defensive read. */
 export function readPipelineNotes(app: any): PipelineNote[] {
@@ -141,7 +169,7 @@ export function latestAnyNote(app: any): PipelineNote | null {
  * table's Notes column. Legacy blob entries are always user-written.
  */
 export function latestUserNote(app: any): PipelineNote | null {
-  const p = readPipelineNotes(app).find((n) => !SYSTEM_NOTE_CATEGORIES.has(n.category)) ?? null;
+  const p = readPipelineNotes(app).find((n) => !isSystemNote(n)) ?? null;
   return newestVsLegacy(p, app);
 }
 
