@@ -22,17 +22,17 @@ import ConfirmDialog from '@/components/admin/ConfirmDialog';
 // — the built-in auto-notification rows have fixed keys wired into notify-*.
 const isCustomKey = (key: string) => key.startsWith('custom_');
 
-// Body-var source options (ZTC's body-var mapping concept). Documentation for
-// the team: since the 2026-07-14 rewire, the LIVE body values are declared by
-// the send URL's own query string (?body1=name&body2=mobilenumber) — the
-// senders fill each declared token automatically. These dropdowns describe that
-// mapping in plain words so the next person knows what fills what.
+// Body-var source options. These are the LIVE mapping: when a status auto-sends
+// this template, wa-status-send fills body1/2/3 from whatever is picked here.
+// A status may still override any individual slot (status editor → WhatsApp
+// auto-send); when it does, the override wins for that status only.
 const BODY_SOURCES: { value: string; label: string }[] = [
   { value: 'none', label: 'Not used' },
   { value: 'applicant_full_name', label: 'Applicant full name' },
   { value: 'applicant_first_name', label: 'Applicant first name' },
   { value: 'applicant_mobile', label: 'Applicant mobile number' },
   { value: 'vehicle', label: 'Vehicle' },
+  { value: 'wa_client_info', label: 'WhatsApp To Client Info' },
   { value: 'dealership_name', label: 'Dealership name' },
   { value: 'reference', label: 'Reference / application no.' },
   { value: 'agent_name', label: 'Agent name' },
@@ -40,8 +40,30 @@ const BODY_SOURCES: { value: string; label: string }[] = [
 ];
 
 // Normalise a stored source value to a Select-safe value ('' / null → 'none').
-const srcVal = (v: string | null | undefined) => (v && v.trim() ? v : 'none');
-const srcStore = (v: string) => (v === 'none' ? null : v);
+// A stored `custom:<text>` collapses to the bare 'custom' select value; the text
+// lives alongside it (srcText). Legacy bare 'custom' rows → 'custom' + empty text.
+const srcVal = (v: string | null | undefined) => {
+  const s = String(v ?? '').trim();
+  if (!s) return 'none';
+  if (s.startsWith('custom:')) return 'custom';
+  return s;
+};
+// The free-text part of a `custom:<text>` value ('' for every other source).
+const srcText = (v: string | null | undefined) => {
+  const s = String(v ?? '').trim();
+  return s.startsWith('custom:') ? s.slice('custom:'.length) : '';
+};
+// Re-join a select value + its custom text into the stored form (mirrors
+// StatusEditModal's joinBodySource for `static:`). NULL when not used. An empty
+// custom text stays the bare 'custom' so legacy rows round-trip untouched.
+const srcStore = (v: string, text = '') => {
+  if (v === 'none') return null;
+  if (v === 'custom') {
+    const lit = text.trim();
+    return lit ? `custom:${lit}` : 'custom';
+  }
+  return v;
+};
 
 const Row = ({ t }: { t: WhatsAppTemplate }) => {
   const update = useUpdateWhatsAppTemplate();
@@ -55,6 +77,10 @@ const Row = ({ t }: { t: WhatsAppTemplate }) => {
   const [body1, setBody1] = useState(srcVal(t.body1_source));
   const [body2, setBody2] = useState(srcVal(t.body2_source));
   const [body3, setBody3] = useState(srcVal(t.body3_source));
+  // Free text for a slot set to "Custom / other" (stored as `custom:<text>`).
+  const [body1Txt, setBody1Txt] = useState(srcText(t.body1_source));
+  const [body2Txt, setBody2Txt] = useState(srcText(t.body2_source));
+  const [body3Txt, setBody3Txt] = useState(srcText(t.body3_source));
   const [preview, setPreview] = useState(t.preview_text ?? '');
   const [testing, setTesting] = useState(false);
   const [testPhone, setTestPhone] = useState('');
@@ -65,9 +91,10 @@ const Row = ({ t }: { t: WhatsAppTemplate }) => {
     body !== (t.body ?? '') ||
     title !== (t.title ?? '') ||
     sendUrl !== (t.send_url ?? '') ||
-    body1 !== srcVal(t.body1_source) ||
-    body2 !== srcVal(t.body2_source) ||
-    body3 !== srcVal(t.body3_source) ||
+    // Compare the JOINED form so a Custom text edit counts as dirty too.
+    srcStore(body1, body1Txt) !== (t.body1_source ?? null) ||
+    srcStore(body2, body2Txt) !== (t.body2_source ?? null) ||
+    srcStore(body3, body3Txt) !== (t.body3_source ?? null) ||
     preview !== (t.preview_text ?? '');
 
   const save = () => {
@@ -76,14 +103,21 @@ const Row = ({ t }: { t: WhatsAppTemplate }) => {
       title: title.trim() || t.key,
       body,
       send_url: sendUrl.trim() || null,
-      body1_source: srcStore(body1),
-      body2_source: srcStore(body2),
-      body3_source: srcStore(body3),
+      body1_source: srcStore(body1, body1Txt),
+      body2_source: srcStore(body2, body2Txt),
+      body3_source: srcStore(body3, body3Txt),
       preview_text: preview.trim() || null,
     });
   };
 
   const canTest = !!sendUrl.trim() && !!testPhone.trim();
+
+  // Sample value for Test send: the source's label, or the literal text for Custom.
+  const sampleFor = (val: string, text: string) => {
+    if (val === 'none') return undefined;
+    if (val === 'custom') return text.trim() || BODY_SOURCES.find((s) => s.value === 'custom')?.label;
+    return BODY_SOURCES.find((s) => s.value === val)?.label;
+  };
 
   const testSend = async () => {
     if (!sendUrl.trim()) { toast.error('Paste a send URL above to enable Test send.'); return; }
@@ -95,9 +129,9 @@ const Row = ({ t }: { t: WhatsAppTemplate }) => {
           send_url: sendUrl.trim(),
           test_phone: testPhone.trim(),
           // Pass the source labels as sample body values so the test message is legible.
-          body1: body1 !== 'none' ? BODY_SOURCES.find((s) => s.value === body1)?.label : undefined,
-          body2: body2 !== 'none' ? BODY_SOURCES.find((s) => s.value === body2)?.label : undefined,
-          body3: body3 !== 'none' ? BODY_SOURCES.find((s) => s.value === body3)?.label : undefined,
+          body1: sampleFor(body1, body1Txt),
+          body2: sampleFor(body2, body2Txt),
+          body3: sampleFor(body3, body3Txt),
         },
       });
       if (error) throw error;
@@ -165,22 +199,35 @@ const Row = ({ t }: { t: WhatsAppTemplate }) => {
             </div>
 
             <div className="grid grid-cols-3 gap-2">
-              {([['Body 1', body1, setBody1], ['Body 2', body2, setBody2], ['Body 3', body3, setBody3]] as const).map(
-                ([lbl, val, setVal]) => (
-                  <div key={lbl}>
-                    <Label className="text-xs text-muted-foreground">{lbl}</Label>
-                    <Select value={val} onValueChange={setVal}>
-                      <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {BODY_SOURCES.map((s) => <SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ),
-              )}
+              {([
+                ['Body 1', body1, setBody1, body1Txt, setBody1Txt],
+                ['Body 2', body2, setBody2, body2Txt, setBody2Txt],
+                ['Body 3', body3, setBody3, body3Txt, setBody3Txt],
+              ] as const).map(([lbl, val, setVal, txt, setTxt]) => (
+                <div key={lbl}>
+                  <Label className="text-xs text-muted-foreground">{lbl}</Label>
+                  <Select value={val} onValueChange={setVal}>
+                    <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {BODY_SOURCES.map((s) => <SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  {val === 'custom' && (
+                    <Input
+                      value={txt}
+                      onChange={(e) => (setTxt as (s: string) => void)(e.target.value)}
+                      className="mt-1 h-8 text-xs"
+                      placeholder="Custom text…"
+                    />
+                  )}
+                </div>
+              ))}
             </div>
             <p className="text-[11px] text-muted-foreground">
-              These are reference labels only. The live body mapping — including <span className="font-medium text-foreground">WhatsApp To Client Info</span> — is configured per status in the status editor's <span className="font-medium text-foreground">WhatsApp auto-send</span> section.
+              <strong className="text-foreground">This is the live mapping.</strong> When a status auto-sends this template, body 1/2/3 are filled from
+              the sources picked here. <span className="font-medium text-foreground">Custom / other</span> sends the exact text you type beside it.
+              A status can still override an individual body slot in the status editor's <span className="font-medium text-foreground">WhatsApp auto-send</span> section
+              — an override wins for that status only; every other status uses what is set here.
             </p>
 
             <div>
@@ -387,8 +434,8 @@ const WhatsAppTemplatesTab = () => {
         <Info className="w-4 h-4 shrink-0 mt-0.5" />
         <span>
           The message <strong>wording</strong> is a Meta-approved WhatsApp template hosted in EasySocial. Use the toggle to turn each notification on/off
-          (takes effect immediately, server-side). Expand a row to curate its name, body-var mapping, and preview, and to paste an EasySocial
-          <strong> send URL</strong> for the <em>Test send</em> button. Send URLs contain a campaign token and are never seeded — leave blank unless you want to test.
+          (takes effect immediately, server-side). Expand a row to paste its EasySocial <strong>send URL</strong> and to set its <strong>body 1/2/3 mapping</strong> —
+          that mapping is <strong>live</strong>: it decides what each auto-send actually fills in. Send URLs contain a campaign token and are never seeded.
           You can also <strong>add your own</strong> templates (for Test-send + selection); only those are deletable.
         </span>
       </div>

@@ -4,11 +4,21 @@
 // WhatsApp template configured (status_overrides.whatsapp_template_key →
 // whatsapp_templates.send_url), GET that EasySocial hosted send URL (the URL is
 // the credential — campaign token + numeric template/lang ids baked in, no auth
-// header) with body1/2/3 filled from the per-status BodySource mapping.
+// header) with body1/2/3 filled from the resolved body-source mapping.
 //
-// Mirrors whatsapp-test-send's proven GET shape, but driven by status config and
-// the live application instead of an admin Test-send. This is a PUBLIC dispatch
-// (verify_jwt=false) invoked fire-and-forget from useUpdateFinanceApplication;
+// BODY-SOURCE PRECEDENCE (per slot N, independently — 2026-07-20):
+//   1. status_overrides.wa_bodyN_source   — the PER-STATUS OVERRIDE. Wins whenever
+//      it is non-empty (including an explicit 'none', which blanks that slot for
+//      this status only).
+//   2. whatsapp_templates.bodyN_source    — the TEMPLATE's own mapping. This is the
+//      normal, live mapping; it is what Settings → WhatsApp Templates configures.
+//   3. nothing                            — slot omitted from the query string.
+// Both vocabularies are understood by resolveBodySource, so a status override and
+// a template mapping can use whichever token set they were authored in.
+//
+// Mirrors whatsapp-test-send's proven GET shape, but driven by status/template
+// config and the live application instead of an admin Test-send. This is a PUBLIC
+// dispatch (verify_jwt=false) invoked fire-and-forget from useUpdateFinanceApplication;
 // guarded by the LUMINA_INTERNAL_API_KEY shared secret like the notify-* flows.
 //
 // NO-DOUBLE-SEND: the 5 notify-* owned slugs already auto-send via their own
@@ -49,45 +59,83 @@ const sanitisePhone = (raw: unknown): string => {
 };
 
 /**
+ * Values resolved once per request and shared by all three body slots. The three
+ * "expensive" ones (vehicle / dealership / agent) are looked up LAZILY — only when
+ * some slot actually asks for them — so the common name/comment templates still
+ * cost exactly one round trip.
+ */
+interface BodyContext {
+  comment: string;
+  clientInfo: string;
+  vehicleLabel: string;
+  dealershipName: string;
+  agentName: string;
+  reference: string;
+}
+
+/**
  * Resolve a single BodySource token against the application row.
  * Ported from ZTC resolveBody → mapped to Lumina finance_applications columns.
+ *
+ * Understands BOTH vocabularies:
+ *   (A) status_overrides.wa_bodyN_source  — full_name | first_name | comment |
+ *       wa_client_info | vehicle | email | phone | bank | static:<text> | none
+ *   (B) whatsapp_templates.bodyN_source   — applicant_full_name | applicant_first_name |
+ *       applicant_mobile | vehicle | dealership_name | reference | agent_name |
+ *       wa_client_info | custom:<text> | none
+ *
  * Returns '' for an unresolved/none source (the caller omits blank params).
  */
 const resolveBodySource = (
   source: string | null | undefined,
   app: Record<string, any>,
-  comment: string,
-  vehicleLabel: string,
-  clientInfo: string,
+  ctx: BodyContext,
 ): string => {
   const src = String(source ?? "").trim();
   if (!src || src === "none" || src === "Not used") return "";
+  // Literal-text forms: (A) uses `static:`, (B) uses `custom:`. Same handling.
   if (src.startsWith("static:")) return src.slice("static:".length).trim();
+  if (src.startsWith("custom:")) return src.slice("custom:".length).trim();
   switch (src) {
+    // --- (A) + (B) applicant name -------------------------------------------
     case "full_name":
+    case "applicant_full_name":
       return (
         [app.first_name, app.last_name].filter(Boolean).join(" ").trim() ||
         String(app.full_name ?? "").trim() ||
         "Valued Client"
       );
     case "first_name":
+    case "applicant_first_name":
       return (
         String(app.first_name ?? "").trim() ||
         String(app.full_name ?? "").trim().split(/\s+/)[0] ||
         "Valued Client"
       );
+    // --- (A) only ------------------------------------------------------------
     case "comment":
-      return comment || "";
-    case "wa_client_info":
-      return clientInfo || "";
-    case "vehicle":
-      return vehicleLabel || "";
+      return ctx.comment || "";
     case "email":
       return String(app.email ?? "").trim();
-    case "phone":
-      return String(app.phone ?? "").trim();
     case "bank":
       return String(app.bank_name ?? "").trim();
+    // --- shared --------------------------------------------------------------
+    case "wa_client_info":
+      return ctx.clientInfo || "";
+    case "vehicle":
+      return ctx.vehicleLabel || "";
+    // (A) `phone` and (B) `applicant_mobile` are the same value: the client's
+    // number as captured (human-readable, NOT the 27-normalised dial string).
+    case "phone":
+    case "applicant_mobile":
+      return String(app.phone ?? "").trim();
+    // --- (B) only ------------------------------------------------------------
+    case "dealership_name":
+      return ctx.dealershipName || "";
+    case "reference":
+      return ctx.reference || "";
+    case "agent_name":
+      return ctx.agentName || "";
     default:
       return "";
   }
@@ -128,16 +176,16 @@ Deno.serve(async (req) => {
       return json(200, { ok: true, skipped: "notify_owned", status: newStatus });
     }
 
-    // 1. Per-status config (template key + body sources + internal flag) and the
-    //    application row (3.) are independent lookups — fetch them in ONE round trip.
-    //    Only the template row (2.) depends on the config, so it waits.
+    // 1. Per-status config (template key + body-source overrides + internal flag) and
+    //    the application row (3.) are independent lookups — fetch them in ONE round
+    //    trip. Only the template row (2.) depends on the config, so it waits.
     const [{ data: ov }, { data: app }] = await Promise.all([
       svc.from("status_overrides")
         .select("whatsapp_template_key, wa_body1_source, wa_body2_source, wa_body3_source, is_internal")
         .eq("slug", newStatus)
         .maybeSingle(),
       svc.from("finance_applications")
-        .select("first_name, last_name, full_name, email, phone, bank_name, vehicle_id, selected_vehicle_id")
+        .select("first_name, last_name, full_name, email, phone, bank_name, vehicle_id, selected_vehicle_id, bank_reference, assigned_f_and_i")
         .eq("id", applicationId)
         .maybeSingle(),
     ]);
@@ -154,10 +202,11 @@ Deno.serve(async (req) => {
       return json(200, { ok: true, skipped: "no_template", status: newStatus });
     }
 
-    // 2. Curated template row → send_url is the credential.
+    // 2. Curated template row → send_url is the credential, bodyN_source is the
+    //    default (template-level) body mapping.
     const { data: tpl } = await svc
       .from("whatsapp_templates")
-      .select("key, title, send_url, active")
+      .select("key, title, send_url, active, body1_source, body2_source, body3_source")
       .eq("key", templateKey)
       .maybeSingle();
     const t: any = tpl ?? {};
@@ -181,12 +230,23 @@ Deno.serve(async (req) => {
       return json(200, { ok: true, skipped: "bad_phone", status: newStatus });
     }
 
+    // 3b. Effective body source per slot: the per-status override wins when set,
+    //     otherwise the template's own mapping. See the header comment.
+    const pickSource = (override: unknown, fromTemplate: unknown): string => {
+      const ovSrc = String(override ?? "").trim();
+      if (ovSrc) return ovSrc;
+      return String(fromTemplate ?? "").trim();
+    };
+    const src1 = pickSource(o.wa_body1_source, t.body1_source);
+    const src2 = pickSource(o.wa_body2_source, t.body2_source);
+    const src3 = pickSource(o.wa_body3_source, t.body3_source);
+    const sources = [src1, src2, src3];
+    const wants = (token: string) => sources.some((s) => s === token);
+
     // Resolve a human vehicle label ("year make model") only if any source asks
     // for it — avoids a needless lookup on the common name/comment templates.
     let vehicleLabel = "";
-    const wantsVehicle = [o.wa_body1_source, o.wa_body2_source, o.wa_body3_source]
-      .some((s) => String(s ?? "").trim() === "vehicle");
-    if (wantsVehicle) {
+    if (wants("vehicle")) {
       const vid = a.vehicle_id ?? a.selected_vehicle_id ?? null;
       if (vid) {
         const { data: veh } = await svc.from("vehicles").select("year, make, model").eq("id", vid).maybeSingle();
@@ -195,9 +255,40 @@ Deno.serve(async (req) => {
       }
     }
 
-    const body1 = resolveBodySource(o.wa_body1_source, a, comment, vehicleLabel, clientInfo);
-    const body2 = resolveBodySource(o.wa_body2_source, a, comment, vehicleLabel, clientInfo);
-    const body3 = resolveBodySource(o.wa_body3_source, a, comment, vehicleLabel, clientInfo);
+    // Dealership trading name — same lazy pattern. Trading name is what clients
+    // know us by; fall back to the legal entity name, then to nothing.
+    let dealershipName = "";
+    if (wants("dealership_name")) {
+      const { data: ss } = await svc.from("site_settings").select("document_settings").limit(1).maybeSingle();
+      const ds: any = (ss as any)?.document_settings ?? {};
+      dealershipName = String(ds.companyTradingName ?? "").trim() || String(ds.companyLegalName ?? "").trim();
+    }
+
+    // Agent (assigned F&I) display name — assigned_f_and_i is a USER uuid, so the
+    // join is on profiles.user_id (mirrors useFinanceApplications' manual join).
+    // Lazy: only when a slot asks for it.
+    let agentName = "";
+    if (wants("agent_name") && a.assigned_f_and_i) {
+      const { data: prof } = await svc
+        .from("profiles")
+        .select("full_name, email")
+        .eq("user_id", a.assigned_f_and_i)
+        .maybeSingle();
+      const p: any = prof ?? {};
+      agentName =
+        String(p.full_name ?? "").trim() ||
+        String(p.email ?? "").trim().split("@")[0] ||
+        "";
+    }
+
+    // Client-facing reference: the bank reference when we have one, else the short
+    // application id the admin UI/PDFs show ("Application ID: <first 8>").
+    const reference = String(a.bank_reference ?? "").trim() || applicationId.slice(0, 8).toUpperCase();
+
+    const ctx: BodyContext = { comment, clientInfo, vehicleLabel, dealershipName, agentName, reference };
+    const body1 = resolveBodySource(src1, a, ctx);
+    const body2 = resolveBodySource(src2, a, ctx);
+    const body3 = resolveBodySource(src3, a, ctx);
 
     // 4. Normalise the curated URL exactly like the ZTC test-send / notify-* shape.
     // Strip any pasted /API/:mobile?... placeholder + query + trailing slashes,
