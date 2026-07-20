@@ -22,6 +22,13 @@ export const PIPELINE_TABS: PipelineTabDef[] = [
   // by default). statusToTab/resolveStatusTab/inTab still handle 'all' harmlessly
   // (inTab's 'all' branch is simply unused now).
   { key: 'intake',     label: 'New Applications', statuses: ['pending', 'draft', 'needs_revision', 'revision_submitted'], accent: 'text-gray-300', defaultColor: '#a1a1aa' },
+  // Wrong Info (owner 2026-07-20): a working lane for applications whose details
+  // need correcting, sitting between intake and the credit check. Intentionally
+  // ships with NO statuses mapped — the owner assigns which finance status(es)
+  // land here via Settings → Statuses → "Moves the application to" (that writes
+  // status_overrides.lane, which resolveStatusTab honours over this list). Until
+  // then the lane is simply empty; no existing application is re-routed.
+  { key: 'wrong_info', label: 'Wrong Info', statuses: [], accent: 'text-orange-400', defaultColor: '#fb923c' },
   // Credit check PASSED and the F&I outcome was set to "Ready to Load" (the
   // application_submitted slug, relabelled). Its own lane between New Applications
   // and Submitted so these leads don't sit in the bank-submission column.
