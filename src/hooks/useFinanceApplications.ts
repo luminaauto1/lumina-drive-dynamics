@@ -743,7 +743,11 @@ export const useUpdateClientStatus = () => {
           const { addPipelineNote } = await import('@/lib/pipelinev2/notes');
           await addPipelineNote({ id, pipeline_notes: (data as any)?.pipeline_notes }, {
             body: `Client status → ${statusLabel}`,
-            category: 'status_change',
+            // 'client_status_set' = system auto-stamp (SYSTEM_NOTE_CATEGORIES), so
+            // it stays out of the table's Notes column. It used to share
+            // 'status_change' with user-typed comments, which is what hid those
+            // comments; isSystemNote() still recognises the old rows by body.
+            category: 'client_status_set',
             author_id: actor?.id ?? null,
             author_name: authorName,
           });
