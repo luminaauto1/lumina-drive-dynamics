@@ -778,8 +778,12 @@ export function StatusEditModal({
               <Label className="text-sm">WhatsApp message</Label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
+                  {/* "Load from template" read as "attach a template to this status",
+                      which is the WhatsApp auto-send picker further down, not this.
+                      This button only copies wording into the free-text box beside
+                      it — name it after what it does so the two stop competing. */}
                   <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" disabled={waTemplates.length === 0}>
-                    Load from template <ChevronDown className="h-3.5 w-3.5" />
+                    Copy wording from template <ChevronDown className="h-3.5 w-3.5" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="max-h-72 w-[19rem] overflow-y-auto">
@@ -793,9 +797,12 @@ export function StatusEditModal({
                           front what is missing and exactly where to add it. */}
                       {waTemplates.every((t) => !(t.preview_text ?? '').trim()) && (
                         <p className="mb-1 border-b border-border px-2 pb-2 pt-1 text-[11px] leading-snug text-muted-foreground">
-                          None of your templates have their wording saved yet, so there is nothing to load.
-                          Add it per template under{' '}
-                          <span className="font-medium text-foreground">Settings → WhatsApp Templates → Preview text</span>.
+                          Nothing to copy — <span className="font-medium text-foreground">Preview text</span> is blank on every
+                          template. That is cosmetic: the templates still send perfectly, driven by their send URL.
+                          Fill it in under Settings → WhatsApp Templates only if you want their wording copyable here.
+                          <br />
+                          <span className="font-medium text-foreground">To make this status send a template automatically,
+                          use “WhatsApp auto-send” below</span> — that needs no Preview text.
                         </p>
                       )}
                       {waTemplates.map((tpl) => {
@@ -823,8 +830,8 @@ export function StatusEditModal({
                           // and where to fix it.
                           onSelect={() => {
                             if (text) { setWaMessage(text); return; }
-                            toast.info(`"${tpl.title || tpl.key}" has no wording saved yet`, {
-                              description: 'Add it in Settings → WhatsApp Templates → Preview text, then load it here.',
+                            toast.info(`Nothing to copy from "${tpl.title || tpl.key}"`, {
+                              description: 'Its Preview text is blank. That does not stop it sending — to auto-send it on this status, attach it under "WhatsApp auto-send" below instead.',
                             });
                           }}
                           className={'text-xs' + (text ? '' : ' text-muted-foreground')}
@@ -850,7 +857,7 @@ export function StatusEditModal({
             />
             <p className="text-[11px] text-muted-foreground">
               This is the click-to-chat message body (what the dealer's WhatsApp opens pre-filled) — distinct from the auto-notification templates.
-              Blank uses the built-in default. <code className="font-mono">{'{name}'}</code> = client first name. Loading a template fills this box; you can still edit it freely.
+              Blank uses the built-in default. <code className="font-mono">{'{name}'}</code> = client first name. Type it directly — the Copy-wording button is only a shortcut, and it does <span className="font-medium">not</span> make this status auto-send anything.
             </p>
           </div>
 
