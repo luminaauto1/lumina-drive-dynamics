@@ -251,13 +251,18 @@ export interface StatusOverride {
   wa_client_info_enabled: boolean;            // show the dedicated "WhatsApp To Client Info" box on apply
   wa_client_info_required: boolean;           // block Apply until the box is filled (UI-enforced)
   wa_client_info_prompt: string | null;       // optional label shown above the box (NULL => generic)
+  /** CLIENT track only: clear this status off applications at midnight SAST (the
+   *  `client-status-daily-reset` cron job). ON for day-to-day working statuses
+   *  ("No Answer", "Actioned"); OFF for milestones that must persist
+   *  ("Validations Submitted", "Contract Signed"). Default false = never reset. */
+  resets_daily: boolean;
 }
 
 export const useStatusOverrides = () =>
   useQuery({
     queryKey: ['status-overrides'],
     queryFn: async (): Promise<StatusOverride[]> => {
-      const { data, error } = await db.from('status_overrides').select('slug, label, color_class, sort_order, is_hidden, whatsapp_message, status_type, comment_required, comment_prompt, is_internal, easysocial_tag_to_add, easysocial_tags_to_add, lane, easysocial_client_status, tag_remove_mode, easysocial_tags_to_remove, whatsapp_template_key, wa_body1_source, wa_body2_source, wa_body3_source, sla_hours, wa_client_info_enabled, wa_client_info_required, wa_client_info_prompt');
+      const { data, error } = await db.from('status_overrides').select('slug, label, color_class, sort_order, is_hidden, whatsapp_message, status_type, comment_required, comment_prompt, is_internal, easysocial_tag_to_add, easysocial_tags_to_add, lane, easysocial_client_status, tag_remove_mode, easysocial_tags_to_remove, whatsapp_template_key, wa_body1_source, wa_body2_source, wa_body3_source, sla_hours, wa_client_info_enabled, wa_client_info_required, wa_client_info_prompt, resets_daily');
       if (error) throw error;
       return data ?? [];
     },

@@ -210,6 +210,10 @@ export function StatusEditModal({
     existing?.sla_hours != null ? String(existing.sla_hours) : '',
   );
   const [isInternal, setIsInternal] = useState(!!existing?.is_internal);
+  // CLIENT track: clear this status off every application at midnight SAST.
+  // Day-to-day working statuses (No Answer, Actioned) reset; milestones
+  // (Validations Submitted, Contract Signed) must persist. Default OFF.
+  const [resetsDaily, setResetsDaily] = useState(!!existing?.resets_daily);
   const [waMessage, setWaMessage] = useState(existing?.whatsapp_message ?? '');
   const [tag, setTag] = useState(existing?.easysocial_tag_to_add ?? '');
   // Multi tag-to-ADD (NAMES). When non-empty this is what the edge fn ADDs ALL of,
@@ -421,6 +425,8 @@ export function StatusEditModal({
         // Empty / invalid => NULL so the built-in SLA default applies (finance only).
         sla_hours: type === 'finance' && Number(slaHours) > 0 ? Math.round(Number(slaHours)) : null,
         is_internal: isInternal,
+        // Client track only — a finance status is never touched by the reset job.
+        resets_daily: type === 'client' ? resetsDaily : false,
         easysocial_tag_to_add: legacySingleTag ? legacySingleTag : null,
         easysocial_tags_to_add: cleanTagsToAdd,
         status_type: type,
@@ -600,6 +606,25 @@ export function StatusEditModal({
           )}
           {type === 'client' && (
             <p className="text-[11px] text-muted-foreground">Does not move pipeline tabs.</p>
+          )}
+
+          {/* Overnight reset (client track only). The `client-status-daily-reset`
+              cron job clears ONLY the statuses flagged here, at midnight SAST —
+              so working statuses start each day clean while milestones persist. */}
+          {type === 'client' && (
+            <div className="space-y-2 rounded-md border border-border p-3">
+              <div className="flex items-center gap-2">
+                <Checkbox id="resetsDaily" checked={resetsDaily} onCheckedChange={(v) => setResetsDaily(!!v)} />
+                <Label htmlFor="resetsDaily" className="text-sm font-normal">
+                  Clear this status overnight (resets the next day)
+                </Label>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {resetsDaily
+                  ? 'Applications with this status are cleared at midnight, so the list starts fresh each day. Use it for day-to-day working statuses like No Answer or Actioned — the note history is kept.'
+                  : 'This status stays on the application until someone changes it. Use this for milestones like Validations Submitted or Contract Signed.'}
+              </p>
+            </div>
           )}
 
           {/* Label */}
