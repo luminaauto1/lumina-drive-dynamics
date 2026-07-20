@@ -38,6 +38,23 @@ const Row = ({ s, order, onEdit }: { s: MergedStatus; order: number; onEdit: (sl
   const [sortOrder, setSortOrder] = useState(order);
   const [hidden, setHidden] = useState(s.hidden);
   const [waMessage, setWaMessage] = useState(s.whatsappMessage);
+  // Re-seed the inline editors when the SERVER value changes — chiefly after the
+  // rich modal saves this same slug. This Row has a stable key={s.value} and the
+  // file uses no effects, so its state is otherwise frozen at mount: the WhatsApp
+  // box would still read blank after the modal saved a message, and this Row's own
+  // Save (right next to the "Edit…" that opened the modal) would then write that
+  // stale blank back as NULL, destroying it. The snapshot is built from PROPS
+  // only, so it can never fire off a local edit and clobber in-progress typing.
+  const serverSnapshot = JSON.stringify([s.label, s.colorClass, order, s.hidden, s.whatsappMessage]);
+  const [seed, setSeed] = useState(serverSnapshot);
+  if (seed !== serverSnapshot) {
+    setSeed(serverSnapshot);
+    setLabel(s.label);
+    setCls(s.colorClass);
+    setSortOrder(order);
+    setHidden(s.hidden);
+    setWaMessage(s.whatsappMessage);
+  }
   // The built-in copy this status would send if the custom body is left blank.
   const builtInPreview = getWhatsAppMessage(s.value, '{name}');
   const save = () =>

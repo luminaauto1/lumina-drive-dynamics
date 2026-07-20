@@ -786,7 +786,19 @@ export function StatusEditModal({
                     <DropdownMenuItem disabled className="text-xs">No saved templates</DropdownMenuItem>
                   ) : (
                     waTemplates.map((tpl) => {
-                      const text = (tpl.preview_text ?? '').trim() || (tpl.body ?? '').trim();
+                      // ONLY preview_text. It used to fall back to tpl.body, which
+                      // silently defeated the whole "no message text yet" state below:
+                      // body is NOT NULL on every row, so nothing was ever greyed out
+                      // and every template loaded something. The trouble is that body
+                      // is the "Reference note (what this message says)" field — an
+                      // internal description like "Sent when an application is
+                      // hard-declined" — not the wording the client receives. These
+                      // are provider-approved templates; their real text lives at
+                      // EasySocial behind send_url, and preview_text is the only place
+                      // that wording is mirrored for the admin UI. Loading from body
+                      // pasted a description into the click-to-chat box, which saved
+                      // correctly and therefore read back as "it didn't save properly".
+                      const text = (tpl.preview_text ?? '').trim();
                       return (
                         <DropdownMenuItem
                           key={tpl.key}
@@ -796,7 +808,7 @@ export function StatusEditModal({
                           // Say WHY it's greyed. A template added by pasting a send
                           // URL starts with no wording, so there is nothing to load
                           // into the message box — without this it just looks broken.
-                          title={text ? undefined : 'This template has no message text yet — add it in Settings → WhatsApp Templates'}
+                          title={text ? undefined : 'This template has no wording saved yet — fill in its "Preview text" field under Settings → WhatsApp Templates'}
                         >
                           {tpl.title || tpl.key}
                           {!text && (
