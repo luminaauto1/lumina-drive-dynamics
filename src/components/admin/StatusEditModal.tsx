@@ -32,6 +32,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Loader2, Save, Trash2, Check, ChevronDown, ArrowRight, X, Info } from 'lucide-react';
+import { toast } from 'sonner';
 import ConfirmDialog from '@/components/admin/ConfirmDialog';
 import { getStatusDispatchInfo } from '@/lib/statusDispatchInfo';
 import {
@@ -781,11 +782,23 @@ export function StatusEditModal({
                     Load from template <ChevronDown className="h-3.5 w-3.5" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="max-h-72 overflow-y-auto">
+                <DropdownMenuContent align="end" className="max-h-72 w-[19rem] overflow-y-auto">
                   {waTemplates.length === 0 ? (
                     <DropdownMenuItem disabled className="text-xs">No saved templates</DropdownMenuItem>
                   ) : (
-                    waTemplates.map((tpl) => {
+                    <>
+                      {/* Every template lacking wording is the CURRENT state of this
+                          install, so an all-grey menu is what most people will open.
+                          Without this header that reads as a dead button — say up
+                          front what is missing and exactly where to add it. */}
+                      {waTemplates.every((t) => !(t.preview_text ?? '').trim()) && (
+                        <p className="mb-1 border-b border-border px-2 pb-2 pt-1 text-[11px] leading-snug text-muted-foreground">
+                          None of your templates have their wording saved yet, so there is nothing to load.
+                          Add it per template under{' '}
+                          <span className="font-medium text-foreground">Settings → WhatsApp Templates → Preview text</span>.
+                        </p>
+                      )}
+                      {waTemplates.map((tpl) => {
                       // ONLY preview_text. It used to fall back to tpl.body, which
                       // silently defeated the whole "no message text yet" state below:
                       // body is NOT NULL on every row, so nothing was ever greyed out
@@ -802,13 +815,19 @@ export function StatusEditModal({
                       return (
                         <DropdownMenuItem
                           key={tpl.key}
-                          disabled={!text}
-                          onSelect={() => { if (text) setWaMessage(text); }}
-                          className="text-xs"
-                          // Say WHY it's greyed. A template added by pasting a send
-                          // URL starts with no wording, so there is nothing to load
-                          // into the message box — without this it just looks broken.
-                          title={text ? undefined : 'This template has no wording saved yet — fill in its "Preview text" field under Settings → WhatsApp Templates'}
+                          // Deliberately NOT disabled when there is no wording. A
+                          // disabled item swallows the click and the menu just closes,
+                          // which is indistinguishable from a broken button — the exact
+                          // complaint this replaces ("nothing happens"). Keep it
+                          // clickable and answer with a toast that names the template
+                          // and where to fix it.
+                          onSelect={() => {
+                            if (text) { setWaMessage(text); return; }
+                            toast.info(`"${tpl.title || tpl.key}" has no wording saved yet`, {
+                              description: 'Add it in Settings → WhatsApp Templates → Preview text, then load it here.',
+                            });
+                          }}
+                          className={'text-xs' + (text ? '' : ' text-muted-foreground')}
                         >
                           {tpl.title || tpl.key}
                           {!text && (
@@ -816,7 +835,8 @@ export function StatusEditModal({
                           )}
                         </DropdownMenuItem>
                       );
-                    })
+                      })}
+                    </>
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
