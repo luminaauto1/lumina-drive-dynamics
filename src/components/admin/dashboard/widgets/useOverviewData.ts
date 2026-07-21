@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useCanSeeDealProfit } from '@/lib/dealdesk/access';
 import { startOfMonth, subMonths, format, parseISO } from 'date-fns';
 import { isFinalizedDeal, dealNetProfit, dealReportDate } from '@/lib/dealMetrics';
 
@@ -31,7 +32,7 @@ export interface OverviewData {
   revenueTrend: { month: string; profit: number; deals: number }[];
 }
 
-async function fetchOverview(): Promise<OverviewData> {
+async function fetchOverview(canSeeProfit: boolean): Promise<OverviewData> {
   // Exact COUNT queries (head:true) for lead totals — PostgREST caps returned ROWS
   // at 1000, so counting fetched rows would silently truncate. Counts are not capped.
   const [
@@ -46,7 +47,12 @@ async function fetchOverview(): Promise<OverviewData> {
       .select('*', { count: 'exact', head: true })
       .not('is_archived', 'is', true)
       .or('pipeline_stage.neq.cold,pipeline_stage.is.null'),
-    supabase.from('deal_records').select('*').limit(20000),
+    // Only the columns this view reads; gross_profit is withheld from roles
+    // that may not see deal profit, so dealNetProfit naturally yields 0.
+    supabase
+      .from('deal_records')
+      .select(canSeeProfit ? 'id, sale_date, is_closed, created_at, gross_profit' : 'id, sale_date, is_closed, created_at')
+      .limit(20000),
     ...STAGES.map((s) =>
       supabase.from('leads').select('*', { count: 'exact', head: true }).eq('pipeline_stage', s.id),
     ),
@@ -96,9 +102,10 @@ async function fetchOverview(): Promise<OverviewData> {
 }
 
 export function useOverviewData() {
+  const canSeeProfit = useCanSeeDealProfit();
   return useQuery({
-    queryKey: ['dashboard-overview'],
-    queryFn: fetchOverview,
+    queryKey: ['dashboard-overview', canSeeProfit],
+    queryFn: () => fetchOverview(canSeeProfit),
     staleTime: 60_000,
   });
 }

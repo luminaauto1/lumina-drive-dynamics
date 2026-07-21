@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Helmet } from "react-helmet-async";
@@ -19,6 +20,7 @@ import { DashboardGrid } from "@/components/admin/dashboard/DashboardGrid";
 import { CustomizePanel } from "@/components/admin/dashboard/CustomizePanel";
 import { useGlobalDashboardAdapter } from "@/components/admin/dashboard/useGlobalDashboardAdapter";
 import { COMMAND_WIDGET_REGISTRY } from "@/components/admin/dashboard/commandWidgetRegistry";
+import { useCanSeeDealProfit } from "@/lib/dealdesk/access";
 import {
   CommandDashboardProvider,
   useCommandDashboard,
@@ -99,6 +101,14 @@ const CommandCenterContent = () => {
   const api = useDashboardLayout({ registry: COMMAND_WIDGET_REGISTRY, adapter });
   const { periods, periodKey, setPeriodKey } = useCommandDashboard();
   const firstName = useFirstName();
+  // Money widgets (GP, avg yield, turnover, deposits) are withheld from roles
+  // that may not see deal profit. Only the RENDER registry is filtered — the
+  // saved layout stays whole, since it is shared by every staff member.
+  const canSeeProfit = useCanSeeDealProfit();
+  const visibleRegistry = useMemo(
+    () => (canSeeProfit ? COMMAND_WIDGET_REGISTRY : COMMAND_WIDGET_REGISTRY.filter((w) => w.category !== 'Money')),
+    [canSeeProfit],
+  );
 
   const now = new Date();
   const greeting = greetingForHour(now.getHours());
@@ -176,7 +186,7 @@ const CommandCenterContent = () => {
 
       {api.ready ? (
         <DashboardGrid
-          registry={COMMAND_WIDGET_REGISTRY}
+          registry={visibleRegistry}
           layout={api.layout}
           visibleIds={api.visibleIds}
           editMode={api.editMode}

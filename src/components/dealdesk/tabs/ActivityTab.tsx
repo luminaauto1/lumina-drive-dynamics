@@ -4,9 +4,17 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Deal } from '@/lib/dealdesk/types';
 import { formatDateTime } from '@/lib/dealdesk/format';
 import { useDealEvents } from '@/hooks/dealdesk/useDealDesk';
+import { useCanSeeDealProfit } from '@/lib/dealdesk/access';
+
+/** Event types whose text can carry money figures. Historic rows still hold
+ *  amounts in their summary, so they are withheld from delivery-only roles
+ *  even though new rows no longer embed the number. */
+const MONEY_EVENT_TYPES = new Set(['costing_saved', 'expense_added', 'expense_removed', 'payable_paid']);
 
 export function ActivityTab({ deal }: { deal: Deal }) {
-  const { data: events = [], isLoading } = useDealEvents(deal.id);
+  const { data: allEvents = [], isLoading } = useDealEvents(deal.id);
+  const canSeeProfit = useCanSeeDealProfit();
+  const events = canSeeProfit ? allEvents : allEvents.filter((e) => !MONEY_EVENT_TYPES.has(e.event_type));
   const [actors, setActors] = useState<Record<string, string>>({});
 
   // Resolve actor ids -> display name (best-effort; blank if profiles unreadable).

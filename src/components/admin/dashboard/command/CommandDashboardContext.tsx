@@ -2,6 +2,7 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from 're
 import { useQuery } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
+import { useCanSeeDealProfit } from '@/lib/dealdesk/access';
 import { isFinalizedDeal, dealNetProfit, dealReportDateObj } from '@/lib/dealMetrics';
 import { useAnalyticsDashboard, type AnalyticsRange } from '@/hooks/useAnalyticsDashboard';
 
@@ -107,7 +108,7 @@ export interface CommandCoreData {
   activityToday: { totalVolume: number; leads: number; apps: number };
 }
 
-async function fetchCommandCore(): Promise<CommandCoreData> {
+async function fetchCommandCore(canSeeProfit: boolean): Promise<CommandCoreData> {
   const now = new Date();
 
   // "New apps today" window — always today, period-independent.
@@ -121,9 +122,13 @@ async function fetchCommandCore(): Promise<CommandCoreData> {
     supabase.from('site_settings').select('monthly_sales_target').single(),
     // Deal records — keep the full finalized set; bucket per selected period
     // client-side. Only the columns the KPI maths actually reads.
+    // gross_profit is omitted entirely for roles that may not see deal profit,
+    // so the figure never reaches the browser (dealNetProfit then yields 0).
     supabase
       .from('deal_records')
-      .select('gross_profit, sold_price, client_deposit, is_closed, sale_date, created_at')
+      .select(canSeeProfit
+        ? 'gross_profit, sold_price, client_deposit, is_closed, sale_date, created_at'
+        : 'sold_price, client_deposit, is_closed, sale_date, created_at')
       .limit(20000),
     // Finance applications — used for approvals / pending counts per period.
     supabase
@@ -195,9 +200,10 @@ export function CommandDashboardProvider({ children }: { children: ReactNode }) 
   const [periodKey, setPeriodKey] = useState<PeriodKey>('current');
   const period = periods.find((p) => p.key === periodKey) ?? periods[0];
 
+  const canSeeProfit = useCanSeeDealProfit();
   const core = useQuery({
-    queryKey: ['command-dashboard-core'],
-    queryFn: fetchCommandCore,
+    queryKey: ['command-dashboard-core', canSeeProfit],
+    queryFn: () => fetchCommandCore(canSeeProfit),
     staleTime: 60_000,
   });
 

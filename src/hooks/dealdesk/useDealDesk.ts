@@ -126,7 +126,9 @@ export function useSaveCostsheet() {
       };
       const { error } = await db.from('deal_costsheet').upsert(row, { onConflict: 'deal_id' });
       if (error) throw error;
-      await logDealEvent(dealId, 'costing_saved', `Cost sheet saved · Correct Total ${computed.correct_total}`);
+      // The amount goes in `changes` (never rendered), not the summary — the
+      // Activity tab is visible to delivery-only roles that may not see profit.
+      await logDealEvent(dealId, 'costing_saved', 'Cost sheet saved', { correct_total: computed.correct_total });
     },
     onSuccess: (_d, v) => {
       qc.invalidateQueries({ queryKey: ['dealdesk', 'costsheet', v.dealId] });

@@ -12,6 +12,7 @@ import { StatusBadge as FinanceStatusBadge } from '@/components/admin/StatusBadg
 import { useStatusConfig } from '@/hooks/useZtcSettings';
 import { useDeskSettings } from '@/hooks/dealdesk/useDealDesk';
 import { dealNetProfit } from '@/lib/dealMetrics';
+import { useCanSeeDealProfit } from '@/lib/dealdesk/access';
 import { cn } from '@/lib/utils';
 
 /** Stage flow shown in the Progress strip ('none' excluded — it renders as nothing reached). */
@@ -54,6 +55,7 @@ export function OverviewTab({ deal }: { deal: Deal }) {
   const { data: settings } = useDeskSettings();
   const { labels: financeLabels, styles: financeStyles } = useStatusConfig();
   const natis = natisStatus(deal, settings);
+  const canSeeProfit = useCanSeeDealProfit();
 
   const gp = dealNetProfit(deal);
   const daysSinceDelivery = deal.delivery_date ? daysBetween(deal.delivery_date, sastToday()) : null;
@@ -129,16 +131,20 @@ export function OverviewTab({ deal }: { deal: Deal }) {
       {/* ---- DEAL ---- */}
       <Card icon={Banknote} title="Deal" className="sm:col-span-2">
         <div className="space-y-3">
-          <div>
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Ledger gross profit</div>
-            <div className={cn('text-xl font-bold tabular-nums', gp < 0 ? 'text-red-400' : 'text-emerald-400')}>
-              {formatRand(gp)}
+          {/* Profit, cost basis and recon are money-side figures — hidden from
+              delivery-only roles (see lib/dealdesk/access). */}
+          {canSeeProfit && (
+            <div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Ledger gross profit</div>
+              <div className={cn('text-xl font-bold tabular-nums', gp < 0 ? 'text-red-400' : 'text-emerald-400')}>
+                {formatRand(gp)}
+              </div>
             </div>
-          </div>
+          )}
           <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
             <Field label="Sold price" value={deal.sold_price != null ? formatRand(deal.sold_price) : null} />
-            <Field label="Cost basis" value={deal.cost_price != null ? formatRand(deal.cost_price) : null} />
-            <Field label="Recon" value={deal.recon_cost != null ? formatRand(deal.recon_cost) : null} />
+            {canSeeProfit && <Field label="Cost basis" value={deal.cost_price != null ? formatRand(deal.cost_price) : null} />}
+            {canSeeProfit && <Field label="Recon" value={deal.recon_cost != null ? formatRand(deal.recon_cost) : null} />}
             <Field label="Sale date" value={formatDate(deal.sale_date)} />
             <Field
               label="Delivery date"

@@ -51,11 +51,16 @@ function SortableColumnRow({
 }
 
 export function DealsColumnsPicker({
-  config, onChange,
+  config, onChange, hiddenKeys,
 }: {
   config: DealTableConfig;
   onChange: (c: DealTableConfig) => void;
+  /** Columns this role may not use at all — omitted from both lists so the
+   *  picker can't offer a toggle the table will ignore (e.g. GP for a
+   *  delivery-only role). */
+  hiddenKeys?: string[];
 }) {
+  const suppressed = (key: string) => !!hiddenKeys?.includes(key);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   const persist = (next: DealTableConfig) => {
@@ -90,7 +95,7 @@ export function DealsColumnsPicker({
     persist({ ...config, visible: arrayMove(config.visible, oldI, newI) });
   };
 
-  const hidden = DEAL_COLUMNS.filter((c) => !config.visible.includes(c.key));
+  const hidden = DEAL_COLUMNS.filter((c) => !config.visible.includes(c.key) && !suppressed(c.key));
 
   return (
     <Popover>
@@ -113,9 +118,9 @@ export function DealsColumnsPicker({
           <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">Shown · drag to reorder</span>
         </div>
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-          <SortableContext items={config.visible} strategy={verticalListSortingStrategy}>
+          <SortableContext items={config.visible.filter((k) => !suppressed(k))} strategy={verticalListSortingStrategy}>
             <div className="max-h-56 space-y-1 overflow-y-auto pr-0.5">
-              {config.visible.map((key) => (
+              {config.visible.filter((k) => !suppressed(k)).map((key) => (
                 <SortableColumnRow key={key} colKey={key} width={widthOf(key)}
                   onToggle={(on) => setVisible(key, on)} onCycleWidth={() => cycleWidth(key)} />
               ))}
