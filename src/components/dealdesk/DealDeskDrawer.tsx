@@ -11,6 +11,7 @@ import { DeliveryTab } from './tabs/DeliveryTab';
 import { ExpensesTab } from './tabs/ExpensesTab';
 import { ActivityTab } from './tabs/ActivityTab';
 import { useCanSeeDealProfit } from '@/lib/dealdesk/access';
+import { HandoverPanel } from '@/components/admin/HandoverPanel';
 
 export function DealDeskDrawer({ deal, onClose }: { deal: Deal | null; onClose: () => void }) {
   // Cost Sheet and Expenses read money tables this role may not query.
@@ -38,6 +39,7 @@ export function DealDeskDrawer({ deal, onClose }: { deal: Deal | null; onClose: 
             <TabsTrigger value="checklist">Checklist</TabsTrigger>
             <TabsTrigger value="delivery">NATIS</TabsTrigger>
             {canSeeProfit && <TabsTrigger value="expenses">Expenses</TabsTrigger>}
+            <TabsTrigger value="handover">Handover</TabsTrigger>
             <TabsTrigger value="activity">Activity</TabsTrigger>
           </TabsList>
           <div className="mt-4">
@@ -47,6 +49,18 @@ export function DealDeskDrawer({ deal, onClose }: { deal: Deal | null; onClose: 
             <TabsContent value="checklist"><ChecklistTab deal={deal} /></TabsContent>
             <TabsContent value="delivery"><DeliveryTab deal={deal} /></TabsContent>
             {canSeeProfit && <TabsContent value="expenses"><ExpensesTab deal={deal} /></TabsContent>}
+            {/* Delivery-side work: photos, client display name, handover link.
+                Ungated — sales agents run handovers. */}
+            <TabsContent value="handover">
+              <HandoverPanel
+                dealId={deal.id}
+                currentPhotos={deal.delivery_photos}
+                clientName={deal.client_name || ''}
+                applicationId={deal.application_id || ''}
+                firstName={deal.client_first_name || ''}
+                lastName={deal.client_last_name || ''}
+              />
+            </TabsContent>
             <TabsContent value="activity"><ActivityTab deal={deal} /></TabsContent>
           </div>
         </Tabs>

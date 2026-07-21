@@ -108,6 +108,9 @@ export interface Deal {
   application_id: string | null;
   vehicle_id: string | null;
   client_name: string | null;
+  /** Split name parts — the handover panel offers first/full/surname formats. */
+  client_first_name: string | null;
+  client_last_name: string | null;
   client_id_number: string | null;
   client_phone: string | null;
   client_email: string | null;
@@ -131,6 +134,8 @@ export interface Deal {
   sale_date: string | null;
   delivery_date: string | null;     // SAST YYYY-MM-DD (coerced in the adapter)
   delivery_date_raw: string | null;  // original timestamptz, for display
+  /** Storage PATHS in the private delivery-photos bucket (not URLs). */
+  delivery_photos: string[];
   /** Financing bank (finance_applications.contract_bank_name — set by the Send Contract
    *  flow; the applicant's personal bank_name is deliberately NOT used here). */
   bank: string | null;
