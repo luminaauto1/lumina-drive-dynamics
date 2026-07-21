@@ -68,6 +68,9 @@ export function fromDealRecord(row: any): Deal {
     sale_date: row.sale_date ?? null,
     delivery_date: toSastDateString(row.delivery_date),
     delivery_date_raw: row.delivery_date ?? null,
+    delivery_photos: Array.isArray(row.delivery_photos) ? row.delivery_photos : [],
+    client_first_name: app.first_name ?? null,
+    client_last_name: app.last_name ?? null,
     // Financing bank ONLY (set by the ContractSentModal bank-ref flow). bank_name
     // is the APPLICANT'S personal bank from the finance form — never show it here.
     bank: app.contract_bank_name ?? null,
@@ -88,7 +91,7 @@ export function fromDealRecord(row: any): Deal {
 /** The select() projection the Deal Desk read hooks use (mirrors AccountingVATTab's join). */
 export const DEAL_DESK_SELECT = `
   id, application_id, vehicle_id, sale_date, sold_price, cost_price, gross_profit,
-  recon_cost, dic_amount, addons_data, aftersales_expenses, delivery_date, is_closed,
+  recon_cost, dic_amount, addons_data, aftersales_expenses, delivery_date, delivery_photos, is_closed,
   post_deal_notes, natis_sent_at, natis_window_days, deal_stage, created_at,
   natis_stage, natis_location, natis_plates_disc_done, natis_whatsapp_on_done, natis_doc_path,
   vehicle:vehicles(make, model, variant, year, vin, stock_number),

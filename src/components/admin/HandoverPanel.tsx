@@ -1,0 +1,244 @@
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Upload, Trash2, Copy, Loader2, Gift, Save } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { compressImage } from "@/lib/imageCompression";
+import { toast } from "sonner";
+import { APP_DOMAIN } from "@/lib/appConfig";
+import { LogReferralModal } from "@/components/admin/LogReferralModal";
+
+export interface HandoverPanelProps {
+  dealId: string;
+  currentPhotos?: string[];
+  clientName?: string;
+  applicationId?: string;
+  firstName?: string;
+  lastName?: string;
+}
+
+/**
+ * Digital-handover workspace: delivery photos, the client-facing display name
+ * and the handover link. Rendered inline in the Deal Desk drawer's Handover
+ * tab (where sales agents run deliveries) and inside HandoverSetupModal for
+ * the ledger's row action.
+ */
+export const HandoverPanel = ({
+  dealId, currentPhotos = [], clientName = '', applicationId, firstName = '', lastName = '',
+}: HandoverPanelProps) => {
+  const [photos, setPhotos] = useState<string[]>(currentPhotos);
+  const [uploading, setUploading] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [nameFormat, setNameFormat] = useState('full');
+  const [customName, setCustomName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [referralOpen, setReferralOpen] = useState(false);
+  // delivery-photos is a PRIVATE bucket and we store storage PATHS, so the
+  // thumbnails need signed URLs — a raw path in <img src> renders nothing.
+  const [thumbs, setThumbs] = useState<Record<string, string>>({});
+
+  useEffect(() => { setPhotos(currentPhotos); }, [currentPhotos.join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const missing = photos.filter((p) => p && !thumbs[p]);
+    if (missing.length === 0) return;
+    (async () => {
+      const { data } = await supabase.storage.from('delivery-photos').createSignedUrls(missing, 60 * 60);
+      if (!data) return;
+      setThumbs((prev) => {
+        const next = { ...prev };
+        data.forEach((d, i) => { if (d.signedUrl) next[missing[i]] = d.signedUrl; });
+        return next;
+      });
+    })();
+  }, [photos, thumbs]);
+
+  const getDisplayName = () => {
+    if (nameFormat === 'first') return firstName || '';
+    if (nameFormat === 'full') return `${firstName || ''} ${lastName || ''}`.trim();
+    if (nameFormat === 'last') return `Mr/Ms ${lastName || ''}`;
+    return customName;
+  };
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    setUploading(true);
+    const newPaths: string[] = [];
+    let failed = 0;
+    for (const original of Array.from(e.target.files)) {
+      const file = await compressImage(original);
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const fileName = `${dealId}/${Date.now()}-${safeName}`;
+      const { data, error } = await supabase.storage
+        .from('delivery-photos')
+        .upload(fileName, file, { contentType: file.type, cacheControl: '3600' });
+      if (!error && data) newPaths.push(fileName); else failed += 1;
+    }
+
+    if (newPaths.length > 0) {
+      const updatedPhotos = [...photos, ...newPaths];
+      const { error } = await (supabase as any)
+        .from('deal_records').update({ delivery_photos: updatedPhotos }).eq('id', dealId);
+      if (error) {
+        toast.error('Photos uploaded but could not be attached to the deal');
+      } else {
+        setPhotos(updatedPhotos);
+        toast.success(`${newPaths.length} photo(s) uploaded`);
+      }
+    }
+    // Surface upload failures instead of silently doing nothing (the old code
+    // swallowed storage errors, which looked like a dead button).
+    if (failed > 0) toast.error(`${failed} photo(s) could not be uploaded`);
+    setUploading(false);
+    e.target.value = '';
+  };
+
+  const handleSaveHandoverConfig = async () => {
+    if (!applicationId) {
+      toast.error("No linked application found for this deal");
+      return;
+    }
+    setIsSaving(true);
+    const finalName = getDisplayName();
+    const { error } = await supabase
+      .from('finance_applications')
+      .update({ handover_name: finalName } as any)
+      .eq('id', applicationId);
+    setIsSaving(false);
+    if (error) toast.error("Failed to save handover configuration");
+    else toast.success(`Handover name saved: "${finalName}"`);
+  };
+
+  const copyLink = async () => {
+    const url = `${APP_DOMAIN}/handover/${dealId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      toast.success("Handover link copied to clipboard.");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Could not copy link.");
+    }
+  };
+
+  const inputId = `handover-photo-upload-${dealId}`;
+
+  return (
+    <div className="space-y-4">
+      {/* UPLOAD AREA */}
+      <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+        {uploading ? <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" /> : <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />}
+        <p className="text-sm text-muted-foreground mb-3">Click to upload delivery photos</p>
+        <input id={inputId} type="file" multiple accept="image/*" className="hidden" onChange={handleUpload} />
+        <Button variant="outline" onClick={() => document.getElementById(inputId)?.click()} disabled={uploading}>
+          Select Photos
+        </Button>
+      </div>
+
+      {/* PREVIEW */}
+      {photos.length > 0 && (
+        <div className="grid grid-cols-3 gap-2">
+          {photos.map((path, i) => (
+            <div key={path || i} className="relative group">
+              {thumbs[path]
+                ? <img src={thumbs[path]} alt={`Delivery ${i + 1}`} className="w-full h-20 object-cover rounded-md" />
+                : <div className="w-full h-20 rounded-md bg-muted animate-pulse" />}
+              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-md">
+                <Button
+                  size="sm" variant="destructive" className="text-xs px-2 py-1 h-auto"
+                  onClick={async () => {
+                    const updatedPhotos = photos.filter((_, idx) => idx !== i);
+                    const { error } = await (supabase as any)
+                      .from('deal_records').update({ delivery_photos: updatedPhotos }).eq('id', dealId);
+                    if (error) { toast.error("Failed to remove photo."); return; }
+                    // Drop the storage object too, so removed photos don't linger.
+                    await supabase.storage.from('delivery-photos').remove([path]).catch(() => {});
+                    setPhotos(updatedPhotos);
+                    toast.success("Photo removed.");
+                  }}
+                >
+                  <Trash2 className="w-3 h-3 mr-1" /> Remove
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* HANDOVER NAME CONFIGURATION */}
+      <div className="space-y-3 p-4 bg-muted/40 border border-border rounded-md">
+        <h3 className="text-sm font-medium text-foreground">Handover Display Name</h3>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Select Display Name Format</Label>
+          <Select value={nameFormat} onValueChange={setNameFormat}>
+            <SelectTrigger className="w-full bg-background border-input text-sm h-9">
+              <SelectValue placeholder="Select format" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="first" className="text-xs">First Name Only ({firstName || '—'})</SelectItem>
+              <SelectItem value="full" className="text-xs">Full Name ({firstName} {lastName})</SelectItem>
+              <SelectItem value="last" className="text-xs">Surname (Mr/Ms {lastName || '—'})</SelectItem>
+              <SelectItem value="custom" className="text-xs">Custom (e.g., Mr. &amp; Mrs. Smith)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {nameFormat === 'custom' && (
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Enter Custom Name</Label>
+            <Input
+              value={customName}
+              onChange={(e) => setCustomName(e.target.value)}
+              className="bg-background border-input h-9 text-sm focus:border-primary"
+              placeholder="e.g., Mr. &amp; Mrs. Smith"
+            />
+          </div>
+        )}
+
+        <p className="text-[10px] text-muted-foreground">
+          Preview: <span className="text-emerald-400 font-medium">Congratulations, {getDisplayName() || '...'}</span>
+        </p>
+
+        <Button
+          onClick={handleSaveHandoverConfig}
+          disabled={isSaving || (nameFormat === 'custom' && !customName) || !applicationId}
+          size="sm"
+          className="w-full bg-secondary hover:bg-muted text-secondary-foreground border border-border"
+        >
+          <Save className="w-3 h-3 mr-1.5" />
+          {isSaving ? 'Saving...' : 'Save Name to Database'}
+        </Button>
+      </div>
+
+      {/* LINK GENERATOR */}
+      <div className="flex items-center justify-between bg-card rounded-lg p-3 border border-border">
+        <div className="min-w-0 mr-3">
+          <p className="text-xs font-semibold text-emerald-500">Handover Link Ready</p>
+          <p className="text-xs text-muted-foreground truncate">{APP_DOMAIN}/handover/{dealId}</p>
+        </div>
+        <Button size="sm" variant="outline" onClick={copyLink}>
+          <Copy className="w-3 h-3 mr-1" />
+          {copied ? "Copied!" : "Copy"}
+        </Button>
+      </div>
+
+      {/* REFERRAL LOGGING */}
+      <Button
+        type="button"
+        onClick={() => setReferralOpen(true)}
+        className="w-full bg-secondary border border-border text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
+      >
+        <Gift className="w-3.5 h-3.5 mr-2" />
+        Log/Check Referral
+      </Button>
+
+      <LogReferralModal
+        open={referralOpen}
+        onOpenChange={setReferralOpen}
+        defaultReferee={{ name: `${firstName} ${lastName}`.trim() || clientName }}
+      />
+    </div>
+  );
+};
