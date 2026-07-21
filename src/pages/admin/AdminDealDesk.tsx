@@ -12,9 +12,13 @@ import { ReportsView } from '@/components/dealdesk/ReportsView';
 import { DealDeskDrawer } from '@/components/dealdesk/DealDeskDrawer';
 import { DealsTableSkeleton } from '@/components/dealdesk/DealDeskSkeletons';
 import AftersalesLedger from '@/components/dealdesk/AftersalesLedger';
+import { useCanSeeDealProfit } from '@/lib/dealdesk/access';
 
 const AdminDealDesk = () => {
   const { isSuperAdmin } = useAuth();
+  // Sales agents work deliveries and follow-ups; the money tabs are theirs to
+  // neither see nor load (the underlying tables are RLS-blocked for them).
+  const canSeeProfit = useCanSeeDealProfit();
   const { data: allDeals = [], isLoading } = useDealDeskList();
   const [openDeal, setOpenDeal] = useState<Deal | null>(null);
 
@@ -45,11 +49,11 @@ const AdminDealDesk = () => {
         <Tabs defaultValue="deals">
           <TabsList className="flex flex-wrap h-auto">
             <TabsTrigger value="deals">Deals</TabsTrigger>
-            <TabsTrigger value="ledger">Ledger / Profit</TabsTrigger>
+            {canSeeProfit && <TabsTrigger value="ledger">Ledger / Profit</TabsTrigger>}
             <TabsTrigger value="followups">Customer Follow-ups</TabsTrigger>
             <TabsTrigger value="delivery">Delivery &amp; Natis</TabsTrigger>
-            <TabsTrigger value="payables">Payables</TabsTrigger>
-            <TabsTrigger value="reports">Reports</TabsTrigger>
+            {canSeeProfit && <TabsTrigger value="payables">Payables</TabsTrigger>}
+            {canSeeProfit && <TabsTrigger value="reports">Reports</TabsTrigger>}
           </TabsList>
           <div className="mt-4">
             {/* While the deal list loads, show a skeleton in place of the data
@@ -60,9 +64,11 @@ const AdminDealDesk = () => {
             {/* Folded-in Deal Ledger: month-grouped profit table + performance
                 bar + commission boards. Reads the same authoritative gross_profit
                 column — no second profit number is introduced here. */}
-            <TabsContent value="ledger">
-              <AftersalesLedger view="ledger" />
-            </TabsContent>
+            {canSeeProfit && (
+              <TabsContent value="ledger">
+                <AftersalesLedger view="ledger" />
+              </TabsContent>
+            )}
             {/* Folded-in aftersales_records follow-up table. */}
             <TabsContent value="followups">
               <AftersalesLedger view="followups" />
@@ -70,10 +76,12 @@ const AdminDealDesk = () => {
             <TabsContent value="delivery">
               {isLoading ? <DealsTableSkeleton /> : <DeliveryBoard deals={deals} onOpen={setOpenDeal} />}
             </TabsContent>
-            <TabsContent value="payables"><PayablesView /></TabsContent>
-            <TabsContent value="reports">
-              {isLoading ? <DealsTableSkeleton /> : <ReportsView deals={deals} />}
-            </TabsContent>
+            {canSeeProfit && <TabsContent value="payables"><PayablesView /></TabsContent>}
+            {canSeeProfit && (
+              <TabsContent value="reports">
+                {isLoading ? <DealsTableSkeleton /> : <ReportsView deals={deals} />}
+              </TabsContent>
+            )}
           </div>
         </Tabs>
       </div>

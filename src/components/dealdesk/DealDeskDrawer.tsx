@@ -10,8 +10,11 @@ import { ChecklistTab } from './tabs/ChecklistTab';
 import { DeliveryTab } from './tabs/DeliveryTab';
 import { ExpensesTab } from './tabs/ExpensesTab';
 import { ActivityTab } from './tabs/ActivityTab';
+import { useCanSeeDealProfit } from '@/lib/dealdesk/access';
 
 export function DealDeskDrawer({ deal, onClose }: { deal: Deal | null; onClose: () => void }) {
+  // Cost Sheet and Expenses read money tables this role may not query.
+  const canSeeProfit = useCanSeeDealProfit();
   if (!deal) return null;
   return (
     <Sheet open={!!deal} onOpenChange={(o) => !o && onClose()}>
@@ -31,19 +34,19 @@ export function DealDeskDrawer({ deal, onClose }: { deal: Deal | null; onClose: 
           <TabsList className="flex w-full flex-wrap h-auto">
             <TabsTrigger value="stage">Stage</TabsTrigger>
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="costsheet">Cost Sheet</TabsTrigger>
+            {canSeeProfit && <TabsTrigger value="costsheet">Cost Sheet</TabsTrigger>}
             <TabsTrigger value="checklist">Checklist</TabsTrigger>
             <TabsTrigger value="delivery">NATIS</TabsTrigger>
-            <TabsTrigger value="expenses">Expenses</TabsTrigger>
+            {canSeeProfit && <TabsTrigger value="expenses">Expenses</TabsTrigger>}
             <TabsTrigger value="activity">Activity</TabsTrigger>
           </TabsList>
           <div className="mt-4">
             <TabsContent value="stage"><StageStepPanel deal={deal} /></TabsContent>
             <TabsContent value="overview"><OverviewTab deal={deal} /></TabsContent>
-            <TabsContent value="costsheet"><CostSheetTab deal={deal} /></TabsContent>
+            {canSeeProfit && <TabsContent value="costsheet"><CostSheetTab deal={deal} /></TabsContent>}
             <TabsContent value="checklist"><ChecklistTab deal={deal} /></TabsContent>
             <TabsContent value="delivery"><DeliveryTab deal={deal} /></TabsContent>
-            <TabsContent value="expenses"><ExpensesTab deal={deal} /></TabsContent>
+            {canSeeProfit && <TabsContent value="expenses"><ExpensesTab deal={deal} /></TabsContent>}
             <TabsContent value="activity"><ActivityTab deal={deal} /></TabsContent>
           </div>
         </Tabs>

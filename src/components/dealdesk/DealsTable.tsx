@@ -12,6 +12,7 @@ import { StatusBadge as FinanceStatusBadge } from '@/components/admin/StatusBadg
 import { useStatusConfig } from '@/hooks/useZtcSettings';
 import { useDeskSettings } from '@/hooks/dealdesk/useDealDesk';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCanSeeDealProfit } from '@/lib/dealdesk/access';
 import { SavedViewsBar } from '@/components/admin/SavedViewsBar';
 import { useSavedViews } from '@/hooks/useSavedViews';
 import {
@@ -41,6 +42,7 @@ export function DealsTable(
   const { data: settings } = useDeskSettings();
   const { labels: financeLabels, styles: financeStyles } = useStatusConfig();
   const { user } = useAuth();
+  const canSeeProfit = useCanSeeDealProfit();
   const [search, setSearch] = useState('');
   // Default to the current month (SAST), matching the dashboard's period default.
   // The "All months" option and other months remain selectable in the dropdown.
@@ -55,9 +57,14 @@ export function DealsTable(
   // localStorage under the Deal-Desk-namespaced key (distinct from the pipeline).
   const [colConfig, setColConfig] = useState<DealTableConfig>(() => loadConfig());
   const colByKey = useMemo(() => new Map(DEAL_COLUMNS.map((c) => [c.key, c])), []);
+  // The GP column carries deal profit — drop it for roles that may not see
+  // money, whatever their saved column preset says.
   const visibleCols = useMemo(
-    () => colConfig.visible.map((k) => colByKey.get(k)).filter(Boolean) as DealColumnDef[],
-    [colConfig.visible, colByKey],
+    () => colConfig.visible
+      .filter((k) => canSeeProfit || k !== 'gp')
+      .map((k) => colByKey.get(k))
+      .filter(Boolean) as DealColumnDef[],
+    [colConfig.visible, colByKey, canSeeProfit],
   );
   const classFor = (key: string) => {
     const def = colByKey.get(key);
@@ -111,9 +118,16 @@ export function DealsTable(
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-3">
-        <Stat label="Total GP (ledger)" value={formatRand(totalGP)} />
-        <Stat label="Avg GP" value={formatRand(avgGP)} />
+      {/* GP tiles follow `filtered`, so with a search applied they would read
+          out a SINGLE deal's profit — they must obey the same gate as the
+          GP column. Both class strings are written out in full for Tailwind. */}
+      <div className={canSeeProfit ? 'grid grid-cols-3 gap-3' : 'grid grid-cols-1 gap-3'}>
+        {canSeeProfit && (
+          <>
+            <Stat label="Total GP (ledger)" value={formatRand(totalGP)} />
+            <Stat label="Avg GP" value={formatRand(avgGP)} />
+          </>
+        )}
         <Stat label="Units" value={String(units)} />
       </div>
 
@@ -138,7 +152,7 @@ export function DealsTable(
             {months.map((m) => <SelectItem key={m} value={m}>{formatMonth(m + '-01')}</SelectItem>)}
           </SelectContent>
         </Select>
-        <DealsColumnsPicker config={colConfig} onChange={setColConfig} />
+        <DealsColumnsPicker config={colConfig} onChange={setColConfig} hiddenKeys={canSeeProfit ? undefined : ['gp']} />
       </div>
 
       <SavedViewsBar
@@ -195,10 +209,12 @@ export function DealsTable(
           </tbody>
         </table>
       </div>
-      <p className="text-[11px] text-muted-foreground">
-        GP shown here is the deal's official recorded profit (set in <strong>Finalize Deal</strong>). The Cost Sheet tab is
-        for internal/operational tracking only and never changes this value, so its "Correct Total" may differ.
-      </p>
+      {canSeeProfit && (
+        <p className="text-[11px] text-muted-foreground">
+          GP shown here is the deal's official recorded profit (set in <strong>Finalize Deal</strong>). The Cost Sheet tab is
+          for internal/operational tracking only and never changes this value, so its "Correct Total" may differ.
+        </p>
+      )}
     </div>
   );
 }
