@@ -22,15 +22,21 @@ const GOLD: [number, number, number] = [212, 175, 55];
 const fmt = (n: number): string =>
   `R ${n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-/** Generates and downloads a branded Tax Invoice PDF. Prices are treated as
- *  VAT-inclusive (SA retail convention); VAT is shown as the embedded portion. */
+/** Generates and downloads the branded invoice PDF behind Client Profile →
+ *  "Generate Invoice". Prices are treated as VAT-inclusive (SA retail
+ *  convention); when we are VAT-registered the embedded VAT is broken out and
+ *  the document is titled TAX INVOICE, otherwise it is a plain Invoice. */
 export const generateInvoicePDF = (invoice: InvoiceData, settings: DocumentSettings) => {
   const doc = new jsPDF();
   const pageW = doc.internal.pageSize.getWidth();
   const margin = 14;
   let y = 16;
 
-  // ── Header: company identity (left) + TAX INVOICE (right) ──
+  // A TAX INVOICE (with a VAT breakdown and our VAT number) may only be issued
+  // while we are VAT-registered; otherwise it is a plain "Invoice".
+  const registered = !!settings.vatRegistered;
+
+  // ── Header: company identity (left) + INVOICE / TAX INVOICE (right) ──
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(20);
   doc.setTextColor(...GOLD);
@@ -44,14 +50,17 @@ export const generateInvoicePDF = (invoice: InvoiceData, settings: DocumentSetti
     settings.companyLegalName,
     settings.companyAddress,
     [settings.companyPhone, settings.companyEmail].filter(Boolean).join(' • '),
-    [settings.companyVatNumber ? `VAT: ${settings.companyVatNumber}` : '', settings.companyRegNumber ? `Reg: ${settings.companyRegNumber}` : ''].filter(Boolean).join('  '),
+    // Own line each, matching every other Lumina document — a VAT number
+    // crammed next to the reg number reads as one long unlabelled string.
+    settings.companyRegNumber ? `Reg No ${settings.companyRegNumber}` : '',
+    registered && settings.companyVatNumber ? `VAT No ${settings.companyVatNumber}` : '',
   ].filter(Boolean) as string[];
   companyLines.forEach((line) => { doc.text(line, margin, cy); cy += 4; });
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
   doc.setTextColor(40);
-  doc.text('TAX INVOICE', pageW - margin, y, { align: 'right' });
+  doc.text(registered ? 'TAX INVOICE' : 'INVOICE', pageW - margin, y, { align: 'right' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.text(`Invoice #: ${invoice.invoiceNumber}`, pageW - margin, y + 6, { align: 'right' });
@@ -94,19 +103,23 @@ export const generateInvoicePDF = (invoice: InvoiceData, settings: DocumentSetti
 
   // ── Line items + totals (VAT-inclusive) ──
   const totalIncl = invoice.lineItems.reduce((s, i) => s + (i.amount || 0), 0);
-  const vatRate = settings.vatPercent || 15;
+  const vatRate = registered ? (settings.vatPercent || 0) : 0;
   const vatAmount = totalIncl * (vatRate / (100 + vatRate));
   const subtotalExcl = totalIncl - vatAmount;
 
   autoTable(doc, {
     startY: y,
-    head: [['Description', 'Amount (incl. VAT)']],
+    head: [['Description', registered ? 'Amount (incl. VAT)' : 'Amount']],
     body: invoice.lineItems.map((i) => [i.description, fmt(i.amount)]),
-    foot: [
-      ['Subtotal (excl. VAT)', fmt(subtotalExcl)],
-      [`VAT (${vatRate}%)`, fmt(vatAmount)],
-      ['Total Due', fmt(totalIncl)],
-    ],
+    // Without a VAT breakdown a "Subtotal (excl. VAT)" row equal to the total
+    // plus a "VAT (0%)" row reads as a malformed tax invoice — omit both.
+    foot: registered
+      ? [
+          ['Subtotal (excl. VAT)', fmt(subtotalExcl)],
+          [`VAT (${vatRate}%)`, fmt(vatAmount)],
+          ['Total Due', fmt(totalIncl)],
+        ]
+      : [['Total Due', fmt(totalIncl)]],
     theme: 'striped',
     headStyles: { fillColor: GOLD, textColor: 20, fontStyle: 'bold' },
     footStyles: { fillColor: [245, 245, 245], textColor: 20, fontStyle: 'bold' },
@@ -154,7 +167,7 @@ export const generateInvoicePDF = (invoice: InvoiceData, settings: DocumentSetti
   doc.setFontSize(7);
   doc.setTextColor(150);
   doc.text(
-    `${settings.companyLegalName || settings.companyTradingName} • Tax Invoice ${invoice.invoiceNumber}`,
+    `${settings.companyLegalName || settings.companyTradingName} • ${registered ? 'Tax Invoice' : 'Invoice'} ${invoice.invoiceNumber}`,
     pageW / 2, footY, { align: 'center' },
   );
 
