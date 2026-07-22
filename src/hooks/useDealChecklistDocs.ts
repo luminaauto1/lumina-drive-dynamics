@@ -28,6 +28,44 @@ const sanitizeName = (name: string) =>
   name.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/_+/g, '_').slice(0, 120);
 
 const docsKey = (dealId?: string | null) => ['deal-checklist-docs', dealId ?? null];
+const filesKey = (dealId?: string | null) => ['deal-checklist-files', dealId ?? null];
+
+/** One attached document. An item can hold MANY (deal_checklist_files); the
+ *  status still lives on the single deal_checklist_docs row. */
+export interface DealChecklistFile {
+  id: string;
+  deal_id: string;
+  section: string;
+  item_key: string;
+  file_path: string;
+  file_name: string | null;
+  uploaded_by: string | null;
+  created_at: string;
+}
+
+/** Every attached file for a deal, oldest first. */
+export const useDealChecklistFiles = (dealId?: string | null) =>
+  useQuery({
+    queryKey: filesKey(dealId),
+    enabled: !!dealId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('deal_checklist_files')
+        .select('*')
+        .eq('deal_id', dealId)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return (data || []) as DealChecklistFile[];
+    },
+  });
+
+/** The files attached to one config item. */
+export const filesForItem = (
+  files: DealChecklistFile[] | undefined,
+  section: DealChecklistSectionKey,
+  itemKey: string,
+): DealChecklistFile[] =>
+  (files || []).filter((f) => f.section === section && f.item_key === itemKey);
 
 /** All checklist state rows for a deal. Config items without a row simply have
  *  no entry here — callers treat that as status 'not_started', no file. */
@@ -101,56 +139,99 @@ interface UploadArgs {
   dealId: string;
   section: DealChecklistSectionKey;
   itemKey: string;
-  file: File;
+  /** One or many — an item can hold a whole set of documents. */
+  files: File[];
 }
 
-/** Compress (images) → upload to the documents bucket → attach to the item and
- *  mark it 'done'. Rolls the storage object back if the row write fails. */
+/** Compress (images) → upload each file → ADD them to the item (never replacing
+ *  what is already there) and mark the item 'done'. Any storage object whose row
+ *  write fails is rolled back so nothing is orphaned. */
 export const useUploadDealChecklistDoc = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (args: UploadArgs) => {
-      const compressed = await compressIfImage(args.file, 'balanced');
-      const path = `deal/${args.dealId}/checklist/${args.section}/${args.itemKey}/${Date.now()}-${sanitizeName(compressed.name)}`;
-
-      const { error: upErr } = await supabase.storage
-        .from(DOCUMENTS_BUCKET)
-        .upload(path, compressed, { contentType: compressed.type || undefined, upsert: false });
-      if (upErr) throw upErr;
-
       const { data: auth } = await supabase.auth.getUser();
-      const { data, error } = await (supabase as any)
-        .from('deal_checklist_docs')
-        .upsert(
-          {
+      const uploaded: { path: string; name: string }[] = [];
+      const failed: string[] = [];
+
+      for (const file of args.files) {
+        const compressed = await compressIfImage(file, 'balanced');
+        const path = `deal/${args.dealId}/checklist/${args.section}/${args.itemKey}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${sanitizeName(compressed.name)}`;
+        const { error: upErr } = await supabase.storage
+          .from(DOCUMENTS_BUCKET)
+          .upload(path, compressed, { contentType: compressed.type || undefined, upsert: false });
+        if (upErr) { failed.push(file.name); continue; }
+
+        const { error: rowErr } = await (supabase as any)
+          .from('deal_checklist_files')
+          .insert({
             deal_id: args.dealId,
             section: args.section,
             item_key: args.itemKey,
-            status: 'done',
             file_path: path,
-            file_name: args.file.name,
-            updated_by: auth?.user?.id ?? null,
-          },
-          { onConflict: 'deal_id,section,item_key' },
-        )
-        .select()
-        .single();
-
-      if (error) {
-        // Roll back the orphaned storage object if the row write failed.
-        await supabase.storage.from(DOCUMENTS_BUCKET).remove([path]);
-        throw error;
+            file_name: file.name,
+            uploaded_by: auth?.user?.id ?? null,
+          });
+        if (rowErr) {
+          await supabase.storage.from(DOCUMENTS_BUCKET).remove([path]);
+          failed.push(file.name);
+          continue;
+        }
+        uploaded.push({ path, name: file.name });
       }
-      return data as DealChecklistDoc;
+
+      // First successful attachment flips the item to done; the status row also
+      // keeps the newest path so older readers of file_path still resolve.
+      if (uploaded.length > 0) {
+        const newest = uploaded[uploaded.length - 1];
+        await (supabase as any)
+          .from('deal_checklist_docs')
+          .upsert(
+            {
+              deal_id: args.dealId,
+              section: args.section,
+              item_key: args.itemKey,
+              status: 'done',
+              file_path: newest.path,
+              file_name: newest.name,
+              updated_by: auth?.user?.id ?? null,
+            },
+            { onConflict: 'deal_id,section,item_key' },
+          );
+      }
+      if (uploaded.length === 0) throw new Error(`Could not upload ${failed.join(', ')}`);
+      return { uploaded: uploaded.length, failed };
     },
-    onSuccess: (_data, vars) => {
+    onSuccess: (res, vars) => {
       queryClient.invalidateQueries({ queryKey: docsKey(vars.dealId) });
-      toast.success('Document uploaded');
+      queryClient.invalidateQueries({ queryKey: filesKey(vars.dealId) });
+      toast.success(`${res.uploaded} document${res.uploaded === 1 ? '' : 's'} uploaded`);
+      if (res.failed.length) toast.error(`Failed: ${res.failed.join(', ')}`);
     },
     onError: (error: any) => {
       console.error('Deal checklist upload failed:', error);
       toast.error('Upload failed: ' + (error?.message || 'unknown error'));
     },
+  });
+};
+
+/** Detach one document: remove the row, then the storage object. */
+export const useDeleteDealChecklistFile = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (file: DealChecklistFile) => {
+      const { error } = await (supabase as any)
+        .from('deal_checklist_files').delete().eq('id', file.id);
+      if (error) throw error;
+      await supabase.storage.from(DOCUMENTS_BUCKET).remove([file.file_path]).catch(() => {});
+      return file;
+    },
+    onSuccess: (file) => {
+      queryClient.invalidateQueries({ queryKey: filesKey(file.deal_id) });
+      queryClient.invalidateQueries({ queryKey: docsKey(file.deal_id) });
+      toast.success('Document removed');
+    },
+    onError: (error: any) => toast.error('Could not remove: ' + (error?.message || 'unknown error')),
   });
 };
 

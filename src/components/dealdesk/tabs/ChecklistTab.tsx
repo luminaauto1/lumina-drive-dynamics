@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Banknote, CheckCircle2, ChevronDown, Download, Loader2, Truck, Upload, Wrench, type LucideIcon } from 'lucide-react';
+import { Banknote, CheckCircle2, ChevronDown, Download, Loader2, Truck, Upload, Wrench, X, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -14,7 +14,9 @@ import {
 } from '@/hooks/useDocumentSettings';
 import {
   useDealChecklistDocs, useUpsertDealChecklistDoc, useUploadDealChecklistDoc,
-  getDealChecklistDocUrl, findChecklistDoc, type DealChecklistDoc,
+  useDealChecklistFiles, useDeleteDealChecklistFile, filesForItem,
+  getDealChecklistDocUrl, findChecklistDoc,
+  type DealChecklistDoc, type DealChecklistFile,
 } from '@/hooks/useDealChecklistDocs';
 
 const STEP_DOT: Record<ChecklistStep, string> = {
@@ -30,87 +32,120 @@ const SECTION_ICON: Record<DealChecklistSectionKey, LucideIcon> = {
 /** 'done' and 'N/A' both count as complete for the section progress chip. */
 const isComplete = (s: ChecklistStep) => s === 'done' || s === 'not_applicable';
 
-function ItemRow({ dealId, section, item, doc }: {
+/** One attached document: name, open, detach. */
+function FileLine({ file, onRemove, removing }: {
+  file: DealChecklistFile;
+  onRemove: () => void;
+  removing: boolean;
+}) {
+  const [opening, setOpening] = useState(false);
+  const open = async () => {
+    setOpening(true);
+    const url = await getDealChecklistDocUrl(file.file_path);
+    setOpening(false);
+    if (url) window.open(url, '_blank', 'noopener,noreferrer');
+  };
+  return (
+    <div className="flex items-center gap-1.5 pl-4">
+      <button type="button" onClick={open}
+        className="min-w-0 flex-1 truncate text-left text-[11px] text-muted-foreground hover:text-foreground hover:underline"
+        title={file.file_name || file.file_path}>
+        {opening ? 'Opening…' : (file.file_name || 'Document')}
+      </button>
+      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={open} title="View / download">
+        {opening ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+      </Button>
+      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-red-400"
+        onClick={onRemove} disabled={removing} title="Remove this document">
+        {removing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+      </Button>
+    </div>
+  );
+}
+
+function ItemRow({ dealId, section, item, doc, files }: {
   dealId: string;
   section: DealChecklistSectionKey;
   item: ResolvedDealChecklistItem;
   doc: DealChecklistDoc | undefined;
+  files: DealChecklistFile[];
 }) {
   const upsert = useUpsertDealChecklistDoc();
   const upload = useUploadDealChecklistDoc();
+  const removeFile = useDeleteDealChecklistFile();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [opening, setOpening] = useState(false);
 
   const status: ChecklistStep = doc?.status ?? 'not_started';
   const busy = upsert.isPending || upload.isPending;
   // Items configured as "no document needed" (Settings → Deal Checklist) are
-  // status-only: no upload/replace/view controls and never a missing-doc flag.
+  // status-only: no upload/view controls and never a missing-doc flag.
   const requiresDoc = item.requiresDoc;
-  const missingDoc = requiresDoc && status === 'done' && !doc?.file_path;
+  const missingDoc = requiresDoc && status === 'done' && files.length === 0;
 
-  const handleFile = (files: FileList | null) => {
-    const file = files?.[0];
-    if (!file) return;
-    upload.mutate({ dealId, section, itemKey: item.key, file });
+  const handleFiles = (list: FileList | null) => {
+    const picked = Array.from(list || []);
+    if (picked.length === 0) return;
+    upload.mutate({ dealId, section, itemKey: item.key, files: picked });
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleOpen = async () => {
-    if (!doc?.file_path) return;
-    setOpening(true);
-    const url = await getDealChecklistDocUrl(doc.file_path);
-    setOpening(false);
-    if (url) window.open(url, '_blank', 'noopener,noreferrer');
-  };
-
   return (
-    <div className="flex items-center justify-between gap-3 px-3 py-2">
-      <div className="min-w-0 flex-1">
-        <span className="flex items-center gap-2 text-sm">
-          <span className={cn('h-2 w-2 rounded-full shrink-0', STEP_DOT[status])} /> {item.label}
-        </span>
-        {requiresDoc && doc?.file_name && (
-          <p className="text-[11px] text-muted-foreground truncate pl-4">{doc.file_name}</p>
-        )}
+    <div className="px-3 py-2">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <span className="flex items-center gap-2 text-sm">
+            <span className={cn('h-2 w-2 rounded-full shrink-0', STEP_DOT[status])} /> {item.label}
+            {requiresDoc && files.length > 1 && (
+              <span className="rounded-full border border-border bg-background px-1.5 text-[10px] tabular-nums text-muted-foreground">
+                {files.length}
+              </span>
+            )}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          {requiresDoc && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
+                className="hidden"
+                onChange={(e) => handleFiles(e.target.files)}
+              />
+              {/* 'Done' with no file is a red flag — the paper trail is missing. */}
+              <Button
+                variant="outline" size="sm"
+                className={cn('h-8 gap-1', missingDoc && 'border-red-500/40 text-red-400 hover:bg-red-500/10')}
+                onClick={() => fileInputRef.current?.click()} disabled={busy}
+                title={missingDoc ? 'Marked done but no document uploaded' : 'Add one or more documents'}
+              >
+                {upload.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                <span className="hidden sm:inline">{files.length ? 'Add' : 'Upload'}</span>
+              </Button>
+            </>
+          )}
+          <Select
+            value={status}
+            onValueChange={(v) => upsert.mutate({ dealId, section, itemKey: item.key, status: v as ChecklistStep })}
+          >
+            <SelectTrigger className="h-8 w-32"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {CHECKLIST_STEP_OPTIONS.map((o) => <SelectItem key={o} value={o}>{CHECKLIST_STEP_LABEL[o]}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      <div className="flex items-center gap-1.5 shrink-0">
-        {requiresDoc && (
-          <>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
-              className="hidden"
-              onChange={(e) => handleFile(e.target.files)}
-            />
-            {doc?.file_path && (
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleOpen} title="View / download">
-                {opening ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-              </Button>
-            )}
-            {/* 'Done' with no file is a red flag — the paper trail is missing. */}
-            <Button
-              variant="outline" size="sm"
-              className={cn('h-8 gap-1', missingDoc && 'border-red-500/40 text-red-400 hover:bg-red-500/10')}
-              onClick={() => fileInputRef.current?.click()} disabled={busy}
-              title={missingDoc ? 'Marked done but no document uploaded' : doc?.file_path ? 'Replace file' : 'Upload file'}
-            >
-              {upload.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-              <span className="hidden sm:inline">{doc?.file_path ? 'Replace' : 'Upload'}</span>
-            </Button>
-          </>
-        )}
-        <Select
-          value={status}
-          onValueChange={(v) => upsert.mutate({ dealId, section, itemKey: item.key, status: v as ChecklistStep })}
-        >
-          <SelectTrigger className="h-8 w-32"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {CHECKLIST_STEP_OPTIONS.map((o) => <SelectItem key={o} value={o}>{CHECKLIST_STEP_LABEL[o]}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
+      {requiresDoc && files.length > 0 && (
+        <div className="mt-1 space-y-0.5">
+          {files.map((f) => (
+            <FileLine key={f.id} file={f} removing={removeFile.isPending}
+              onRemove={() => removeFile.mutate(f)} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -118,6 +153,7 @@ function ItemRow({ dealId, section, item, doc }: {
 export function ChecklistTab({ deal }: { deal: Deal }) {
   const { data: settings, isLoading: settingsLoading } = useDocumentSettings();
   const { data: docs, isLoading: docsLoading } = useDealChecklistDocs(deal.id);
+  const { data: allFiles } = useDealChecklistFiles(deal.id);
   const { data: checklist } = useDealChecklist(deal.id);
   const saveChecklist = useSaveChecklist();
   const [open, setOpen] = useState<Record<DealChecklistSectionKey, boolean>>({
@@ -175,7 +211,8 @@ export function ChecklistTab({ deal }: { deal: Deal }) {
                   )}
                   {items.map((it) => (
                     <ItemRow key={it.key} dealId={deal.id} section={sec.key} item={it}
-                      doc={findChecklistDoc(docs, sec.key, it.key)} />
+                      doc={findChecklistDoc(docs, sec.key, it.key)}
+                      files={filesForItem(allFiles, sec.key, it.key)} />
                   ))}
 
                   {sec.key === 'delivery_prep' && (
