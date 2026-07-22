@@ -113,6 +113,8 @@ export const DEFAULT_DEAL_CHECKLIST_CONFIG: ResolvedDealChecklistConfig = {
     { key: 'recon', label: 'Recon', requiresDoc: true },
     { key: 'dekra', label: 'Dekra', requiresDoc: true },
     { key: 'eighty_point', label: '80-point inspection', requiresDoc: true },
+    { key: 'service_warranty_plan', label: 'Service & warranty plan', requiresDoc: true },
+    { key: 'service_history', label: 'Service history', requiresDoc: true },
     { key: 'fitments', label: 'Fitments', requiresDoc: true },
     { key: 'valet', label: 'Valet', requiresDoc: false },
   ],
@@ -128,6 +130,11 @@ export const DEFAULT_DEAL_CHECKLIST_CONFIG: ResolvedDealChecklistConfig = {
     { key: 'invoice_to_bank', label: 'Invoice to bank', requiresDoc: true },
     { key: 'proof_of_payment', label: 'Proof of payment', requiresDoc: true },
     { key: 'commission_sheet', label: 'Commission sheet', requiresDoc: true },
+    // The NATIS chain, in the order the document changes hands.
+    { key: 'natis_before_dealer_stock', label: 'Natis (before dealer stock)', requiresDoc: true },
+    { key: 'dealer_stock_natis_lumina', label: 'Natis Makhulu', requiresDoc: true },
+    { key: 'dealerstock_natis_up', label: 'Natis UP', requiresDoc: true },
+    { key: 'dealerstock_natis_bank_client', label: 'Natis Client & Bank', requiresDoc: true },
   ],
 };
 
