@@ -33,12 +33,27 @@ interface Busy { userId: string; name: string; color: string }
 type FniFilter = 'all' | 'self' | 'unassigned';
 type SearchScope = 'tab' | 'all';
 
+/** What the list is ordered BY (direction is the separate `sortDir`).
+ *  'moved'   → finance_applications.status_updated_at, maintained by the
+ *              `stamp_status_change` DB trigger on every real status change, so
+ *              the lead your team just actioned sits at the top of its lane.
+ *  'created' → created_at, the original intake-date ordering. */
+type SortKey = 'moved' | 'created';
+
+const SORT_KEY_LABEL: Record<SortKey, string> = {
+  moved: 'Last moved',
+  created: 'Date created',
+};
+
 /** Persisted Pipeline filter preset (saved views). Search text is intentionally
- *  excluded — a saved view captures lane/scope/sort/owner filters, not a query. */
+ *  excluded — a saved view captures lane/scope/sort/owner filters, not a query.
+ *  sortKey is OPTIONAL: views saved before it existed replay as 'created', which
+ *  is the ordering they were actually saved under. */
 interface PipelinePreset {
   activeTab: string;
   searchScope: SearchScope;
   sortDir: 'desc' | 'asc';
+  sortKey?: SortKey;
   fniFilter: FniFilter;
 }
 
@@ -61,6 +76,9 @@ const AdminPipelineV2 = () => {
   const [search, setSearch] = useState('');
   const [searchScope, setSearchScope] = useState<SearchScope>('tab');
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
+  // Default: most recently moved first (owner 2026-07-22). Working a lane means
+  // dealing with what just changed, so intake date is no longer the default.
+  const [sortKey, setSortKey] = useState<SortKey>('moved');
   const [fniFilter, setFniFilter] = useState<FniFilter>(isSuperAdmin || isSeniorFAndI ? 'all' : 'self');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // Status-change modal target. `track` decides which tab the modal opens on
@@ -97,6 +115,8 @@ const AdminPipelineV2 = () => {
     setActiveTab(laneExists ? p.activeTab : 'intake');
     setSearchScope(p.searchScope);
     setSortDir(p.sortDir);
+    // Views saved before sortKey existed were captured under created-date order.
+    setSortKey(p.sortKey ?? 'created');
     if (showFniFilter) setFniFilter(p.fniFilter);
   };
 
@@ -216,12 +236,27 @@ const AdminPipelineV2 = () => {
     const list = hasColumnFilter
       ? laneScoped.filter((a) => rowPassesColumnFilters(a, columnFilters, filterMaps))
       : laneScoped;
+    // 'moved' reads status_updated_at (stamped by the stamp_status_change trigger
+    // on every real status change) and falls back to created_at — a lead whose
+    // status has never changed since intake genuinely last "moved" when it arrived,
+    // and 10 legacy rows predate the stamp. Ties break on created_at so equal
+    // timestamps (e.g. a bulk status change) stay in a stable, sensible order
+    // rather than shuffling between renders.
+    const ts = (a: any): number => {
+      const raw = sortKey === 'moved' ? (a.status_updated_at || a.created_at) : a.created_at;
+      const n = new Date(raw || 0).getTime();
+      return Number.isNaN(n) ? 0 : n;
+    };
+    const createdTs = (a: any): number => {
+      const n = new Date(a.created_at || 0).getTime();
+      return Number.isNaN(n) ? 0 : n;
+    };
     return [...list].sort((x, y) => {
-      const dx = new Date((x as any).created_at || 0).getTime();
-      const dy = new Date((y as any).created_at || 0).getTime();
-      return sortDir === 'desc' ? dy - dx : dx - dy;
+      const primary = sortDir === 'desc' ? ts(y) - ts(x) : ts(x) - ts(y);
+      if (primary !== 0) return primary;
+      return sortDir === 'desc' ? createdTs(y) - createdTs(x) : createdTs(x) - createdTs(y);
     });
-  }, [laneScoped, columnFilters, filterMaps, sortDir]);
+  }, [laneScoped, columnFilters, filterMaps, sortDir, sortKey]);
 
   // ---- Selection -----------------------------------------------------------
   const toggleSelect = (id: string) => setSelectedIds((prev) => {
@@ -261,7 +296,7 @@ const AdminPipelineV2 = () => {
             <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, email, phone, ID, bank ref…" className="pl-8 h-9" />
           </div>
           {/* Search scope: limit matches to the current lane, or sweep every lane. */}
-          <SegmentedToggle
+          <SegmentedToggle<SearchScope>
             options={[['tab', 'This tab'], ['all', 'All tabs']] as const}
             value={searchScope}
             onChange={setSearchScope}
@@ -278,9 +313,34 @@ const AdminPipelineV2 = () => {
               </SelectContent>
             </Select>
           )}
-          <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={() => setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))}>
-            <ArrowDownUp className="w-4 h-4" /> {sortDir === 'desc' ? 'Newest' : 'Oldest'}
-          </Button>
+          {/* Sort: WHAT to order by, then which end first. Two selects rather than
+              the old single Newest/Oldest toggle, because "Newest" is ambiguous
+              once there are two dates in play (moved vs created). */}
+          <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
+            {/* w-[178px], NOT the w-[150px] of the F&I select above: this trigger
+                carries a leading icon + gap on top of Radix's built-in chevron, so
+                150px leaves ~80px for the label and "Date created" (86px in DM Sans
+                500 @14px) wraps, then [&>span]:line-clamp-1 drops the second line —
+                the control silently reads "Date…". 178px leaves 108px, which also
+                clears the Montserrat fallback. */}
+            <SelectTrigger className="h-9 w-[178px] gap-1.5" title="Choose what the list is ordered by">
+              <ArrowDownUp className="w-4 h-4 shrink-0 text-muted-foreground" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="moved">{SORT_KEY_LABEL.moved}</SelectItem>
+              <SelectItem value="created">{SORT_KEY_LABEL.created}</SelectItem>
+            </SelectContent>
+          </Select>
+          <SegmentedToggle<'desc' | 'asc'>
+            options={[['desc', 'Newest'], ['asc', 'Oldest']] as const}
+            value={sortDir}
+            onChange={setSortDir}
+            className="h-9 text-xs"
+            title={sortKey === 'moved'
+              ? 'Newest = most recently moved first'
+              : 'Newest = most recently created first'}
+          />
           <ColumnsPicker tabKey={activeTab} config={tableConfig} onChange={setTableConfig} />
         </div>
 
@@ -288,7 +348,7 @@ const AdminPipelineV2 = () => {
           views={views}
           activeId={activeViewId}
           onApply={(v) => { applyPreset(v.preset); setActiveViewId(v.id); }}
-          onSave={(name) => saveView(name, { activeTab, searchScope, sortDir, fniFilter })}
+          onSave={(name) => saveView(name, { activeTab, searchScope, sortDir, sortKey, fniFilter })}
           onDelete={(id) => { deleteView(id); if (id === activeViewId) setActiveViewId(null); }}
         />
 
