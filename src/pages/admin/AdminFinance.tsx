@@ -862,14 +862,13 @@ const AdminFinance = () => {
           <button type="button"
             onClick={(e) => {
               e.stopPropagation();
-              // EasySocial has no phone deep-link: copy the number + open the chat
-              // panel in ONE reused tab — paste into its search to land on the client.
+              // Copy only (owner 2026-07-21): this used to open the chat console
+              // in a new tab. Staff paste the number into whichever tool they use.
               navigator.clipboard?.writeText(wa).catch(() => {});
-              window.open('https://app.easysocial.io/engage/chat?tab=all', 'easysocialChat');
-              toast({ title: 'Number copied', description: 'Client chat opened — paste (Ctrl+V) into its search to jump to this client.' });
+              toast({ title: 'Number copied', description: `${wa} copied to your clipboard.` });
             }}
             className="inline-flex items-center gap-1.5 text-sm text-green-500 hover:text-green-400 transition-colors tabular-nums whitespace-nowrap"
-            title="Open this client in the chat console (copies the number)">
+            title="Copy this client's number">
             <MessageCircle className="w-4 h-4 fill-green-500/20 shrink-0" />
             {app.phone}
           </button>
