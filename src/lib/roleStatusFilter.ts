@@ -22,15 +22,26 @@ export const SENIOR_F_AND_I_ALLOWED_STATUSES = [
   'application_submitted',
 ];
 
+/**
+ * Which statuses this user may SET.
+ *
+ * `perUser` is the owner's per-user override from Settings → Status
+ * Permissions (app_visibility_rules.allowed_statuses). When set it wins over
+ * the role default for EVERY role — including admins, so the owner can pin a
+ * user to a narrow set. Null/empty falls back to the role default, which is
+ * unrestricted for anyone who is not F&I.
+ */
 export function filterStatusOptionsForRole<T extends { value: string }>(
   options: T[],
   role: string | null | undefined,
-  currentStatus?: string
+  currentStatus?: string,
+  perUser?: string[] | null,
 ): T[] {
-  if (role !== 'f_and_i' && role !== 'senior_f_and_i') return options;
-  const base = role === 'senior_f_and_i'
-    ? SENIOR_F_AND_I_ALLOWED_STATUSES
-    : F_AND_I_ALLOWED_STATUSES;
+  const override = perUser && perUser.length > 0 ? perUser : null;
+  if (!override && role !== 'f_and_i' && role !== 'senior_f_and_i') return options;
+
+  const base = override
+    ?? (role === 'senior_f_and_i' ? SENIOR_F_AND_I_ALLOWED_STATUSES : F_AND_I_ALLOWED_STATUSES);
   const allowed = new Set(base);
   // Always include the current status (read-only fallback) so the trigger renders
   if (currentStatus) allowed.add(currentStatus);

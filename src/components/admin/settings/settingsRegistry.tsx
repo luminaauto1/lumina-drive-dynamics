@@ -18,6 +18,7 @@ import PipelineLanesTab from '@/components/admin/PipelineLanesTab';
 import EmailTemplatesTab from '@/components/admin/EmailTemplatesTab';
 import AppearanceNavTab from '@/components/admin/AppearanceNavTab';
 import DealChecklistTab from '@/components/admin/settings/DealChecklistTab';
+import StatusPermissionsTab from '@/components/admin/settings/StatusPermissionsTab';
 import { NatisSettings } from '@/components/dealdesk/NatisSettings';
 import { FinanceBody, SalesBody, ContactBody, LocationBody, FeaturesBody } from './SettingsFormBodies';
 import type { SettingsPageWidth } from './SettingsPageLayout';
@@ -112,6 +113,7 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
       { key: 'features', title: 'Features & Diagnostics', description: 'Toggle storefront features (finance tab, trade-in, signature) and test email.', icon: CreditCard, body: <FeaturesBody /> },
       { key: 'appearance', title: 'Appearance & Navigation', description: 'Hide, show and reorder the admin sidebar sections and items.', icon: LayoutDashboard, requireSuperAdmin: true, width: 'wide', body: <AppearanceNavTab /> },
       { key: 'team', title: 'Team & Permissions', description: 'Invite staff, set roles, and control which sections each role can access.', icon: Shield, requireSuperAdmin: true, width: 'wide', body: <TeamBody /> },
+      { key: 'statusaccess', title: 'Status Permissions', description: 'Per person, choose exactly which finance statuses they may set. Blank = their role default.', icon: ListChecks, requireSuperAdmin: true, width: 'wide', body: <StatusPermissionsTab /> },
     ],
   },
 ];

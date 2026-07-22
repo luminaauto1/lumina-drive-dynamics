@@ -535,17 +535,17 @@ const AdminLeadAnalytics = () => {
 
   // Message Volume by Time-of-Day × Platform (24 hourly buckets)
   const PLATFORM_COLOR: Record<string, string> = {
-    'WhatsApp (EasySocial)': '#10b981',
+    'WhatsApp (Chat CRM)': '#10b981',
     'Paid Ads': '#f59e0b',
     'Website Form': '#3b82f6',
     'Direct / Manual': '#71717a',
   };
-  const PLATFORM_KEYS = ['WhatsApp (EasySocial)', 'Paid Ads', 'Website Form', 'Direct / Manual'] as const;
+  const PLATFORM_KEYS = ['WhatsApp (Chat CRM)', 'Paid Ads', 'Website Form', 'Direct / Manual'] as const;
 
   // Strict mapping based on the `source` column (single source of truth).
   const leadPlatformOf = (l: any): string => {
     const rawSource = l?.source ? String(l.source).toLowerCase().trim() : '';
-    if (rawSource === 'easysocial') return 'WhatsApp (EasySocial)';
+    if (rawSource === 'easysocial') return 'WhatsApp (Chat CRM)';
     if (rawSource === 'ad' || l?.traffic_source === 'ad') return 'Paid Ads';
     if (rawSource === 'finance form' || rawSource === 'website') return 'Website Form';
     return 'Direct / Manual';
@@ -1213,7 +1213,7 @@ const AdminLeadAnalytics = () => {
             </div>
 
             {/* Traffic source */}
-            <ChartCard icon={Globe} title="Traffic Source / Channel" subtitle="Submitted vs abandoned by source (EasySocial bot + UTM)">
+            <ChartCard icon={Globe} title="Traffic Source / Channel" subtitle="Submitted vs abandoned by source (chat bot + UTM)">
               {trafficSourceData.length === 0 ? (
                 <EmptyState />
               ) : (
@@ -1232,7 +1232,7 @@ const AdminLeadAnalytics = () => {
             </ChartCard>
 
             {/* Lead Quality by Platform — driven by EasySocial CRM lead_create events */}
-            <ChartCard icon={Tag} title="Lead Quality by Platform" subtitle="Submitted vs abandoned per EasySocial platform">
+            <ChartCard icon={Tag} title="Lead Quality by Platform" subtitle="Submitted vs abandoned per chat platform">
               {leadsByPlatform.length === 0 ? (
                 <EmptyState />
               ) : (

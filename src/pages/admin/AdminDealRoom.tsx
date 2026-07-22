@@ -43,6 +43,7 @@ import { useApplicationMatches, useAddApplicationMatch, useRemoveApplicationMatc
 import { useCreateAftersalesRecord } from '@/hooks/useAftersales';
 import { STATUS_OPTIONS, getWhatsAppMessage, canShowDealActions } from '@/lib/statusConfig';
 import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
+import { useMyAllowedStatuses } from '@/hooks/useAppVisibility';
 import { StatusBadge } from '@/components/admin/StatusBadge';
 import { StatusSelect } from '@/components/admin/StatusSelect';
 import { financeStatusToDealStage } from '@/lib/admin/statusTracks';
@@ -60,6 +61,7 @@ const AdminDealRoom = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { role, isSuperAdmin, isSeniorFAndI, user } = useAuth();
+  const myAllowedStatuses = useMyAllowedStatuses();
   const {
     labels: financeLabels, styles: financeStyles, whatsappMessageFor,
     clientStatuses, clientLabels, clientStyles, commentRequiredFor, commentPromptFor,
@@ -1277,7 +1279,7 @@ const AdminDealRoom = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {filterStatusOptionsForRole(STATUS_OPTIONS, role, application.status).map(opt => (
+                      {filterStatusOptionsForRole(STATUS_OPTIONS, role, application.status, myAllowedStatuses).map(opt => (
                         <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                       ))}
                     </SelectContent>

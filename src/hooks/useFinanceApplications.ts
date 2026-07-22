@@ -585,24 +585,24 @@ export const useUpdateFinanceApplication = () => {
           });
           console.log('[easysocial-tag-sync] response', { tagData, tagErr });
           if (tagErr) {
-            toast.error(`EasySocial sync failed: ${tagErr.message || 'unknown error'}`, {
+            toast.error(`Client tag sync failed: ${tagErr.message || 'unknown error'}`, {
               style: { background: 'hsl(var(--card))', color: 'hsl(var(--foreground))', border: '1px solid hsl(var(--border))' },
             });
           } else if (tagData?.ok === false) {
             const detail = tagData?.upstream?.body?.message || tagData?.error || tagData?.detail || `status ${tagData?.upstream?.status ?? '?'}`;
-            toast.error(`EasySocial sync failed: ${detail}`, {
+            toast.error(`Client tag sync failed: ${detail}`, {
               style: { background: 'hsl(var(--card))', color: 'hsl(var(--foreground))', border: '1px solid hsl(var(--border))' },
             });
           } else if (tagData?.skipped) {
             // No mapping for this status — informational only, no toast needed.
           } else {
-            toast.success('EasySocial tags updated', {
+            toast.success('Client tags updated', {
               style: { background: 'hsl(var(--card))', color: 'hsl(var(--foreground))', border: '1px solid hsl(var(--border))' },
             });
           }
         } catch (tagEx: any) {
           console.error('[easysocial-tag-sync] failed to invoke:', tagEx);
-          toast.error(`EasySocial sync failed: ${tagEx?.message || tagEx}`, {
+          toast.error(`Client tag sync failed: ${tagEx?.message || tagEx}`, {
             style: { background: 'hsl(var(--card))', color: 'hsl(var(--foreground))', border: '1px solid hsl(var(--border))' },
           });
         }
@@ -781,16 +781,16 @@ export const useUpdateClientStatus = () => {
               || (tagData as any)?.error
               || (tagData as any)?.detail
               || 'unknown error';
-            toast.error(`EasySocial sync failed: ${detail}`);
+            toast.error(`Client tag sync failed: ${detail}`);
           } else if ((tagData as any)?.skipped) {
             // No tag plan configured for this client status — informational only.
             console.log('[easysocial-tag-sync] client skipped:', (tagData as any).skipped);
           } else {
-            toast.success('EasySocial tags updated');
+            toast.success('Client tags updated');
           }
         } catch (tagEx: any) {
           console.error('[easysocial-tag-sync] client failed to invoke:', tagEx);
-          toast.error(`EasySocial sync failed: ${tagEx?.message || tagEx}`);
+          toast.error(`Client tag sync failed: ${tagEx?.message || tagEx}`);
         }
 
         // Opt-in client-status WhatsApp auto-send. Self-gates to skipped:'no_template'

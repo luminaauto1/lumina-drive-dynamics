@@ -12,6 +12,7 @@ import { useUpdateLead } from '@/hooks/useLeads';
 import { useUpdateFinanceApplication } from '@/hooks/useFinanceApplications';
 import { STATUS_OPTIONS as FINANCE_STATUS_OPTIONS } from '@/lib/statusConfig';
 import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
+import { useMyAllowedStatuses } from '@/hooks/useAppVisibility';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStatusConfig } from '@/hooks/useZtcSettings';
 import { CommentGateModal } from '@/components/admin/CommentGateModal';
@@ -66,6 +67,7 @@ interface CrmTableProps {
 const CrmTable = ({ records, onOpen, onChanged, selectedIds, onToggleSelect, canSelect }: CrmTableProps) => {
   const navigate = useNavigate();
   const { role, user } = useAuth();
+  const myAllowedStatuses = useMyAllowedStatuses();
   const updateLead = useUpdateLead();
   const updateApp = useUpdateFinanceApplication();
   const { commentRequiredFor, commentPromptFor } = useStatusConfig();
@@ -166,7 +168,7 @@ const CrmTable = ({ records, onOpen, onChanged, selectedIds, onToggleSelect, can
               const lastName = name.split(' ').slice(1).join(' ');
               const isFinance = !!rec.appDetails;
               const status = (isFinance ? rec.appDetails.status : rec.status) || 'new';
-              const options = isFinance ? filterStatusOptionsForRole(FINANCE_STATUS_OPTIONS, role, status) : LEAD_STATUS_OPTIONS;
+              const options = isFinance ? filterStatusOptionsForRole(FINANCE_STATUS_OPTIONS, role, status, myAllowedStatuses) : LEAD_STATUS_OPTIONS;
               return (
                 <TableRow key={rec.id} className={`border-l-4 ${getRowBorder(status)} even:bg-white/[0.02] hover:bg-primary/5 cursor-pointer transition-colors`} onClick={() => onOpen(rec)}>
                   {canSelect && (

@@ -47,6 +47,9 @@ export interface AppVisibilityRule {
   visible_user_ids: string[];
   /** NULL = role default (admin + senior F&I may archive); true/false = owner override. */
   can_archive?: boolean | null;
+  /** Finance status keys this user may SET. NULL/empty = role default
+   *  (see lib/roleStatusFilter). Managed in Settings → Status Permissions. */
+  allowed_statuses?: string[] | null;
 }
 
 /** Who may archive applications (owner rule 2026-07-16): admins + senior F&I

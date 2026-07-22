@@ -15,7 +15,7 @@ export const useAppVisibilityRules = () =>
     queryFn: async (): Promise<AppVisibilityRule[]> => {
       const { data, error } = await (supabase as any)
         .from('app_visibility_rules')
-        .select('user_id, mode, visible_user_ids, can_archive');
+        .select('user_id, mode, visible_user_ids, can_archive, allowed_statuses');
       if (error) throw error;
       return (data ?? []) as AppVisibilityRule[];
     },
@@ -26,6 +26,13 @@ export const useMyAppVisibility = (): AppVisibilityRule | null => {
   const { user } = useAuth();
   const { data: rules = [] } = useAppVisibilityRules();
   return rules.find((r) => r.user_id === user?.id) ?? null;
+};
+
+/** The signed-in user's per-user status allowlist, or null for the role default.
+ *  Pass straight into filterStatusOptionsForRole's 4th argument. */
+export const useMyAllowedStatuses = (): string[] | null => {
+  const rule = useMyAppVisibility();
+  return rule?.allowed_statuses?.length ? rule.allowed_statuses : null;
 };
 
 export const useUpsertAppVisibility = () => {
