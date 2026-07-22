@@ -111,7 +111,7 @@ const AdminChatControl = () => {
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Paste a client’s question and the brain suggests an answer from your knowledge base and everything you’ve
-            taught it. It has <strong>no connection to WhatsApp or EasySocial</strong> — you copy the reply and send it yourself.
+            taught it. It has <strong>no connection to WhatsApp or the chat console</strong> — you copy the reply and send it yourself.
           </p>
         </div>
 

@@ -6,6 +6,7 @@
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
+import { useMyAllowedStatuses } from '@/hooks/useAppVisibility';
 import { TRACK_META, trackLabel, type StatusTrack } from '@/lib/admin/statusTracks';
 
 export function StatusSelect({
@@ -35,10 +36,12 @@ export function StatusSelect({
   // role-restricted statuses, so its options pass through unchanged. The client
   // track is fully DB-driven (no role filter). Either way we always keep the
   // current value selectable (the finance filter's read-only fallback).
+  // Per-user allowlist (Settings → Status Permissions) narrows the role default.
+  const perUser = useMyAllowedStatuses();
   const options = track === 'client'
     ? (optionsProp ?? [])
     : track === 'finance'
-      ? filterStatusOptionsForRole(TRACK_META.finance.options, role, value)
+      ? filterStatusOptionsForRole(TRACK_META.finance.options, role, value, perUser)
       : TRACK_META.deal.options;
 
   return (

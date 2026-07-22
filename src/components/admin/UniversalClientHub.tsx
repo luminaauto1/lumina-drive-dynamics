@@ -19,6 +19,7 @@ import { CommentGateModal } from '@/components/admin/CommentGateModal';
 import { addPipelineNote } from '@/lib/pipelinev2/notes';
 import { STATUS_OPTIONS } from '@/lib/statusConfig';
 import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
+import { useMyAllowedStatuses } from '@/hooks/useAppVisibility';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { Clock, Car, User, FileText, Calculator, Copy, Check, Plus, X, Eye, Trophy, Trash2, Phone, Brain, Wallet, CalendarClock, AlertOctagon, Banknote, Fingerprint, Briefcase } from 'lucide-react';
@@ -60,6 +61,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
   // (client emails / WhatsApp / EasySocial tag sync / status_history).
   const updateApplication = useUpdateFinanceApplication();
   const { role, user } = useAuth();
+  const myAllowedStatuses = useMyAllowedStatuses();
   const { commentRequiredFor, commentPromptFor } = useStatusConfig();
   // Terminal / customer-messaging transitions get a confirm step (a single mis-tap
   // would otherwise WhatsApp/email the client and archive the deal).
@@ -70,7 +72,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
   // Role-appropriate options, and always include the app's CURRENT status so the
   // trigger renders a label even for legacy statuses not in STATUS_OPTIONS.
   const statusOptionsFor = (app: any) => {
-    const opts = filterStatusOptionsForRole(STATUS_OPTIONS, role, app?.status);
+    const opts = filterStatusOptionsForRole(STATUS_OPTIONS, role, app?.status, myAllowedStatuses);
     if (app?.status && !opts.some((o) => o.value === app.status)) {
       return [{ value: app.status, label: app.status.replace(/_/g, ' ') }, ...opts];
     }
@@ -908,7 +910,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
               Change status to "{STATUS_OPTIONS.find((o) => o.value === pendingStatusChange?.status)?.label || pendingStatusChange?.status?.replace(/_/g, ' ')}"?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This updates {masterName} and may send the client an automated WhatsApp/email and reset their EasySocial tags. Terminal statuses also move the deal out of the active list. This can't be auto-undone.
+              This updates {masterName} and may send the client an automated WhatsApp/email and reset their client tags. Terminal statuses also move the deal out of the active list. This can't be auto-undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

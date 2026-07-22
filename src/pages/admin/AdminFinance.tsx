@@ -117,6 +117,8 @@ const AdminFinance = () => {
   // Owner-configured per-user visibility rule (Settings → Team). Caps which
   // applications this user can see; the F&I dropdown narrows within it.
   const myVisibility = useMyAppVisibility();
+  // Owner-configured per-user status allowlist (Settings → Status Permissions).
+  const myAllowedStatuses = myVisibility?.allowed_statuses?.length ? myVisibility.allowed_statuses : null;
   // Archiving is admin + senior F&I only, unless the owner enabled it for this
   // user in Settings → Team (owner rule 2026-07-16).
   const allowArchive = canArchiveApps(role, myVisibility);
@@ -864,10 +866,10 @@ const AdminFinance = () => {
               // panel in ONE reused tab — paste into its search to land on the client.
               navigator.clipboard?.writeText(wa).catch(() => {});
               window.open('https://app.easysocial.io/engage/chat?tab=all', 'easysocialChat');
-              toast({ title: 'Number copied', description: 'EasySocial opened — paste (Ctrl+V) into its chat search to jump to this client.' });
+              toast({ title: 'Number copied', description: 'Client chat opened — paste (Ctrl+V) into its search to jump to this client.' });
             }}
             className="inline-flex items-center gap-1.5 text-sm text-green-500 hover:text-green-400 transition-colors tabular-nums whitespace-nowrap"
-            title="Open this client in EasySocial chat (copies the number)">
+            title="Open this client in the chat console (copies the number)">
             <MessageCircle className="w-4 h-4 fill-green-500/20 shrink-0" />
             {app.phone}
           </button>
@@ -1416,7 +1418,7 @@ const AdminFinance = () => {
               onToggleSelect={toggleSelect}
               onToggleSelectAll={toggleSelectAll}
               statusSelect={{
-                options: (app) => filterStatusOptionsForRole(STATUS_OPTIONS, role, (app as any).status),
+                options: (app) => filterStatusOptionsForRole(STATUS_OPTIONS, role, (app as any).status, myAllowedStatuses),
                 onChange: (app, status) => requestFinanceStatusChange(app, status),
               }}
               windowKey={`${searchQuery}|${statusFilter}|${bucketFilter ?? ''}|${fniFilter}|${viewMode}|${sortKey}`}
@@ -1618,6 +1620,12 @@ const AdminFinance = () => {
               const eligible = (role === 'f_and_i' || role === 'senior_f_and_i') && (norm === 'note_to_f_and_i' || norm === 'note_to_senior_f_and_i' || norm === 'no_notes' || !norm);
               const notAlreadySent = pendingApp?.status !== 'sent_to_banks';
               if (!eligible || !notAlreadySent) return null;
+              // These presets write a status directly, so they must honour the
+              // per-user allowlist too — otherwise a user pinned to a narrow set
+              // could still jump a file to Ready to Submit / Sent to Banks.
+              const settable = new Set(
+                filterStatusOptionsForRole(STATUS_OPTIONS, role, undefined, myAllowedStatuses).map((o) => o.value),
+              );
               const handleFinalize = async (
                 targetStatus: 'sent_to_banks' | 'ready_to_submit',
                 opts: { label: string; auditVerb: string }
@@ -1680,22 +1688,29 @@ const AdminFinance = () => {
                   toast({ title: `Failed: ${opts.label}`, description: e.message, variant: 'destructive' });
                 }
               };
+              const canReady = settable.has('ready_to_submit');
+              const canSend = settable.has('sent_to_banks');
+              if (!canReady && !canSend) return null;
               return (
-                <div className="pt-1 pb-2 grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => handleFinalize('ready_to_submit', { label: 'Ready to Submit', auditVerb: 'Marked Ready to Submit.' })}
-                    className="w-full inline-flex items-center justify-center gap-1 bg-emerald-900/30 text-emerald-300 border border-emerald-500/50 hover:bg-emerald-800/40 transition-colors font-medium px-4 py-3 rounded-md"
-                  >
-                    <CheckCircle2 className="h-4 w-4" /> Ready to Submit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleFinalize('sent_to_banks', { label: 'Sent to Banks', auditVerb: 'Updated and sent to bank.' })}
-                    className="w-full inline-flex items-center justify-center gap-1 bg-yellow-500 text-black font-semibold px-4 py-3 rounded-md hover:bg-yellow-400 transition-colors"
-                  >
-                    <Landmark className="h-4 w-4" /> Finalize: Send to Banks
-                  </button>
+                <div className={`pt-1 pb-2 grid grid-cols-1 gap-3 ${canReady && canSend ? 'md:grid-cols-2' : ''}`}>
+                  {canReady && (
+                    <button
+                      type="button"
+                      onClick={() => handleFinalize('ready_to_submit', { label: 'Ready to Submit', auditVerb: 'Marked Ready to Submit.' })}
+                      className="w-full inline-flex items-center justify-center gap-1 bg-emerald-900/30 text-emerald-300 border border-emerald-500/50 hover:bg-emerald-800/40 transition-colors font-medium px-4 py-3 rounded-md"
+                    >
+                      <CheckCircle2 className="h-4 w-4" /> Ready to Submit
+                    </button>
+                  )}
+                  {canSend && (
+                    <button
+                      type="button"
+                      onClick={() => handleFinalize('sent_to_banks', { label: 'Sent to Banks', auditVerb: 'Updated and sent to bank.' })}
+                      className="w-full inline-flex items-center justify-center gap-1 bg-yellow-500 text-black font-semibold px-4 py-3 rounded-md hover:bg-yellow-400 transition-colors"
+                    >
+                      <Landmark className="h-4 w-4" /> Finalize: Send to Banks
+                    </button>
+                  )}
                 </div>
               );
             })()}
