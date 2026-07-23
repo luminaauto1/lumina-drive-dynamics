@@ -201,6 +201,10 @@ export function StatusEditModal({
   const [waClientInfoEnabled, setWaClientInfoEnabled] = useState(!!existing?.wa_client_info_enabled);
   const [waClientInfoRequired, setWaClientInfoRequired] = useState(!!existing?.wa_client_info_required);
   const [waClientInfoPrompt, setWaClientInfoPrompt] = useState(existing?.wa_client_info_prompt ?? '');
+  // F&I notes — a dedicated internal-comment box, separate from the comment gate.
+  const [fniNoteEnabled, setFniNoteEnabled] = useState(!!existing?.fni_note_enabled);
+  const [fniNoteRequired, setFniNoteRequired] = useState(!!existing?.fni_note_required);
+  const [fniNotePrompt, setFniNotePrompt] = useState(existing?.fni_note_prompt ?? '');
   // Per-status SLA in hours (finance track). Empty = built-in default from
   // lib/finance/sla.ts; drives the Finance page's Age chips + Stalled queue.
   const [slaHours, setSlaHours] = useState<string>(
@@ -426,6 +430,11 @@ export function StatusEditModal({
         wa_client_info_required: waClientInfoEnabled ? waClientInfoRequired : false,
         wa_client_info_prompt:
           waClientInfoEnabled && waClientInfoPrompt.trim() ? waClientInfoPrompt.trim() : null,
+        // F&I notes box — same shape: required forced off + prompt cleared when disabled.
+        fni_note_enabled: fniNoteEnabled,
+        fni_note_required: fniNoteEnabled ? fniNoteRequired : false,
+        fni_note_prompt:
+          fniNoteEnabled && fniNotePrompt.trim() ? fniNotePrompt.trim() : null,
         // Empty / invalid => NULL so the built-in SLA default applies (finance only).
         sla_hours: type === 'finance' && Number(slaHours) > 0 ? Math.round(Number(slaHours)) : null,
         is_internal: isInternal,
@@ -758,6 +767,33 @@ export function StatusEditModal({
             )}
             <p className="text-[11px] text-muted-foreground">
               This message can be injected into a WhatsApp template via the <span className="font-medium text-foreground">WhatsApp To Client Info</span> Body option.
+            </p>
+          </div>
+
+          {/* F&I notes — a dedicated per-status INTERNAL comment box, separate from
+              the comment gate above. Shown for BOTH tracks. When enabled, the
+              status-change UIs prompt the F&I for an extra note (e.g. "deposit
+              needed") which is saved like any other note (shows in the Notes column
+              and the drawer feed). Not client-facing; never sent anywhere. */}
+          <div className="space-y-2 rounded-md border border-border p-3">
+            <div className="flex items-center gap-2">
+              <Checkbox id="fniNote" checked={fniNoteEnabled} onCheckedChange={(v) => setFniNoteEnabled(!!v)} />
+              <Label htmlFor="fniNote" className="text-sm font-normal">Ask for an F&amp;I note when this status is set</Label>
+            </div>
+            {fniNoteEnabled && (
+              <>
+                <div className="flex items-center gap-2">
+                  <Checkbox id="fniNoteReq" checked={fniNoteRequired} onCheckedChange={(v) => setFniNoteRequired(!!v)} />
+                  <Label htmlFor="fniNoteReq" className="text-sm font-normal">Require this note before the status can be saved</Label>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Prompt shown above the box (optional)</Label>
+                  <Input value={fniNotePrompt} onChange={(e) => setFniNotePrompt(e.target.value)} placeholder="e.g. F&I notes — deposit needed, docs outstanding…" className="h-8 text-sm" />
+                </div>
+              </>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              An internal note the F&amp;I leaves when applying this status (e.g. <span className="font-medium text-foreground">deposit needed</span>). It’s saved like any other note — shown in the Notes column and the drawer feed. Not sent to the client.
             </p>
           </div>
 

@@ -50,6 +50,10 @@ export const NOTE_CATEGORIES: NoteCategoryDef[] = [
   { key: 'status_change',   label: 'Status Change',   color: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' },
   // WhatsApp To Client Info text captured when a status with wa_client_info_enabled is applied.
   { key: 'client_whatsapp', label: 'WhatsApp to client', emoji: '💬', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
+  // An internal note the F&I types when a status with fni_note_enabled is applied
+  // (e.g. "deposit needed"). User content — NOT in SYSTEM_NOTE_CATEGORIES, so it
+  // shows in the table's Notes column like any other note; the drawer feed chips it.
+  { key: 'fni_note',        label: 'F&I Note',        color: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' },
   // The AUTO-STAMP written by useUpdateClientStatus ("Client status → X") so the
   // day's outcome survives the nightly client_status reset. System-generated —
   // never typed by a person, so it stays out of the Notes column.

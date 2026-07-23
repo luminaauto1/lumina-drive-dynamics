@@ -38,11 +38,13 @@ export function StatusChangeModal({
   const [track, setTrack] = useState<'finance' | 'client'>(initialTrack);
   const [comment, setComment] = useState('');
   const [waClientInfo, setWaClientInfo] = useState('');
+  const [fniNote, setFniNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const {
     labels: financeLabels, clientStatuses, clientLabels, commentRequiredFor, commentPromptFor,
     waClientInfoEnabledFor, waClientInfoRequiredFor, waClientInfoPromptFor,
+    fniNoteEnabledFor, fniNoteRequiredFor, fniNotePromptFor,
     clientLaneOverrides,
   } = useStatusConfig();
   // Effective lane labels (Settings → Pipeline Lanes renames included), so the
@@ -78,6 +80,18 @@ export function StatusChangeModal({
   // Prompt label: prefer the finance status's prompt, else the client status's.
   const waInfoStatus = financeWantsInfo ? status : clientWantsInfo ? clientStatus : '';
 
+  // F&I notes gate — independent of the comment + WhatsApp gates, same dual-track
+  // logic: show the box if EITHER the changed finance or client status enables it,
+  // require it if EITHER requires it.
+  const financeWantsFni = financeChanged && fniNoteEnabledFor(status);
+  const clientWantsFni = clientChanged && fniNoteEnabledFor(clientStatus);
+  const fniEnabled = financeWantsFni || clientWantsFni;
+  const fniRequired =
+    (financeWantsFni && fniNoteRequiredFor(status)) ||
+    (clientWantsFni && fniNoteRequiredFor(clientStatus));
+  const fniMissing = fniRequired && !fniNote.trim();
+  const fniStatus = financeWantsFni ? status : clientWantsFni ? clientStatus : '';
+
   // A client status may carry its own destination lane (status_overrides.lane),
   // which OUTRANKS the finance lane — so the track hint can't claim client
   // statuses never move tabs. Resolved for the status currently picked below.
@@ -90,9 +104,10 @@ export function StatusChangeModal({
     setError('');
     // Allow a comment-only update (log a note without changing a status), so the
     // button isn't permanently greyed out when the shown status is already current.
-    if (!financeChanged && !clientChanged && !comment.trim() && !waClientInfo.trim()) { onClose(); return; }
+    if (!financeChanged && !clientChanged && !comment.trim() && !waClientInfo.trim() && !fniNote.trim()) { onClose(); return; }
     if (commentMissing) { setError('A comment is required for this status.'); return; }
     if (waInfoMissing) { setError('A WhatsApp To Client Info message is required for this status.'); return; }
+    if (fniMissing) { setError('An F&I note is required for this status.'); return; }
     setBusy(true);
     try {
       // Finance write — EXACT reuse of AdminFinance's mutation path (notify-*/
@@ -138,6 +153,16 @@ export function StatusChangeModal({
         await addPipelineNote(noteTarget as any, {
           body: waClientInfo.trim(),
           category: 'client_whatsapp',
+          author_id: user?.id ?? null,
+          author_name: authorName(user),
+        });
+      }
+      // Persist the F&I note as its own (user-facing) note. addPipelineNote re-reads
+      // the DB notes before writing, so it never clobbers the notes written above.
+      if (fniNote.trim()) {
+        await addPipelineNote(app, {
+          body: fniNote.trim(),
+          category: 'fni_note',
           author_id: user?.id ?? null,
           author_name: authorName(user),
         });
@@ -244,6 +269,23 @@ export function StatusChangeModal({
             </div>
           )}
 
+          {/* F&I notes — shown only when the changed status enables it. Internal;
+              saved as a normal note, never sent to the client. */}
+          {fniEnabled && (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">
+                {fniNotePromptFor(fniStatus) || 'F&I notes'}
+                {fniRequired && <span className="text-red-400"> *</span>}
+              </Label>
+              <Textarea
+                value={fniNote}
+                onChange={(e) => setFniNote(e.target.value)}
+                rows={2}
+                placeholder={fniRequired ? 'An F&I note is required for this status…' : 'Internal F&I note (e.g. deposit needed)…'}
+              />
+            </div>
+          )}
+
           {error && <p className="text-sm text-red-400">{error}</p>}
           <p className="text-[11px] text-muted-foreground">
             Finance changes send the same WhatsApp / email / CRM notifications as the Finance page. Client-status changes are silent.
@@ -251,7 +293,7 @@ export function StatusChangeModal({
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button onClick={submit} disabled={busy || (!financeChanged && !clientChanged && !comment.trim() && !waClientInfo.trim()) || commentMissing || waInfoMissing}>
+          <Button onClick={submit} disabled={busy || (!financeChanged && !clientChanged && !comment.trim() && !waClientInfo.trim() && !fniNote.trim()) || commentMissing || waInfoMissing || fniMissing}>
             {busy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Update status
           </Button>
         </DialogFooter>
