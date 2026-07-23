@@ -18,6 +18,7 @@ import CreditCheckResultModal, { type CreditCheckOutcome } from '@/components/ad
 import AdminLayout from '@/components/admin/AdminLayout';
 import PageHeader from '@/components/admin/PageHeader';
 import { ADMIN_ROUTES } from '@/lib/adminRoutes';
+import { appMatchesSearch } from '@/lib/searchNormalize';
 import { sourceLabel } from '@/lib/pipelinev2/source';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -313,16 +314,15 @@ const AdminFinance = () => {
   };
 
   const filteredApplications = applications.filter(app => {
-    const searchLower = searchQuery.toLowerCase();
-    const matchesSearch = !searchQuery || 
-      app.full_name?.toLowerCase().includes(searchLower) ||
-      app.first_name?.toLowerCase().includes(searchLower) ||
-      app.last_name?.toLowerCase().includes(searchLower) ||
-      app.email?.toLowerCase().includes(searchLower) ||
-      app.id_number?.includes(searchQuery) ||
-      app.phone?.includes(searchQuery) ||
-      (app as any).bank_reference?.toLowerCase().includes(searchLower);
-    
+    // Digit-normalised phone/ID match so "+27 78 548 8607" finds "27785488607";
+    // text fields unchanged. See searchNormalize.ts.
+    const matchesSearch = appMatchesSearch(searchQuery, {
+      text: [app.full_name, app.first_name, app.last_name, app.email, (app as any).id_number, (app as any).phone, (app as any).bank_reference],
+      phone: (app as any).phone,
+      id: (app as any).id_number,
+      bankRef: (app as any).bank_reference,
+    });
+
     const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
 
     // F&I ownership filter. Apps assigned to a NORMAL f&i are private to that
