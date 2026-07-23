@@ -70,6 +70,9 @@ const LANE_DEFAULT_VISIBLE: Record<string, string[]> = {
   submitted:   ['applicant', 'status', 'client_status', 'timer', 'internal', 'phone', 'vehicle', 'bank', 'fni', 'source', 'created'],
   // Approved/working: bank + F&I owner matter most.
   approved:    ['applicant', 'status', 'client_status', 'timer', 'internal', 'vehicle', 'bank', 'fni', 'source', 'created'],
+  // Flexi (residual/balloon deals): same working shape as Approved. Previously fell
+  // back to the GLOBAL defaults; listed explicitly now so it carries 'timer' too.
+  flexi:       ['applicant', 'status', 'client_status', 'timer', 'internal', 'vehicle', 'bank', 'fni', 'source', 'created'],
   // Validations / contract: bank + F&I + bank ref.
   validations: ['applicant', 'status', 'client_status', 'timer', 'internal', 'vehicle', 'bank', 'bank_reference', 'fni', 'source', 'created'],
   // Delivered: the win — vehicle + F&I + date.

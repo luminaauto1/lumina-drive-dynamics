@@ -87,6 +87,12 @@ export function ApplicationTable({
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (timerStatuses.size === 0) return;
+    // Re-seed immediately, not only on the first tick 60s later: the interval can
+    // (re)start long after mount — e.g. when an admin enables show_timer while this
+    // table stays mounted (react-query flips timerStatuses 0→1). Without this the
+    // first render uses the stale mount-time clock and can paint the wrong colour
+    // for up to a minute before self-correcting.
+    setNow(Date.now());
     const id = window.setInterval(() => setNow(Date.now()), 60_000);
     return () => window.clearInterval(id);
   }, [timerStatuses.size]);
