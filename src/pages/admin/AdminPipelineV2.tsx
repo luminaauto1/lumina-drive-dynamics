@@ -12,6 +12,7 @@ import { canSeeApplication } from '@/lib/finance/shared';
 import { useMyAppVisibility } from '@/hooks/useAppVisibility';
 import { useStatusConfig } from '@/hooks/useZtcSettings';
 import { PIPELINE_TABS, appInTab } from '@/lib/pipelinev2/tabs';
+import { appMatchesSearch } from '@/lib/searchNormalize';
 import { colorForUser } from '@/lib/pipelinev2/presence';
 import { loadConfig, type TableConfig } from '@/lib/pipelinev2/columns';
 import {
@@ -57,10 +58,17 @@ interface PipelinePreset {
   fniFilter: FniFilter;
 }
 
-const appSearchBlob = (a: FinanceApplication): string => {
+// Search match — text substring PLUS digit-normalised phone/ID so a number typed
+// with spaces / "+" / dashes ("+27 78 548 8607") still finds "27785488607". See
+// searchNormalize.ts; strictly widens the old blob.includes behaviour.
+const appMatchesQuery = (a: FinanceApplication, rawQuery: string): boolean => {
   const any = a as any;
-  return [any.full_name, any.first_name, any.last_name, any.email, any.phone, any.id_number, any.bank_reference, any.bank_name]
-    .filter(Boolean).join(' ').toLowerCase();
+  return appMatchesSearch(rawQuery, {
+    text: [any.full_name, any.first_name, any.last_name, any.email, any.phone, any.id_number, any.bank_reference, any.bank_name],
+    phone: any.phone,
+    id: any.id_number,
+    bankRef: any.bank_reference,
+  });
 };
 
 const AdminPipelineV2 = () => {
@@ -174,9 +182,9 @@ const AdminPipelineV2 = () => {
 
   // ---- Filtering (mirrors AdminFinance ownership rules) --------------------
   const baseFiltered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = search.trim();
     return apps.filter((a) => {
-      if (q && !appSearchBlob(a).includes(q)) return false;
+      if (q && !appMatchesQuery(a, q)) return false;
 
       const owner = (a as any).assigned_f_and_i as string | null | undefined;
       const ownerIsSenior = !!owner && fniUsers.some((u) => u.id === owner && u.role === 'senior_f_and_i');
