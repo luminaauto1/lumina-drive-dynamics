@@ -94,6 +94,12 @@ export const FinanceBody = () => {
         min_balloon_percent: settings.min_balloon_percent,
         max_balloon_percent: settings.max_balloon_percent,
         default_balloon_percent: settings.default_balloon_percent ?? 35,
+        // Public inventory-card structure. card_interest_rate falls back to the
+        // default rate so the field is never blank on first open.
+        card_interest_rate: settings.card_interest_rate ?? settings.default_interest_rate ?? 13.75,
+        card_deposit_percent: settings.card_deposit_percent ?? 0,
+        card_balloon_percent: settings.card_balloon_percent ?? 0,
+        card_term_months: settings.card_term_months ?? 72,
       } as SettingsFormData);
     }
   }, [settings, reset]);
@@ -107,6 +113,10 @@ export const FinanceBody = () => {
       min_balloon_percent: toNum(data.min_balloon_percent),
       max_balloon_percent: toNum(data.max_balloon_percent),
       default_balloon_percent: toNum(data.default_balloon_percent),
+      card_interest_rate: toNum(data.card_interest_rate),
+      card_deposit_percent: toNum(data.card_deposit_percent),
+      card_balloon_percent: toNum(data.card_balloon_percent),
+      card_term_months: toNum(data.card_term_months),
     } as Partial<SiteSettings>);
   };
 
@@ -173,11 +183,47 @@ export const FinanceBody = () => {
               <p className="text-xs text-muted-foreground">Slider maximum on the calculator.</p>
             </div>
             <div className="space-y-2 sm:col-span-2 lg:col-span-1">
-              <Label htmlFor="default_balloon_percent">Default Balloon (%) — sourcing cards</Label>
+              <Label htmlFor="default_balloon_percent">Default Balloon (%)</Label>
               <Input id="default_balloon_percent" type="number" min="0" max="50" {...register('default_balloon_percent', { valueAsNumber: true })} />
               <p className="text-xs text-muted-foreground">
-                Balloon used for sourcing vehicle-card monthly estimates (makes advertised payments look lower).
+                Starting balloon for the quote/sourcing tools. (The public inventory-card estimate uses its own value below.)
               </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Public inventory-card display structure. These four drive the
+            "Est. R x/pm*" figure on every VehicleCard, used verbatim — no teaser.
+            Kept apart from the calculator fields above so tuning what customers
+            see on the cards never disturbs the calculator or the quote tools. */}
+        <section className="space-y-4 border-t border-border pt-6">
+          <SectionTitle>Public inventory-card estimate</SectionTitle>
+          <p className="text-sm text-muted-foreground">
+            These four values drive the <span className="font-medium text-foreground">“Est. R&nbsp;x/pm*”</span> figure shown
+            on every vehicle card, exactly as entered — no hidden discount. A balloon is a lump sum deferred to the end of the
+            term: the full price is still financed, so a balloon <span className="font-medium text-foreground">raises</span> the
+            monthly (unlike a deposit, which is paid upfront and lowers it).
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-2">
+              <Label htmlFor="card_interest_rate">Interest rate (%)</Label>
+              <Input id="card_interest_rate" type="number" step="0.01" min="0" max="50" {...register('card_interest_rate', { valueAsNumber: true })} />
+              <p className="text-xs text-muted-foreground">Used as-is for the card estimate.</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="card_deposit_percent">Deposit (%)</Label>
+              <Input id="card_deposit_percent" type="number" step="0.5" min="0" max="100" {...register('card_deposit_percent', { valueAsNumber: true })} />
+              <p className="text-xs text-muted-foreground">Assumed upfront deposit. Lowers the figure.</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="card_balloon_percent">Balloon (%)</Label>
+              <Input id="card_balloon_percent" type="number" step="0.5" min="0" max="60" {...register('card_balloon_percent', { valueAsNumber: true })} />
+              <p className="text-xs text-muted-foreground">Deferred to term end. Raises the figure.</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="card_term_months">Term (months)</Label>
+              <Input id="card_term_months" type="number" step="1" min="1" max="120" {...register('card_term_months', { valueAsNumber: true })} />
+              <p className="text-xs text-muted-foreground">e.g. 72. Longer term lowers the figure.</p>
             </div>
           </div>
         </section>
