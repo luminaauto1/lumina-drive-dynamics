@@ -17,6 +17,12 @@ export const TABLE_COLUMNS: TableColumnDef[] = [
   { key: 'applicant',      label: 'Applicant',      defaultVisible: true,  defaultWidth: 'wide', wrap: true },
   { key: 'status',         label: 'Finance Status', defaultVisible: true,  defaultWidth: 'normal' },
   { key: 'client_status',  label: 'Client Status',  defaultVisible: true,  defaultWidth: 'normal' },
+  // Time-in-status timer (owner 2026-07-23). Coloured green/amber/red by age; only
+  // renders for statuses with show_timer on (blank otherwise), so it's inert until
+  // the admin opts statuses in via Settings → Statuses. Visibility is driven by the
+  // per-lane lists below (Pipeline lanes only, not the Finance page), so this stays
+  // defaultVisible:false to avoid leaking into GLOBAL/Finance defaults.
+  { key: 'timer',          label: 'Timer',          defaultVisible: false, defaultWidth: 'narrow' },
   { key: 'internal',       label: 'Notes',          defaultVisible: true,  defaultWidth: 'wide', wrap: true },
   { key: 'phone',          label: 'Phone',          defaultVisible: true,  defaultWidth: 'normal' },
   { key: 'email',          label: 'Email',          defaultVisible: false, defaultWidth: 'wide', wrap: true },
@@ -52,24 +58,29 @@ const GLOBAL_DEFAULT_VISIBLE = TABLE_COLUMNS.filter((c) => c.defaultVisible).map
 // 2026-07-16: "client status must show standard on pipeline").
 const LANE_DEFAULT_VISIBLE: Record<string, string[]> = {
   // Fresh leads: who/what + latest note + how to reach them + where they came from.
-  intake:      ['applicant', 'status', 'client_status', 'internal', 'phone', 'vehicle', 'source', 'created'],
+  // 'timer' sits right after the two status columns it reflects, in every Pipeline
+  // lane (owner 2026-07-23). It only paints for timer-enabled statuses.
+  intake:      ['applicant', 'status', 'client_status', 'timer', 'internal', 'phone', 'vehicle', 'source', 'created'],
   // Wrong Info: you are chasing the client to correct their details, so phone +
   // the latest note carry the work (same shape as intake).
-  wrong_info:  ['applicant', 'status', 'client_status', 'internal', 'phone', 'vehicle', 'source', 'created'],
+  wrong_info:  ['applicant', 'status', 'client_status', 'timer', 'internal', 'phone', 'vehicle', 'source', 'created'],
   // Credit check passed / ready to load: who + how to reach them + F&I owner.
-  credit_passed: ['applicant', 'status', 'client_status', 'internal', 'phone', 'vehicle', 'fni', 'source', 'created'],
+  credit_passed: ['applicant', 'status', 'client_status', 'timer', 'internal', 'phone', 'vehicle', 'fni', 'source', 'created'],
   // Submitted to banks: add the bank in play.
-  submitted:   ['applicant', 'status', 'client_status', 'internal', 'phone', 'vehicle', 'bank', 'fni', 'source', 'created'],
+  submitted:   ['applicant', 'status', 'client_status', 'timer', 'internal', 'phone', 'vehicle', 'bank', 'fni', 'source', 'created'],
   // Approved/working: bank + F&I owner matter most.
-  approved:    ['applicant', 'status', 'client_status', 'internal', 'vehicle', 'bank', 'fni', 'source', 'created'],
+  approved:    ['applicant', 'status', 'client_status', 'timer', 'internal', 'vehicle', 'bank', 'fni', 'source', 'created'],
+  // Flexi (residual/balloon deals): same working shape as Approved. Previously fell
+  // back to the GLOBAL defaults; listed explicitly now so it carries 'timer' too.
+  flexi:       ['applicant', 'status', 'client_status', 'timer', 'internal', 'vehicle', 'bank', 'fni', 'source', 'created'],
   // Validations / contract: bank + F&I + bank ref.
-  validations: ['applicant', 'status', 'client_status', 'internal', 'vehicle', 'bank', 'bank_reference', 'fni', 'source', 'created'],
+  validations: ['applicant', 'status', 'client_status', 'timer', 'internal', 'vehicle', 'bank', 'bank_reference', 'fni', 'source', 'created'],
   // Delivered: the win — vehicle + F&I + date.
-  delivered:   ['applicant', 'status', 'client_status', 'internal', 'vehicle', 'fni', 'source', 'created'],
+  delivered:   ['applicant', 'status', 'client_status', 'timer', 'internal', 'vehicle', 'fni', 'source', 'created'],
   // Declined: keep it lean — reason lives in the note.
-  declined:    ['applicant', 'status', 'client_status', 'internal', 'phone', 'source', 'created'],
+  declined:    ['applicant', 'status', 'client_status', 'timer', 'internal', 'phone', 'source', 'created'],
   // Closed/archived: minimal.
-  closed:      ['applicant', 'status', 'client_status', 'internal', 'source', 'created'],
+  closed:      ['applicant', 'status', 'client_status', 'timer', 'internal', 'source', 'created'],
   // The Finance page's table (redesign P3) — mirrors its long-standing hand-rolled
   // column order (Name/Mobile/Status/CREDIT CHECK/Internal/Date/Actions — credit
   // sits CENTER, owner rule 2026-07-15) + the new docs & age chips.
@@ -105,7 +116,9 @@ export interface TableConfig {
 // 2026-07-16), so persisted configs re-default and surface the new column.
 // Column widths/visibility reset to per-lane defaults on a bump; saved views
 // are stored separately and survive.
-const STORAGE_KEY = 'lumina.pipelinev2.table.config.v3';
+// v3 → v4: the 'timer' column joined every Pipeline lane's defaults (owner
+// 2026-07-23). Bump so persisted per-tab configs re-default and surface it.
+const STORAGE_KEY = 'lumina.pipelinev2.table.config.v4';
 type AllConfigs = Record<string, TableConfig>;
 
 /** Default table config. Pass a lane key for per-lane default-visible columns;

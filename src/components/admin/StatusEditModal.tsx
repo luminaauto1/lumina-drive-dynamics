@@ -211,6 +211,9 @@ export function StatusEditModal({
   // Day-to-day working statuses (No Answer, Actioned) reset; milestones
   // (Validations Submitted, Contract Signed) must persist. Default OFF.
   const [resetsDaily, setResetsDaily] = useState(!!existing?.resets_daily);
+  // BOTH tracks: show a time-in-status timer on the Pipeline for leads in this
+  // status (green <5h, amber 5–14h, red 14h+). Default OFF; admin opts in.
+  const [showTimer, setShowTimer] = useState(!!existing?.show_timer);
   const [tag, setTag] = useState(existing?.easysocial_tag_to_add ?? '');
   // Multi tag-to-ADD (NAMES). When non-empty this is what the edge fn ADDs ALL of,
   // superseding the single `tag` override; empty => exactly today's single-tag path.
@@ -428,6 +431,8 @@ export function StatusEditModal({
         is_internal: isInternal,
         // Client track only — a finance status is never touched by the reset job.
         resets_daily: type === 'client' ? resetsDaily : false,
+        // Time-in-status timer — allowed on BOTH tracks.
+        show_timer: showTimer,
         easysocial_tag_to_add: legacySingleTag ? legacySingleTag : null,
         easysocial_tags_to_add: cleanTagsToAdd,
         status_type: type,
@@ -654,6 +659,24 @@ export function StatusEditModal({
               </p>
             </div>
           )}
+
+          {/* Time-in-status timer (BOTH tracks). When on, the Pipeline's Timer
+              column counts how long a lead has sat in this status, colouring it
+              green (0–5h) → amber (5–14h) → red (14h+). Client-status timers take
+              precedence over the finance-status timer on the same lead. */}
+          <div className="space-y-2 rounded-md border border-border p-3">
+            <div className="flex items-center gap-2">
+              <Checkbox id="showTimer" checked={showTimer} onCheckedChange={(v) => setShowTimer(!!v)} />
+              <Label htmlFor="showTimer" className="text-sm font-normal">
+                Show a time-in-status timer on the Pipeline
+              </Label>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              {showTimer
+                ? 'Leads in this status show a timer in the Pipeline’s Timer column: green up to 5 hours, amber 5–14 hours, red beyond 14. It counts from when this status was set. Toggle the Timer column itself under Columns (top-right).'
+                : 'No timer for this status — leads in it leave the Timer column blank.'}
+            </p>
+          </div>
 
           {/* Label */}
           <div className="space-y-1.5">
