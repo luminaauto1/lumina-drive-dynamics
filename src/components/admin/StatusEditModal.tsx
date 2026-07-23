@@ -218,6 +218,8 @@ export function StatusEditModal({
   // BOTH tracks: show a time-in-status timer on the Pipeline for leads in this
   // status (green <5h, amber 5–14h, red 14h+). Default OFF; admin opts in.
   const [showTimer, setShowTimer] = useState(!!existing?.show_timer);
+  // FINANCE track: moving a lead into this status resets its client_status to NULL.
+  const [clearClientStatus, setClearClientStatus] = useState(!!existing?.clear_client_status);
   const [tag, setTag] = useState(existing?.easysocial_tag_to_add ?? '');
   // Multi tag-to-ADD (NAMES). When non-empty this is what the edge fn ADDs ALL of,
   // superseding the single `tag` override; empty => exactly today's single-tag path.
@@ -442,6 +444,9 @@ export function StatusEditModal({
         resets_daily: type === 'client' ? resetsDaily : false,
         // Time-in-status timer — allowed on BOTH tracks.
         show_timer: showTimer,
+        // Clear-client-status-on-apply — FINANCE track only (client statuses can't
+        // clear themselves). Forced false on client rows.
+        clear_client_status: type === 'finance' ? clearClientStatus : false,
         easysocial_tag_to_add: legacySingleTag ? legacySingleTag : null,
         easysocial_tags_to_add: cleanTagsToAdd,
         status_type: type,
@@ -686,6 +691,24 @@ export function StatusEditModal({
                 : 'No timer for this status — leads in it leave the Timer column blank.'}
             </p>
           </div>
+
+          {/* Clear client status on apply — FINANCE track only. Enforced by a DB
+              trigger, so it holds no matter where the finance status is changed. */}
+          {type === 'finance' && (
+            <div className="space-y-2 rounded-md border border-border p-3">
+              <div className="flex items-center gap-2">
+                <Checkbox id="clearClientStatus" checked={clearClientStatus} onCheckedChange={(v) => setClearClientStatus(!!v)} />
+                <Label htmlFor="clearClientStatus" className="text-sm font-normal">
+                  Clear the client status when a lead moves into this status
+                </Label>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {clearClientStatus
+                  ? 'Moving a lead into this finance status resets its client status (No Answer, Actioned, …) to nothing, so the new stage starts clean. The note history is kept.'
+                  : 'The client status is left as-is when a lead reaches this status.'}
+              </p>
+            </div>
+          )}
 
           {/* Label */}
           <div className="space-y-1.5">

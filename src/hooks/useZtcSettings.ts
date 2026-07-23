@@ -270,13 +270,16 @@ export interface StatusOverride {
   /** BOTH tracks: show a time-in-status timer on the Pipeline for leads currently
    *  in this status. Default false = no timer. Admin opts specific statuses in. */
   show_timer: boolean;
+  /** FINANCE track: when a lead is moved into this finance status, reset its
+   *  client_status to NULL. Enforced by a DB trigger; default false. */
+  clear_client_status: boolean;
 }
 
 export const useStatusOverrides = () =>
   useQuery({
     queryKey: ['status-overrides'],
     queryFn: async (): Promise<StatusOverride[]> => {
-      const { data, error } = await db.from('status_overrides').select('slug, label, color_class, sort_order, is_hidden, whatsapp_message, status_type, comment_required, comment_prompt, is_internal, easysocial_tag_to_add, easysocial_tags_to_add, lane, easysocial_client_status, tag_remove_mode, easysocial_tags_to_remove, whatsapp_template_key, wa_body1_source, wa_body2_source, wa_body3_source, sla_hours, wa_client_info_enabled, wa_client_info_required, wa_client_info_prompt, fni_note_enabled, fni_note_required, fni_note_prompt, resets_daily, show_timer');
+      const { data, error } = await db.from('status_overrides').select('slug, label, color_class, sort_order, is_hidden, whatsapp_message, status_type, comment_required, comment_prompt, is_internal, easysocial_tag_to_add, easysocial_tags_to_add, lane, easysocial_client_status, tag_remove_mode, easysocial_tags_to_remove, whatsapp_template_key, wa_body1_source, wa_body2_source, wa_body3_source, sla_hours, wa_client_info_enabled, wa_client_info_required, wa_client_info_prompt, fni_note_enabled, fni_note_required, fni_note_prompt, resets_daily, show_timer, clear_client_status');
       if (error) throw error;
       return data ?? [];
     },
