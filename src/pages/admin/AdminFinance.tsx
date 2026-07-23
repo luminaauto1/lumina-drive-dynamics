@@ -102,7 +102,7 @@ const AdminFinance = () => {
   const { toast } = useToast();
   const { isSuperAdmin, isSeniorFAndI, isFAndI, role, user } = useAuth();
   const { theme } = useDeskTheme();
-  const { labelFor, whatsappMessageFor, commentRequiredFor, commentPromptFor, waClientInfoEnabledFor, waClientInfoRequiredFor, waClientInfoPromptFor, clientLabels, slaHoursMap } = useStatusConfig();
+  const { labelFor, whatsappMessageFor, commentRequiredFor, commentPromptFor, waClientInfoEnabledFor, waClientInfoRequiredFor, waClientInfoPromptFor, fniNoteEnabledFor, fniNoteRequiredFor, fniNotePromptFor, clientLabels, slaHoursMap } = useStatusConfig();
 
   // Owner-tunable SLAs (P4): push the settings map into the sla module so every
   // consumer (AgeChip, Stalled queue, KPI strip, this page's filter) resolves
@@ -565,7 +565,7 @@ const AdminFinance = () => {
   // ── Inline status-dropdown write (extracted so the comment gate can call it) ──
   // EXACT same finance write + sent_to_banks audit as before; `comment` (when
   // supplied via the comment gate) is appended as a status_change pipeline note.
-  const performFinanceStatusWrite = async (app: FinanceApplication, newStatus: string, comment?: string, extraUpdates?: any, waClientInfo?: string) => {
+  const performFinanceStatusWrite = async (app: FinanceApplication, newStatus: string, comment?: string, extraUpdates?: any, waClientInfo?: string, fniNote?: string) => {
     // GUARDRAIL: only allow whitelisted finance statuses to reach DB.
     const validFinanceStatuses = STATUS_OPTIONS.map(o => o.value);
     if (!validFinanceStatuses.includes(newStatus)) {
@@ -601,17 +601,22 @@ const AdminFinance = () => {
           author_name: noteAuthor,
         });
       }
-      // WhatsApp To Client Info — persist as its own note. Re-fetch fresh notes so
-      // this prepend doesn't clobber the comment note written just above.
+      // WhatsApp To Client Info — persist as its own note. addPipelineNote re-reads
+      // the DB notes before writing, so sequential notes never clobber each other.
       if (waInfoBody) {
-        const { data: freshRow } = await supabase
-          .from('finance_applications')
-          .select('id, pipeline_notes')
-          .eq('id', app.id)
-          .maybeSingle();
-        await addPipelineNote((freshRow ?? app) as any, {
+        await addPipelineNote(app, {
           body: waInfoBody,
           category: 'client_whatsapp',
+          author_id: user?.id ?? null,
+          author_name: noteAuthor,
+        });
+      }
+      // F&I note — persist as its own (user-facing) note.
+      const fniBody = fniNote?.trim() ?? '';
+      if (fniBody) {
+        await addPipelineNote(app, {
+          body: fniBody,
+          category: 'fni_note',
           author_id: user?.id ?? null,
           author_name: noteAuthor,
         });
@@ -682,8 +687,8 @@ const AdminFinance = () => {
       }
       // Existing reference — fall through to the gate / standard update.
     }
-    // Comment / WhatsApp-info gate — pop the modal instead of writing immediately.
-    if (commentRequiredFor(newStatus) || waClientInfoEnabledFor(newStatus)) {
+    // Comment / WhatsApp-info / F&I-note gate — pop the modal instead of writing immediately.
+    if (commentRequiredFor(newStatus) || waClientInfoEnabledFor(newStatus) || fniNoteEnabledFor(newStatus)) {
       setCommentGate({ app, status: newStatus });
       return;
     }
@@ -1907,7 +1912,7 @@ const AdminFinance = () => {
           }
           // This path used to skip the comment gate the plain dropdown enforces —
           // same transition, same gate: pop it and let confirm run the write.
-          if (commentRequiredFor(bankRefTargetStatus) || waClientInfoEnabledFor(bankRefTargetStatus)) {
+          if (commentRequiredFor(bankRefTargetStatus) || waClientInfoEnabledFor(bankRefTargetStatus) || fniNoteEnabledFor(bankRefTargetStatus)) {
             setCommentGate({ app: bankRefApp, status: bankRefTargetStatus, extra });
             return;
           }
@@ -1925,11 +1930,14 @@ const AdminFinance = () => {
           waInfoEnabled={waClientInfoEnabledFor(commentGate.status)}
           waInfoRequired={waClientInfoRequiredFor(commentGate.status)}
           waInfoPrompt={waClientInfoPromptFor(commentGate.status)}
+          fniEnabled={fniNoteEnabledFor(commentGate.status)}
+          fniRequired={fniNoteRequiredFor(commentGate.status)}
+          fniPrompt={fniNotePromptFor(commentGate.status)}
           onCancel={() => setCommentGate(null)}
-          onConfirm={(comment, waClientInfo) => {
+          onConfirm={(comment, waClientInfo, fniNote) => {
             const { app, status, extra } = commentGate;
             setCommentGate(null);
-            void performFinanceStatusWrite(app, status, comment, extra, waClientInfo);
+            void performFinanceStatusWrite(app, status, comment, extra, waClientInfo, fniNote);
           }}
         />
       )}

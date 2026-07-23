@@ -258,6 +258,10 @@ export interface StatusOverride {
   wa_client_info_enabled: boolean;            // show the dedicated "WhatsApp To Client Info" box on apply
   wa_client_info_required: boolean;           // block Apply until the box is filled (UI-enforced)
   wa_client_info_prompt: string | null;       // optional label shown above the box (NULL => generic)
+  // ── F&I notes — per-status internal comment box (additive; defaults preserve behaviour) ──
+  fni_note_enabled: boolean;                  // show the dedicated "F&I notes" box on apply
+  fni_note_required: boolean;                 // block Apply until the box is filled (UI-enforced)
+  fni_note_prompt: string | null;             // optional label shown above the box (NULL => generic)
   /** CLIENT track only: clear this status off applications at midnight SAST (the
    *  `client-status-daily-reset` cron job). ON for day-to-day working statuses
    *  ("No Answer", "Actioned"); OFF for milestones that must persist
@@ -272,7 +276,7 @@ export const useStatusOverrides = () =>
   useQuery({
     queryKey: ['status-overrides'],
     queryFn: async (): Promise<StatusOverride[]> => {
-      const { data, error } = await db.from('status_overrides').select('slug, label, color_class, sort_order, is_hidden, whatsapp_message, status_type, comment_required, comment_prompt, is_internal, easysocial_tag_to_add, easysocial_tags_to_add, lane, easysocial_client_status, tag_remove_mode, easysocial_tags_to_remove, whatsapp_template_key, wa_body1_source, wa_body2_source, wa_body3_source, sla_hours, wa_client_info_enabled, wa_client_info_required, wa_client_info_prompt, resets_daily, show_timer');
+      const { data, error } = await db.from('status_overrides').select('slug, label, color_class, sort_order, is_hidden, whatsapp_message, status_type, comment_required, comment_prompt, is_internal, easysocial_tag_to_add, easysocial_tags_to_add, lane, easysocial_client_status, tag_remove_mode, easysocial_tags_to_remove, whatsapp_template_key, wa_body1_source, wa_body2_source, wa_body3_source, sla_hours, wa_client_info_enabled, wa_client_info_required, wa_client_info_prompt, fni_note_enabled, fni_note_required, fni_note_prompt, resets_daily, show_timer');
       if (error) throw error;
       return data ?? [];
     },
@@ -385,6 +389,12 @@ export const useStatusConfig = () => {
   const waClientInfoRequiredFor = (slug: string) => byslug.get(slug)?.wa_client_info_required ?? false;
   const waClientInfoPromptFor = (slug: string) => byslug.get(slug)?.wa_client_info_prompt ?? '';
 
+  // F&I notes gate resolvers — same dual-track byslug lookup (finance slugs fixed;
+  // client slugs 'client_*'). Independent of the comment gate + WhatsApp box.
+  const fniNoteEnabledFor = (slug: string) => byslug.get(slug)?.fni_note_enabled ?? false;
+  const fniNoteRequiredFor = (slug: string) => byslug.get(slug)?.fni_note_required ?? false;
+  const fniNotePromptFor = (slug: string) => byslug.get(slug)?.fni_note_prompt ?? '';
+
   /* ---------------- Finance destination-tab (lane) overrides ----------------
      Per-finance-slug Pipeline v2 tab routing. Built from rows that are finance
      (status_type='finance' OR legacy rows with no type) AND have a non-null lane.
@@ -431,6 +441,7 @@ export const useStatusConfig = () => {
     clientStatuses, allClientStatuses, clientLabels, clientStyles,
     commentRequiredFor, commentPromptFor,
     waClientInfoEnabledFor, waClientInfoRequiredFor, waClientInfoPromptFor,
+    fniNoteEnabledFor, fniNoteRequiredFor, fniNotePromptFor,
     financeLaneOverrides, clientLaneOverrides, laneFor, slaHoursMap,
     timerStatuses,
   };
