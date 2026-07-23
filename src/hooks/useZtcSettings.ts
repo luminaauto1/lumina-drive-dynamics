@@ -263,13 +263,16 @@ export interface StatusOverride {
    *  ("No Answer", "Actioned"); OFF for milestones that must persist
    *  ("Validations Submitted", "Contract Signed"). Default false = never reset. */
   resets_daily: boolean;
+  /** BOTH tracks: show a time-in-status timer on the Pipeline for leads currently
+   *  in this status. Default false = no timer. Admin opts specific statuses in. */
+  show_timer: boolean;
 }
 
 export const useStatusOverrides = () =>
   useQuery({
     queryKey: ['status-overrides'],
     queryFn: async (): Promise<StatusOverride[]> => {
-      const { data, error } = await db.from('status_overrides').select('slug, label, color_class, sort_order, is_hidden, whatsapp_message, status_type, comment_required, comment_prompt, is_internal, easysocial_tag_to_add, easysocial_tags_to_add, lane, easysocial_client_status, tag_remove_mode, easysocial_tags_to_remove, whatsapp_template_key, wa_body1_source, wa_body2_source, wa_body3_source, sla_hours, wa_client_info_enabled, wa_client_info_required, wa_client_info_prompt, resets_daily');
+      const { data, error } = await db.from('status_overrides').select('slug, label, color_class, sort_order, is_hidden, whatsapp_message, status_type, comment_required, comment_prompt, is_internal, easysocial_tag_to_add, easysocial_tags_to_add, lane, easysocial_client_status, tag_remove_mode, easysocial_tags_to_remove, whatsapp_template_key, wa_body1_source, wa_body2_source, wa_body3_source, sla_hours, wa_client_info_enabled, wa_client_info_required, wa_client_info_prompt, resets_daily, show_timer');
       if (error) throw error;
       return data ?? [];
     },
@@ -417,11 +420,18 @@ export const useStatusConfig = () => {
     if (isFinance && o.sla_hours != null && Number(o.sla_hours) > 0) slaHoursMap[o.slug] = Number(o.sla_hours);
   }
 
+  // Slugs (BOTH tracks) whose leads should show a time-in-status timer on the
+  // Pipeline. Finance slugs are fixed and client slugs are 'client_*', so they
+  // never collide — one set serves both. Empty => no timers anywhere (default).
+  const timerStatuses = new Set<string>();
+  for (const o of overrides) if (o.show_timer) timerStatuses.add(o.slug);
+
   return {
     merged, labelFor, classFor, whatsappMessageFor, labels, styles,
     clientStatuses, allClientStatuses, clientLabels, clientStyles,
     commentRequiredFor, commentPromptFor,
     waClientInfoEnabledFor, waClientInfoRequiredFor, waClientInfoPromptFor,
     financeLaneOverrides, clientLaneOverrides, laneFor, slaHoursMap,
+    timerStatuses,
   };
 };

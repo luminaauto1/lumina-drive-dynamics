@@ -11,7 +11,7 @@ import { STATUS_STYLES, ADMIN_STATUS_LABELS, statusBadgeClass } from '@/lib/stat
 import { useDeskTheme } from '@/hooks/useDeskTheme';
 import { useStatusConfig } from '@/hooks/useZtcSettings';
 import { INTERNAL_STATUSES, normalizeInternalStatus, type InternalStatus } from '@/lib/internalStatusConfig';
-import { formatCurrencyR, formatDate, formatTime, formatPhone, relativeTime } from '@/lib/pipelinev2/format';
+import { formatCurrencyR, formatDate, formatTime, formatPhone, relativeTime, formatDuration, timerBucket, TIMER_BUCKET_CLASS } from '@/lib/pipelinev2/format';
 import { CreditScanButton } from '@/components/finance/CreditScanButton';
 import { TABLE_COLUMNS, columnClass, type TableConfig } from '@/lib/pipelinev2/columns';
 import { sourceLabel } from '@/lib/pipelinev2/source';
@@ -79,7 +79,17 @@ export function ApplicationTable({
   // Client-status track (DB-driven, customizable). Only the label/colour maps are
   // needed now: the cell renders a badge button and the actual write happens in the
   // Change-status modal (Client tab), so no mutation is wired here anymore.
-  const { clientLabels, clientStyles } = useStatusConfig();
+  const { clientLabels, clientStyles, timerStatuses } = useStatusConfig();
+  // Live clock for the time-in-status timer column. Ticks once a minute so the
+  // elapsed label and its colour advance without a manual refresh; thresholds are
+  // in hours, so minute granularity is ample and the re-render is cheap (only the
+  // windowed rows). Only actually mounts an interval when some status has a timer.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (timerStatuses.size === 0) return;
+    const id = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(id);
+  }, [timerStatuses.size]);
   const colByKey = new Map(TABLE_COLUMNS.map((c) => [c.key, c]));
   const visible = config.visible.map((k) => colByKey.get(k)).filter(Boolean) as TableColumnDef[];
   type TableColumnDef = (typeof TABLE_COLUMNS)[number];
@@ -201,7 +211,7 @@ export function ApplicationTable({
                       ?? (col.key === 'status' && statusSelect
                         ? <InlineStatusSelect app={a} statusSelect={statusSelect} theme={theme} />
                         : renderCell(col.key, a, busy, onChangeStatus, statusLabels, statusStyles, theme, {
-                            clientLabels, clientStyles,
+                            clientLabels, clientStyles, timerStatuses, now,
                           }))}
                   </td>
                 ))}
@@ -409,6 +419,30 @@ function InlineStatusSelect({
   );
 }
 
+/**
+ * Which timestamp drives the time-in-status timer for this row, and from which
+ * track. Client status wins when it's timer-enabled AND has a stamped time
+ * (client_status_updated_at); otherwise the finance status if IT is timer-enabled
+ * (status_updated_at, falling back to updated_at for the ~10 legacy rows that
+ * predate the stamp trigger). Returns null when neither status has a timer.
+ */
+function resolveTimer(
+  a: any,
+  timerStatuses?: Set<string>,
+): { since: string; track: 'client' | 'finance' } | null {
+  if (!timerStatuses || timerStatuses.size === 0) return null;
+  const cs = a.client_status;
+  if (cs && timerStatuses.has(cs) && a.client_status_updated_at) {
+    return { since: a.client_status_updated_at, track: 'client' };
+  }
+  const fs = a.status;
+  if (fs && timerStatuses.has(fs)) {
+    const since = a.status_updated_at || a.updated_at;
+    if (since) return { since, track: 'finance' };
+  }
+  return null;
+}
+
 function renderCell(
   key: string, a: FinanceApplication, busy: Busy | undefined,
   onChangeStatus?: (app: FinanceApplication, track?: 'finance' | 'client') => void,
@@ -418,6 +452,10 @@ function renderCell(
   client?: {
     clientLabels: Record<string, string>;
     clientStyles: Record<string, string>;
+    /** Slugs (both tracks) that should paint a time-in-status timer. */
+    timerStatuses?: Set<string>;
+    /** Shared clock (ms) so every row's timer reads off the same tick. */
+    now?: number;
   },
 ): React.ReactNode {
   const any = a as any;
@@ -465,6 +503,29 @@ function renderCell(
         </button>
       ) : (
         <span className={'rounded border px-1.5 py-0.5 text-xs font-semibold ' + cls}>{label}</span>
+      );
+    }
+    case 'timer': {
+      // Time-in-status timer. Client status wins when it's timer-enabled and has a
+      // timestamp, else the finance status (owner 2026-07-23). Renders nothing (a
+      // faint dash) for statuses without a timer, so the column is quiet until the
+      // admin opts statuses in. Colour buckets: 0–5h green, 5–14h amber, 14h+ red.
+      const t = resolveTimer(any, client?.timerStatuses);
+      if (!t) return <span className="text-muted-foreground/30">—</span>;
+      const started = new Date(t.since).getTime();
+      if (Number.isNaN(started)) return <span className="text-muted-foreground/30">—</span>;
+      const elapsed = Math.max(0, (client?.now ?? Date.now()) - started);
+      const bucket = timerBucket(elapsed);
+      const statusLabel = t.track === 'client'
+        ? (client?.clientLabels?.[any.client_status] || any.client_status || 'client status')
+        : (statusLabels?.[any.status] || ADMIN_STATUS_LABELS[any.status] || any.status || 'status');
+      const sinceStr = `${formatDate(t.since)} ${formatTime(t.since)}`.trim();
+      const tip = `In "${statusLabel}" for ${formatDuration(elapsed)}${sinceStr ? ` — since ${sinceStr}` : ''}`;
+      return (
+        <span title={tip}
+          className={'inline-flex items-center rounded border px-1.5 py-0.5 text-xs font-semibold tabular-nums ' + TIMER_BUCKET_CLASS[bucket]}>
+          {formatDuration(elapsed)}
+        </span>
       );
     }
     case 'internal': {

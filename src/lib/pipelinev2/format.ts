@@ -46,3 +46,38 @@ export const relativeTime = (iso: string | null | undefined): string => {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? '' : formatDistanceToNow(d, { addSuffix: true });
 };
+
+// ── Pipeline time-in-status timer ──────────────────────────────────────────
+// Compact elapsed-time label + colour bucket for the Pipeline 'timer' column.
+// Real wall-clock (24/7) per owner rule 2026-07-23.
+
+/** Compact duration: "8m", "3h", "3h 20m", "2d 4h". Never shows seconds. */
+export const formatDuration = (ms: number): string => {
+  const totalMin = Math.max(0, Math.floor(ms / 60000));
+  if (totalMin < 60) return `${totalMin}m`;
+  const totalHr = Math.floor(totalMin / 60);
+  const minRem = totalMin % 60;
+  if (totalHr < 24) return minRem ? `${totalHr}h ${minRem}m` : `${totalHr}h`;
+  const days = Math.floor(totalHr / 24);
+  const hrRem = totalHr % 24;
+  return hrRem ? `${days}d ${hrRem}h` : `${days}d`;
+};
+
+export type TimerBucket = 'green' | 'amber' | 'red';
+
+/** Age → colour bucket (owner thresholds 2026-07-23): 0–5h green, 5–14h amber,
+ *  14h+ red. Boundaries land in the LOWER bucket (exactly 5h is still green). */
+export const timerBucket = (ms: number): TimerBucket => {
+  const hours = ms / 3_600_000;
+  if (hours <= 5) return 'green';
+  if (hours <= 14) return 'amber';
+  return 'red';
+};
+
+/** Badge classes per bucket. Mirrors the existing credit-check badge tokens, so
+ *  it renders correctly in both admin themes (light + dark). */
+export const TIMER_BUCKET_CLASS: Record<TimerBucket, string> = {
+  green: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+  amber: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+  red: 'bg-red-500/15 text-red-400 border-red-500/30',
+};
