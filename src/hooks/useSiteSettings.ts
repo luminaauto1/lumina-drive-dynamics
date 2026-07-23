@@ -8,6 +8,13 @@ export interface SiteSettings {
   min_balloon_percent: number;
   max_balloon_percent: number;
   default_balloon_percent: number | null;
+  // Public inventory-card finance structure (owner-editable; drives the /pm
+  // estimate on every VehicleCard). Separate from the default_/min_/max_ fields,
+  // which drive the calculator + quote tools. See migration 20260723080000.
+  card_interest_rate: number | null;
+  card_deposit_percent: number | null;
+  card_balloon_percent: number | null;
+  card_term_months: number | null;
   show_finance_tab: boolean;
   show_trade_in: boolean;
   is_maintenance_mode: boolean;
