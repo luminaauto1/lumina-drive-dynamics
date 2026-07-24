@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { Loader2, Save, ListChecks, Info, Eye, EyeOff, SlidersHorizontal, Plus, Pencil, Trash2, UserCheck, Search, X } from 'lucide-react';
+import { Loader2, ListChecks, Info, Eye, EyeOff, Plus, Pencil, Trash2, UserCheck, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   useStatusConfig,
   useStatusOverrides,
@@ -15,83 +14,49 @@ import {
 import { StatusEditModal } from '@/components/admin/StatusEditModal';
 import ConfirmDialog from '@/components/admin/ConfirmDialog';
 
-// Colour presets (shadcn/dark tokens) the admin can pick per status.
-const COLOR_PRESETS: { label: string; cls: string }[] = [
-  { label: 'Slate', cls: 'bg-muted text-muted-foreground border-border' },
-  { label: 'Blue', cls: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
-  { label: 'Cyan', cls: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
-  { label: 'Amber', cls: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
-  { label: 'Green', cls: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
-  { label: 'Purple', cls: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
-  { label: 'Red', cls: 'bg-red-500/20 text-red-400 border-red-500/30' },
-];
-
-// Finance row — keeps the inline quick-edit of label/colour/order/visibility,
-// and an "Edit…" affordance that opens the rich modal (comment gate, internal
-// flag, EasySocial tag, WhatsApp auto-send — slug stays read-only).
-// The inline "WhatsApp message" textarea is GONE (owner 2026-07-20): it edited
-// the tap-to-chat pre-fill but read as the auto-send template, and its one-shot
-// state made this Row's Save clobber modal saves. whatsapp_message is not in
-// the payload, so the partial upsert leaves the column untouched.
-const Row = ({ s, order, onEdit }: { s: MergedStatus; order: number; onEdit: (slug: string) => void }) => {
+// Finance (pipeline) row — compact card matching the client-status row (owner
+// 2026-07-24): badge + slug + Edit + a delete/restore action. All editing —
+// label, colour, visibility, comment gate, timer, F&I notes, lane, etc. — lives
+// in the rich StatusEditModal (Edit); the slug stays read-only.
+//
+// Finance statuses are fixed pipeline contracts, so "delete" can't remove one.
+// The trash button HIDES it instead (is_hidden=true): filterStatusOptionsForRole
+// then drops it from every status-change dropdown, and this list hides it behind
+// "Show hidden" — fully reversible via Restore. A partial upsert of just
+// { slug, is_hidden } leaves every other column untouched.
+const FinanceRow = ({ s, onEdit }: { s: MergedStatus; onEdit: (slug: string) => void }) => {
   const upsert = useUpsertStatusOverride();
-  const [label, setLabel] = useState(s.label);
-  const [cls, setCls] = useState(s.colorClass);
-  const [sortOrder, setSortOrder] = useState(order);
-  const [hidden, setHidden] = useState(s.hidden);
-  // Re-seed the inline editors when the SERVER value changes — chiefly after the
-  // rich modal saves this same slug. This Row has a stable key={s.value} and the
-  // file uses no effects, so its state is otherwise frozen at mount and this
-  // Row's Save would write stale values back. The snapshot is built from PROPS
-  // only, so it can never fire off a local edit and clobber in-progress typing.
-  const serverSnapshot = JSON.stringify([s.label, s.colorClass, order, s.hidden]);
-  const [seed, setSeed] = useState(serverSnapshot);
-  if (seed !== serverSnapshot) {
-    setSeed(serverSnapshot);
-    setLabel(s.label);
-    setCls(s.colorClass);
-    setSortOrder(order);
-    setHidden(s.hidden);
-  }
-  const save = () =>
-    upsert.mutate({
-      slug: s.value,
-      label,
-      color_class: cls,
-      sort_order: sortOrder,
-      is_hidden: hidden,
-    });
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const setHidden = (hidden: boolean) => upsert.mutate({ slug: s.value, is_hidden: hidden });
   return (
     <Card>
       <CardContent className="py-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className={'rounded border px-1.5 py-0.5 text-xs font-semibold ' + cls}>{label || s.value}</span>
+          <span className={'rounded border px-1.5 py-0.5 text-xs font-semibold ' + s.colorClass}>{s.label || s.value}</span>
           <span className="text-[10px] text-muted-foreground font-mono">{s.value}</span>
+          {s.hidden && <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground"><EyeOff className="w-3 h-3" /> hidden</span>}
           <div className="flex-1" />
-          <Button size="sm" variant="outline" onClick={() => onEdit(s.value)} className="h-7 gap-1" title="Edit rules (comment gate, internal, tag)">
-            <SlidersHorizontal className="w-3.5 h-3.5" /> Edit…
+          <Button size="sm" variant="outline" onClick={() => onEdit(s.value)} className="h-7 gap-1">
+            <Pencil className="w-3.5 h-3.5" /> Edit
           </Button>
-          <Button size="sm" onClick={save} disabled={upsert.isPending} className="h-7 gap-1">
-            {upsert.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Save
-          </Button>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
-          <div className="md:col-span-2">
-            <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Display label" className="h-8 text-sm" />
-          </div>
-          <Select value={cls} onValueChange={setCls}>
-            <SelectTrigger className="h-8"><SelectValue placeholder="Colour" /></SelectTrigger>
-            <SelectContent>{COLOR_PRESETS.map((p) => <SelectItem key={p.cls} value={p.cls}>{p.label}</SelectItem>)}</SelectContent>
-          </Select>
-          <div className="flex items-center gap-2">
-            <Input type="number" value={sortOrder} onChange={(e) => setSortOrder(Number(e.target.value))} className="h-8 w-20" title="Sort order" />
-            <button type="button" onClick={() => setHidden((h) => !h)} title={hidden ? 'Hidden' : 'Visible'}
-              className={'inline-flex items-center gap-1 text-xs ' + (hidden ? 'text-muted-foreground' : 'text-foreground')}>
-              {hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-            </button>
-          </div>
+          {s.hidden ? (
+            <Button size="sm" variant="outline" onClick={() => setHidden(false)} disabled={upsert.isPending} className="h-7 gap-1" title="Restore this status">
+              {upsert.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />} Restore
+            </Button>
+          ) : (
+            <Button size="sm" variant="ghost" onClick={() => setConfirmOpen(true)} disabled={upsert.isPending} className="h-7 gap-1 text-red-400 hover:text-red-300" title="Hide (remove from use)">
+              {upsert.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+            </Button>
+          )}
         </div>
       </CardContent>
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Hide finance status?"
+        description={`Hide "${s.label || s.value}"? It's removed from the status dropdowns staff pick from and from this list — any lead already in it is unaffected. Restore it any time with "Show hidden".`}
+        onConfirm={() => { setHidden(true); setConfirmOpen(false); }}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </Card>
   );
 };
@@ -139,15 +104,19 @@ const StatusesTab = () => {
   // Modal state: which editor is open, in which mode, on which slug.
   const [editor, setEditor] = useState<{ mode: 'finance' | 'client'; slug?: string } | null>(null);
   const [query, setQuery] = useState('');
+  // Hidden ("deleted") finance statuses are collapsed by default; this reveals
+  // them so they can be restored.
+  const [showHidden, setShowHidden] = useState(false);
 
   // Filter BOTH tracks by label OR slug — every whitespace-split term must match.
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
   const matches = (label: string, slug: string) =>
     terms.length === 0 || terms.every((t) => `${label} ${slug}`.toLowerCase().includes(t));
   const filteredClients = allClientStatuses.filter((c) => matches(c.label, c.value));
+  const hiddenFinanceCount = merged.filter((s) => s.hidden).length;
   const filteredMerged = merged
-    .map((s, i) => ({ s, order: s.sortOrder ?? i }))
-    .filter(({ s }) => matches(s.label, s.value));
+    .filter((s) => showHidden || !s.hidden)   // hidden finance statuses collapse by default
+    .filter((s) => matches(s.label, s.value));
 
   return (
     // Width comes from the page shell (SettingsPageLayout) — this page is 'wide'.
@@ -155,10 +124,11 @@ const StatusesTab = () => {
       <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-2.5 text-xs text-amber-300">
         <Info className="w-4 h-4 shrink-0 mt-0.5" />
         <span>
-          <strong>Finance statuses</strong> have fixed keys (wired into the auto-mailer, WhatsApp notifications and pipeline lanes), but their
-          presentation <em>and</em> rules — label, colour, order, visibility, WhatsApp message, comment gate, internal flag, EasySocial tag — are
-          editable. <strong>Client statuses</strong> are free-form: add, rename, recolour and delete them freely; by default they leave the application
-          in whatever lane its finance status puts it, but each one can optionally be pointed at a pipeline lane of its own.
+          <strong>Finance statuses</strong> have fixed keys (wired into the auto-mailer, WhatsApp notifications and pipeline lanes), so they can't be
+          deleted — but everything else (label, colour, visibility, comment gate, F&amp;I notes, EasySocial tag, …) is editable via <strong>Edit</strong>.
+          The <strong>trash</strong> button <em>hides</em> a finance status: it drops out of the status dropdowns staff pick from and this list, and is
+          restorable any time via <strong>Show hidden</strong>. <strong>Client statuses</strong> are free-form: add, rename, recolour and delete them
+          freely; by default they leave the application in whatever lane its finance status puts it, but each one can optionally be pointed at a pipeline lane of its own.
         </span>
       </div>
 
@@ -209,15 +179,23 @@ const StatusesTab = () => {
 
       {/* Pipeline (finance) statuses */}
       <div className="space-y-2 border-t border-border pt-5">
-        <div className="flex items-center gap-2">
-          <ListChecks className="w-4 h-4 text-primary" />
-          <h3 className="text-base font-semibold">Pipeline Statuses</h3>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <ListChecks className="w-4 h-4 text-primary" />
+            <h3 className="text-base font-semibold">Pipeline Statuses</h3>
+          </div>
+          {hiddenFinanceCount > 0 && (
+            <Button size="sm" variant="ghost" onClick={() => setShowHidden((v) => !v)} className="h-7 gap-1 text-xs text-muted-foreground">
+              {showHidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              {showHidden ? 'Hide hidden' : `Show hidden (${hiddenFinanceCount})`}
+            </Button>
+          )}
         </div>
         <div className="space-y-2">
           {isLoading ? <div className="py-8 text-center text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin inline" /></div>
             : filteredMerged.length === 0
               ? <p className="text-xs text-muted-foreground py-3">No pipeline statuses match “{query.trim()}”.</p>
-              : filteredMerged.map(({ s, order }) => <Row key={s.value} s={s} order={order} onEdit={(slug) => setEditor({ mode: 'finance', slug })} />)}
+              : filteredMerged.map((s) => <FinanceRow key={s.value} s={s} onEdit={(slug) => setEditor({ mode: 'finance', slug })} />)}
         </div>
       </div>
 

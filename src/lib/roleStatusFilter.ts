@@ -36,14 +36,29 @@ export function filterStatusOptionsForRole<T extends { value: string }>(
   role: string | null | undefined,
   currentStatus?: string,
   perUser?: string[] | null,
+  hiddenSlugs?: Set<string> | null,
 ): T[] {
-  const override = perUser && perUser.length > 0 ? perUser : null;
-  if (!override && role !== 'f_and_i' && role !== 'senior_f_and_i') return options;
+  let result = options;
 
-  const base = override
-    ?? (role === 'senior_f_and_i' ? SENIOR_F_AND_I_ALLOWED_STATUSES : F_AND_I_ALLOWED_STATUSES);
-  const allowed = new Set(base);
-  // Always include the current status (read-only fallback) so the trigger renders
-  if (currentStatus) allowed.add(currentStatus);
-  return options.filter(o => allowed.has(o.value));
+  // 1) Role / per-user allowlist. Unchanged; only runs when a restriction applies.
+  const override = perUser && perUser.length > 0 ? perUser : null;
+  if (override || role === 'f_and_i' || role === 'senior_f_and_i') {
+    const base = override
+      ?? (role === 'senior_f_and_i' ? SENIOR_F_AND_I_ALLOWED_STATUSES : F_AND_I_ALLOWED_STATUSES);
+    const allowed = new Set(base);
+    // Always include the current status (read-only fallback) so the trigger renders.
+    if (currentStatus) allowed.add(currentStatus);
+    result = result.filter(o => allowed.has(o.value));
+  }
+
+  // 2) Admin-hidden statuses (Settings → Statuses "delete"/hide). Applies to EVERY
+  //    role, including unrestricted admins — a hidden finance status must not be
+  //    offered anywhere. The current status is kept so a lead already sitting in a
+  //    hidden status still renders its badge and can be moved OUT of it. Omitted /
+  //    empty set => byte-for-byte the previous behaviour (backward compatible).
+  if (hiddenSlugs && hiddenSlugs.size > 0) {
+    result = result.filter(o => o.value === currentStatus || !hiddenSlugs.has(o.value));
+  }
+
+  return result;
 }

@@ -62,7 +62,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
   const updateApplication = useUpdateFinanceApplication();
   const { role, user } = useAuth();
   const myAllowedStatuses = useMyAllowedStatuses();
-  const { commentRequiredFor, commentPromptFor } = useStatusConfig();
+  const { commentRequiredFor, commentPromptFor, hiddenFinanceStatuses } = useStatusConfig();
   // Terminal / customer-messaging transitions get a confirm step (a single mis-tap
   // would otherwise WhatsApp/email the client and archive the deal).
   const [pendingStatusChange, setPendingStatusChange] = useState<{ app: any; status: string } | null>(null);
@@ -72,7 +72,7 @@ export default function UniversalClientHub({ open, onOpenChange, clientEmail, cl
   // Role-appropriate options, and always include the app's CURRENT status so the
   // trigger renders a label even for legacy statuses not in STATUS_OPTIONS.
   const statusOptionsFor = (app: any) => {
-    const opts = filterStatusOptionsForRole(STATUS_OPTIONS, role, app?.status, myAllowedStatuses);
+    const opts = filterStatusOptionsForRole(STATUS_OPTIONS, role, app?.status, myAllowedStatuses, hiddenFinanceStatuses);
     if (app?.status && !opts.some((o) => o.value === app.status)) {
       return [{ value: app.status, label: app.status.replace(/_/g, ' ') }, ...opts];
     }

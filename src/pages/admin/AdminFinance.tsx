@@ -102,7 +102,7 @@ const AdminFinance = () => {
   const { toast } = useToast();
   const { isSuperAdmin, isSeniorFAndI, isFAndI, role, user } = useAuth();
   const { theme } = useDeskTheme();
-  const { labelFor, whatsappMessageFor, commentRequiredFor, commentPromptFor, waClientInfoEnabledFor, waClientInfoRequiredFor, waClientInfoPromptFor, fniNoteEnabledFor, fniNoteRequiredFor, fniNotePromptFor, clientLabels, slaHoursMap } = useStatusConfig();
+  const { labelFor, whatsappMessageFor, commentRequiredFor, commentPromptFor, waClientInfoEnabledFor, waClientInfoRequiredFor, waClientInfoPromptFor, fniNoteEnabledFor, fniNoteRequiredFor, fniNotePromptFor, clientLabels, slaHoursMap, hiddenFinanceStatuses } = useStatusConfig();
 
   // Owner-tunable SLAs (P4): push the settings map into the sla module so every
   // consumer (AgeChip, Stalled queue, KPI strip, this page's filter) resolves
@@ -1422,7 +1422,7 @@ const AdminFinance = () => {
               onToggleSelect={toggleSelect}
               onToggleSelectAll={toggleSelectAll}
               statusSelect={{
-                options: (app) => filterStatusOptionsForRole(STATUS_OPTIONS, role, (app as any).status, myAllowedStatuses),
+                options: (app) => filterStatusOptionsForRole(STATUS_OPTIONS, role, (app as any).status, myAllowedStatuses, hiddenFinanceStatuses),
                 onChange: (app, status) => requestFinanceStatusChange(app, status),
               }}
               windowKey={`${searchQuery}|${statusFilter}|${bucketFilter ?? ''}|${fniFilter}|${viewMode}|${sortKey}`}
@@ -1628,7 +1628,7 @@ const AdminFinance = () => {
               // per-user allowlist too — otherwise a user pinned to a narrow set
               // could still jump a file to Ready to Submit / Sent to Banks.
               const settable = new Set(
-                filterStatusOptionsForRole(STATUS_OPTIONS, role, undefined, myAllowedStatuses).map((o) => o.value),
+                filterStatusOptionsForRole(STATUS_OPTIONS, role, undefined, myAllowedStatuses, hiddenFinanceStatuses).map((o) => o.value),
               );
               const handleFinalize = async (
                 targetStatus: 'sent_to_banks' | 'ready_to_submit',

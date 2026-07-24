@@ -7,6 +7,7 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { filterStatusOptionsForRole } from '@/lib/roleStatusFilter';
 import { useMyAllowedStatuses } from '@/hooks/useAppVisibility';
+import { useStatusConfig } from '@/hooks/useZtcSettings';
 import { TRACK_META, trackLabel, type StatusTrack } from '@/lib/admin/statusTracks';
 
 export function StatusSelect({
@@ -38,10 +39,13 @@ export function StatusSelect({
   // current value selectable (the finance filter's read-only fallback).
   // Per-user allowlist (Settings → Status Permissions) narrows the role default.
   const perUser = useMyAllowedStatuses();
+  // Admin-hidden finance statuses drop out of the finance dropdown (kept selectable
+  // only if it's the current value, via filterStatusOptionsForRole).
+  const { hiddenFinanceStatuses } = useStatusConfig();
   const options = track === 'client'
     ? (optionsProp ?? [])
     : track === 'finance'
-      ? filterStatusOptionsForRole(TRACK_META.finance.options, role, value, perUser)
+      ? filterStatusOptionsForRole(TRACK_META.finance.options, role, value, perUser, hiddenFinanceStatuses)
       : TRACK_META.deal.options;
 
   return (
