@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { FileText, Plus, Printer, Save, ArrowLeft, Pencil, Trash2, Upload, ImageOff, Loader2 } from 'lucide-react';
+import { FileText, Plus, Save, ArrowLeft, Pencil, Trash2, Upload, ImageOff, Loader2, Download } from 'lucide-react';
 import { toast } from 'sonner';
+import { downloadPdfFromElement, pdfFilename } from '@/lib/domToPdf';
 import ConfirmDialog from '@/components/admin/ConfirmDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useDocumentSettings, consumeQuoteNumber } from '@/hooks/useDocumentSettings';
@@ -85,9 +86,14 @@ const AdminQuote = () => {
   const [data, setData] = useState<QuoteData | null>(null);
   const [baseDate, setBaseDate] = useState<Date>(() => new Date());
   const [saving, setSaving] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [defaultRep, setDefaultRep] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+  // Direct PDF download of the live preview's A4 sheet — no print dialog, no
+  // save-as, same one-click behaviour as the OTP. The quote design is untouched;
+  // domToPdf scales a slightly-tall sheet to fit one page.
+  const previewRef = useRef<HTMLDivElement>(null);
   const prefilledFor = useRef<string | null>(null);
 
   const calc = useMemo(() => (data ? calcQuote(data) : null), [data]);
@@ -248,6 +254,23 @@ const AdminQuote = () => {
     return null;
   };
 
+  const handleDownload = async () => {
+    if (!data) return;
+    const root = previewRef.current;
+    const page = root?.querySelector<HTMLElement>('.page');
+    if (!page) return;
+    setDownloading(true);
+    try {
+      // Let embedded fonts settle so letter-spaced Montserrat captures crisply.
+      await (document as any).fonts?.ready?.catch?.(() => {});
+      await downloadPdfFromElement(page, pdfFilename('Quote', data.quote.ref || 'draft', data.client.name || 'client'));
+    } catch (e: any) {
+      toast.error('PDF download failed: ' + (e?.message || e));
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!data || !settings) return;
     const err = validate(data);
@@ -395,7 +418,10 @@ const AdminQuote = () => {
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground font-mono">{data.quote.ref || '(ref assigned on save)'}</span>
             <Button variant="outline" onClick={handleSave} disabled={saving} className="gap-2"><Save className="w-4 h-4" /> {saving ? 'Saving…' : 'Save Quote'}</Button>
-            <Button onClick={() => window.print()} className="gap-2"><Printer className="w-4 h-4" /> Download PDF</Button>
+            <Button onClick={handleDownload} disabled={downloading} className="gap-2">
+              {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              {downloading ? 'Preparing…' : 'Download PDF'}
+            </Button>
           </div>
         </div>
 
@@ -504,7 +530,7 @@ const AdminQuote = () => {
 
           {/* LIVE PREVIEW */}
           <div className="bg-muted/30 rounded-lg p-4 overflow-auto max-h-[calc(100vh-160px)]">
-            <div className="quote-print-root quote-preview-wrap origin-top" style={{ transform: 'scale(0.62)', transformOrigin: 'top left', width: '210mm' }}>
+            <div ref={previewRef} className="quote-print-root quote-preview-wrap origin-top" style={{ transform: 'scale(0.62)', transformOrigin: 'top left', width: '210mm' }}>
               <QuoteDocument data={data} />
             </div>
           </div>
