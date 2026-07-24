@@ -54,6 +54,8 @@ const FinanceRow = ({ s, onEdit }: { s: MergedStatus; onEdit: (slug: string) => 
         open={confirmOpen}
         title="Hide finance status?"
         description={`Hide "${s.label || s.value}"? It's removed from the status dropdowns staff pick from and from this list — any lead already in it is unaffected. Restore it any time with "Show hidden".`}
+        confirmLabel="Hide"
+        destructive={false}
         onConfirm={() => { setHidden(true); setConfirmOpen(false); }}
         onCancel={() => setConfirmOpen(false)}
       />
