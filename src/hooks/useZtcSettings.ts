@@ -439,6 +439,16 @@ export const useStatusConfig = () => {
   const timerStatuses = new Set<string>();
   for (const o of overrides) if (o.show_timer) timerStatuses.add(o.slug);
 
+  // FINANCE slugs the admin has hidden ("delete"/hide in Settings → Statuses).
+  // Fed to filterStatusOptionsForRole so hidden finance statuses drop out of every
+  // status-change dropdown. Finance slugs are fixed + client slugs are 'client_*',
+  // so scoping to the finance track keeps a hidden client status out of this set.
+  const hiddenFinanceStatuses = new Set<string>();
+  for (const o of overrides) {
+    const isFinance = !o.status_type || o.status_type === 'finance';
+    if (isFinance && o.is_hidden) hiddenFinanceStatuses.add(o.slug);
+  }
+
   return {
     merged, labelFor, classFor, whatsappMessageFor, labels, styles,
     clientStatuses, allClientStatuses, clientLabels, clientStyles,
@@ -446,6 +456,6 @@ export const useStatusConfig = () => {
     waClientInfoEnabledFor, waClientInfoRequiredFor, waClientInfoPromptFor,
     fniNoteEnabledFor, fniNoteRequiredFor, fniNotePromptFor,
     financeLaneOverrides, clientLaneOverrides, laneFor, slaHoursMap,
-    timerStatuses,
+    timerStatuses, hiddenFinanceStatuses,
   };
 };

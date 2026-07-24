@@ -70,7 +70,7 @@ const CrmTable = ({ records, onOpen, onChanged, selectedIds, onToggleSelect, can
   const myAllowedStatuses = useMyAllowedStatuses();
   const updateLead = useUpdateLead();
   const updateApp = useUpdateFinanceApplication();
-  const { commentRequiredFor, commentPromptFor } = useStatusConfig();
+  const { commentRequiredFor, commentPromptFor, hiddenFinanceStatuses } = useStatusConfig();
   const [bankRefOpen, setBankRefOpen] = useState(false);
   const [bankRefAppId, setBankRefAppId] = useState<string | null>(null);
   // Comment-gate interception (finance rows only — leads have no status rules).
@@ -168,7 +168,7 @@ const CrmTable = ({ records, onOpen, onChanged, selectedIds, onToggleSelect, can
               const lastName = name.split(' ').slice(1).join(' ');
               const isFinance = !!rec.appDetails;
               const status = (isFinance ? rec.appDetails.status : rec.status) || 'new';
-              const options = isFinance ? filterStatusOptionsForRole(FINANCE_STATUS_OPTIONS, role, status, myAllowedStatuses) : LEAD_STATUS_OPTIONS;
+              const options = isFinance ? filterStatusOptionsForRole(FINANCE_STATUS_OPTIONS, role, status, myAllowedStatuses, hiddenFinanceStatuses) : LEAD_STATUS_OPTIONS;
               return (
                 <TableRow key={rec.id} className={`border-l-4 ${getRowBorder(status)} even:bg-white/[0.02] hover:bg-primary/5 cursor-pointer transition-colors`} onClick={() => onOpen(rec)}>
                   {canSelect && (

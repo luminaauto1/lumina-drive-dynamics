@@ -65,6 +65,7 @@ const AdminDealRoom = () => {
   const {
     labels: financeLabels, styles: financeStyles, whatsappMessageFor,
     clientStatuses, clientLabels, clientStyles, commentRequiredFor, commentPromptFor,
+    hiddenFinanceStatuses,
   } = useStatusConfig();
   const updateClientStatus = useUpdateClientStatus();
   const { data: docSettings } = useDocumentSettings();
@@ -1279,7 +1280,7 @@ const AdminDealRoom = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {filterStatusOptionsForRole(STATUS_OPTIONS, role, application.status, myAllowedStatuses).map(opt => (
+                      {filterStatusOptionsForRole(STATUS_OPTIONS, role, application.status, myAllowedStatuses, hiddenFinanceStatuses).map(opt => (
                         <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                       ))}
                     </SelectContent>
